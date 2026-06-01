@@ -1,0 +1,115 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+/* ─── Tailwind v4 theme — Ariya v2 tokens ──────────────────────────────────── */
+
+@theme {
+  --font-sans: 'Satoshi', sans-serif;
+
+  /* Expose key brand colors as Tailwind utilities */
+  --color-blue-primary:  #2A76F4;
+  --color-dark-blue:     #10224A;
+  --color-bg-1:          #FFFFFF;
+  --color-bg-2:          #F4F8FE;
+  --color-font-primary:  #434C5B;
+  --color-font-secondary: #708090;
+  --color-status-green:  #49A078;
+  --color-status-yellow: #FAAE36;
+  --color-status-red:    #B73F54;
+  --color-blue-light:    #D2E2FF;
+}
+
+/* ─── Base reset ───────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #152d61;
+  color: var(--font-primary);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Utility: tabular numbers for all KPI / revenue figures ──────────────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Signature headline gradient ─────────────────────────────────────────── */
+.text-gradient {
+  background: var(--gradient-1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ─── Card shadow ──────────────────────────────────────────────────────────── */
+.card-shadow {
+  box-shadow: var(--shadow-floating);
+}
+
+/* ─── Hover lift ───────────────────────────────────────────────────────────── */
+.hover-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-overlay);
+}
+
+/* ─── Atom: Loader spinner animation ──────────────────────────────────────── */
+@keyframes ariya-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ariya-loader-svg {
+  animation: ariya-loader-spin 800ms steps(8, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ariya-loader-svg {
+    animation-play-state: paused;
+  }
+}
+
+/* ─── Atom: Toast slide-in animation ──────────────────────────────────────── */
+@keyframes ariya-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ariya-toast {
+  animation: ariya-toast-in 200ms ease forwards;
+}
+
+/* ─── Utility: hide scrollbar (cross-browser) ─────────────────────────────── */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; }
+
+/* ─── Global: focus-visible ring for all interactive atoms ───────────────── */
+/* Applied by .ariya-focus class — use on every button/interactive element    */
+.ariya-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Extend to native button/anchor elements that opt in */
+button.ariya-focus:focus-visible,
+a.ariya-focus:focus-visible,
+[role="tab"].ariya-focus:focus-visible,
+[role="switch"].ariya-focus:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

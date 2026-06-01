@@ -1,0 +1,1760 @@
+[
+  {
+    "id": "takeda",
+    "name": "Takeda",
+    "logo": "takeda.svg",
+    "strategicPosture": "Incumbent to displace",
+    "oneLineDescription": "Dominant HAE franchise built on Takhzyro (SC prophylaxis), with legacy portfolio inherited from the Shire acquisition.",
+    "executiveSummary": "Takeda continues to defend Takhzyro's leading share in HAE prophylaxis while facing gradual erosion from oral alternatives. Recent focus on pediatric label extension, real-world evidence generation, and patient services suggests a defensive lifecycle strategy rather than pipeline-led reinvention. No visible moves into oral on-demand, leaving Pharma Inc's lane uncontested for at least the medium term.",
+    "pipeline": [
+      {
+        "assetId": "TAK-079",
+        "name": "TAK-079 (illustrative label)",
+        "mechanism": "Next-generation anti-plasma kallikrein monoclonal antibody",
+        "indicationSubtype": "HAE prophylaxis",
+        "phase": "Phase II",
+        "latestMilestone": "Phase II enrollment ongoing as of Q1 2026 (illustrative)",
+        "nextMilestone": "Interim readout expected Q4 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX1"
+        ],
+        "trialDesignSummary": "Randomized, double-blind, placebo-controlled Phase II. Primary endpoint: monthly HAE attack rate over 26 weeks. Target enrollment approximately 80 patients, adults and adolescents. Key secondary endpoints include time-to-onset of prophylactic effect and quality-of-life measures (illustrative).",
+        "roa": "Subcutaneous",
+        "trialDesign": {
+          "primaryEndpoint": "Attack rate reduction vs placebo at 6 months",
+          "comparator": "Placebo-controlled",
+          "patientPopulation": "Adults with HAE type I/II, ≥3 attacks in prior 6 months",
+          "sampleSize": "~180 (estimated)"
+        }
+      },
+      {
+        "assetId": "TAK-HAE-PED",
+        "name": "Takhzyro pediatric LCM program",
+        "mechanism": "Lanadelumab (label and formulation lifecycle)",
+        "indicationSubtype": "HAE prophylaxis, pediatric",
+        "phase": "Phase III / Filed",
+        "latestMilestone": "Pediatric extension approved US 2023; EU label update pending (illustrative)",
+        "nextMilestone": "Long-term extension data expected mid-2026",
+        "trialIds": [
+          "NCT0XXXXXX2"
+        ],
+        "trialDesignSummary": "Open-label extension study in patients aged 2 to 11 years. Focus on long-term safety, growth parameters, and sustained attack rate reduction (illustrative).",
+        "roa": "Subcutaneous",
+        "trialDesign": {
+          "primaryEndpoint": "Long-term safety and HAE attack rate reduction",
+          "comparator": "Open-label extension (no comparator)",
+          "patientPopulation": "HAE type I/II patients aged 2 to 11 years",
+          "sampleSize": "~120 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [
+      {
+        "name": "Takhzyro",
+        "molecule": "Lanadelumab",
+        "mechanism": "Anti-plasma kallikrein monoclonal antibody",
+        "route": "Subcutaneous",
+        "indication": "HAE prophylaxis (long-term)",
+        "approvalYear": 2018,
+        "geographies": [
+          "US",
+          "EU",
+          "Japan",
+          "Canada",
+          "UK",
+          "Australia"
+        ],
+        "revenueTrend": [
+          {
+            "year": 2022,
+            "revenue": 980
+          },
+          {
+            "year": 2023,
+            "revenue": 1110
+          },
+          {
+            "year": 2024,
+            "revenue": 1180
+          },
+          {
+            "year": 2025,
+            "revenue": 1210
+          }
+        ],
+        "revenueUnit": "USD millions (illustrative)",
+        "labelUpdates": [
+          {
+            "date": "2023-02-15",
+            "change": "Pediatric indication expansion in US (ages 2 to 11)",
+            "implication": "Extends addressable patient population and creates early-treatment anchoring. Complicates Pharma Inc pediatric strategy if an oral on-demand pediatric path is pursued."
+          },
+          {
+            "date": "2024-09-10",
+            "change": "EU label update to include quality-of-life endpoint language (illustrative)",
+            "implication": "Positions Takhzyro for payer conversations on patient-reported benefit, pre-empting oral-modality PRO narratives."
+          }
+        ]
+      },
+      {
+        "name": "Firazyr",
+        "molecule": "Icatibant",
+        "mechanism": "Bradykinin B2 receptor antagonist",
+        "route": "Subcutaneous",
+        "indication": "HAE on-demand",
+        "approvalYear": 2008,
+        "geographies": [
+          "US",
+          "EU",
+          "Japan",
+          "Canada"
+        ],
+        "revenueTrend": [
+          {
+            "year": 2022,
+            "revenue": 180
+          },
+          {
+            "year": 2023,
+            "revenue": 120
+          },
+          {
+            "year": 2024,
+            "revenue": 85
+          },
+          {
+            "year": 2025,
+            "revenue": 60
+          }
+        ],
+        "revenueUnit": "USD millions (illustrative)",
+        "labelUpdates": [
+          {
+            "date": "2019-07-01",
+            "change": "US generic entry (icatibant)",
+            "implication": "Revenue erosion accelerating. Takeda de-prioritizing injectable on-demand commercially; opens opportunity for oral on-demand entrants."
+          }
+        ]
+      }
+    ],
+    "activityByCountry": [
+      {
+        "country": "US",
+        "products": [
+          "Takhzyro",
+          "Firazyr"
+        ],
+        "estimatedPatientShare": "~55% of prophylaxis market (illustrative)",
+        "recentActivity": "Expanded MSL team in Q3 2025; launched updated patient support program with digital attack-tracking tools.",
+        "strength": "high"
+      },
+      {
+        "country": "Germany",
+        "products": [
+          "Takhzyro",
+          "Firazyr"
+        ],
+        "estimatedPatientShare": "~50% of prophylaxis market (illustrative)",
+        "recentActivity": "Renewed contracts with 3 major HAE treatment centers. Participated in national HAE registry expansion.",
+        "strength": "high"
+      },
+      {
+        "country": "France",
+        "products": [
+          "Takhzyro"
+        ],
+        "estimatedPatientShare": "~45% of prophylaxis market (illustrative)",
+        "recentActivity": "KOL advisory board in Q1 2026 focused on pediatric treatment paradigms (illustrative).",
+        "strength": "high"
+      },
+      {
+        "country": "UK",
+        "products": [
+          "Takhzyro"
+        ],
+        "estimatedPatientShare": "~40% of prophylaxis market (illustrative)",
+        "recentActivity": "No major commercial activity reported in last two quarters.",
+        "strength": "medium"
+      },
+      {
+        "country": "Italy",
+        "products": [
+          "Takhzyro"
+        ],
+        "estimatedPatientShare": "~35% (illustrative)",
+        "recentActivity": "New regional distribution agreement signed Q4 2025.",
+        "strength": "medium"
+      },
+      {
+        "country": "Spain",
+        "products": [
+          "Takhzyro"
+        ],
+        "estimatedPatientShare": "~30% (illustrative)",
+        "recentActivity": "Limited visibility; standard commercial operations.",
+        "strength": "medium"
+      },
+      {
+        "country": "Japan",
+        "products": [
+          "Takhzyro"
+        ],
+        "estimatedPatientShare": "~60% (illustrative)",
+        "recentActivity": "Local investigator-initiated real-world study launched Q1 2026.",
+        "strength": "high"
+      },
+      {
+        "country": "Canada",
+        "products": [
+          "Takhzyro",
+          "Firazyr"
+        ],
+        "estimatedPatientShare": "~50% (illustrative)",
+        "recentActivity": "Standard operations; no notable activity.",
+        "strength": "medium"
+      }
+    ],
+    "keyEvents": [
+      {
+        "date": "2026-03-14",
+        "type": "publication",
+        "source": "Journal of Allergy and Clinical Immunology",
+        "headline": "Long-term safety of lanadelumab in pediatric HAE: 3-year open-label extension",
+        "summary": "Authors report sustained efficacy and favorable safety profile in pediatric patients through 156 weeks. Supports pediatric label and long-term adherence narrative. Likely to anchor KOL talking points through 2026."
+      },
+      {
+        "date": "2026-02-10",
+        "type": "corporate",
+        "source": "Takeda Q4 2025 earnings call",
+        "headline": "Takeda reaffirms HAE as core rare disease franchise",
+        "summary": "Management cited HAE among top-5 growth contributors in the rare disease segment. No new pipeline announcements. Commentary focused on patient services and geographic expansion."
+      },
+      {
+        "date": "2026-01-28",
+        "type": "conference",
+        "source": "AAAAI 2026 Annual Meeting",
+        "headline": "Real-world outcomes of lanadelumab in HAE: multinational registry analysis",
+        "summary": "Takeda-sponsored registry analysis of approximately 1,200 patients across 12 countries. Reports adherence of roughly 85% at 12 months and mean attack rate reduction of 87% (illustrative). Strong positioning data for prophylaxis-first narrative."
+      },
+      {
+        "date": "2025-12-05",
+        "type": "regulatory",
+        "source": "EMA CHMP",
+        "headline": "CHMP positive opinion for Takhzyro label update on quality-of-life endpoints (illustrative)",
+        "summary": "Positive opinion on label update incorporating AE-QoL improvement data. Final Commission decision expected Q1 2026."
+      },
+      {
+        "date": "2025-11-18",
+        "type": "publication",
+        "source": "Allergy",
+        "headline": "Lanadelumab effect on attack severity and duration: post-hoc analysis",
+        "summary": "Post-hoc analysis arguing that prophylaxis reduces not only attack frequency but also severity of breakthrough attacks. Likely intended to blunt on-demand-only positioning."
+      },
+      {
+        "date": "2025-10-02",
+        "type": "conference",
+        "source": "HAEi Global Conference 2025",
+        "headline": "Takeda presents 5-year pooled analysis of Takhzyro",
+        "summary": "Pooled data across HELP, HELP OLE, and post-approval cohorts. Reinforces durability narrative. Three podium presentations; heavy social media amplification."
+      },
+      {
+        "date": "2025-09-14",
+        "type": "corporate",
+        "source": "Press release",
+        "headline": "Takeda announces expansion of HAE patient services platform",
+        "summary": "Digital companion app launched in US with attack-tracking, adherence reminders, and direct connection to patient advocates. Reinforces injectable adherence story at a time when oral alternatives are approaching market."
+      },
+      {
+        "date": "2025-07-22",
+        "type": "publication",
+        "source": "Journal of Managed Care Medicine",
+        "headline": "Cost-effectiveness of long-term HAE prophylaxis: payer perspective analysis",
+        "summary": "Industry-sponsored HEOR paper building payer case for continued prophylaxis coverage. Notably does not address oral-route cost-effectiveness directly."
+      }
+    ],
+    "strategicSignals": {
+      "deals": [
+        {
+          "date": "2025-11-08",
+          "headline": "Takeda extends HAEi patient advocacy partnership through 2028",
+          "whyItMatters": "Reinforces patient community relationships ahead of competitive oral launches. Advocacy group endorsement shapes physician and payer perception."
+        },
+        {
+          "date": "2025-08-30",
+          "headline": "Co-promotion agreement announced with a regional specialty pharmacy network (illustrative)",
+          "whyItMatters": "Tightens distribution footprint for Takhzyro at the moment oral alternatives are entering; makes switching logistically stickier for patients and centers."
+        }
+      ],
+      "hiring": [
+        {
+          "date": "2026-01-20",
+          "headline": "New VP, Rare Immunology Commercial hired from Sanofi (illustrative)",
+          "whyItMatters": "Commercial reinforcement ahead of anticipated oral competition. Watch for follow-on launch-readiness hires across medical affairs and market access.",
+          "dataSourceNote": "Illustrative, requires LinkedIn data"
+        },
+        {
+          "date": "2025-11-05",
+          "headline": "Takeda posted 7 new medical affairs roles focused on HAE in US and EU (illustrative)",
+          "whyItMatters": "MSL capacity expansion typically precedes a defensive commercial push or a pipeline asset reaching late-stage readouts.",
+          "dataSourceNote": "Illustrative, requires LinkedIn / job board data"
+        }
+      ],
+      "publicStatements": [
+        {
+          "date": "2026-02-10",
+          "source": "Q4 2025 earnings call",
+          "quote": "HAE remains a cornerstone franchise for our rare disease strategy.",
+          "whyItMatters": "Continued strategic commitment signalled. No evidence of portfolio divestiture consideration despite oral-modality threat."
+        },
+        {
+          "date": "2025-11-14",
+          "source": "Investor day 2025",
+          "quote": "We see the oral-modality shift as a segment addition, not substitution.",
+          "whyItMatters": "Takeda is publicly framing oral entrants as expanding the market rather than taking share. Watch whether this framing holds once oral on-demand real-world data emerges."
+        }
+      ],
+      "strategyShifts": [
+        {
+          "date": "2026-01-15",
+          "observation": "Increased investment in real-world evidence generation for Takhzyro across multiple geographies.",
+          "whyItMatters": "Defensive positioning. Builds switching barriers against oral alternatives by anchoring KOL and payer narratives in long-term real-world outcomes."
+        },
+        {
+          "date": "2025-10-22",
+          "observation": "Shift in conference footprint toward patient-experience and adherence topics rather than mechanism-of-action science.",
+          "whyItMatters": "Strategic pivot from 'our drug is better' to 'our patients are better supported'. Harder for new entrants to counter without commercial infrastructure."
+        }
+      ]
+    },
+    "whatItMeansForUs": {
+      "overlap": [
+        {
+          "ourAsset": "Sebetralstat",
+          "theirAsset": "Takhzyro",
+          "relationship": "Adjacent",
+          "note": "Different mechanism and use case (oral on-demand vs SC prophylaxis), but competes for the same patient budget and physician mindshare."
+        },
+        {
+          "ourAsset": "Sebetralstat",
+          "theirAsset": "Firazyr",
+          "relationship": "Direct competitor",
+          "note": "Same on-demand use case, different route. Firazyr is in commercial decline post-generic entry; sebetralstat directly addresses the injectable burden."
+        },
+        {
+          "ourAsset": "KVD824 (prophylaxis)",
+          "theirAsset": "Takhzyro",
+          "relationship": "Direct competitor (future)",
+          "note": "Direct prophylaxis competition once KVD824 advances. Takhzyro's real-world evidence buildup creates high switching barriers by then."
+        }
+      ],
+      "keyQuestions": [
+        {
+          "question": "Will Takeda develop an oral on-demand asset?",
+          "answer": "No visible program as of Q1 2026. Pipeline investment has concentrated on next-generation prophylaxis mAbs and lifecycle management. This supports Pharma Inc first-mover advantage in oral on-demand for at least 3 to 4 years before a credible Takeda entrant would be possible."
+        },
+        {
+          "question": "How aggressively will Takeda defend Takhzyro share against oral entrants?",
+          "answer": "Aggressively but indirectly. The strategy pattern (RWE generation, patient services, label expansion) shows defense through stickiness rather than direct clinical confrontation. Expect amplified patient-experience messaging through 2026 to 2027."
+        },
+        {
+          "question": "What is Takeda's exposure in the Pharma Inc priority markets?",
+          "answer": "Strongest in US, Germany, Japan. Moderate in France and UK. Weaker presence in Italy and Spain creates potential access windows for oral on-demand early adoption."
+        }
+      ],
+      "suggestedActions": [
+        "Monitor Takeda's real-world evidence publications for positioning claims that could blunt the oral on-demand narrative; prepare counter-evidence briefs for KOL advisory boards.",
+        "Track MSL activity in key US and EU accounts where Takhzyro dominates; identify centers with newer MSL assignments as opportunity targets.",
+        "Watch Q2 2026 Takeda pipeline update for any signal of oral-modality exploration."
+      ]
+    },
+    "messaging": {
+      "currentCoreMessage": "The established standard of care for long-term HAE prophylaxis — proven over 5+ years of real-world use.",
+      "messagePillars": [
+        "Long-term durability",
+        "Real-world evidence",
+        "Physician trust"
+      ],
+      "currentMessageSource": "HAEI World Congress 2025 — Takeda symposium, March 2025",
+      "timeline": [
+        {
+          "date": "March 2025",
+          "sourceType": "Congress presentation",
+          "headline": "Shifted emphasis from clinical trial efficacy to long-term real-world durability data",
+          "detail": "Takeda's HAEi 2025 symposium presentation led with 5-year real-world registry data rather than HELP trial endpoints. This marks a deliberate pivot from regulatory-approval messaging to post-market evidence as competition from oral agents intensifies.",
+          "shiftDetected": true,
+          "whyItMatters": "Suggests Takeda is repositioning Takhzyro as the 'proven' incumbent against newer oral entrants — including Sebetralstat."
+        },
+        {
+          "date": "November 2024",
+          "sourceType": "Investor call",
+          "headline": "Introduced 'quality of life leadership' framing alongside efficacy claims",
+          "detail": "Takeda's Q3 2024 earnings call introduced patient-reported outcome data as a primary talking point for Takhzyro for the first time, citing HAEI patient survey results. Previously messaging focused almost entirely on attack rate reduction.",
+          "shiftDetected": true,
+          "whyItMatters": "QoL messaging is likely a defensive response to oral agents promising greater convenience — watch for this to intensify at launch."
+        },
+        {
+          "date": "March 2024",
+          "sourceType": "Congress presentation",
+          "headline": "Consistent efficacy and safety messaging at HAEi 2024",
+          "detail": "No significant shift detected. Messaging centred on established attack rate reduction (>80%) and safety profile from the HELP and HELP OLE trials.",
+          "shiftDetected": false,
+          "whyItMatters": "Stable messaging period prior to oral competitor readouts."
+        }
+      ],
+      "vsPharmaInc": [
+        {
+          "competitorClaim": "Proven 5+ year long-term safety in real-world use",
+          "pharmaIncPosition": "Oral administration removes injection burden — a key driver of patient preference in market research"
+        },
+        {
+          "competitorClaim": "Attack rate reduction >80% in pivotal trial",
+          "pharmaIncPosition": "Sebetralstat on-demand use eliminates need for daily/biweekly prophylaxis for patients preferring episodic treatment"
+        },
+        {
+          "competitorClaim": "Physician familiarity and trust built over 5+ years",
+          "pharmaIncPosition": "Novel oral mechanism differentiates from injectable class; no training or administration infrastructure required"
+        }
+      ]
+    },
+    "financials": {
+      "totalRevenue": "$16.7B",
+      "totalRevenueDelta": "↑ 4% vs FY2024",
+      "haeRevenue": "$2.1B (est.)",
+      "haeRevenueDelta": "↑ 6% vs FY2024",
+      "rdSpend": "$3.2B",
+      "rdSpendDelta": "↑ 2% vs FY2024",
+      "haeRdAllocation": "~8% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Christophe Weber",
+        "title": "CEO",
+        "tenure": "Since 2015",
+        "background": "Former GSK, driving rare disease expansion"
+      },
+      {
+        "name": "Andy Plump",
+        "title": "Chief R&D Officer",
+        "tenure": "Since 2014",
+        "background": "Former Merck, architect of HAE pipeline"
+      },
+      {
+        "name": "Ramona Sequeira",
+        "title": "President, Global Portfolio Div",
+        "tenure": "Since 2020",
+        "background": "Oversees Takhzyro commercial strategy"
+      },
+      {
+        "name": "Julie Kim",
+        "title": "President, Plasma-Derived Therapies",
+        "tenure": "Since 2019",
+        "background": "HAE franchise lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Established Takhzyro franchise with strong physician relationships",
+        "Deep rare disease commercial infrastructure across all priority markets",
+        "Significant R&D budget to defend with lifecycle management"
+      ],
+      "weaknesses": [
+        "No oral on-demand asset in development",
+        "Legacy SC administration increasingly disadvantaged vs oral entrants",
+        "Shire acquisition debt constrains BD flexibility"
+      ],
+      "opportunities": [
+        "Pediatric label extensions across markets",
+        "Real-world evidence generation to defend prophylaxis positioning",
+        "Potential co-promote or licensing of oral asset to close gap"
+      ],
+      "threats": [
+        "Ekterly and Orladeyo eroding new-start share",
+        "Pharvaris deucrictibant filing imminent",
+        "Payer pressure on SC prophylaxis as oral alternatives qualify"
+      ]
+    }
+  },
+  {
+    "id": "biocryst",
+    "name": "BioCryst",
+    "logo": "biocryst.svg",
+    "strategicPosture": "Adjacent oral competitor",
+    "oneLineDescription": "First-to-market oral HAE therapy with Orladeyo (prophylaxis); smaller commercial footprint, HAE-focused organization.",
+    "executiveSummary": "BioCryst validated the oral modality in HAE with Orladeyo's 2020 approval and has built a commercially meaningful prophylaxis franchise. Growth has moderated as the early adopter pool is converted. The company is pursuing pediatric expansion and formulation lifecycle work but has no oral on-demand program, positioning BioCryst as a modality ally and a patient-share competitor rather than a direct threat to sebetralstat.",
+    "pipeline": [
+      {
+        "assetId": "BCX17725",
+        "name": "BCX17725 (illustrative label)",
+        "mechanism": "Extended-release oral plasma kallikrein inhibitor",
+        "indicationSubtype": "HAE prophylaxis (next-gen formulation)",
+        "phase": "Phase I",
+        "latestMilestone": "First-in-human dosing initiated Q4 2025 (illustrative)",
+        "nextMilestone": "Phase I readout expected H2 2026",
+        "trialIds": [
+          "NCT0XXXXXX3"
+        ],
+        "trialDesignSummary": "Single-ascending dose and multiple-ascending dose study in healthy volunteers. Primary objectives: safety, PK, and target engagement. Designed to support a once-weekly or less-frequent dosing profile than Orladeyo (illustrative).",
+        "roa": "Oral",
+        "trialDesign": {
+          "primaryEndpoint": "Safety, PK, and target engagement",
+          "comparator": "Placebo-controlled (SAD/MAD design)",
+          "patientPopulation": "Healthy adult volunteers",
+          "sampleSize": "~60 (estimated)"
+        }
+      },
+      {
+        "assetId": "BCX-PED",
+        "name": "Orladeyo pediatric program",
+        "mechanism": "Berotralstat (label extension)",
+        "indicationSubtype": "HAE prophylaxis, pediatric",
+        "phase": "Phase III",
+        "latestMilestone": "APeX-P pediatric study enrolling",
+        "nextMilestone": "Data expected late 2026 or early 2027 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX4"
+        ],
+        "trialDesignSummary": "Open-label Phase III in patients aged 2 to less than 12 years. Primary endpoint: HAE attack rate reduction. Expected to support pediatric label in US and EU (illustrative).",
+        "roa": "Oral",
+        "trialDesign": {
+          "primaryEndpoint": "HAE attack rate reduction",
+          "comparator": "Open-label (no placebo arm)",
+          "patientPopulation": "HAE patients aged 2 to <12 years",
+          "sampleSize": "~30 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [
+      {
+        "name": "Orladeyo",
+        "molecule": "Berotralstat",
+        "mechanism": "Oral plasma kallikrein inhibitor",
+        "route": "Oral, once daily",
+        "indication": "HAE prophylaxis (long-term)",
+        "approvalYear": 2020,
+        "geographies": [
+          "US",
+          "EU",
+          "UK",
+          "Japan",
+          "Canada"
+        ],
+        "revenueTrend": [
+          {
+            "year": 2022,
+            "revenue": 280
+          },
+          {
+            "year": 2023,
+            "revenue": 335
+          },
+          {
+            "year": 2024,
+            "revenue": 400
+          },
+          {
+            "year": 2025,
+            "revenue": 445
+          }
+        ],
+        "revenueUnit": "USD millions (illustrative)",
+        "labelUpdates": [
+          {
+            "date": "2024-06-12",
+            "change": "US label update with long-term open-label extension data (illustrative)",
+            "implication": "Reinforces durability of effect narrative for oral prophylaxis. Supports payer renewals but does not address on-demand use case."
+          }
+        ]
+      }
+    ],
+    "activityByCountry": [
+      {
+        "country": "US",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~25% of prophylaxis market (illustrative)",
+        "recentActivity": "Focused direct-to-patient digital campaigns and expanded hub service through 2025.",
+        "strength": "high"
+      },
+      {
+        "country": "Germany",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~18% of prophylaxis market (illustrative)",
+        "recentActivity": "Added two regional medical liaisons in Q4 2025 (illustrative).",
+        "strength": "medium"
+      },
+      {
+        "country": "France",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~12% (illustrative)",
+        "recentActivity": "Orladeyo reimbursement revision under discussion with HAS (illustrative).",
+        "strength": "medium"
+      },
+      {
+        "country": "UK",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~20% (illustrative)",
+        "recentActivity": "Strong NICE positioning; established in prophylaxis protocols at major centers.",
+        "strength": "high"
+      },
+      {
+        "country": "Italy",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~10% (illustrative)",
+        "recentActivity": "Limited commercial footprint; distributor-led.",
+        "strength": "low"
+      },
+      {
+        "country": "Spain",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~8% (illustrative)",
+        "recentActivity": "Regional access still patchy.",
+        "strength": "low"
+      },
+      {
+        "country": "Japan",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~15% (illustrative)",
+        "recentActivity": "Partnered with Torii Pharmaceutical for Japan commercialization; stable performance.",
+        "strength": "medium"
+      },
+      {
+        "country": "Canada",
+        "products": [
+          "Orladeyo"
+        ],
+        "estimatedPatientShare": "~20% (illustrative)",
+        "recentActivity": "Standard operations.",
+        "strength": "medium"
+      }
+    ],
+    "keyEvents": [
+      {
+        "date": "2026-04-02",
+        "type": "corporate",
+        "source": "BioCryst Q1 2026 earnings call (expected)",
+        "headline": "Q1 2026 earnings (upcoming)",
+        "summary": "Guidance on Orladeyo growth trajectory and pediatric program progress expected. Watch for commentary on oral-modality competitive landscape."
+      },
+      {
+        "date": "2026-03-08",
+        "type": "publication",
+        "source": "Allergy and Asthma Proceedings",
+        "headline": "Real-world patient-reported outcomes with oral HAE prophylaxis",
+        "summary": "Industry-sponsored PRO study in approximately 300 Orladeyo patients. Highlights adherence and quality-of-life benefits of oral route. Useful reference for Pharma Inc oral narrative broadly, while positioning Orladeyo specifically."
+      },
+      {
+        "date": "2026-02-12",
+        "type": "corporate",
+        "source": "BioCryst Q4 2025 earnings call",
+        "headline": "Orladeyo annual revenue exceeds $440M (illustrative)",
+        "summary": "Growth moderating versus prior years as early-adopter conversion matures. Management pointed to pediatric expansion and international growth as future drivers."
+      },
+      {
+        "date": "2026-01-29",
+        "type": "conference",
+        "source": "AAAAI 2026",
+        "headline": "Berotralstat pediatric Phase III interim safety update",
+        "summary": "Favorable safety profile through interim cutoff. No new efficacy signal; full efficacy data expected late 2026 / early 2027."
+      },
+      {
+        "date": "2025-11-12",
+        "type": "regulatory",
+        "source": "FDA",
+        "headline": "sNDA accepted for Orladeyo label update (illustrative)",
+        "summary": "Supplemental filing focused on long-term extension data and updated safety language. PDUFA target: Q3 2026."
+      },
+      {
+        "date": "2025-10-03",
+        "type": "conference",
+        "source": "HAEi Global Conference 2025",
+        "headline": "BioCryst presents 5-year open-label extension of berotralstat",
+        "summary": "Sustained attack rate reduction through year 5 with no new safety signals. Reinforces durability narrative for oral prophylaxis."
+      },
+      {
+        "date": "2025-08-18",
+        "type": "corporate",
+        "source": "Investor update",
+        "headline": "BioCryst announces extended-release formulation program",
+        "summary": "Next-generation oral kallikrein inhibitor intended for less-frequent dosing. Phase I initiation planned Q4 2025. Signals continued investment in oral-modality leadership."
+      }
+    ],
+    "strategicSignals": {
+      "deals": [
+        {
+          "date": "2025-09-22",
+          "headline": "Distribution partnership renewal with Torii Pharmaceutical (Japan)",
+          "whyItMatters": "Maintains Japan footprint through local partner. BioCryst prioritizes capital-light international expansion rather than building direct commercial infrastructure."
+        }
+      ],
+      "hiring": [
+        {
+          "date": "2026-02-18",
+          "headline": "Chief Commercial Officer transition announced (illustrative)",
+          "whyItMatters": "Leadership change typically signals strategy recalibration. Watch for commentary in next earnings call on commercial priorities and geographic focus.",
+          "dataSourceNote": "Illustrative, requires LinkedIn / press data"
+        },
+        {
+          "date": "2025-12-10",
+          "headline": "Hiring push in EU medical affairs, approximately 6 roles posted (illustrative)",
+          "whyItMatters": "Suggests preparation for pediatric label launch and / or defense against oral on-demand entrants in key EU markets.",
+          "dataSourceNote": "Illustrative, requires LinkedIn / job board data"
+        }
+      ],
+      "publicStatements": [
+        {
+          "date": "2026-02-12",
+          "source": "Q4 2025 earnings call",
+          "quote": "Oral modality is the future of HAE management across the continuum.",
+          "whyItMatters": "BioCryst publicly aligned with the oral-modality thesis. Implicitly supportive of Pharma Inc positioning, even though BioCryst competes for the same prophylaxis patients."
+        },
+        {
+          "date": "2025-10-03",
+          "source": "HAEi Global Conference keynote",
+          "quote": "We see prophylaxis and on-demand as complementary, not competitive.",
+          "whyItMatters": "Signals BioCryst will not attempt to position Orladeyo as a substitute for on-demand therapy. Reduces likelihood of direct clinical conflict with sebetralstat messaging."
+        }
+      ],
+      "strategyShifts": [
+        {
+          "date": "2025-11-01",
+          "observation": "Shift in communication emphasis from efficacy toward patient experience and adherence.",
+          "whyItMatters": "Similar pattern to Takeda. Reflects a maturing prophylaxis market where clinical differentiation is hard and experience-based differentiation is the new battleground."
+        }
+      ]
+    },
+    "whatItMeansForUs": {
+      "overlap": [
+        {
+          "ourAsset": "Sebetralstat",
+          "theirAsset": "Orladeyo",
+          "relationship": "Adjacent",
+          "note": "Different use case (on-demand vs prophylaxis), same oral route. Patients on Orladeyo still need on-demand therapy, creating sebetralstat pull-through opportunity."
+        },
+        {
+          "ourAsset": "KVD824 (prophylaxis)",
+          "theirAsset": "Orladeyo",
+          "relationship": "Direct competitor (future)",
+          "note": "Direct oral-prophylaxis competition when KVD824 advances. Differentiation will hinge on dosing frequency, safety profile, and real-world adherence."
+        }
+      ],
+      "keyQuestions": [
+        {
+          "question": "Will BioCryst pursue an oral on-demand program?",
+          "answer": "No visible program. Pipeline investment has concentrated on extended-release prophylaxis and pediatric label expansion. BioCryst is structurally a prophylaxis company; entering on-demand would require a mechanism shift, which has not been signalled."
+        },
+        {
+          "question": "Is BioCryst a partner, a competitor, or both?",
+          "answer": "Both, but weighted toward competitive. They validate the oral modality thesis publicly (helpful for sebetralstat) but compete for the same patient budgets and physician mindshare. Treat them as modality allies in messaging and share competitors in targeting."
+        },
+        {
+          "question": "Does the extended-release program change the competitive picture?",
+          "answer": "Potentially, for the prophylaxis market specifically. A less-frequent oral dose would be a meaningful improvement over once-daily Orladeyo and raise the bar for KVD824. Less relevant to sebetralstat on-demand positioning."
+        }
+      ],
+      "suggestedActions": [
+        "Monitor BioCryst CCO transition for signals of commercial strategy shift.",
+        "Review BioCryst pediatric Phase III design details; inform Pharma Inc pediatric on-demand strategy timeline.",
+        "Leverage BioCryst oral-modality messaging as validation when briefing KOLs and payers on sebetralstat."
+      ]
+    },
+    "messaging": {
+      "currentCoreMessage": "The first and only once-daily oral prophylaxis for HAE — built for patients who want to live without injections.",
+      "messagePillars": [
+        "Oral convenience",
+        "Once-daily dosing",
+        "Patient empowerment"
+      ],
+      "currentMessageSource": "BioCryst corporate website — product page, accessed April 2025",
+      "timeline": [
+        {
+          "date": "February 2025",
+          "sourceType": "Press release",
+          "headline": "Introduced 'attack-free days' as new primary patient-facing metric",
+          "detail": "BioCryst's Q4 2024 results press release introduced 'attack-free days' as a communication metric alongside traditional attack rate reduction data. The framing is more patient-intuitive than a percentage reduction and signals a move toward direct-to-patient communication.",
+          "shiftDetected": true,
+          "whyItMatters": "Attack-free days is a more emotionally resonant metric — expect this framing in congress materials and potentially DTC campaigns."
+        },
+        {
+          "date": "September 2024",
+          "sourceType": "Congress presentation",
+          "headline": "Increased emphasis on adolescent and pediatric data",
+          "detail": "ACAAI 2024 presentation included dedicated slides on berotralstat data in adolescents. This represents a new segment push not seen in prior years' congress materials and likely reflects label expansion ambitions.",
+          "shiftDetected": true,
+          "whyItMatters": "Paediatric expansion would significantly widen Orladeyo's addressable market and extend lifecycle — monitor FDA/EMA filings."
+        },
+        {
+          "date": "March 2024",
+          "sourceType": "Congress presentation",
+          "headline": "Consistent oral convenience and quality of life messaging",
+          "detail": "No significant shift. Core messaging remained centred on oral administration, once-daily convenience, and sustained efficacy over 24-month follow-up data.",
+          "shiftDetected": false,
+          "whyItMatters": "Stable period — oral convenience remains BioCryst's primary differentiator from injectable prophylactics."
+        }
+      ],
+      "vsPharmaInc": [
+        {
+          "competitorClaim": "First and only once-daily oral prophylaxis approved for HAE",
+          "pharmaIncPosition": "Sebetralstat targets on-demand treatment — a distinct and complementary use case, not head-to-head with daily prophylaxis"
+        },
+        {
+          "competitorClaim": "Sustained attack reduction over 24 months of real-world use",
+          "pharmaIncPosition": "On-demand approach avoids daily pill burden for patients preferring to treat attacks as they occur"
+        },
+        {
+          "competitorClaim": "Patient empowerment through oral self-administration",
+          "pharmaIncPosition": "Shared oral convenience story — Sebetralstat reinforces the oral-first paradigm BioCryst has established with physicians"
+        }
+      ]
+    },
+    "financials": {
+      "totalRevenue": "$445M",
+      "totalRevenueDelta": "↑ 11% vs FY2024",
+      "haeRevenue": "$445M (Orladeyo)",
+      "haeRevenueDelta": "↑ 11% vs FY2024",
+      "rdSpend": "$135M",
+      "rdSpendDelta": "↑ 8% vs FY2024",
+      "haeRdAllocation": "~75% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Jon Stonehouse",
+        "title": "CEO",
+        "tenure": "Since 2007",
+        "background": "Long-tenured rare disease commercial leader"
+      },
+      {
+        "name": "Helen Thackray",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2019",
+        "background": "Former Vertex, drives clinical strategy"
+      },
+      {
+        "name": "Charlie Gayer",
+        "title": "Chief Commercial Officer",
+        "tenure": "Since 2023",
+        "background": "Recent transition announced (illustrative)"
+      },
+      {
+        "name": "Anthony Doyle",
+        "title": "Chief Scientific Officer",
+        "tenure": "Since 2018",
+        "background": "Plasma kallikrein chemistry lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "First-mover oral prophylaxis with established Orladeyo franchise",
+        "HAE-focused organisation with deep KOL relationships",
+        "Extended-release oral program de-risks dosing-frequency competition"
+      ],
+      "weaknesses": [
+        "Single-product concentration risk",
+        "Daily-dose burden disadvantage vs newer extended-release options",
+        "Limited geographic footprint outside US/EU/Japan"
+      ],
+      "opportunities": [
+        "Pediatric label expansion broadens addressable population",
+        "Extended-release formulation could lock in prophylaxis share",
+        "Positive oral-modality stance supports adjacency with on-demand entrants"
+      ],
+      "threats": [
+        "Oral on-demand entrants (Ekterly, deucrictibant) erode total franchise value",
+        "Pharvaris dual-indication play directly competes",
+        "Antisense alternative (Dawnzera) for treatment-resistant patients"
+      ]
+    }
+  },
+  {
+    "id": "pharvaris",
+    "name": "Pharvaris",
+    "logo": "pharvaris.svg",
+    "strategicPosture": "Emerging direct threat",
+    "oneLineDescription": "Clinical-stage company developing oral bradykinin B2 receptor antagonist deucrictibant for both HAE on-demand and prophylaxis.",
+    "executiveSummary": "Pharvaris is the most direct future competitor to sebetralstat. Deucrictibant is being developed in parallel for HAE on-demand and prophylaxis, with Phase III RAPIDe-3 (on-demand) readout anticipated in 2026. A positive readout and timely filing would bring a second oral on-demand therapy to market within 18 to 24 months of Pharma Inc, with a different mechanism (B2 receptor antagonism vs kallikrein inhibition) that could support head-to-head positioning debates. This is the competitor to track most closely.",
+    "pipeline": [
+      {
+        "assetId": "deucrictibant-OD",
+        "name": "Deucrictibant (on-demand program)",
+        "mechanism": "Oral bradykinin B2 receptor antagonist",
+        "indicationSubtype": "HAE on-demand",
+        "phase": "Phase III",
+        "latestMilestone": "RAPIDe-3 pivotal Phase III fully enrolled Q4 2025 (illustrative)",
+        "nextMilestone": "Topline data expected Q3 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX5"
+        ],
+        "trialDesignSummary": "Randomized, double-blind, placebo-controlled Phase III in adults and adolescents. Primary endpoint: time to beginning of symptom relief. Key secondary endpoints include complete resolution and rescue medication use. Target approximately 130 patients treating approximately 400 attacks (illustrative).",
+        "roa": "Oral",
+        "trialDesign": {
+          "primaryEndpoint": "Time to beginning of symptom relief",
+          "comparator": "Placebo-controlled",
+          "patientPopulation": "Adults and adolescents with HAE type I/II",
+          "sampleSize": "~130 patients treating ~400 attacks (estimated)"
+        }
+      },
+      {
+        "assetId": "deucrictibant-PPX",
+        "name": "Deucrictibant (prophylaxis program, extended-release)",
+        "mechanism": "Oral bradykinin B2 receptor antagonist, extended-release formulation",
+        "indicationSubtype": "HAE prophylaxis",
+        "phase": "Phase II / III transition",
+        "latestMilestone": "Phase II CHAPTER-1 data reported positive; Phase III planning underway",
+        "nextMilestone": "Phase III initiation expected H2 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX6"
+        ],
+        "trialDesignSummary": "Phase II demonstrated dose-dependent reduction in monthly attack rate. Phase III design expected to be placebo-controlled with approximately 50 to 80 patients, 6-month primary endpoint window (illustrative).",
+        "roa": "Oral",
+        "trialDesign": {
+          "primaryEndpoint": "Monthly attack rate reduction over 6 months",
+          "comparator": "Placebo-controlled",
+          "patientPopulation": "Adults with HAE type I/II",
+          "sampleSize": "~50 to 80 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [
+      {
+        "country": "US",
+        "products": [],
+        "estimatedPatientShare": "N / A (pre-commercial)",
+        "recentActivity": "Established US medical affairs team in 2025. Site activation complete for RAPIDe-3.",
+        "strength": "medium"
+      },
+      {
+        "country": "Germany",
+        "products": [],
+        "estimatedPatientShare": "N / A (pre-commercial)",
+        "recentActivity": "Multiple trial sites active; strong academic center engagement.",
+        "strength": "medium"
+      },
+      {
+        "country": "Netherlands",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "Headquarters country; strong local KOL relationships; trial sites active.",
+        "strength": "high"
+      },
+      {
+        "country": "UK",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "Trial sites active; NIHR engagement reported.",
+        "strength": "medium"
+      },
+      {
+        "country": "Italy",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "Trial sites; otherwise limited presence.",
+        "strength": "low"
+      },
+      {
+        "country": "Spain",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "Trial sites only.",
+        "strength": "low"
+      },
+      {
+        "country": "Japan",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "No visible local strategy announced as of Q1 2026.",
+        "strength": "low"
+      },
+      {
+        "country": "Canada",
+        "products": [],
+        "estimatedPatientShare": "N / A",
+        "recentActivity": "Limited activity.",
+        "strength": "low"
+      }
+    ],
+    "keyEvents": [
+      {
+        "date": "2026-04-15",
+        "type": "conference",
+        "source": "EAACI 2026 (expected)",
+        "headline": "Pharvaris pre-specified Phase II follow-up analyses (expected)",
+        "summary": "Pharvaris is expected to present additional CHAPTER-1 analyses. Watch for patient sub-group narratives that could seed positioning against sebetralstat."
+      },
+      {
+        "date": "2026-03-20",
+        "type": "corporate",
+        "source": "Pharvaris corporate update",
+        "headline": "Pharvaris confirms RAPIDe-3 topline Q3 2026 timing",
+        "summary": "Management reaffirmed readout guidance on Q4 2025 earnings call. A positive readout plus a rolling filing could put deucrictibant on-demand in market H2 2027, roughly 18 to 24 months after sebetralstat."
+      },
+      {
+        "date": "2026-02-20",
+        "type": "corporate",
+        "source": "Q4 2025 earnings call",
+        "headline": "Pharvaris ends 2025 with approximately $280M cash (illustrative)",
+        "summary": "Runway into late 2027 reported, covering RAPIDe-3 readout, filing, and commercial launch preparation. Reduces near-term financing overhang."
+      },
+      {
+        "date": "2025-12-08",
+        "type": "publication",
+        "source": "NEJM",
+        "headline": "Deucrictibant for acute treatment of HAE attacks: Phase II results",
+        "summary": "Peer-reviewed publication of Phase II on-demand data. High-profile placement strengthens KOL familiarity ahead of Phase III readout and commercial entry."
+      },
+      {
+        "date": "2025-10-04",
+        "type": "conference",
+        "source": "HAEi Global Conference 2025",
+        "headline": "Pharvaris dual-program scientific showcase",
+        "summary": "Three oral presentations across on-demand and prophylaxis programs. Explicit head-to-head-style framing against existing SC on-demand standard of care. Strategic preview of anticipated launch messaging."
+      },
+      {
+        "date": "2025-07-15",
+        "type": "regulatory",
+        "source": "FDA",
+        "headline": "Pharvaris receives Fast Track designation for deucrictibant on-demand (illustrative)",
+        "summary": "Fast Track designation streamlines FDA interactions and supports rolling filing pathway. Compresses the post-readout timeline to commercial entry."
+      }
+    ],
+    "strategicSignals": {
+      "deals": [
+        {
+          "date": "2026-01-14",
+          "headline": "Pharvaris signs ex-US manufacturing partnership (illustrative)",
+          "whyItMatters": "Pre-commercial manufacturing readiness is being secured. Consistent with a company preparing for approval and launch within 18 to 24 months."
+        }
+      ],
+      "hiring": [
+        {
+          "date": "2026-03-05",
+          "headline": "Pharvaris hires Head of Commercial, US from a recent rare disease launch (illustrative)",
+          "whyItMatters": "Senior commercial hire at this stage is a strong signal of confidence in the RAPIDe-3 readout and of imminent commercial build-out.",
+          "dataSourceNote": "Illustrative, requires LinkedIn data"
+        },
+        {
+          "date": "2026-01-22",
+          "headline": "Pharvaris posted approximately 15 new commercial and market access roles (illustrative)",
+          "whyItMatters": "Commercial scale-up in motion. Expect visible field presence in major HAE accounts by late 2026.",
+          "dataSourceNote": "Illustrative, requires LinkedIn / job board data"
+        },
+        {
+          "date": "2025-11-30",
+          "headline": "New VP Medical Affairs hired from Vertex (illustrative)",
+          "whyItMatters": "Medical affairs leadership experienced in rare disease launches. Watch for KOL engagement strategy that could overlap with Pharma Inc priority KOLs.",
+          "dataSourceNote": "Illustrative, requires LinkedIn data"
+        }
+      ],
+      "publicStatements": [
+        {
+          "date": "2026-02-20",
+          "source": "Q4 2025 earnings call",
+          "quote": "Deucrictibant is positioned to serve patients across the full HAE continuum.",
+          "whyItMatters": "Positioning deucrictibant as a 'one drug, two indications' asset. This is the competitive framing Pharma Inc needs to counter directly: sebetralstat has depth in on-demand; deucrictibant seeks breadth across prophylaxis and on-demand."
+        },
+        {
+          "date": "2025-10-04",
+          "source": "HAEi Global Conference 2025",
+          "quote": "B2 receptor antagonism offers a mechanistically distinct approach to HAE management.",
+          "whyItMatters": "Mechanism-of-action positioning as a differentiator against kallikrein inhibitors (sebetralstat, Orladeyo). Expect this to be a core clinical talking point through launch."
+        }
+      ],
+      "strategyShifts": [
+        {
+          "date": "2026-01-05",
+          "observation": "Increased investor day emphasis on commercial preparation and launch readiness rather than clinical science.",
+          "whyItMatters": "Company narrative shifting from 'promising asset' to 'imminent commercial entrant'. Reinforces launch-imminent signal."
+        }
+      ]
+    },
+    "whatItMeansForUs": {
+      "overlap": [
+        {
+          "ourAsset": "Sebetralstat",
+          "theirAsset": "Deucrictibant (on-demand)",
+          "relationship": "Direct competitor (future)",
+          "note": "Same indication, same route, different mechanism. The closest future competitor to sebetralstat by any measure."
+        },
+        {
+          "ourAsset": "KVD824 (prophylaxis)",
+          "theirAsset": "Deucrictibant (prophylaxis)",
+          "relationship": "Direct competitor (future)",
+          "note": "Pharvaris is running a dual-indication play that compresses Pharma Inc's prophylaxis differentiation window. Timing and mechanism differentiation become critical."
+        }
+      ],
+      "keyQuestions": [
+        {
+          "question": "What is the realistic deucrictibant on-demand launch timing?",
+          "answer": "Assuming a positive RAPIDe-3 readout in Q3 2026 and rolling filing under Fast Track, US launch is plausible H2 2027. EU launch likely Q1 to Q2 2028. This gives Pharma Inc an 18 to 24 month first-mover window in on-demand."
+        },
+        {
+          "question": "How will mechanism differentiation play out commercially?",
+          "answer": "Prescriber response to B2 receptor antagonism vs kallikrein inhibition will be shaped by real-world performance, not pre-launch mechanism debates. Early PRO data and real-world time-to-relief comparisons will matter more than MoA at launch."
+        },
+        {
+          "question": "What is the biggest risk if RAPIDe-3 reads out stronger than Phase II suggested?",
+          "answer": "Deucrictibant being positioned as the 'next-generation oral' relative to sebetralstat. This risk is moderate but real; the mitigation is depth of real-world and PRO evidence for sebetralstat by H2 2027."
+        },
+        {
+          "question": "Could Pharvaris be acquired before launch?",
+          "answer": "Plausible. Large rare-disease players (including Takeda) with commercial infrastructure could be motivated acquirers. An acquisition would change the launch economics and competitive intensity materially."
+        }
+      ],
+      "suggestedActions": [
+        "Treat RAPIDe-3 readout as a tier-1 monitoring priority; pre-plan scenario responses for positive, marginal, and failed outcomes.",
+        "Accelerate sebetralstat real-world evidence generation in first 12 months of launch to build switching resistance before deucrictibant entry.",
+        "Map overlap of Pharvaris medical affairs and commercial hires with Pharma Inc priority KOLs and accounts; prepare defensive engagement plans.",
+        "Model an acquisition scenario (Takeda or other) into competitive planning; identify early indicators such as unusual manufacturing or commercial partnership patterns."
+      ]
+    },
+    "messaging": {
+      "currentCoreMessage": "An oral bradykinin B2 receptor antagonist designed to match injectable efficacy — without the needle.",
+      "messagePillars": [
+        "Novel mechanism",
+        "Dual indication",
+        "Efficacy parity with injectables"
+      ],
+      "currentMessageSource": "Pharvaris investor presentation — JP Morgan Healthcare Conference, January 2025",
+      "timeline": [
+        {
+          "date": "January 2025",
+          "sourceType": "Investor call",
+          "headline": "Shifted from 'novel oral' to 'efficacy parity with icatibant' as lead claim",
+          "detail": "Pharvaris's JP Morgan presentation led for the first time with a head-to-head framing against icatibant (Firazyr), positioning deucrictibant as offering equivalent efficacy in an oral form. Prior messaging had emphasised novelty of mechanism over comparative efficacy.",
+          "shiftDetected": true,
+          "whyItMatters": "Efficacy parity claim is aggressive and directly targets the gold standard injectable on-demand therapy. If accepted by physicians, it raises the bar for all oral on-demand entrants including Sebetralstat."
+        },
+        {
+          "date": "October 2024",
+          "sourceType": "Congress presentation",
+          "headline": "Introduced prophylaxis indication alongside on-demand in messaging",
+          "detail": "EAACI 2024 materials began referencing both on-demand and prophylaxis indications in equal weight for the first time. Historically deucrictibant was framed as an on-demand therapy. Dual indication positioning significantly broadens the addressable market story.",
+          "shiftDetected": true,
+          "whyItMatters": "If Pharvaris succeeds in both indications, they become a broader threat — not just a Sebetralstat analogue but a platform competing with both Pharma Inc and BioCryst."
+        },
+        {
+          "date": "March 2024",
+          "sourceType": "Congress presentation",
+          "headline": "Early-stage 'novel oral mechanism' messaging, limited comparative claims",
+          "detail": "HAEi 2024 presentation focused on mechanism of action differentiation (B2 receptor antagonism vs. kallikrein inhibition) without comparative efficacy claims. Phase III data not yet available at this point.",
+          "shiftDetected": false,
+          "whyItMatters": "Baseline messaging before pivotal data readout — useful reference point to track how claims evolve as trial data matures."
+        }
+      ],
+      "vsPharmaInc": [
+        {
+          "competitorClaim": "Efficacy parity with icatibant in oral form",
+          "pharmaIncPosition": "Sebetralstat also targets on-demand HAE via kallikrein inhibition — differentiated mechanism; head-to-head data will be the deciding factor"
+        },
+        {
+          "competitorClaim": "Dual on-demand and prophylaxis potential from single molecule",
+          "pharmaIncPosition": "Pharma Inc's focused on-demand strategy allows deeper optimisation for acute attack resolution rather than a dual-use approach"
+        },
+        {
+          "competitorClaim": "Novel B2 receptor mechanism may offer differentiated tolerability",
+          "pharmaIncPosition": "Monitor tolerability data closely — if deucrictibant shows meaningful tolerability advantage, this becomes a key communication challenge"
+        }
+      ]
+    },
+    "financials": {
+      "totalRevenue": "$0 (pre-commercial)",
+      "haeRevenue": "$0 (pre-commercial)",
+      "rdSpend": "$110M",
+      "rdSpendDelta": "↑ 18% vs FY2024",
+      "haeRdAllocation": "~95% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Berndt Modig",
+        "title": "CEO",
+        "tenure": "Since 2015",
+        "background": "Co-founder, ex-Jerini bradykinin expert"
+      },
+      {
+        "name": "Anne Kennedy",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2022",
+        "background": "Former Shire HAE clinical lead"
+      },
+      {
+        "name": "Mariëtte Boon",
+        "title": "Chief Operating Officer",
+        "tenure": "Since 2020",
+        "background": "Operations and trial execution lead"
+      },
+      {
+        "name": "Hubert Birner",
+        "title": "Chair, Board",
+        "tenure": "Since 2017",
+        "background": "Healthcare venture investor, TVM Capital"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Dual on-demand + prophylaxis potential from a single mechanism",
+        "First non-kallikrein oral entrant — clean differentiation",
+        "Strong cash runway through projected launch"
+      ],
+      "weaknesses": [
+        "Single-product company with binary readout risk",
+        "Limited commercial infrastructure in-house",
+        "Mechanism unfamiliarity may slow physician adoption"
+      ],
+      "opportunities": [
+        "Phase III RAPIDe-3 readout could trigger acquisition interest",
+        "Mechanism distinct from kallikrein class supports patient cycling",
+        "First-mover potential in oral on-demand if Ekterly delays"
+      ],
+      "threats": [
+        "Sebetralstat first-mover advantage if Ekterly launches on time",
+        "Phase III failure scenario destroys both indication programs",
+        "Larger competitors (Takeda, CSL) could in-license alternatives"
+      ]
+    }
+  },
+  {
+    "id": "csl-behring",
+    "name": "CSL Behring",
+    "logo": "csl-behring.svg",
+    "strategicPosture": "Adjacent injectable prophylaxis",
+    "oneLineDescription": "Garadacimab (Andembry) launched 2025, injectable prophylaxis targeting the contact pathway.",
+    "executiveSummary": "CSL Behring entered the modern HAE prophylaxis market with Andembry's 2025 approval, leveraging its rare disease commercial infrastructure and contact pathway expertise. Initial uptake has been steady in EU markets where Behring has historical strength in plasma-derived therapies. Andembry positions against Takhzyro on dosing convenience (monthly versus biweekly) and contact pathway mechanism rather than direct kallikrein inhibition. Investment is concentrated on real-world adherence data and EU access expansion. No oral on-demand program is visible. (illustrative)",
+    "pipeline": [
+      {
+        "assetId": "CSL-312-PED",
+        "name": "Garadacimab pediatric program",
+        "mechanism": "Anti-FXIIa monoclonal antibody",
+        "indicationSubtype": "HAE prophylaxis, pediatric",
+        "phase": "Phase III",
+        "latestMilestone": "Pediatric Phase III enrolling adolescent cohort (illustrative)",
+        "nextMilestone": "Interim safety data expected H2 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX7"
+        ],
+        "trialDesignSummary": "Open-label Phase III in patients aged 6 to 17 years. Primary endpoint: monthly HAE attack rate over 26 weeks. Designed to support pediatric label expansion in US and EU (illustrative).",
+        "roa": "Subcutaneous",
+        "trialDesign": {
+          "primaryEndpoint": "Monthly HAE attack rate over 26 weeks",
+          "comparator": "Open-label (no placebo arm)",
+          "patientPopulation": "HAE patients aged 6 to 17 years",
+          "sampleSize": "~40 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [],
+    "keyEvents": [],
+    "strategicSignals": {
+      "deals": [],
+      "hiring": [],
+      "publicStatements": [],
+      "strategyShifts": []
+    },
+    "whatItMeansForUs": {
+      "overlap": [],
+      "keyQuestions": [],
+      "suggestedActions": []
+    },
+    "messaging": {
+      "currentCoreMessage": "",
+      "messagePillars": [],
+      "currentMessageSource": "",
+      "timeline": [],
+      "vsPharmaInc": []
+    },
+    "financials": {
+      "totalRevenue": "$13.3B",
+      "totalRevenueDelta": "↑ 3% vs FY2024",
+      "haeRevenue": "$680M (HAE portfolio, est.)",
+      "haeRevenueDelta": "↑ 22% vs FY2024 (Andembry launch)",
+      "rdSpend": "$1.5B",
+      "rdSpendDelta": "↑ 5% vs FY2024",
+      "haeRdAllocation": "~6% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Paul McKenzie",
+        "title": "CEO",
+        "tenure": "Since 2023",
+        "background": "Former J&J, focused on rare disease growth"
+      },
+      {
+        "name": "Bill Mezzanotte",
+        "title": "Chief R&D Officer",
+        "tenure": "Since 2019",
+        "background": "Plasma and rare disease pipeline lead"
+      },
+      {
+        "name": "Lutz Bonacker",
+        "title": "SVP, Specialty",
+        "tenure": "Since 2018",
+        "background": "Andembry commercial lead in EU"
+      },
+      {
+        "name": "Joy Linton",
+        "title": "President, Global Commercial",
+        "tenure": "Since 2022",
+        "background": "Cross-portfolio commercial strategy"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Plasma franchise depth and rare-disease expertise",
+        "Andembry launched 2025 with strong EU access pathway",
+        "Established immunology field force in priority markets"
+      ],
+      "weaknesses": [
+        "Late entrant in injectable prophylaxis (post-Takhzyro)",
+        "No oral asset in HAE pipeline",
+        "Commercial focus historically plasma-led, not innovative biologics"
+      ],
+      "opportunities": [
+        "Pediatric program advances addressable patient pool",
+        "Andembry contact-pathway differentiation vs kallikrein class",
+        "EU first-mover formulary positioning before oral entrants"
+      ],
+      "threats": [
+        "Limited mechanism differentiation vs Takhzyro in physician perception",
+        "Oral on-demand entrants reduce overall injectable demand",
+        "Manufacturing capacity risk if uptake exceeds plan"
+      ]
+    }
+  },
+  {
+    "id": "ionis",
+    "name": "Ionis Pharmaceuticals",
+    "logo": "ionis.svg",
+    "strategicPosture": "Emerging RNA-based prophylaxis",
+    "oneLineDescription": "Donidalorsen (Dawnzera) launched 2025, RNA-based mechanism with differentiated MOA.",
+    "executiveSummary": "Ionis brought the first antisense oligonucleotide therapy for HAE prophylaxis to market in 2025 with Dawnzera, marketed in partnership with Otsuka. The asset offers monthly subcutaneous dosing and a mechanistically differentiated approach via prekallikrein mRNA knockdown. Early commercial signals point to methodical uptake in centers familiar with antisense therapeutics. Mechanism novelty anchors the commercial narrative; no oral or on-demand HAE programs are signalled. (illustrative)",
+    "pipeline": [
+      {
+        "assetId": "ION-449-LCM",
+        "name": "Donidalorsen lifecycle program",
+        "mechanism": "Antisense oligonucleotide targeting prekallikrein mRNA",
+        "indicationSubtype": "HAE prophylaxis (extended dosing interval)",
+        "phase": "Phase II",
+        "latestMilestone": "Extended dosing interval Phase II initiated Q1 2026 (illustrative)",
+        "nextMilestone": "Interim PK/PD readout expected Q4 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX8"
+        ],
+        "trialDesignSummary": "Open-label Phase II evaluating quarterly dosing in patients previously stable on monthly Dawnzera. Primary endpoint: maintenance of attack rate reduction. Approximately 60 patients planned (illustrative).",
+        "roa": "Subcutaneous",
+        "trialDesign": {
+          "primaryEndpoint": "Maintenance of HAE attack rate reduction",
+          "comparator": "Open-label (no comparator)",
+          "patientPopulation": "Adult HAE patients previously stable on monthly Dawnzera",
+          "sampleSize": "~60 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [],
+    "keyEvents": [],
+    "strategicSignals": {
+      "deals": [],
+      "hiring": [],
+      "publicStatements": [],
+      "strategyShifts": []
+    },
+    "whatItMeansForUs": {
+      "overlap": [],
+      "keyQuestions": [],
+      "suggestedActions": []
+    },
+    "messaging": {
+      "currentCoreMessage": "",
+      "messagePillars": [],
+      "currentMessageSource": "",
+      "timeline": [],
+      "vsPharmaInc": []
+    },
+    "financials": {
+      "totalRevenue": "$590M",
+      "totalRevenueDelta": "↑ 7% vs FY2024",
+      "haeRevenue": "$95M (Dawnzera + Otsuka share)",
+      "haeRevenueDelta": "Launch year (FY2025)",
+      "rdSpend": "$760M",
+      "rdSpendDelta": "↑ 4% vs FY2024",
+      "haeRdAllocation": "~5% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Brett Monia",
+        "title": "CEO",
+        "tenure": "Since 2020",
+        "background": "Long-time Ionis scientist, antisense pioneer"
+      },
+      {
+        "name": "Eugene Schneider",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2018",
+        "background": "Cardiovascular and rare disease clinical lead"
+      },
+      {
+        "name": "Richard Geary",
+        "title": "Chief Scientific Officer",
+        "tenure": "Since 2016",
+        "background": "Antisense platform architect"
+      },
+      {
+        "name": "Beth Hougen",
+        "title": "Chief Financial Officer",
+        "tenure": "Since 2021",
+        "background": "Former Amgen, finance and BD lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Antisense platform with proven HAE-mechanism efficacy",
+        "Otsuka commercial partnership reduces commercial execution risk",
+        "Differentiated mechanism (prekallikrein knockdown) appeals to specialty physicians"
+      ],
+      "weaknesses": [
+        "Antisense delivery (SC, monthly) less convenient than oral options",
+        "Limited HAE-specific commercial infrastructure (partnered)",
+        "Mechanism novelty may face payer skepticism"
+      ],
+      "opportunities": [
+        "Treatment-resistant patient population underserved",
+        "Quarterly dosing extension would close convenience gap",
+        "Partnership expansion to additional regions"
+      ],
+      "threats": [
+        "Oral options dominate share-of-voice and prescriber preference",
+        "Payer restrictions to second-line use (NICE precedent set)",
+        "Pricing pressure from oral-class competition"
+      ]
+    }
+  },
+  {
+    "id": "adverum",
+    "name": "Adverum Biotechnologies",
+    "logo": "adverum.svg",
+    "strategicPosture": "Emerging gene therapy",
+    "oneLineDescription": "Gene therapy approach targeting long-term HAE control with single administration.",
+    "executiveSummary": "Adverum is developing an AAV-based gene therapy for HAE intended to deliver durable kallikrein pathway modulation from a single administration. The program remains preclinical to early clinical stage, with first-in-human dosing not yet publicly disclosed. Adverum is one of several emerging gene therapy entrants exploring HAE as a target indication; commercial impact, if any, is unlikely before the early 2030s. (illustrative)",
+    "pipeline": [
+      {
+        "assetId": "ADVM-HAE",
+        "name": "AAV-based kallikrein inhibitor program (preclinical)",
+        "mechanism": "AAV-delivered transgene encoding plasma kallikrein inhibitor",
+        "indicationSubtype": "HAE (long-term single-administration control)",
+        "phase": "Preclinical",
+        "latestMilestone": "IND-enabling studies ongoing (illustrative)",
+        "nextMilestone": "IND filing targeted 2027 (illustrative)",
+        "trialIds": [],
+        "trialDesignSummary": "First-in-human study expected to be a single-ascending dose design in adult HAE patients with high attack burden. Primary objectives: safety, transgene expression, and target engagement (illustrative).",
+        "roa": "Single IV infusion",
+        "trialDesign": {
+          "primaryEndpoint": "Not yet disclosed (illustrative)",
+          "comparator": "Not yet disclosed (illustrative)",
+          "patientPopulation": "Adults with HAE and high attack burden (planned)",
+          "sampleSize": "Not yet disclosed (illustrative)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [],
+    "keyEvents": [],
+    "strategicSignals": {
+      "deals": [],
+      "hiring": [],
+      "publicStatements": [],
+      "strategyShifts": []
+    },
+    "whatItMeansForUs": {
+      "overlap": [],
+      "keyQuestions": [],
+      "suggestedActions": []
+    },
+    "messaging": {
+      "currentCoreMessage": "",
+      "messagePillars": [],
+      "currentMessageSource": "",
+      "timeline": [],
+      "vsPharmaInc": []
+    },
+    "financials": {
+      "totalRevenue": "$0 (pre-commercial)",
+      "haeRevenue": "$0 (pre-commercial)",
+      "rdSpend": "$95M",
+      "rdSpendDelta": "↑ 12% vs FY2024",
+      "haeRdAllocation": "~25% of R&D (HAE is one of several programs)"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Laurent Fischer",
+        "title": "CEO",
+        "tenure": "Since 2017",
+        "background": "Former Auspex, gene therapy specialist"
+      },
+      {
+        "name": "Aaron Osborne",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2020",
+        "background": "Ophthalmology and rare disease clinical"
+      },
+      {
+        "name": "Nirav Shah",
+        "title": "Chief Financial Officer",
+        "tenure": "Since 2022",
+        "background": "Former Achilles, biotech finance lead"
+      },
+      {
+        "name": "Robert Adrianzen",
+        "title": "VP, Manufacturing",
+        "tenure": "Since 2021",
+        "background": "AAV manufacturing operations lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Validated AAV gene therapy platform from ophthalmology work",
+        "Single-administration potential is transformative if successful",
+        "Differentiated approach to durable HAE control"
+      ],
+      "weaknesses": [
+        "Preclinical stage — 5+ years from market entry",
+        "Capital-intensive development with multiple failure points",
+        "HAE is one of several indications, not core focus"
+      ],
+      "opportunities": [
+        "Long-term cure narrative if clinical proof of concept emerges",
+        "Acquisition target for larger HAE franchise holders",
+        "Patient fatigue with chronic injectable therapies"
+      ],
+      "threats": [
+        "Earlier-stage CRISPR competitor (Intellia) ahead in clinic",
+        "Capital markets uncertainty for gene therapy programs",
+        "Payer cost models for one-time therapies still maturing"
+      ]
+    }
+  },
+  {
+    "id": "intellia",
+    "name": "Intellia Therapeutics",
+    "logo": "intellia.svg",
+    "strategicPosture": "Emerging gene therapy",
+    "oneLineDescription": "NTLA-2002 in Phase 2, CRISPR-based gene editing targeting KLKB1.",
+    "executiveSummary": "Intellia's NTLA-2002 is the most clinically advanced gene-editing program in HAE, using in vivo CRISPR to knock out the KLKB1 gene encoding prekallikrein. Phase II results have shown sustained attack rate reduction after a single infusion, generating high physician and investor interest. Commercial uptake will depend on long-term safety, infusion logistics, and payer acceptance of upfront cost models. Realistic commercial entry is mid-to-late decade. (illustrative)",
+    "pipeline": [
+      {
+        "assetId": "NTLA-2002",
+        "name": "NTLA-2002",
+        "mechanism": "In vivo CRISPR/Cas9 knockout of KLKB1",
+        "indicationSubtype": "HAE (long-term prophylaxis via single infusion)",
+        "phase": "Phase II",
+        "latestMilestone": "Phase II expansion cohort fully enrolled Q4 2025 (illustrative)",
+        "nextMilestone": "Phase III initiation expected H2 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXX9"
+        ],
+        "trialDesignSummary": "Single-arm Phase II evaluating safety and durability of a single IV infusion in adult HAE patients. Primary endpoint: monthly HAE attack rate reduction over 16 weeks; long-term follow-up planned to 15 years (illustrative).",
+        "roa": "Single IV infusion",
+        "trialDesign": {
+          "primaryEndpoint": "Monthly HAE attack rate reduction over 16 weeks",
+          "comparator": "Single-arm (no comparator)",
+          "patientPopulation": "Adults with HAE type I/II",
+          "sampleSize": "~30 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [],
+    "keyEvents": [],
+    "strategicSignals": {
+      "deals": [],
+      "hiring": [],
+      "publicStatements": [],
+      "strategyShifts": []
+    },
+    "whatItMeansForUs": {
+      "overlap": [],
+      "keyQuestions": [],
+      "suggestedActions": []
+    },
+    "messaging": {
+      "currentCoreMessage": "",
+      "messagePillars": [],
+      "currentMessageSource": "",
+      "timeline": [],
+      "vsPharmaInc": []
+    },
+    "financials": {
+      "totalRevenue": "$215M (mostly partnership revenue)",
+      "totalRevenueDelta": "↑ 28% vs FY2024",
+      "haeRevenue": "$0 (pre-commercial)",
+      "rdSpend": "$465M",
+      "rdSpendDelta": "↑ 9% vs FY2024",
+      "haeRdAllocation": "~45% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "John Leonard",
+        "title": "CEO",
+        "tenure": "Since 2018",
+        "background": "Former AbbVie, CRISPR therapeutic strategy"
+      },
+      {
+        "name": "Birgit Schultes",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2021",
+        "background": "Drives HAE Phase III planning"
+      },
+      {
+        "name": "Glenn Goddard",
+        "title": "Chief Financial Officer",
+        "tenure": "Since 2019",
+        "background": "Capital strategy and partnerships"
+      },
+      {
+        "name": "Laura Sepp-Lorenzino",
+        "title": "Chief Scientific Officer",
+        "tenure": "Since 2017",
+        "background": "In vivo CRISPR platform lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Most advanced in vivo CRISPR program in HAE",
+        "Single-infusion durable mechanism is highly differentiated",
+        "Strong cash position and Regeneron partnership backing"
+      ],
+      "weaknesses": [
+        "Long-term safety profile unproven beyond 2-year follow-up",
+        "Single-infusion logistics complex for community physicians",
+        "Cost-of-goods and pricing model uncertainty"
+      ],
+      "opportunities": [
+        "Phase III initiation could trigger major partnership upside",
+        "Cure-class positioning vs chronic therapies",
+        "First mover in gene-edited HAE if regulatory pathway holds"
+      ],
+      "threats": [
+        "Regulatory caution on in-vivo gene editing safety",
+        "Payer resistance to upfront single-payment models",
+        "Adverum and other gene therapy entrants narrow window"
+      ]
+    }
+  },
+  {
+    "id": "astria",
+    "name": "Astria Therapeutics",
+    "logo": "astria.svg",
+    "strategicPosture": "Emerging oral competitor",
+    "oneLineDescription": "STAR-0215 in Phase 2, long-acting anti-MASP-2 monoclonal antibody.",
+    "executiveSummary": "Astria is developing STAR-0215, a long-acting monoclonal antibody intended to enable extended subcutaneous dosing intervals (quarterly or longer) for HAE prophylaxis. Phase II readouts have supported continued development, and Astria has signalled commercial intent through investments in medical affairs and access teams. The program is positioned to compete on dosing convenience against existing biweekly and monthly prophylaxis options. No oral on-demand program is visible. (illustrative)",
+    "pipeline": [
+      {
+        "assetId": "STAR-0215",
+        "name": "STAR-0215",
+        "mechanism": "Long-acting anti-plasma kallikrein monoclonal antibody",
+        "indicationSubtype": "HAE prophylaxis (extended dosing)",
+        "phase": "Phase II",
+        "latestMilestone": "ALPHA-STAR Phase II topline reported positive Q1 2026 (illustrative)",
+        "nextMilestone": "Phase III initiation expected Q4 2026 (illustrative)",
+        "trialIds": [
+          "NCT0XXXXXY0"
+        ],
+        "trialDesignSummary": "Randomized Phase II evaluating quarterly subcutaneous dosing versus placebo over 6 months. Primary endpoint: monthly attack rate reduction. Approximately 60 patients enrolled (illustrative).",
+        "roa": "Subcutaneous",
+        "trialDesign": {
+          "primaryEndpoint": "Monthly HAE attack rate reduction over 6 months",
+          "comparator": "Placebo-controlled",
+          "patientPopulation": "Adult HAE patients on prophylaxis",
+          "sampleSize": "~60 (estimated)"
+        }
+      }
+    ],
+    "marketedProducts": [],
+    "activityByCountry": [],
+    "keyEvents": [],
+    "strategicSignals": {
+      "deals": [],
+      "hiring": [],
+      "publicStatements": [],
+      "strategyShifts": []
+    },
+    "whatItMeansForUs": {
+      "overlap": [],
+      "keyQuestions": [],
+      "suggestedActions": []
+    },
+    "messaging": {
+      "currentCoreMessage": "",
+      "messagePillars": [],
+      "currentMessageSource": "",
+      "timeline": [],
+      "vsPharmaInc": []
+    },
+    "financials": {
+      "totalRevenue": "$0 (pre-commercial)",
+      "haeRevenue": "$0 (pre-commercial)",
+      "rdSpend": "$78M",
+      "rdSpendDelta": "↑ 22% vs FY2024",
+      "haeRdAllocation": "~80% of R&D"
+    },
+    "keyPersonnel": [
+      {
+        "name": "Jill Milne",
+        "title": "CEO",
+        "tenure": "Since 2021",
+        "background": "Former Catabasis, rare disease specialist"
+      },
+      {
+        "name": "Christopher Morabito",
+        "title": "Chief Medical Officer",
+        "tenure": "Since 2022",
+        "background": "Former Shire, HAE clinical experience"
+      },
+      {
+        "name": "Noah Clauser",
+        "title": "Chief Financial Officer",
+        "tenure": "Since 2022",
+        "background": "Biotech finance and BD strategy"
+      },
+      {
+        "name": "Jamie Lebovitch",
+        "title": "VP, Operations",
+        "tenure": "Since 2023",
+        "background": "Clinical operations lead"
+      }
+    ],
+    "swot": {
+      "strengths": [
+        "Long-acting mechanism could enable quarterly dosing",
+        "Phase II data validates mechanism in HAE",
+        "Lean operational structure with focused HAE strategy"
+      ],
+      "weaknesses": [
+        "Single-product company with binary outcomes",
+        "Limited commercial scale (will need partnership)",
+        "Late entrant — Phase II while competitors are commercial"
+      ],
+      "opportunities": [
+        "Less-frequent injectable lane underserved",
+        "Acquisition or licensing target for prophylaxis-focused companies",
+        "Convenience differentiation vs Takhzyro biweekly dosing"
+      ],
+      "threats": [
+        "Multiple prophylaxis competitors with advanced commercial infrastructure",
+        "Oral alternatives reduce overall injectable category demand",
+        "Capital constraints limit go-it-alone commercial launch"
+      ]
+    }
+  }
+]

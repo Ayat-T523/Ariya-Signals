@@ -1,0 +1,168 @@
+/*
+ * Ariya v2 Design System — CSS Custom Properties
+ * Source of truth: ~/design-system/ariya-v2/tokens.md
+ * Every token from tokens.md is declared here as a CSS var on :root.
+ * No raw hex values anywhere else in src/ (RGBA strings are exempt).
+ */
+
+:root {
+
+  /* ============================================================
+   * BRAND — Primary Blue
+   * ============================================================ */
+  --blue-primary: #2A76F4;
+  --blue-50:  #BFD6FE;
+  --blue-100: #ADCAFD;
+  --blue-200: #9ABEFB;
+  --blue-300: #87B2FA;
+  --blue-400: #75A6F9;
+  --blue-500: #629AF8;
+  --blue-600: #3D82F5;
+  --blue-700: #2A76F4;
+
+  /* BRAND — Website navy */
+  --ariya-navy: #000066;
+
+  /* BRAND — Secondary Dark Blue */
+  --dark-blue:     #10224A;
+  --dark-blue-50:  #1D3D85;
+  --dark-blue-100: #163068;
+  --dark-blue-200: #132959;
+  --dark-blue-300: #10224A;
+  --dark-blue-400: #0D1B3B;
+  --dark-blue-500: #0A142C;
+  --dark-blue-600: #060E1E;
+  --dark-blue-700: #03070F;
+
+  /* BRAND — Tertiary Purple */
+  --purple:     #B99CFC;
+  --purple-50:  #F1EBFE;
+  --purple-100: #E3D7FE;
+  --purple-200: #D5C4FD;
+  --purple-300: #C7B0FD;
+  --purple-400: #B99CFC;
+  --purple-500: #AB88FB;
+  --purple-600: #9D74FB;
+  --purple-700: #8F61FA;
+  --purple-800: #814DFA;
+
+  /* ============================================================
+   * GRADIENTS
+   * ============================================================ */
+  --gradient-1: linear-gradient(135deg, #2A76F4, #10224A);
+  --gradient-2: linear-gradient(135deg, #D2E2FF, #7EACF9, #2A76F4);
+  --gradient-3: linear-gradient(135deg, #1D3D85, #03070F);
+  --gradient-4: linear-gradient(135deg, #F1EBFE, #814DFA);
+
+  /* ============================================================
+   * NEUTRALS — Text
+   * ============================================================ */
+  --font-primary:   #434C5B;
+  --font-secondary: #708090;
+  --font-bold:      #2B2A2A;
+
+  /* NEUTRALS — Surfaces */
+  --bg-1: #FFFFFF;
+  --bg-2: #F4F8FE;
+
+  /* ============================================================
+   * STATUS
+   * ============================================================ */
+  --status-green:  #49A078;
+  --status-yellow: #FAAE36;
+  --status-red:    #B73F54;
+
+  /* ============================================================
+   * DERIVED — blue-primary at 12% opacity
+   * ============================================================ */
+  --blue-primary-12: rgba(42, 118, 244, 0.12);
+
+  /* DERIVED — light blue for control checked/active backgrounds */
+  --blue-light: #D2E2FF;
+
+  /* DERIVED — disabled control background */
+  --disabled-bg: rgba(112, 128, 144, 0.15);
+
+  /* ============================================================
+   * TYPOGRAPHY
+   * ============================================================ */
+  --font-family: 'Satoshi', sans-serif;
+
+  --text-display: 72px;   --lh-display: 79.2px;
+  --text-h1:      32px;   --lh-h1:      38.4px;
+  --text-h2:      24px;   --lh-h2:      28.8px;
+  --text-h3:      20px;   --lh-h3:      21.6px;
+  --text-h4:      12px;   --lh-h4:      21px;
+  --text-body-lg: 18px;   --lh-body-lg: 25.2px;
+  --text-body:    14px;   --lh-body:    21px;
+  --text-sub:     12px;   --lh-sub:     18px;
+
+  /* ============================================================
+   * SPACING — Gap scale
+   * ============================================================ */
+  --gap-0:     0px;
+  --gap-xxxs:  4px;
+  --gap-xxs:   6px;
+  --gap-xs:    8px;
+  --gap-sm:    12px;
+  --gap-md:    16px;
+  --gap-lg:    20px;
+  --gap-xlg:   24px;
+  --gap-xxlg:  32px;
+  --gap-xxxlg: 36px;
+  --gap-wide:  64px;
+
+  /* SPACING — Padding scale */
+  --padding-0:    0px;
+  --padding-xxxs: 4px;
+  --padding-xxs:  6px;
+  --padding-xs:   8px;
+  --padding-sm:   12px;
+  --padding-md:   16px;
+  --padding-md2:  18px;
+  --padding-lg:   20px;
+  --padding-xl:   24px;
+  --padding-xxl:  28px;
+  --padding-xxl2: 36px;
+  --padding-wide: 64px;
+
+  /* ============================================================
+   * RADIUS
+   * ============================================================ */
+  --radius-0:    0px;
+  --radius-xxs:  4px;
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xlg:  24px;
+  --radius-xxlg: 36px;
+  --radius-wide: 64px;
+  --radius-round: 999px;
+
+  /* ============================================================
+   * DERIVED — header / divider border
+   * ============================================================ */
+  --border-subtle: #EEEEF2;
+
+  /* ============================================================
+   * STROKE WIDTH
+   * ============================================================ */
+  --stroke-sm: 0.8px;
+  --stroke-md: 1px;
+  --stroke-lg: 1.5px;
+
+  /* ============================================================
+   * EFFECTS — Shadows, focus ring, scrim
+   * ============================================================ */
+  --shadow-floating: 0 4px 6px -2px rgba(10, 13, 18, 0.03),
+                     0 12px 16px -4px rgba(10, 13, 18, 0.08);
+  --shadow-overlay:  0 1px 3px rgba(0, 0, 0, 0.3),
+                     0 4px 8px 3px rgba(0, 0, 0, 0.15);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 4px #525863;
+
+  /* Modal scrim */
+  --scrim: rgba(112, 128, 144, 0.3);
+}

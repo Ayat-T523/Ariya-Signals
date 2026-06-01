@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "mcp__db566e80-5ed0-4cd8-9a1c-690cdfd0fb63__get_design_context",
+      "Bash(python -c ' *)",
+      "mcp__db566e80-5ed0-4cd8-9a1c-690cdfd0fb63__get_screenshot",
+      "Bash(curl -s -o \"C:\\\\Users\\\\AyatTayebulla\\\\AppData\\\\Local\\\\Temp\\\\war_room_figma.png\" \"https://www.figma.com/api/mcp/asset/2ad4169f-d174-4d39-9583-2040c7f46cdb\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\src\\\\pages\\\\Portal.tsx\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(npx vite *)",
+      "mcp__Figma__get_design_context",
+      "mcp__Figma__get_screenshot",
+      "Read(//c/Users/AyatTayebulla/Downloads/**)",
+      "Bash(powershell -command \"Expand-Archive -Path 'WhatsApp Unknown 2026-05-31 at 11.26.05 PM.zip' -DestinationPath 'competitor-detail-refs' -Force\")",
+      "Bash(node -e \"const d = require\\('./src/data/competitors.json'\\); d.forEach\\(c => console.log\\(c.id, '|', c.name\\)\\)\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252794.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\logos\\\\logo-takeda.svg\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252795.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\logos\\\\logo-pharvaris.svg\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252891.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\logos\\\\logo-biocryst.svg\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252892.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\logos\\\\logo-csl-behring.svg\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252893.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\logos\\\\logo-ionis.svg\")",
+      "WebFetch(domain:www.figma.com)",
+      "Bash(node -e \"const k = require\\('./src/data/kalvista.ts'\\); console.log\\('no'\\)\")",
+      "Bash(head -100 src/data/kalvista.ts)",
+      "Bash(node -e \"const fs=require\\('fs'\\); console.log\\(fs.readFileSync\\('src/data/kalvista.ts','utf8'\\).substring\\(0,3000\\)\\)\")",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell($f = \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\src\\\\pages\\\\WarRoom.tsx\"; \\(Get-Content $f\\).Count)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "PowerShell(git config --global user.name)",
+      "PowerShell(git config --global user.email)"
+    ]
+  }
+}

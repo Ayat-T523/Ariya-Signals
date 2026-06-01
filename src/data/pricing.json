@@ -1,0 +1,43 @@
+{
+  "markets": ["DE", "UK", "FR", "IT", "ES", "Nordics", "US"],
+  "unit": "List price per unit, USD (illustrative)",
+  "rows": [
+    {
+      "name": "Ekterly",
+      "company": "Pharma Inc",
+      "indication": "HAE on-demand (oral)",
+      "isOurs": true,
+      "prices": { "DE": "$8,400", "UK": "$7,600", "FR": "$7,900", "IT": "$7,200", "ES": "$6,900", "Nordics": "$8,200", "US": "$11,500" }
+    },
+    {
+      "name": "Takhzyro",
+      "company": "Takeda",
+      "indication": "HAE prophylaxis (SC)",
+      "prices": { "DE": "$18,500", "UK": "$16,800", "FR": "$17,400", "IT": "$15,900", "ES": "$15,200", "Nordics": "$18,000", "US": "$24,300" }
+    },
+    {
+      "name": "Orladeyo",
+      "company": "BioCryst",
+      "indication": "HAE prophylaxis (oral)",
+      "prices": { "DE": "$14,200", "UK": "$13,100", "FR": "$13,500", "IT": "$12,300", "ES": "$11,800", "Nordics": "$13,900", "US": "$19,800" }
+    },
+    {
+      "name": "Andembry",
+      "company": "CSL Behring",
+      "indication": "HAE prophylaxis (SC)",
+      "prices": { "DE": "$17,800", "UK": "$16,200", "FR": "$16,700", "IT": "$15,300", "ES": "$14,600", "Nordics": "$17,400", "US": "$23,600" }
+    },
+    {
+      "name": "Dawnzera",
+      "company": "Ionis",
+      "indication": "HAE prophylaxis (ASO)",
+      "prices": { "DE": "$19,200", "UK": "$17,500", "FR": "$18,100", "IT": "$16,500", "ES": "$15,800", "Nordics": "$18,800", "US": "$25,400" }
+    },
+    {
+      "name": "Firazyr",
+      "company": "Takeda",
+      "indication": "HAE on-demand (SC)",
+      "prices": { "DE": "$3,200", "UK": "$2,900", "FR": "$3,100", "IT": "$2,800", "ES": "$2,700", "Nordics": "$3,150", "US": "$4,400" }
+    }
+  ]
+}

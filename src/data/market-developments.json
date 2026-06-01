@@ -1,0 +1,266 @@
+[
+  {
+    "id": "mkt-001",
+    "date": "2026-04-05",
+    "type": "guideline",
+    "headline": "HAEi issues updated patient guidance on oral-modality options",
+    "summary": "Patient advocacy organization published updated guidance acknowledging emerging oral on-demand options. Neutral tone; frames all modalities as valid under physician guidance (illustrative)."
+  },
+  {
+    "id": "mkt-002",
+    "date": "2026-03-18",
+    "type": "epidemiology",
+    "headline": "Updated EU HAE prevalence estimate: 1 in 50,000 to 1 in 67,000",
+    "summary": "European HAE registry published refined prevalence estimates based on diagnostic data improvements. Suggests the addressable population has been modestly under-counted (illustrative)."
+  },
+  {
+    "id": "mkt-003",
+    "date": "2026-02-28",
+    "type": "advocacy",
+    "headline": "US Hereditary Angioedema Association launches patient-choice initiative",
+    "summary": "Campaign emphasizes patient autonomy in modality selection. Aligns with positioning of emerging oral on-demand options as choice-expansion rather than substitution (illustrative)."
+  },
+  {
+    "id": "mkt-004",
+    "date": "2026-02-05",
+    "type": "guideline",
+    "headline": "World Allergy Organization HAE treatment update (2026 revision)",
+    "summary": "Revised guidance includes new section on oral on-demand considerations. Notes evidence base is still emerging at time of publication; explicit call for real-world evidence generation (illustrative)."
+  },
+  {
+    "id": "mkt-005",
+    "date": "2026-01-20",
+    "type": "payer",
+    "headline": "UK NICE initiates review of HAE treatment landscape",
+    "summary": "NICE announced a horizon-scanning assessment of emerging HAE therapies, including oral on-demand options. Signals potential for formal evaluation cycles in 2026 to 2027 (illustrative).",
+    "country": "UK",
+    "flagEmoji": "🇬🇧",
+    "agencyShort": "NICE",
+    "productLabel": "HAE landscape horizon scan",
+    "htaStatusBadge": "Horizon scan",
+    "initiatedDate": "Jan 2026"
+  },
+  {
+    "id": "mkt-006",
+    "date": "2025-12-12",
+    "type": "epidemiology",
+    "headline": "US HAE registry reports rising adolescent diagnosis rate",
+    "summary": "Annual registry update noted a 12% year-over-year increase in adolescent HAE diagnoses, attributed to broader screening rather than actual incidence change (illustrative). Increases near-term pediatric addressable population."
+  },
+  {
+    "id": "mkt-007",
+    "date": "2025-11-08",
+    "type": "advocacy",
+    "headline": "HAEi global patient survey 2025 results published",
+    "summary": "Patient-reported pain points prioritize treatment convenience, speed of relief, and needle avoidance. Directly supports oral on-demand positioning. Will be referenced frequently through launch cycles (illustrative)."
+  },
+  {
+    "id": "mkt-008",
+    "date": "2025-10-15",
+    "type": "payer",
+    "headline": "German G-BA issues benefit assessment framework update for rare diseases",
+    "summary": "Procedural update clarifying evidence requirements for novel-mechanism rare disease therapies. Relevant for oral on-demand assessment pathways (illustrative).",
+    "country": "Germany",
+    "flagEmoji": "🇩🇪",
+    "agencyShort": "G-BA",
+    "productLabel": "Rare disease benefit assessment framework",
+    "htaStatusBadge": "Framework update",
+    "initiatedDate": "Oct 2025"
+  },
+  {
+    "id": "mkt-009",
+    "date": "2026-04-10",
+    "type": "deal",
+    "headline": "Pharvaris signs ex-US manufacturing partnership with a leading CDMO",
+    "summary": "Pre-launch commercial manufacturing capacity secured ahead of anticipated deucrictibant approval. Capacity commitments suggest confidence in RAPIDe-3 readout and rolling-filing pathway (illustrative).",
+    "parties": [
+      "Pharvaris",
+      "Leading European CDMO"
+    ],
+    "dealValue": "Up to $120M including milestones",
+    "dealType": "Manufacturing",
+    "dealKpiDisplay": "120",
+    "dealKpiUnit": "million"
+  },
+  {
+    "id": "mkt-010",
+    "date": "2026-03-22",
+    "type": "deal",
+    "headline": "BioCryst extends Orladeyo Japan partnership with Torii Pharmaceutical through 2030",
+    "summary": "Renewed exclusive distribution agreement reinforces capital-light international strategy in Japan. Maintains incumbent footprint as oral entrants prepare for the market (illustrative).",
+    "parties": [
+      "BioCryst",
+      "Torii Pharmaceutical"
+    ],
+    "dealValue": "$60M upfront plus tiered royalties",
+    "dealType": "Distribution"
+  },
+  {
+    "id": "mkt-011",
+    "date": "2026-02-04",
+    "type": "deal",
+    "headline": "Takeda acquires regional specialty pharmacy network in DACH region",
+    "summary": "Tightens patient access infrastructure for Takhzyro across Germany, Austria, and Switzerland. Defensive distribution play ahead of oral on-demand entrants (illustrative).",
+    "parties": [
+      "Takeda",
+      "DACH specialty pharmacy group"
+    ],
+    "dealValue": "$420M upfront",
+    "dealType": "M&A"
+  },
+  {
+    "id": "mkt-012",
+    "date": "2026-04-02",
+    "type": "hta",
+    "headline": "G-BA grants positive benefit rating for Andembry in long-term HAE prophylaxis",
+    "summary": "G-BA assessment recognises a non-quantifiable additional benefit versus standard of care for adult patients on long-term prophylaxis. Sets up favorable price negotiation under AMNOG (illustrative).",
+    "agency": "G-BA",
+    "country": "Germany",
+    "flagEmoji": "🇩🇪",
+    "agencyShort": "G-BA",
+    "productLabel": "Andembry (garadacimab) • Prophylaxis",
+    "htaStatusBadge": "Approved",
+    "initiatedDate": "Apr 2026",
+    "outcome": "Non-quantifiable additional benefit",
+    "timeToReimbursement": "~6 months from assessment to AMNOG-negotiated price"
+  },
+  {
+    "id": "mkt-013",
+    "date": "2026-03-15",
+    "type": "hta",
+    "headline": "NICE issues restricted recommendation for Dawnzera (donidalorsen)",
+    "summary": "NICE recommends Dawnzera only for patients with documented inadequate response to existing prophylactic therapies. Decision frames antisense mechanism as a second-line option for now (illustrative).",
+    "agency": "NICE",
+    "country": "UK",
+    "flagEmoji": "🇬🇧",
+    "agencyShort": "NICE",
+    "productLabel": "Dawnzera (donidalorsen) • Second-line prophylaxis",
+    "htaStatusBadge": "Restricted",
+    "initiatedDate": "Mar 2026",
+    "outcome": "Restricted reimbursement (second-line use)",
+    "timeToReimbursement": "~3 months from NICE recommendation to NHS access"
+  },
+  {
+    "id": "mkt-014",
+    "date": "2026-02-22",
+    "type": "hta",
+    "headline": "HAS publishes mixed transparency opinion on extended-release oral HAE prophylaxis",
+    "summary": "HAS Transparency Commission assigned a moderate ASMR rating (IV) citing limited comparative evidence versus existing oral options. Reimbursement granted but at a price discount versus benchmark (illustrative).",
+    "agency": "HAS (France)",
+    "country": "France",
+    "flagEmoji": "🇫🇷",
+    "agencyShort": "HAS",
+    "productLabel": "Extended-release oral kallikrein inhibitor • Prophylaxis",
+    "htaStatusBadge": "Approved with discount",
+    "initiatedDate": "Feb 2026",
+    "outcome": "ASMR IV — minor improvement",
+    "timeToReimbursement": "~9 months from opinion to CEPS price agreement"
+  },
+  {
+    "id": "mkt-015",
+    "date": "2025-09-12",
+    "type": "deal",
+    "dealType": "Co-promote",
+    "headline": "Ionis and Otsuka expand Dawnzera co-promotion into key EU markets",
+    "summary": "Ionis and Otsuka announced an expansion of their existing US Dawnzera co-promotion to cover Germany, France, and Italy. Otsuka takes lead on commercial execution while Ionis retains medical affairs lead and remains booking party in the US (illustrative).",
+    "parties": [
+      "Ionis Pharmaceuticals",
+      "Otsuka Pharmaceutical"
+    ],
+    "dealValue": "$85M upfront plus tiered royalties"
+  },
+  {
+    "id": "mkt-016",
+    "date": "2025-07-08",
+    "type": "deal",
+    "dealType": "Licensing",
+    "headline": "Astria licenses APAC rights for STAR-0215 to undisclosed regional partner",
+    "summary": "Astria announced an exclusive APAC licensing agreement covering Japan, Korea, and Taiwan for STAR-0215. Astria retains US, EU, and Latin America commercial rights. Partner takes development costs in territory (illustrative).",
+    "parties": [
+      "Astria Therapeutics",
+      "Undisclosed APAC partner"
+    ],
+    "dealValue": "$45M upfront plus development milestones"
+  },
+  {
+    "id": "mkt-017",
+    "date": "2025-05-22",
+    "type": "deal",
+    "dealType": "Manufacturing",
+    "headline": "CSL Behring expands fill-finish capacity for Andembry in Switzerland",
+    "summary": "CSL Behring announced a $180M capex commitment to expand fill-finish capacity at its Bern facility, dedicated to Andembry and other recombinant pipeline assets. Operational target H2 2026, with a secondary line earmarked for surge demand scenarios (illustrative).",
+    "parties": [
+      "CSL Behring"
+    ],
+    "dealValue": "$180M capex commitment"
+  },
+  {
+    "id": "mkt-018",
+    "date": "2025-04-15",
+    "type": "deal",
+    "dealType": "Co-promote",
+    "headline": "Pharma Inc signs EU co-promotion deal for Ekterly with specialty pharma",
+    "summary": "Pharma Inc announced a multi-country EU co-promotion agreement with an undisclosed specialty pharma partner for Ekterly launch. Pharma Inc retains booking while the partner co-promotes across five major EU markets (illustrative).",
+    "parties": [
+      "Pharma Inc",
+      "Undisclosed EU specialty pharma"
+    ],
+    "dealValue": "$60M upfront plus tiered royalties"
+  },
+  {
+    "id": "mkt-019",
+    "date": "2024-11-15",
+    "type": "deal",
+    "dealType": "M&A",
+    "headline": "BioCryst acquires HAE-focused diagnostic startup for $42M",
+    "summary": "BioCryst announced the acquisition of a small US-based diagnostics company developing a rapid HAE attack severity assessment tool. Strategic intent: pair with Orladeyo and Berotralstat-class assets to support attack-management decisions and reinforce stickiness with prescribers (illustrative).",
+    "parties": [
+      "BioCryst",
+      "Undisclosed US diagnostics company"
+    ],
+    "dealValue": "$42M total deal value"
+  },
+  {
+    "id": "mkt-020",
+    "date": "2024-08-30",
+    "type": "deal",
+    "dealType": "Licensing",
+    "headline": "Pharvaris in-licenses next-gen B2 antagonist series from undisclosed biotech",
+    "summary": "Pharvaris disclosed in-licensing of a preclinical B2 receptor antagonist series for HAE and other bradykinin-mediated indications. Provides pipeline optionality beyond deucrictibant and reinforces the company's commitment to the B2 mechanism (illustrative).",
+    "parties": [
+      "Pharvaris",
+      "Undisclosed biotech"
+    ],
+    "dealValue": "$18M upfront plus up to $220M in milestones"
+  },
+  {
+    "id": "mkt-023",
+    "date": "2026-01-10",
+    "type": "hta",
+    "headline": "NICE begins full technology appraisal for sebetralstat in on-demand HAE",
+    "summary": "Formal appraisal could establish the first NICE-endorsed oral on-demand option. Outcome will directly benchmark comparable mechanisms including Ekterly (illustrative).",
+    "agency": "NICE",
+    "country": "UK",
+    "flagEmoji": "🇬🇧",
+    "agencyShort": "NICE",
+    "productLabel": "Sebetralstat (KVD824) • On-demand",
+    "htaStatusBadge": "Under review",
+    "initiatedDate": "Jan 2026",
+    "outcome": null,
+    "timeToReimbursement": null
+  },
+  {
+    "id": "mkt-024",
+    "date": "2026-04-01",
+    "type": "launch-performance",
+    "headline": "Andembry outperforms Takhzyro & Orladeyo in Germany and Japan post-launch",
+    "summary": "First 5 months data (exact figures undisclosed). Fastest HAE long-term prophylaxis launch on record in both markets, sets a benchmark for novel-mechanism launch velocity (illustrative)."
+  },
+  {
+    "id": "mkt-025",
+    "date": "2026-03-10",
+    "type": "launch-performance",
+    "headline": "Ekterly Phase III data supports accelerated US filing strategy",
+    "summary": "Robust primary endpoint performance enables priority review application pathway. Commercial teams signalling H2 2027 US launch readiness, with EU filing to follow (illustrative)."
+  }
+]
