@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, Zap, Activity } from 'lucide-react'
+import { Bell, Zap, Activity, ArrowRight, TrendingUp, Clock, BarChart2, FileSearch } from 'lucide-react'
 import {
   alertsData,
   competitorsData,
@@ -242,8 +242,12 @@ function buildSignalQuadrants(): Partial<Record<QuadrantKey, QuadrantEntry>> {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-/** Dashed underline link */
-function DashedLink({ to, children }: { to: string; children: React.ReactNode }) {
+/** Dashed underline link — always ends with a small arrow icon */
+function DashedLink({ to, children, icon: Icon = ArrowRight }: {
+  to: string
+  children: React.ReactNode
+  icon?: typeof ArrowRight
+}) {
   return (
     <Link
       to={to}
@@ -253,11 +257,12 @@ function DashedLink({ to, children }: { to: string; children: React.ReactNode })
         textDecoration: 'none',
         borderBottom: '1px dashed var(--font-primary)',
         paddingBottom: '2px',
-        display: 'inline-block',
+        display: 'inline-flex', alignItems: 'center', gap: '4px',
         lineHeight: 1.2,
       }}
     >
       {children}
+      <Icon size={11} strokeWidth={2} style={{ flexShrink: 0 }} />
     </Link>
   )
 }
@@ -295,7 +300,7 @@ function KpiTile({
       <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-primary)' }}>
         {unread} unread
       </p>
-      <DashedLink to={linkTo}>{linkLabel}</DashedLink>
+      <DashedLink to={linkTo} icon={ArrowRight}>{linkLabel}</DashedLink>
     </div>
   )
 }
@@ -307,7 +312,7 @@ function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '8px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 0' }}>
         <div style={{ flexShrink: 0, paddingTop: '2px' }}>
           <CompetitorBadge name={competitor?.name ?? alert.competitorId} size={24} />
         </div>
@@ -350,7 +355,7 @@ function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
           </div>
         </div>
       </div>
-      {!isLast && <div style={{ height: '1px', background: 'var(--border-subtle)' }} />}
+      {!isLast && <div style={{ height: '1px', background: 'rgba(42,118,244,0.15)' }} />}
     </>
   )
 }
@@ -446,13 +451,14 @@ function QuadrantCard({
   )
 }
 
-/** Pill-select tab group */
+/** Pill-select tab group — optional iconMap adds leading icons per option */
 function PillSelect<T extends string>({
-  options, value, onChange,
+  options, value, onChange, iconMap,
 }: {
   options: readonly T[]
   value: T
   onChange: (v: T) => void
+  iconMap?: Partial<Record<string, typeof ArrowRight>>
 }) {
   return (
     <div style={{
@@ -464,12 +470,14 @@ function PillSelect<T extends string>({
     }}>
       {options.map(opt => {
         const active = opt === value
+        const Icon = iconMap?.[opt]
         return (
           <button
             key={opt}
             onClick={() => onChange(opt)}
             className="ariya-focus"
             style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
               padding: '4px 8px',
               borderRadius: active ? '16px' : '12px',
               fontSize: '13px', fontWeight: 400,
@@ -480,6 +488,7 @@ function PillSelect<T extends string>({
               whiteSpace: 'nowrap',
             }}
           >
+            {Icon && <Icon size={12} strokeWidth={active ? 2 : 1.5} />}
             {opt}
           </button>
         )
@@ -588,6 +597,7 @@ export default function WarRoom() {
   const [sortMode, setSortMode]       = useState<'Importance' | 'Recency'>('Importance')
   const [eventFilter, setEventFilter] = useState<EventFilter>('All events')
 
+
   // Derived counts
   const trackedCompetitorCount = new Set(alertsData.map(a => a.competitorId)).size
   const totalSignals           = alertsData.length
@@ -595,7 +605,7 @@ export default function WarRoom() {
     a => a.severity === 'high' && !readAlerts.has(a.id),
   ).length
 
-  // Top 5 signals
+  // Top 10 signals
   const topAlerts = [...alertsData]
     .sort((a, b) => {
       if (sortMode === 'Importance') {
@@ -608,7 +618,7 @@ export default function WarRoom() {
       if (aRead !== bRead) return aRead - bRead
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     })
-    .slice(0, 5)
+    .slice(0, 10)
 
   // ── Signal-driven competitor quadrants ─────────────────────────────────────
   const quadrantMap = buildSignalQuadrants()
@@ -658,15 +668,18 @@ export default function WarRoom() {
 
       {/* ── Welcome section ─────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-        gap: '24px', padding: '8px 0 8px',
+        display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
+        gap: '24px', padding: '8px 0 16px',
       }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: '0 0 4px', fontSize: '14px', color: 'var(--font-primary)' }}>
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          {/* Top — last refreshed */}
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
             Last refreshed:{' '}
-            <span style={{ fontWeight: 500 }}>2 mins ago</span>
+            <span style={{ fontWeight: 500, color: 'var(--font-primary)' }}>2 mins ago</span>
           </p>
-          <div>
+
+          {/* Bottom — welcome + stats */}
+          <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
             <h1 style={{
               margin: 0,
               fontSize: '32px', fontWeight: 500,
@@ -676,7 +689,7 @@ export default function WarRoom() {
             </h1>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '16px',
-              marginTop: '4px',
+              marginTop: '6px',
               fontSize: '14px', color: 'var(--font-primary)',
             }}>
               <span>{trackedCompetitorCount} tracked competitors</span>
@@ -699,45 +712,72 @@ export default function WarRoom() {
         background: '#e4e9f1',
         borderRadius: '16px',
         padding: '16px',
-        marginBottom: '16px',
-        display: 'flex', gap: '16px', alignItems: 'stretch',
+        marginBottom: '24px',
+        display: 'flex', gap: '24px', alignItems: 'flex-start',
       }}>
 
         {/* Top signals to triage */}
         <div style={{
           flex: 1, minWidth: 0,
+          height: '700px',
           background: '#ffffff',
           border: '1.8px solid var(--blue-light)',
           borderRadius: '16px',
           padding: '16px',
-          display: 'flex', flexDirection: 'column', gap: '16px',
+          display: 'flex', flexDirection: 'column', gap: '12px',
           overflow: 'hidden',
+          position: 'relative',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', whiteSpace: 'nowrap' }}>
+              <p style={{ margin: 0, fontSize: '18px', fontWeight: 500, lineHeight: '25.2px', color: 'var(--font-primary)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
                 Top signals to triage
               </p>
               <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
-                5 shown • {unreadCount} unread
+                10 shown • {unreadCount} unread
               </p>
             </div>
             <PillSelect
               options={['Importance', 'Recency'] as const}
               value={sortMode}
               onChange={setSortMode}
+              iconMap={{ Importance: TrendingUp, Recency: Clock }}
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Scrollable signal list — padded at the bottom so last row clears the sticky button */}
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            overflowY: 'auto', flex: 1, minHeight: 0,
+            paddingBottom: '52px',
+          }}>
             {topAlerts.map((alert, i) => (
               <SignalRow key={alert.id} alert={alert} isLast={i === topAlerts.length - 1} />
             ))}
           </div>
 
-          <div style={{ alignSelf: 'flex-start' }}>
-            <DashedLink to="/alerts">Read full assessment</DashedLink>
-          </div>
+          {/* Sticky "Read full assessment" — bottom-right, underlined text link */}
+          <Link
+            to="/alerts"
+            style={{
+              position: 'absolute', bottom: '16px', right: '16px',
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              fontSize: '12px', fontWeight: 500,
+              color: 'var(--font-primary)',
+              textDecoration: 'none',
+              borderBottom: '1px solid var(--font-primary)',
+              paddingBottom: '2px',
+              lineHeight: 1.2,
+              background: 'rgba(255,255,255,0.92)',
+              backdropFilter: 'blur(4px)',
+              padding: '4px 2px 5px',
+            }}
+          >
+            <FileSearch size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+            Read full assessment
+            <ArrowRight size={11} strokeWidth={2} style={{ flexShrink: 0 }} />
+          </Link>
         </div>
 
         {/* Market weather */}
@@ -748,10 +788,10 @@ export default function WarRoom() {
           padding: '16px',
           display: 'flex', flexDirection: 'column', gap: '16px',
           flexShrink: 0, width: '380px',
-          overflow: 'hidden',
+          height: '700px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 500, lineHeight: '25.2px', color: 'var(--font-primary)', fontFamily: 'Satoshi, sans-serif' }}>
               Market weather · Ekterly
             </p>
             <div style={{ background: 'rgba(174,169,177,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
@@ -813,8 +853,8 @@ export default function WarRoom() {
 
       {/* ── Row 2: Tracked competitors + Upcoming events ─────────────────── */}
       <div style={{
-        display: 'flex', gap: '16px', alignItems: 'flex-start',
-        marginBottom: '24px',
+        display: 'flex', gap: '24px', alignItems: 'flex-start',
+        marginBottom: '32px',
       }}>
 
         {/* ── Tracked competitors — signal-driven 2×2 grid ────────────── */}
@@ -837,7 +877,7 @@ export default function WarRoom() {
                 {Object.keys(quadrantMap).length} shown
               </p>
             </div>
-            <DashedLink to="/competitors">View full competitor list</DashedLink>
+            <DashedLink to="/competitors" icon={BarChart2}>View full competitor list</DashedLink>
           </div>
 
           {/* Grid — only renders filled quadrant slots */}
@@ -890,7 +930,7 @@ export default function WarRoom() {
             />
           </div>
 
-          {/* Grouped events */}
+          {/* Grouped events — scrollable, flex:1 fills remaining card height */}
           {monthKeys.length === 0 ? (
             <p style={{
               margin: 0, fontSize: '12px', color: 'var(--font-secondary)',
@@ -899,7 +939,7 @@ export default function WarRoom() {
               No upcoming events for this filter.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {monthKeys.map(month => (
                 <div key={month}>
 
@@ -1036,8 +1076,8 @@ export default function WarRoom() {
             />
           </div>
 
-          {/* Right — text + CTA: left-aligned so content starts flush next to illustration */}
-          <div style={{ flex: 1, paddingLeft: '28px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          {/* Right — text + CTA: reduced gap to illustration */}
+          <div style={{ flex: 1, paddingLeft: '12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <h2 style={{
               margin: '0 0 10px',
               fontSize: '24px', fontWeight: 700,
@@ -1074,7 +1114,8 @@ export default function WarRoom() {
             <button
               className="ariya-focus"
               style={{
-                padding: '11px 32px',
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '11px 28px',
                 borderRadius: '999px',
                 background: '#ffffff',
                 color: '#03070F',
@@ -1085,6 +1126,7 @@ export default function WarRoom() {
               }}
             >
               Set up Weekly Digest
+              <ArrowRight size={14} strokeWidth={2.5} />
             </button>
           </div>
           </div>{/* /inner centred wrapper */}

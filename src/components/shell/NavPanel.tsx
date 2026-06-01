@@ -35,7 +35,7 @@ const W_EXPANDED  = 208
 const SHELL_BG = '#152d61'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface SubItem  { to: string; label: string }
+interface SubItem  { to: string; label: string; disabled?: boolean }
 interface NavItemDef {
   to: string
   icon: LucideIcon
@@ -49,10 +49,7 @@ interface NavItemDef {
 const MONITOR: NavItemDef[] = [
   { to: '/',                   icon: Home,       label: 'War Room',          end: true  },
   { to: '/intelligence',       icon: LayoutGrid, label: 'Intelligence Feed'             },
-  {
-    to: '/competitors',        icon: Building2,  label: 'Competitors',
-    subItems: [{ to: '/competitors/timeline', label: 'Competitor Timeline' }],
-  },
+  { to: '/competitors', icon: Building2, label: 'Competitors' },
   { to: '/market-performance', icon: BarChart3,  label: 'Market Performance'            },
   { to: '/pricing',            icon: DollarSign, label: 'Pricing and Access'            },
 ]
@@ -64,7 +61,7 @@ const DECIDE: NavItemDef[] = [
     to: '/myspace', icon: User, label: 'My Space', end: true,
     subItems: [
       { to: '/myspace/alerts',    label: 'My Alerts'    },
-      { to: '/myspace/documents', label: 'My Documents' },
+      { to: '/myspace/documents', label: 'My Documents', disabled: true },
     ],
   },
 ]
@@ -243,7 +240,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
             margin: '0 auto',
             borderRadius: '8px',
             background: isActive ? 'var(--bg-1)' : 'transparent',
-            color: isActive ? 'var(--blue-primary)' : 'rgba(255,255,255,0.65)',
+            color: isActive ? 'var(--blue-primary)' : '#FFFFFF',
             textDecoration: 'none',
             transition: 'background 150ms ease, color 150ms ease',
           }}
@@ -293,7 +290,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
             marginRight: '8px',
             borderRadius: '8px',
             background: isActive ? 'var(--bg-1)' : 'transparent',
-            color: isActive ? 'var(--blue-primary)' : 'rgba(255,255,255,0.65)',
+            color: isActive ? 'var(--blue-primary)' : '#FFFFFF',
             textDecoration: 'none',
             fontSize: '14px', fontWeight: isActive ? 600 : 400,
             whiteSpace: 'nowrap', overflow: 'hidden',
@@ -320,6 +317,24 @@ function NavItem({ item, isExpanded, unreadCount }: {
       {showSubs && (
         <div style={{ marginBottom: '4px' }}>
           {item.subItems!.map(sub => {
+            if (sub.disabled) {
+              return (
+                <span
+                  key={sub.to}
+                  style={{
+                    display: 'flex', alignItems: 'center',
+                    height: '34px', paddingLeft: '55.5px', paddingRight: '12px',
+                    marginRight: '8px', borderRadius: '8px',
+                    fontSize: '14px', fontWeight: 300,
+                    color: 'rgba(255,255,255,0.28)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    cursor: 'not-allowed', userSelect: 'none',
+                  }}
+                >
+                  {sub.label}
+                </span>
+              )
+            }
             const subActive = location.pathname === sub.to || location.pathname.startsWith(sub.to + '/')
             return (
               <NavLink
@@ -331,7 +346,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
                   height: '34px', paddingLeft: '55.5px', paddingRight: '12px',
                   marginRight: '8px', borderRadius: '8px',
                   fontSize: '14px', fontWeight: subActive ? 700 : 300,
-                  color: 'rgba(255,255,255,0.65)',
+                  color: '#FFFFFF',
                   textDecoration: subActive ? 'underline' : 'none',
                   textDecorationColor: 'rgba(255,255,255,0.65)',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -477,26 +492,22 @@ export default function NavPanel() {
             overflow: 'hidden',
             justifyContent: isExpanded ? 'flex-start' : 'center',
           }}>
-            {/* White backing circle — image zoomed 2× anchored on the face */}
+            {/* User avatar SVG */}
             <div
               title={`${user.name} · ${company}`}
               style={{
                 width: '44px', height: '44px', borderRadius: '50%',
-                background: '#FFFFFF',
                 flexShrink: 0, cursor: 'default',
                 overflow: 'hidden',
                 border: '2px solid rgba(255,255,255,0.30)',
               }}
             >
               <img
-                src="/avatar.png"
+                src="/avatar-user.svg"
                 alt={user.name}
                 style={{
                   width: '100%', height: '100%',
                   objectFit: 'cover',
-                  objectPosition: '50% 15%',
-                  transform: 'scale(2)',
-                  transformOrigin: '50% 15%',
                   display: 'block',
                 }}
               />

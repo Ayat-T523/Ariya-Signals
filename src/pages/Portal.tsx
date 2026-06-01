@@ -4,6 +4,7 @@ import {
   CalendarDays, FileText, TrendingUp,
   MapPin, Users, ChevronRight,
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair, Copy,
+  FileSearch, ArrowRight, Link2,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
@@ -83,8 +84,8 @@ const DEAL_TYPE_CFG = {
 
 // ── HTA status badge config ───────────────────────────────────────────────────
 const HTA_STATUS_CFG = {
-  'Under review':           { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB' },
-  'Horizon scan':           { bg: 'rgba(245,158,11,0.12)', text: '#92500A' },
+  'Under review':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
+  'Horizon scan':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
   'Approved':               { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
   'Restricted':             { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
   'Framework update':       { bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
@@ -93,11 +94,11 @@ const HTA_STATUS_CFG = {
 
 // ── Signal card config ────────────────────────────────────────────────────────
 const SIGNAL_CARD_CFG = {
-  guideline:            { label: 'Guideline',          labelColor: 'rgba(5,10,68,0.65)',  cardBg: 'rgba(5,10,68,0.03)'     },
-  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',             cardBg: 'rgba(0,85,187,0.06)'    },
-  advocacy:             { label: 'Advocacy',            labelColor: '#7C3AED',             cardBg: 'rgba(139,92,246,0.08)'  },
-  'launch-performance': { label: 'Launch Performance',  labelColor: '#0055BB',             cardBg: 'rgba(210,226,255,0.50)' },
-  payer:                { label: 'Payer',               labelColor: '#7C3AED',             cardBg: 'rgba(139,92,246,0.06)'  },
+  guideline:            { label: 'Guideline',          labelColor: '#10224A',  outerBg: 'rgba(16,34,74,0.15)'    },
+  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',  outerBg: 'rgba(0,85,187,0.09)'    },
+  advocacy:             { label: 'Advocacy',            labelColor: '#B99CFC',  outerBg: 'rgba(185,156,252,0.30)' },
+  'launch-performance': { label: 'Launch Performance',  labelColor: '#2A76F4',  outerBg: 'rgba(42,118,244,0.15)'  },
+  payer:                { label: 'Payer',               labelColor: '#7C3AED',  outerBg: 'rgba(139,92,246,0.10)'  },
 }
 
 const SIGNAL_FILTER_TABS = [
@@ -239,7 +240,7 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
   const N        = MONTHS_LABELS.length
 
   return (
-    <div style={{ flex: 1, minWidth: 0, background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, minWidth: 0, background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
         <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
         <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
@@ -368,7 +369,7 @@ function KpiCountdownCard({ event }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {days}
         </span>
         <span style={{ fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400, alignSelf: 'flex-end', paddingBottom: '5px' }}>days</span>
@@ -391,7 +392,7 @@ function KpiDealCard({ deal }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1 }}>
+        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1 }}>
           {displayValue}
         </span>
         {unit && (
@@ -412,9 +413,9 @@ function KpiDealCard({ deal }) {
 
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
 const TABS = [
-  { label: 'Events'              },
-  { label: 'Reports & Earnings'  },
-  { label: 'Market Developments' },
+  { label: 'Events',              icon: CalendarDays },
+  { label: 'Reports & Earnings',  icon: FileText     },
+  { label: 'Market Developments', icon: TrendingUp   },
 ]
 
 const TAB_COUNTS = [eventsData.length, reportsData.length, marketData.length]
@@ -426,7 +427,7 @@ function TabBar({ active, onChange }) {
       padding: '0 36px',
       borderBottom: '1px solid rgba(5,10,68,0.10)',
     }}>
-      {TABS.map(({ label }, i) => {
+      {TABS.map(({ label, icon: TabIcon }, i) => {
         const isActive = active === i
         return (
           <button
@@ -445,7 +446,7 @@ function TabBar({ active, onChange }) {
               transition: 'color 150ms ease, border-color 150ms ease',
             }}
           >
-            <Star size={13} />
+            {TabIcon && <TabIcon size={13} strokeWidth={isActive ? 2 : 1.5} />}
             {label}
             <span style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -626,7 +627,7 @@ function EventsTab() {
 
   return (
     <div style={{
-      background: 'var(--bg-2)',
+      background: '#E4E9F1',
       border: '1px solid rgba(210,226,255,1)',
       borderRadius: '16px',
       padding: '16px',
@@ -638,7 +639,7 @@ function EventsTab() {
 
       {/* ── Left: upcoming events list ─────────────────────────────────────── */}
       <div style={{
-        flex: '0 0 420px',
+        flex: '0 0 520px',
         background: 'var(--bg-1)',
         border: '1.8px solid rgba(210,226,255,1)',
         borderRadius: '16px',
@@ -711,8 +712,17 @@ function EventsTab() {
         </div>
 
         <div style={{ flexShrink: 0, marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
-          <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#0055BB', borderBottom: '1px dashed rgba(0,85,187,0.45)' }}>
+          <button style={{
+            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            fontSize: '12px', fontWeight: 600, color: '#0055BB',
+            display: 'inline-flex', alignItems: 'center', gap: '5px',
+            borderBottom: '1px dashed rgba(0,85,187,0.45)',
+            paddingBottom: '2px',
+            fontFamily: 'inherit',
+          }}>
+            <FileSearch size={12} strokeWidth={1.8} />
             Read full assessment
+            <ArrowRight size={11} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -730,36 +740,44 @@ function EventsTab() {
 const ALL_REPORT_TYPES = [...new Set(reportsData.map((r) => r.type))]
 
 function ReportListCard({ report, isSelected, onSelect }) {
-  const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
+  const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' }
   const cName = competitorName(report.competitorId)
 
   return (
     <div
       onClick={onSelect}
       style={{
-        padding: '12px',
+        padding: '8px',
         borderRadius: '12px',
         border: isSelected ? '1.5px solid rgba(210,226,255,1)' : '1.5px solid transparent',
         background: isSelected ? 'rgba(210,226,255,0.18)' : 'transparent',
         cursor: 'pointer',
+        display: 'flex', flexDirection: 'column', gap: '12px',
       }}
     >
       {/* Row 1: type pill + date */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <TypePill cfg={typeCfg} />
-        <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '4px 8px', borderRadius: '8px',
+          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+          background: typeCfg.bg, color: typeCfg.text,
+          whiteSpace: 'nowrap',
+        }}>
+          {typeCfg.label}
+        </span>
+        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'Satoshi, sans-serif' }}>
           {formatDateAbs(report.date)}
         </span>
       </div>
 
       {/* Row 2: badge + title */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-        <div style={{ flexShrink: 0, marginTop: '1px' }}>
-          <CompetitorBadge name={cName} size={20} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ flexShrink: 0 }}>
+          <CompetitorBadge name={cName} size={24} />
         </div>
         <p style={{
-          margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.5',
         }}>
           {report.title}
         </p>
@@ -767,31 +785,41 @@ function ReportListCard({ report, isSelected, onSelect }) {
 
       {/* HAE extract box */}
       {report.haeExtract && (
-        <div style={{ background: 'rgba(5,10,68,0.04)', borderRadius: '8px', padding: '8px 10px', marginBottom: '8px' }}>
-          <p style={{ margin: '0 0 3px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)', fontWeight: 700 }}>
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '8px' }}>
+          <p style={{ margin: '0 0 2px', fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
             HAE extract:
           </p>
           <p style={{
-            margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.65)', lineHeight: '1.5',
-            display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+            color: 'var(--font-primary)', lineHeight: '21px',
+            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           }}>
             {report.haeExtract}
           </p>
         </div>
       )}
 
-      {/* Row 4: source + confidence */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{
-          fontSize: '11px', color: 'rgba(5,10,68,0.40)', flex: 1, minWidth: 0,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          Sources: {report.source}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(5,10,68,0.55)', flexShrink: 0 }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '9999px', background: 'var(--status-green)', display: 'inline-block' }} />
-          Confidence: Strong
-        </span>
+      {/* Sources + confidence row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: '12px', color: 'var(--font-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>Sources:</span>
+          <span style={{
+            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
+            color: 'var(--font-primary)', lineHeight: '18px',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            borderBottom: '1px dashed #434343', paddingBottom: '2px',
+            flex: 1, minWidth: 0,
+          }}>
+            {report.source}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', color: 'var(--font-primary)', whiteSpace: 'nowrap' }}>Confidence:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--font-primary)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '9999px', background: 'var(--status-green)', display: 'inline-block', flexShrink: 0 }} />
+            Strong
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -816,37 +844,52 @@ function ReportDetailPanel({ report }) {
           {report.title}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {(() => { const TypeIcon = typeCfg?.icon; return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {typeCfg.label ?? report.type}
+            {TypeIcon ? <TypeIcon size={12} strokeWidth={1.8} /> : <FileText size={12} strokeWidth={1.8} />}
+            {typeCfg.label ?? report.type}
+          </span>
+          )})()}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
+            <CalendarDays size={12} strokeWidth={1.8} /> {formatDateAbs(report.date)}
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {formatDateAbs(report.date)}
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {report.source}
+            <Link2 size={12} strokeWidth={1.8} /> {report.source}
           </span>
         </div>
       </div>
 
       {/* Section 2 — KPI cards */}
       {report.kpis && (
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {report.kpis.map((kpi, i) => (
-            <div key={i} style={{ flex: 1, background: 'rgba(21,45,97,1)', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Crosshair size={12} color='rgba(255,255,255,0.5)' />
-                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
-                  {kpi.label}
-                </span>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+          {report.kpis.map((kpi, i) => {
+            const l = kpi.label.toUpperCase()
+            const KpiIcon = l.includes('REVENUE') || l.includes('CASH') || l.includes('DEAL') || l.includes('VALUE')
+              ? DollarSign
+              : l.includes('PIPELINE') || l.includes('FILING') || l.includes('PHASE') || l.includes('ORAL')
+              ? FlaskConical
+              : l.includes('GUIDANCE') || l.includes('GROWTH') || l.includes('RWE') || l.includes('INVEST')
+              ? TrendingUp
+              : l.includes('DATE') || l.includes('TIMELINE') || l.includes('READOUT')
+              ? CalendarDays
+              : Crosshair
+            return (
+              <div key={i} style={{ flex: '0 0 auto', background: 'rgba(21,45,97,1)', borderRadius: '12px', padding: '16px 32px', minWidth: '140px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <KpiIcon size={12} color='rgba(255,255,255,0.5)' />
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
+                    {kpi.label}
+                  </span>
+                </div>
+                <p style={{ margin: '0 0 4px', fontSize: '26px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
+                  {kpi.value}
+                </p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
+                  {kpi.subtext}
+                </p>
               </div>
-              <p style={{ margin: '0 0 4px', fontSize: '26px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
-                {kpi.value}
-              </p>
-              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
-                {kpi.subtext}
-              </p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -854,7 +897,7 @@ function ReportDetailPanel({ report }) {
       {report.signal && (
         <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '10px', padding: '14px 16px' }}>
           <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(42,118,244,0.85)' }}>
-            {report.signal.label}:
+            Relevance to Ekterly:
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6' }}>
             {report.signal.text}
@@ -894,28 +937,35 @@ function ReportDetailPanel({ report }) {
           </p>
           {report.quotes.map((q, i) => (
             <div key={i} style={{
-              padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(5,10,68,0.08)',
-              background: '#FFFFFF', marginBottom: '8px',
+              padding: '8px', borderRadius: '8px',
+              border: '1.8px solid rgba(210,226,255,1)',
+              display: 'flex', flexDirection: 'column', gap: '4px',
+              marginBottom: '8px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6', flex: 1 }}>
-                  "{q.text}"
-                </p>
+              {/* Quote text */}
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+                "{q.text}"
+              </p>
+              {/* Footer: attribution + copy */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px' }}>
+                  {q.attribution}
+                </span>
                 <button
                   onClick={() => navigator.clipboard?.writeText(q.text)}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', padding: '2px 4px',
-                    cursor: 'pointer', fontSize: '12px', color: 'rgba(5,10,68,0.45)',
-                    flexShrink: 0, fontFamily: 'inherit',
+                    background: 'none', border: 'none', padding: '0 0 4px',
+                    borderBottom: '1px dashed #434343',
+                    cursor: 'pointer', fontSize: '12px', fontWeight: 500,
+                    fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)',
+                    flexShrink: 0, lineHeight: '18px',
                   }}
                 >
-                  <Copy size={12} /> Copy
+                  <Copy size={13} strokeWidth={1.8} />
+                  Copy
                 </button>
               </div>
-              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--font-secondary)' }}>
-                {q.attribution}
-              </p>
             </div>
           ))}
         </div>
@@ -966,7 +1016,7 @@ function ReportsTab() {
 
   return (
     <div style={{
-      background: 'var(--bg-2)',
+      background: '#E4E9F1',
       border: '1px solid rgba(210,226,255,1)',
       borderRadius: '16px',
       padding: '16px',
@@ -982,9 +1032,9 @@ function ReportsTab() {
           background: 'var(--bg-1)',
           border: '1.8px solid rgba(210,226,255,1)',
           borderRadius: '16px',
-          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          position: 'relative',
         }}>
           {/* Header row */}
           <div style={{
@@ -1096,129 +1146,156 @@ function DealsPanel({ deals }) {
     return 0
   })
 
-  function ColHeader({ label, sortK }) {
-    const isActive = sortKey === sortK
+  const TYPE_W = 144
+  const VAL_W  = 144
+  const DATE_W = 76
+
+  function SortIcon({ k }: { k: string }) {
+    const active = sortKey === k
     return (
-      <button
-        onClick={() => toggleSort(sortK)}
-        style={{
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          color: isActive ? 'var(--font-primary)' : 'rgba(5,10,68,0.45)',
-          userSelect: 'none', fontFamily: 'inherit',
-        }}
-      >
-        {label}
-        <span style={{ fontSize: '9px', opacity: isActive ? 1 : 0.5 }}>
-          {isActive ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-        </span>
-      </button>
+      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'rgba(5,10,68,0.35)', marginLeft: '4px' }}>
+        {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
     )
+  }
+
+  const colBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', background: 'none', border: 'none',
+    cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px',
   }
 
   return (
     <div style={{
       flex: '0 0 58%', minWidth: 0,
-      background: 'var(--bg-1)',
+      background: '#FFFFFF',
       border: '1.8px solid rgba(210,226,255,1)',
       borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
       overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
     }}>
       {/* Panel header */}
-      <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>
-            Deals &amp; Partnership
-          </span>
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{deals.length} deals</span>
-        </div>
-        {/* Column headers */}
-        <div style={{ display: 'flex', gap: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
-          <div style={{ flex: 1, minWidth: 0 }}><ColHeader label="Parties" sortK="parties" /></div>
-          <div style={{ width: '110px', flexShrink: 0 }}><ColHeader label="Type" sortK="type" /></div>
-          <div style={{ width: '68px', flexShrink: 0 }}><ColHeader label="Value" sortK="value" /></div>
-          <div style={{ width: '70px', flexShrink: 0 }}><ColHeader label="Date" sortK="date" /></div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>
+          Deals &amp; Partnership
+        </span>
+        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{deals.length} deals</span>
       </div>
-      {/* Scrollable rows */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {sorted.map((deal, idx) => {
-          const isExpanded = expandedIds.has(deal.id)
-          const typeCfg = DEAL_TYPE_CFG[deal.dealType] || { bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
-          const partiesLabel = (deal.parties || []).join(' & ')
-          const dateLabel = formatMonthYear(deal.date)
-          const valueLabel = (() => {
-            const v = deal.dealValue ?? ''
-            const m = v.match(/\$[\d,.]+[KMBkm]?/)
-            return m ? m[0] : (v.slice(0, 8) || '—')
-          })()
-          return (
-            <div
-              key={deal.id}
-              style={{ borderTop: idx === 0 ? 'none' : '1px solid rgba(5,10,68,0.06)' }}
-            >
-              {/* Row */}
-              <div style={{ display: 'flex', gap: '8px', padding: '10px 16px 0', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {partiesLabel}
-                  </p>
-                  <p style={{ margin: '1px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic', lineHeight: '1.4',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {deal.headline}
-                  </p>
+
+      {/* Table area */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Column headers */}
+        <div style={{
+          display: 'flex', alignItems: 'center', flexShrink: 0,
+          background: '#FFFFFF', borderBottom: '1px solid rgba(191,214,254,1)', borderRadius: '4px',
+        }}>
+          <button onClick={() => toggleSort('parties')} style={{ ...colBtn, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Parties</span>
+            <SortIcon k="parties" />
+          </button>
+          <button onClick={() => toggleSort('type')} style={{ ...colBtn, width: TYPE_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Type</span>
+            <SortIcon k="type" />
+          </button>
+          <button onClick={() => toggleSort('value')} style={{ ...colBtn, width: VAL_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Value</span>
+            <SortIcon k="value" />
+          </button>
+          <button onClick={() => toggleSort('date')} style={{ ...colBtn, width: DATE_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Date</span>
+            <SortIcon k="date" />
+          </button>
+        </div>
+
+        {/* Scrollable rows */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {sorted.map((deal) => {
+            const isExpanded = expandedIds.has(deal.id)
+            const typeCfg = DEAL_TYPE_CFG[deal.dealType] || { bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' }
+            const partiesLabel = (deal.parties || []).join(' & ')
+            const dateLabel = formatMonthYear(deal.date)
+            const valueLabel = (() => {
+              const v = deal.dealValue ?? ''
+              const m = v.match(/\$[\d,.]+[KMBkm]?/)
+              return m ? m[0] : (v.slice(0, 8) || '—')
+            })()
+            return (
+              <div key={deal.id} style={{ display: 'flex', alignItems: 'flex-start', borderBottom: '1px solid rgba(191,214,254,1)', padding: '8px 0' }}>
+                {/* Parties + content */}
+                <div style={{ flex: 1, minWidth: 0, padding: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                        <CompetitorBadge name={(deal.parties ?? [''])[0]} size={20} />
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {partiesLabel}
+                        </p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#2B2A2A', lineHeight: '21px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {deal.headline}
+                      </p>
+                    </div>
+                    <p style={{
+                      margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                      color: 'var(--font-primary)', lineHeight: '21px',
+                      display: isExpanded ? 'block' : '-webkit-box',
+                      WebkitLineClamp: isExpanded ? undefined : 3,
+                      WebkitBoxOrient: isExpanded ? undefined : 'vertical',
+                      overflow: isExpanded ? 'visible' : 'hidden',
+                    }}>
+                      {deal.summary}
+                    </p>
+                    <div style={{ padding: '4px 0' }}>
+                      <button
+                        onClick={() => toggleExpand(deal.id)}
+                        style={{
+                          background: 'none', border: 'none', padding: '0 0 1px', cursor: 'pointer',
+                          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                          color: '#10224A', lineHeight: '21px',
+                          borderBottom: '1px dashed #10224A',
+                        }}
+                      >
+                        {isExpanded ? 'Collapse relevance note' : 'Expand relevance note'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ width: '110px', flexShrink: 0, paddingTop: '1px' }}>
+                {/* Type */}
+                <div style={{ width: TYPE_W, flexShrink: 0, padding: '4px 8px' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center',
-                    padding: '2px 8px', borderRadius: '9999px',
-                    fontSize: '11px', fontWeight: 600,
+                    padding: '4px 8px', borderRadius: '8px',
+                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
                     background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
                   }}>
                     {deal.dealType ?? 'Deal'}
                   </span>
                 </div>
-                <div style={{ width: '68px', flexShrink: 0, fontSize: '12px', fontWeight: 600,
-                  color: 'var(--font-primary)', paddingTop: '2px', fontVariantNumeric: 'tabular-nums' }}>
+                {/* Value */}
+                <div style={{ width: VAL_W, flexShrink: 0, padding: '4px 8px', fontSize: '14px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', fontVariantNumeric: 'tabular-nums' }}>
                   {valueLabel}
                 </div>
-                <div style={{ width: '70px', flexShrink: 0, fontSize: '12px', color: 'rgba(5,10,68,0.55)', paddingTop: '2px' }}>
+                {/* Date */}
+                <div style={{ width: DATE_W, flexShrink: 0, padding: '4px 12px 4px 8px', fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#03070F', lineHeight: '21px' }}>
                   {dateLabel}
                 </div>
               </div>
-              {/* Description + expand toggle */}
-              <div style={{ padding: '6px 16px 10px' }}>
-                <p style={{
-                  margin: '0 0 4px', fontSize: '12px', color: 'rgba(5,10,68,0.65)', lineHeight: '1.55',
-                  display: isExpanded ? 'block' : '-webkit-box',
-                  WebkitLineClamp: isExpanded ? undefined : 3,
-                  WebkitBoxOrient: isExpanded ? undefined : 'vertical',
-                  overflow: isExpanded ? 'visible' : 'hidden',
-                }}>
-                  {deal.summary}
-                </p>
-                <button
-                  onClick={() => toggleExpand(deal.id)}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    fontSize: '12px', fontWeight: 500, color: 'rgba(5,10,68,0.55)',
-                    textDecoration: 'underline', textDecorationStyle: 'dashed',
-                    textUnderlineOffset: '2px', fontFamily: 'inherit',
-                  }}
-                >
-                  {isExpanded ? 'Collapse relevance note' : 'Expand relevance note'}
-                </button>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
+}
+
+// ── Flag emoji → ISO 3166-1 alpha-2 code (e.g. "🇬🇧" → "gb") ─────────────────
+function flagEmojiToIso(emoji: string): string {
+  if (!emoji) return ''
+  const codePoints = [...emoji].map(c => c.codePointAt(0) ?? 0)
+  const letters = codePoints
+    .filter(cp => cp >= 127462 && cp <= 127487)
+    .map(cp => String.fromCharCode(cp - 127397))
+  return letters.join('').toLowerCase()
 }
 
 // ── HTA & Payer access panel ──────────────────────────────────────────────────
@@ -1228,8 +1305,8 @@ function HtaStatusBadge({ status }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      padding: '3px 10px', borderRadius: '9999px',
-      fontSize: '11px', fontWeight: 700,
+      padding: '4px 8px', borderRadius: '8px',
+      fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
       background: cfg.bg, color: cfg.text, whiteSpace: 'nowrap', flexShrink: 0,
     }}>
       {status}
@@ -1241,60 +1318,58 @@ function HtaPayerPanel({ items }) {
   return (
     <div style={{
       flex: 1, minWidth: 0,
-      background: 'var(--bg-1)',
-      border: '1.8px solid rgba(210,226,255,1)',
+      background: '#FFFFFF',
+      border: '1.086px solid rgba(210,226,255,1)',
       borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
       overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{
-        flexShrink: 0, padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>HTA &amp; Payer access</span>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>by market</span>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>HTA &amp; Payer access</span>
+        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>by market</span>
       </div>
       {/* Scrollable cards */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              background: 'var(--bg-2)',
-              border: '1px solid rgba(210,226,255,0.70)',
-              borderRadius: '12px',
-              padding: '12px',
-            }}
-          >
-            {/* Flag + agency + badge */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-                <span style={{ fontSize: '14px', lineHeight: 1, flexShrink: 0 }}>{item.flagEmoji ?? '🌍'}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.3',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {item.country}: {item.agencyShort ?? item.agency}
-                </span>
+          <div key={item.id} style={{
+            background: '#FFFFFF',
+            border: '1.8px solid rgba(210,226,255,1)',
+            borderRadius: '8px',
+            padding: '8px',
+            display: 'flex', flexDirection: 'column', gap: '12px',
+          }}>
+            {/* Top row: flag + country/product + badge */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '4px', flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
+                {flagEmojiToIso(item.flagEmoji ?? '')
+                  ? <img src={`https://flagcdn.com/20x15/${flagEmojiToIso(item.flagEmoji ?? '')}.png`} alt={item.country ?? ''} style={{ width: 20, height: 15, flexShrink: 0, marginTop: 3, borderRadius: 2 }} />
+                  : <span style={{ fontSize: '14px', lineHeight: '20px', flexShrink: 0 }}>🌍</span>}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.country}: {item.agencyShort ?? item.agency}
+                  </span>
+                  {item.productLabel && (
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+                      {item.productLabel}
+                    </span>
+                  )}
+                </div>
               </div>
               <HtaStatusBadge status={item.htaStatusBadge} />
             </div>
-            {/* Product label */}
-            {item.productLabel && (
-              <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(5,10,68,0.50)', lineHeight: '1.4' }}>
-                {item.productLabel}
-              </p>
-            )}
             {/* Description box */}
             {item.summary && (
-              <div style={{ background: 'rgba(42,118,244,0.07)', borderRadius: '8px', padding: '8px 10px', marginBottom: '8px' }}>
-                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.70)', lineHeight: '1.55' }}>
+              <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
                   {item.summary}
                 </p>
               </div>
             )}
-            {/* Footer date */}
+            {/* Footer */}
             {item.initiatedDate && (
-              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal' }}>
                 Assessment initiated {item.initiatedDate}
               </p>
             )}
@@ -1312,28 +1387,36 @@ function HtaPayerPanel({ items }) {
 
 // ── Market Signals panel ──────────────────────────────────────────────────────
 function SignalCard({ item }) {
-  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.55)', cardBg: 'rgba(5,10,68,0.03)' }
+  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.65)', outerBg: 'rgba(5,10,68,0.05)' }
   return (
     <div style={{
-      background: cfg.cardBg,
-      borderRadius: '14px',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '8px',
-      breakInside: 'avoid',
+      background: cfg.outerBg,
+      borderRadius: '16px',
+      padding: '10px',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+      height: '100%', boxSizing: 'border-box',
     }}>
-      <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.08em', color: cfg.labelColor }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: cfg.labelColor, lineHeight: 'normal', whiteSpace: 'nowrap' }}>
         {cfg.label}
       </p>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
-        {item.headline}
-      </p>
-      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.62)', lineHeight: '1.60', flex: 1 }}>
-        {item.summary}
-      </p>
-      <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)', textAlign: 'right' }}>
-        {formatMonthYear(item.date)}
-      </p>
+      <div style={{
+        background: '#FFFFFF',
+        borderRadius: '16px',
+        padding: '8px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+            {item.headline}
+          </p>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+            {item.summary}
+          </p>
+        </div>
+        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)', lineHeight: '18px', textAlign: 'right' }}>
+          {formatMonthYear(item.date)}
+        </p>
+      </div>
     </div>
   )
 }
@@ -1346,21 +1429,27 @@ function MarketSignalsPanel({ items }) {
     : items.filter(i => i.type === activeFilter)
 
   return (
-    <div style={{ marginTop: '24px' }}>
+    <div style={{
+      marginTop: '24px',
+      background: '#FFFFFF',
+      border: '1.8px solid rgba(210,226,255,1)',
+      borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
+    }}>
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--font-primary)' }}>Market Signals</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>Market Signals</span>
         <button style={{
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          fontSize: '12px', fontWeight: 500, color: 'rgba(5,10,68,0.55)',
-          textDecoration: 'underline', textDecorationStyle: 'dashed',
-          textUnderlineOffset: '2px', fontFamily: 'inherit',
+          background: 'none', border: 'none', padding: '0 0 4px', cursor: 'pointer',
+          fontSize: '12px', color: '#434343', borderBottom: '1px dashed #434343',
+          fontFamily: 'inherit', lineHeight: 'normal',
         }}>
           View full competitor list
         </button>
       </div>
       {/* Filter pill tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', flexWrap: 'wrap', flexShrink: 0, alignSelf: 'flex-start' }}>
         {SIGNAL_FILTER_TABS.map(tab => {
           const isActive = activeFilter === tab.value
           return (
@@ -1368,12 +1457,12 @@ function MarketSignalsPanel({ items }) {
               key={tab.value}
               onClick={() => setActiveFilter(tab.value)}
               style={{
-                padding: '5px 14px', borderRadius: '9999px',
-                fontSize: '13px', fontWeight: isActive ? 700 : 400,
-                background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                border: `1px solid ${isActive ? 'rgba(21,45,97,1)' : 'rgba(5,10,68,0.15)'}`,
-                cursor: 'pointer', transition: 'all 120ms ease', fontFamily: 'inherit',
+                padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
+                fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                background: isActive ? '#10224A' : 'transparent',
+                color: isActive ? '#FFFFFF' : 'var(--font-primary)',
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 120ms ease',
               }}
             >
               {tab.label}
@@ -1381,17 +1470,15 @@ function MarketSignalsPanel({ items }) {
           )
         })}
       </div>
-      {/* 3-column grid */}
+      {/* 3-column flex grid */}
       {filtered.length === 0 ? (
         <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
           No signals match the current filter.
         </p>
       ) : (
-        <div style={{ columns: 3, columnGap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {filtered.map(item => (
-            <div key={item.id} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
-              <SignalCard item={item} />
-            </div>
+            <SignalCard key={item.id} item={item} />
           ))}
         </div>
       )}
@@ -1408,11 +1495,11 @@ function MarketTab() {
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Top two-panel card */}
       <div style={{
-        background: 'var(--bg-2)',
+        background: '#E4E9F1',
         border: '1px solid rgba(210,226,255,1)',
         borderRadius: '16px',
         padding: '16px',
-        height: '440px',
+        height: '540px',
         minHeight: '360px',
         overflow: 'hidden',
       }}>
@@ -1456,7 +1543,7 @@ export default function Portal() {
     <div style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Stats row (left) + KPI items (right) */}
-      <div style={{ padding: '16px 36px 20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
+      <div style={{ padding: '16px 36px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
             Last refreshed: <span style={{ fontWeight: 600, color: 'var(--font-primary)' }}>2 mins ago</span>

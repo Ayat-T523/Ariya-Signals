@@ -94,7 +94,10 @@ body {
   animation: ariya-toast-in 200ms ease forwards;
 }
 
-/* ─── Utility: hide scrollbar (cross-browser) ─────────────────────────────── */
+/* ─── Global: all scrollbars invisible ───────────────────────────────────── */
+*::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+/* Utility class kept for explicit use */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; }
 
