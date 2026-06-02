@@ -474,19 +474,24 @@ function TabBar({ active, onChange }) {
 
 // ── Week calendar strip ───────────────────────────────────────────────────────
 function WeekStrip() {
-  const MS         = 86400000
-  const start      = new Date(TODAY.getTime() - 3 * MS)
-  const DAY_LTRS   = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-  const todayStr   = TODAY.toISOString().substring(0, 10)
-  const eventDays  = new Set(eventsData.map((e) => (e as any).date.substring(0, 10)))
+  const MS       = 86400000
+  const start    = new Date(TODAY.getTime() - 3 * MS)
+  const DAY_LTRS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const todayStr = TODAY.toISOString().substring(0, 10)
 
-  const days = Array.from({ length: 24 }, (_, i) => {
+  // date → first event type on that day
+  const eventMap = new Map<string, string>()
+  eventsData.forEach((e: any) => {
+    const key = e.date.substring(0, 10)
+    if (!eventMap.has(key)) eventMap.set(key, e.type)
+  })
+
+  const days = Array.from({ length: 90 }, (_, i) => {
     const d   = new Date(start.getTime() + i * MS)
     const str = d.toISOString().substring(0, 10)
     return { date: d, str }
   })
 
-  // Group by month
   const groups: { name: string; days: typeof days }[] = []
   days.forEach(day => {
     const name = day.date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })
@@ -509,11 +514,13 @@ function WeekStrip() {
               </span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                 {group.days.map(({ date, str }) => {
-                  const isToday  = str === todayStr
-                  const isPast   = str < todayStr
-                  const hasEvent = eventDays.has(str)
-                  const letter   = DAY_LTRS[date.getUTCDay()]
-                  const num      = String(date.getUTCDate()).padStart(2, '0')
+                  const isToday   = str === todayStr
+                  const isPast    = str < todayStr
+                  const evtType   = eventMap.get(str)
+                  const typeCfg   = evtType ? EVENT_TYPE[evtType] : null
+                  const EventIcon = typeCfg?.icon ?? null
+                  const letter    = DAY_LTRS[date.getUTCDay()]
+                  const num       = String(date.getUTCDate()).padStart(2, '0')
                   return (
                     <div key={str} style={{
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
@@ -535,9 +542,9 @@ function WeekStrip() {
                           {num}
                         </span>
                       </div>
-                      {hasEvent && (
-                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(42,118,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2a76f4' }} />
+                      {typeCfg && EventIcon && (
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: typeCfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <EventIcon size={10} color={typeCfg.text} strokeWidth={2} />
                         </div>
                       )}
                     </div>
@@ -664,9 +671,12 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
 function EventsTab() {
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
-  const [typeFilter, setTypeFilter] = useState('all')
-  const [viewFilter, setViewFilter] = useState('all')
-  const [flashedId, setFlashedId]   = useState(null)
+  const [typeFilter, setTypeFilter]         = useState('all')
+  const [viewFilter, setViewFilter]         = useState('all')
+  const [flashedId, setFlashedId]           = useState(null)
+  const [showCatalysts, setShowCatalysts]   = useState(false)
+  const [upcomingOpen, setUpcomingOpen]     = useState(true)
+  const [pastOpen, setPastOpen]             = useState(true)
   const cardRefs = useRef(new Map())
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
@@ -774,81 +784,120 @@ function EventsTab() {
 
         </div>
 
-        {/* View key catalyst events */}
-        <button style={{
-          background: 'none', border: 'none', padding: '0 0 4px',
-          borderBottom: '1px dashed #434343',
-          cursor: 'pointer', fontSize: '12px',
-          fontFamily: 'Inter, sans-serif', color: '#434343',
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}>
-          View key catalyst events
+        {/* View / Hide key catalyst events */}
+        <button
+          onClick={() => setShowCatalysts(v => !v)}
+          style={{
+            background: 'none', border: 'none', padding: '0 0 4px',
+            borderBottom: '1px dashed #434343',
+            cursor: 'pointer', fontSize: '12px',
+            fontFamily: 'Inter, sans-serif', color: '#434343',
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}
+        >
+          {showCatalysts ? 'Hide key catalyst events' : 'View key catalyst events'}
         </button>
       </div>
 
       {/* ── Calendar strip ─────────────────────────────────────────────────── */}
       <WeekStrip />
 
-      {/* ── Event lists ────────────────────────────────────────────────────── */}
-      {upcoming.length === 0 && past.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
-          No events found
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* ── Event list + optional gantt ────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-          {/* Upcoming */}
-          {upcoming.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
-                <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
-                  Upcoming{' '}
-                  <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({upcoming.length} events)</span>
-                </span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {upcoming.map((e) => (
-                  <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
-                    <EventCard
-                      event={e}
-                      cardRef={(node) => setCardRef((e as any).id, node)}
-                      flashing={flashedId === (e as any).id}
-                    />
-                  </div>
-                ))}
-              </div>
+        {/* Event list — shrinks when gantt is shown */}
+        <div style={{ flex: showCatalysts ? '0 0 520px' : '1 1 0', minWidth: 0 }}>
+          {upcoming.length === 0 && past.length === 0 ? (
+            <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+              No events found
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+
+              {/* Upcoming section */}
+              {upcoming.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => setUpcomingOpen(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', textAlign: 'left' }}
+                  >
+                    <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
+                      <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
+                      Upcoming{' '}
+                      <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({upcoming.length} events)</span>
+                    </span>
+                  </button>
+                  {/* Separator */}
+                  <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)', marginBottom: '12px' }} />
+                  {/* Cards */}
+                  {upcomingOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                      {upcoming.map((e) => (
+                        <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
+                          <EventCard
+                            event={e}
+                            cardRef={(node) => setCardRef((e as any).id, node)}
+                            flashing={flashedId === (e as any).id}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Past section */}
+              {past.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => setPastOpen(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 12px', textAlign: 'left' }}
+                  >
+                    <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
+                      <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
+                      Past{' '}
+                      <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({past.length} events)</span>
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)' }}>• Past 90 days</span>
+                  </button>
+                  {/* Separator */}
+                  <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)', marginBottom: '12px' }} />
+                  {/* Cards */}
+                  {pastOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {past.map((e) => (
+                        <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
+                          <EventCard
+                            event={e}
+                            pastVariant
+                            cardRef={(node) => setCardRef((e as any).id, node)}
+                            flashing={flashedId === (e as any).id}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           )}
-
-          {/* Past */}
-          {past.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
-                <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
-                  Past{' '}
-                  <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({past.length} events)</span>
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)' }}>• Past 90 days</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {past.map((e) => (
-                  <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
-                    <EventCard
-                      event={e}
-                      pastVariant
-                      cardRef={(node) => setCardRef((e as any).id, node)}
-                      flashing={flashedId === (e as any).id}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
         </div>
-      )}
+
+        {/* Key Catalysts gantt — shown when toggled */}
+        {showCatalysts && (
+          <div style={{ flex: '1 1 0', minWidth: 0, position: 'sticky', top: '16px', height: '556px' }}>
+            <KeyCatalystsCalendar count={eventsData.length} />
+          </div>
+        )}
+
+      </div>
 
     </div>
   )
