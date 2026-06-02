@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   CalendarDays, FileText, TrendingUp,
-  MapPin, Users, ChevronRight,
+  MapPin, Users, ChevronRight, ChevronDown,
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair, Copy,
   FileSearch, ArrowRight, Link2,
 } from 'lucide-react'
@@ -425,7 +425,7 @@ function TabBar({ active, onChange }) {
     <div style={{
       display: 'flex',
       padding: '0 36px',
-      borderBottom: '1px solid rgba(5,10,68,0.10)',
+      borderBottom: '1px solid #708090',
     }}>
       {TABS.map(({ label, icon: TabIcon }, i) => {
         const isActive = active === i
@@ -434,27 +434,29 @@ function TabBar({ active, onChange }) {
             key={label}
             onClick={() => onChange(i)}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: '7px',
-              padding: '10px 20px',
-              fontSize: '14px', fontWeight: isActive ? 600 : 400,
-              color: isActive ? 'var(--font-primary)' : 'var(--font-secondary)',
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '6px 12px',
+              fontSize: '14px', fontWeight: isActive ? 500 : 400,
+              fontFamily: 'Satoshi, sans-serif',
+              color: isActive ? '#10224a' : '#434c5b',
               background: 'transparent',
               border: 'none',
-              borderBottom: isActive ? '3px solid rgba(21,45,97,1)' : '3px solid transparent',
+              borderBottom: isActive ? '4px solid #10224a' : '3px solid transparent',
               marginBottom: '-1px',
               cursor: 'pointer', whiteSpace: 'nowrap',
               transition: 'color 150ms ease, border-color 150ms ease',
             }}
           >
-            {TabIcon && <TabIcon size={13} strokeWidth={isActive ? 2 : 1.5} />}
+            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} />}
             {label}
             <span style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minWidth: '22px', height: '18px', padding: '0 5px',
-              borderRadius: '9999px',
-              background: isActive ? 'rgba(21,45,97,1)' : 'rgba(5,10,68,0.10)',
-              color: isActive ? '#FFFFFF' : 'var(--font-secondary)',
-              fontSize: '11px', fontWeight: 700,
+              minWidth: '22px', height: '18px', padding: '0 4px',
+              borderRadius: '4px',
+              background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
+              color: isActive ? '#10224a' : '#434c5b',
+              fontSize: '12px', fontWeight: 500,
+              fontFamily: 'Satoshi, sans-serif',
               lineHeight: 1,
             }}>
               {String(TAB_COUNTS[i]).padStart(2, '0')}
@@ -469,6 +471,87 @@ function TabBar({ active, onChange }) {
 // ──────────────────────────────────────────────────────────────────────────────
 // TAB 1: EVENTS
 // ──────────────────────────────────────────────────────────────────────────────
+
+// ── Week calendar strip ───────────────────────────────────────────────────────
+function WeekStrip() {
+  const MS         = 86400000
+  const start      = new Date(TODAY.getTime() - 3 * MS)
+  const DAY_LTRS   = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const todayStr   = TODAY.toISOString().substring(0, 10)
+  const eventDays  = new Set(eventsData.map((e) => (e as any).date.substring(0, 10)))
+
+  const days = Array.from({ length: 24 }, (_, i) => {
+    const d   = new Date(start.getTime() + i * MS)
+    const str = d.toISOString().substring(0, 10)
+    return { date: d, str }
+  })
+
+  // Group by month
+  const groups: { name: string; days: typeof days }[] = []
+  days.forEach(day => {
+    const name = day.date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })
+    const last = groups[groups.length - 1]
+    if (!last || last.name !== name) groups.push({ name, days: [day] })
+    else last.days.push(day)
+  })
+
+  return (
+    <div className="hide-scrollbar" style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 'max-content' }}>
+        {groups.map((group, gi) => (
+          <div key={group.name} style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {gi > 0 && (
+              <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(5,10,68,0.12)', margin: '0 8px', flexShrink: 0 }} />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', textAlign: 'center' }}>
+                {group.name}
+              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                {group.days.map(({ date, str }) => {
+                  const isToday  = str === todayStr
+                  const isPast   = str < todayStr
+                  const hasEvent = eventDays.has(str)
+                  const letter   = DAY_LTRS[date.getUTCDay()]
+                  const num      = String(date.getUTCDate()).padStart(2, '0')
+                  return (
+                    <div key={str} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                      padding: isToday ? '8px 4px' : '4px',
+                      borderRadius: '8px',
+                      height: '91px', width: isToday ? '50px' : '42px',
+                      border: '1px solid rgba(210,226,255,1)',
+                      background: isToday ? '#f4f8fe' : '#ffffff',
+                      opacity: isPast && !isToday ? 0.3 : 1,
+                      flexShrink: 0,
+                      boxSizing: 'border-box',
+                    }}>
+                      <div style={{ height: '4px', flexShrink: 0 }} />
+                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+                        {letter}
+                      </span>
+                      <div style={{ width: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '8px', background: isToday ? '#10224a' : 'rgba(112,128,144,0.15)' }}>
+                        <span style={{ display: 'block', width: '100%', fontSize: isToday ? '14px' : '18px', fontFamily: 'Satoshi, sans-serif', color: isToday ? '#ffffff' : '#434c5b', lineHeight: isToday ? '21px' : '25.2px', textAlign: 'center' }}>
+                          {num}
+                        </span>
+                      </div>
+                      {hasEvent && (
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(42,118,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2a76f4' }} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function EventCard({ event, pastVariant, cardRef, flashing }) {
   const past = Boolean(pastVariant)
   const annotations = LEADERSHIP_ANNOTATIONS[event.type]
@@ -579,32 +662,32 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
 }
 
 function EventsTab() {
-  const [searchParams] = useSearchParams()
-  const eventFromUrl = searchParams.get('event')
-  const [filter, setFilter] = useState('all')
-  const [flashedId, setFlashedId] = useState(null)
+  const [searchParams]  = useSearchParams()
+  const eventFromUrl    = searchParams.get('event')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [viewFilter, setViewFilter] = useState('all')
+  const [flashedId, setFlashedId]   = useState(null)
   const cardRefs = useRef(new Map())
-  const leadershipMode = filter === 'leadership'
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
-  const pastCutoffTs = TODAY.getTime() - NINETY_DAYS_MS
+  const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
 
-  const filtered = leadershipMode
-    ? eventsData.filter((e) => LEADERSHIP_TYPES.has(e.type))
-    : eventsData
+  const filtered = eventsData.filter((e) => {
+    if (typeFilter !== 'all' && (e as any).type !== typeFilter) return false
+    if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has((e as any).type)) return false
+    return true
+  })
 
   const upcoming = filtered
-    .filter((e) => new Date(e.date) >= TODAY)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .filter((e) => new Date((e as any).date) >= TODAY)
+    .sort((a, b) => new Date((a as any).date).getTime() - new Date((b as any).date).getTime())
 
   const past = filtered
     .filter((e) => {
-      const ts = new Date(e.date).getTime()
+      const ts = new Date((e as any).date).getTime()
       return ts < TODAY.getTime() && ts >= pastCutoffTs
     })
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-
-  const allEvents = [...upcoming, ...past]
+    .sort((a, b) => new Date((b as any).date).getTime() - new Date((a as any).date).getTime())
 
   function jumpToEvent(eventId) {
     const node = cardRefs.current.get(eventId)
@@ -625,110 +708,148 @@ function EventsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventFromUrl])
 
+  const TYPE_OPTS = [
+    { value: 'all',        label: 'All events'    },
+    { value: 'earnings',   label: 'Earnings call' },
+    { value: 'regulatory', label: 'Regulatory'    },
+  ]
+  const VIEW_OPTS = [
+    { value: 'all',        label: 'All events'          },
+    { value: 'leadership', label: 'Leadership priority' },
+  ]
+
   return (
-    <div style={{
-      background: '#E4E9F1',
-      border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      height: 'calc(100vh - 268px)',
-      minHeight: '500px',
-      overflow: 'hidden',
-    }}>
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-      {/* ── Left: upcoming events list ─────────────────────────────────────── */}
-      <div style={{
-        flex: '0 0 520px',
-        background: 'var(--bg-1)',
-        border: '1.8px solid rgba(210,226,255,1)',
-        borderRadius: '16px',
-        padding: '16px',
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+      {/* ── Filter / View bar ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+
+          {/* Filter by */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>Upcoming events</span>
-            <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{upcoming.length} events</span>
+            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>Filter by:</span>
+            <div style={{ display: 'inline-flex', gap: '8px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '4px' }}>
+              {TYPE_OPTS.map(opt => {
+                const isAct = typeFilter === opt.value
+                return (
+                  <button key={opt.value} onClick={() => setTypeFilter(opt.value)} style={{
+                    padding: '4px 8px', borderRadius: isAct ? '16px' : '12px',
+                    background: isAct ? '#10224a' : 'transparent',
+                    color: isAct ? '#ffffff' : '#434c5b',
+                    border: 'none', cursor: 'pointer',
+                    fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                    whiteSpace: 'nowrap', transition: 'all 120ms ease',
+                  }}>
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div style={{ display: 'inline-flex', padding: '4px', borderRadius: '16px', border: '1px solid rgba(210,226,255,1)', gap: '8px' }}>
-            {[{ value: 'all', label: 'All events' }, { value: 'leadership', label: 'Leadership priorities' }].map((opt) => {
-              const isActive = filter === opt.value
-              return (
-                <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
-                  padding: '4px 8px',
-                  borderRadius: isActive ? '16px' : '12px',
-                  fontSize: '14px', fontWeight: 400, border: 'none',
-                  background: isActive ? 'rgba(16,34,74,1)' : 'transparent',
-                  color: isActive ? 'var(--bg-1)' : 'var(--font-primary)',
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 120ms ease',
-                }}>
-                  {opt.label}
-                </button>
-              )
-            })}
+
+          {/* Divider */}
+          <div style={{ width: '1px', height: '20px', background: 'rgba(5,10,68,0.15)', flexShrink: 0 }} />
+
+          {/* View by */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>View by:</span>
+            <div style={{ display: 'inline-flex', gap: '8px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '4px' }}>
+              {VIEW_OPTS.map(opt => {
+                const isAct = viewFilter === opt.value
+                return (
+                  <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
+                    padding: '4px 8px', borderRadius: isAct ? '16px' : '12px',
+                    background: isAct ? '#10224a' : 'transparent',
+                    color: isAct ? '#ffffff' : '#434c5b',
+                    border: 'none', cursor: 'pointer',
+                    fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                    whiteSpace: 'nowrap', transition: 'all 120ms ease',
+                  }}>
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
+
         </div>
 
-        {/* Event cards with dividers — scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {upcoming.length === 0 && past.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '24px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
-              No events found
-            </p>
-          ) : (
-            <>
-              {upcoming.map((e, idx) => (
-                <div key={e.id}>
-                  <EventCard
-                    event={e}
-                    cardRef={(node) => setCardRef(e.id, node)}
-                    flashing={flashedId === e.id}
-                  />
-                  {(idx < upcoming.length - 1 || past.length > 0) && (
-                    <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-                  )}
-                </div>
-              ))}
-              {past.map((e, idx) => (
-                <div key={e.id}>
-                  <EventCard
-                    event={e}
-                    pastVariant
-                    cardRef={(node) => setCardRef(e.id, node)}
-                    flashing={flashedId === e.id}
-                  />
-                  {idx < past.length - 1 && (
-                    <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-                  )}
-                </div>
-              ))}
-            </>
+        {/* View key catalyst events */}
+        <button style={{
+          background: 'none', border: 'none', padding: '0 0 4px',
+          borderBottom: '1px dashed #434343',
+          cursor: 'pointer', fontSize: '12px',
+          fontFamily: 'Inter, sans-serif', color: '#434343',
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}>
+          View key catalyst events
+        </button>
+      </div>
+
+      {/* ── Calendar strip ─────────────────────────────────────────────────── */}
+      <WeekStrip />
+
+      {/* ── Event lists ────────────────────────────────────────────────────── */}
+      {upcoming.length === 0 && past.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+          No events found
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* Upcoming */}
+          {upcoming.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
+                  Upcoming{' '}
+                  <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({upcoming.length} events)</span>
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {upcoming.map((e) => (
+                  <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
+                    <EventCard
+                      event={e}
+                      cardRef={(node) => setCardRef((e as any).id, node)}
+                      flashing={flashedId === (e as any).id}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
 
-        <div style={{ flexShrink: 0, marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
-          <button style={{
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-            fontSize: '12px', fontWeight: 600, color: '#0055BB',
-            display: 'inline-flex', alignItems: 'center', gap: '5px',
-            borderBottom: '1px dashed rgba(0,85,187,0.45)',
-            paddingBottom: '2px',
-            fontFamily: 'inherit',
-          }}>
-            <FileSearch size={12} strokeWidth={1.8} />
-            Read full assessment
-            <ArrowRight size={11} strokeWidth={2} />
-          </button>
-        </div>
-      </div>
+          {/* Past */}
+          {past.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
+                  Past{' '}
+                  <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({past.length} events)</span>
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)' }}>• Past 90 days</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {past.map((e) => (
+                  <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
+                    <EventCard
+                      event={e}
+                      pastVariant
+                      cardRef={(node) => setCardRef((e as any).id, node)}
+                      flashing={flashedId === (e as any).id}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-      <KeyCatalystsCalendar count={eventsData.length} />
-      </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -1529,38 +1650,8 @@ export default function Portal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl])
 
-  const nextUpcomingEvents = eventsData
-    .filter((e) => !isPast(e.endDate || e.date))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-
-  const mostRecentDeal = [...marketData]
-    .filter((m) => m.type === 'deal')
-    .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null
-
-  const totalSignals = eventsData.length + reportsData.length + marketData.length
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-
-      {/* Stats row (left) + KPI items (right) */}
-      <div style={{ padding: '16px 36px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            Last refreshed: <span style={{ fontWeight: 600, color: 'var(--font-primary)' }}>2 mins ago</span>
-          </p>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <span style={{ color: 'var(--font-primary)' }}>{competitorsData.length} tracked competitors</span>
-            <span style={{ margin: '0 6px' }}>•</span>
-            <span style={{ color: 'var(--font-primary)' }}>{totalSignals} signals found</span>
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '36px', flexShrink: 0 }}>
-          {nextUpcomingEvents.slice(0, 1).map((e) => (
-            <KpiCountdownCard key={e.id} event={e} />
-          ))}
-          <KpiDealCard deal={mostRecentDeal} />
-        </div>
-      </div>
 
       {/* Underline tab bar — spans full content width */}
       <TabBar active={activeTab} onChange={setActiveTab} />
