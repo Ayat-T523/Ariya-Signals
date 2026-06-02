@@ -116,11 +116,21 @@ const EVENT_TYPE_MAP: Record<string, string[]> = {
 
 // ── Event type badge styles ───────────────────────────────────────────────────
 const EVENT_TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  conference: { bg: 'rgba(42,118,244,0.12)', text: '#2a76f4',             label: 'Conference' },
-  earnings:   { bg: 'rgba(250,174,54,0.15)', text: '#966820',             label: 'Earnings'   },
-  regulatory: { bg: 'rgba(130,88,200,0.12)', text: '#7C3AED',             label: 'Regulatory' },
-  investor:   { bg: 'rgba(5,10,68,0.10)',    text: 'rgba(5,10,68,0.72)',  label: 'Investor'   },
-  milestone:  { bg: 'rgba(183,63,84,0.12)', text: '#b73f54',              label: 'Milestone'  },
+  conference: { bg: 'rgba(42,118,244,0.12)',  text: '#2a76f4',            label: 'Conference'   },
+  earnings:   { bg: 'rgba(251,101,20,0.15)',  text: '#fb6514',            label: 'Earnings call' },
+  regulatory: { bg: 'rgba(130,88,200,0.12)',  text: '#7C3AED',            label: 'Regulatory'   },
+  investor:   { bg: 'rgba(5,10,68,0.10)',     text: 'rgba(5,10,68,0.72)', label: 'Investor'     },
+  milestone:  { bg: 'rgba(183,63,84,0.12)',   text: '#b73f54',            label: 'Milestone'    },
+}
+
+// ── Competitor flagship asset map ─────────────────────────────────────────────
+const COMPETITOR_ASSET_MAP: Record<string, string> = {
+  'pharvaris':   'Deucrictibant',
+  'takeda':      'Takhzyro',
+  'biocryst':    'Orladeyo',
+  'csl-behring': 'Andembry',
+  'ionis':       'Dawnzera',
+  'astria':      'STAR-0215',
 }
 
 // ── Status badge styles ───────────────────────────────────────────────────────
@@ -130,13 +140,16 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   Pending:   { bg: 'rgba(67,76,91,0.12)',    text: 'var(--font-secondary)' },
 }
 
-// ── Conference pills — one per relevant month header ─────────────────────────
-const CONF_PILLS: Record<string, { name: string; dates: string }> = {
-  'Apr 2026': { name: 'EAACI',      dates: 'Apr 15–18' },
-  'Jun 2026': { name: 'FDA AdCom',  dates: 'Jun 8–11'  },
-  'Sep 2026': { name: 'HAEi Global', dates: 'Sep 24–27' },
-  'Oct 2026': { name: 'ACAAI',      dates: 'Oct 10–14' },
-  'Feb 2027': { name: 'AAAAI',      dates: 'Feb 27–Mar 2' },
+// ── Conference pills — multiple per month header, with individual colours ─────
+const CONF_PILLS: Record<string, Array<{ name: string; color: string }>> = {
+  'April 2026': [{ name: 'EAACI · Apr 15–18',      color: '#2a76f4' }],
+  'June 2026':  [
+    { name: 'FDA AdCom · Jun 8–11',  color: '#2a76f4' },
+    { name: 'Oppenheimer',            color: '#49a078' },
+  ],
+  'September 2026': [{ name: 'HAEi Global · Sep 24–27', color: '#2a76f4' }],
+  'October 2026':   [{ name: 'ACAAI · Oct 10–14',       color: '#2a76f4' }],
+  'February 2027':  [{ name: 'AAAAI · Feb 27–Mar 2',    color: '#2a76f4' }],
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -157,12 +170,28 @@ function groupByMonth(events: EventItem[]): Record<string, EventItem[]> {
   const out: Record<string, EventItem[]> = {}
   for (const ev of events) {
     const key = new Date(ev.date).toLocaleDateString('en-US', {
-      month: 'short', year: 'numeric', timeZone: 'UTC',
+      month: 'long', year: 'numeric', timeZone: 'UTC',
     })
     if (!out[key]) out[key] = []
     out[key].push(ev)
   }
   return out
+}
+
+// Month name (long form) for the date column, e.g. "May", "June"
+function eventMonth(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })
+}
+
+// Day or day-range, zero-padded, e.g. "06", "08–11"
+function eventDayRange(ev: EventItem): string {
+  const d   = new Date(ev.date)
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const end = (ev as any).endDate ? new Date((ev as any).endDate) : null
+  if (end && end.getUTCMonth() === d.getUTCMonth()) {
+    return `${day}–${String(end.getUTCDate()).padStart(2, '0')}`
+  }
+  return day
 }
 
 function getEventStatus(ev: EventItem): 'Confirmed' | 'Projected' | 'Pending' {
@@ -498,94 +527,96 @@ function PillSelect<T extends string>({
 }
 
 /**
- * Event row — Figma node 4-5935 layout:
- * [24px logo] | [Company bold / Event title small] | [Type badge] | [Date / Location] | [Status badge]
+ * Event row — Figma node 77:2995 layout:
+ * [date block 51×51] | [vertical divider] | [company/asset] | [title / attending+badge] | [type badge]
  */
 function EventRow({ event }: { event: EventItem }) {
-  const status      = getEventStatus(event)
-  const statusStyle = STATUS_STYLES[status]
-  const typeStyle   = EVENT_TYPE_STYLES[event.type] ?? EVENT_TYPE_STYLES.conference
+  const typeStyle = EVENT_TYPE_STYLES[event.type] ?? EVENT_TYPE_STYLES.conference
 
-  const ids = event.attendingCompetitors ?? []
-  const primaryCompetitor = ids.length > 0
-    ? competitorsData.find(c => c.id === ids[0])
-    : undefined
-
-  const companyName = (() => {
-    if (ids.length === 0) return 'Industry'
-    if (ids.length === 1) return primaryCompetitor?.name ?? ids[0]
-    const first = primaryCompetitor?.name?.split(' ')[0] ?? ids[0]
-    if (ids.length === 2) {
-      const second = competitorsData.find(c => c.id === ids[1])?.name?.split(' ')[0] ?? ids[1]
-      return `${first} + ${second}`
-    }
-    return `${first} +${ids.length - 1} more`
-  })()
+  const ids               = event.attendingCompetitors ?? []
+  const primaryCompetitor = ids.length > 0 ? competitorsData.find(c => c.id === ids[0]) : undefined
+  const companyName       = primaryCompetitor?.name ?? (ids[0] ?? 'Industry')
+  const assetName         = primaryCompetitor ? (COMPETITOR_ASSET_MAP[primaryCompetitor.id] ?? '') : ''
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: '10px',
-      padding: '10px 0',
+      display: 'flex', alignItems: 'flex-start', gap: '12px',
+      border: '1px solid rgba(210,226,255,1)', borderRadius: '8px',
+      padding: '8px 12px',
     }}>
-      {/* Logo */}
-      <div style={{ flexShrink: 0 }}>
-        {primaryCompetitor
-          ? <CompetitorBadge name={primaryCompetitor.name} id={primaryCompetitor.id} size={24} />
-          : <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--bg-2)', flexShrink: 0 }} />
-        }
+      {/* Left flex group */}
+      <div style={{ display: 'flex', flex: 1, gap: '12px', alignItems: 'flex-start', minWidth: 0 }}>
+
+        {/* Date block — 51×51, centred */}
+        <div style={{
+          width: 51, height: 51, flexShrink: 0,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 4,
+        }}>
+          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#2a76f4', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+            {eventMonth(event.date)}
+          </span>
+          <span style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', color: '#2a76f4', lineHeight: '21.6px', whiteSpace: 'nowrap' }}>
+            {eventDayRange(event)}
+          </span>
+        </div>
+
+        {/* Vertical divider */}
+        <div style={{ width: 1, height: 51, background: 'rgba(210,226,255,1)', flexShrink: 0, alignSelf: 'center' }} />
+
+        {/* Company / asset */}
+        <div style={{ flexShrink: 0, height: 51, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+            {companyName}
+          </span>
+          {assetName && (
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+              {assetName}
+            </span>
+          )}
+        </div>
+
+        {/* Event title + attending row */}
+        <div style={{ flex: 1, height: 51, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
+          <div style={{ padding: '4px 12px' }}>
+            <p style={{
+              margin: 0, fontSize: '14px', fontWeight: 400,
+              fontFamily: 'Satoshi, sans-serif', color: '#434c5b',
+              lineHeight: '21px', whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {event.title}
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 12px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+              Attending
+            </span>
+            {primaryCompetitor && (
+              <div style={{
+                width: 20, height: 20,
+                border: '1px solid rgba(210,226,255,1)',
+                borderRadius: '9999px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden', flexShrink: 0,
+              }}>
+                <CompetitorBadge name={primaryCompetitor.name} id={primaryCompetitor.id} size={16} />
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
-      {/* Company name + event title */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          margin: 0, fontSize: '12px', fontWeight: 600,
-          color: 'var(--font-primary)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        }}>
-          {companyName}
-        </p>
-        <p style={{
-          margin: '2px 0 0', fontSize: '11px',
-          color: 'var(--font-secondary)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        }}>
-          {event.title}
-        </p>
-      </div>
-
-      {/* Event type badge */}
+      {/* Type badge — right-aligned */}
       <span style={{
-        padding: '3px 8px', borderRadius: '6px',
-        fontSize: '11px', fontWeight: 500,
+        flexShrink: 0,
+        padding: '4px 12px', borderRadius: '6px',
+        fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
         background: typeStyle.bg, color: typeStyle.text,
-        flexShrink: 0, whiteSpace: 'nowrap',
+        whiteSpace: 'nowrap', alignSelf: 'center',
       }}>
         {typeStyle.label}
-      </span>
-
-      {/* Date + location */}
-      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: '52px' }}>
-        <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--font-primary)', whiteSpace: 'nowrap' }}>
-          {formatEventDate(event.date)}
-        </p>
-        <p style={{
-          margin: '2px 0 0', fontSize: '10px',
-          color: 'var(--font-secondary)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          maxWidth: '72px',
-        }}>
-          {event.location.split(',')[0]}
-        </p>
-      </div>
-
-      {/* Status badge */}
-      <span style={{
-        padding: '3px 8px', borderRadius: '8px',
-        fontSize: '11px', fontWeight: 500,
-        background: statusStyle.bg, color: statusStyle.text,
-        flexShrink: 0, whiteSpace: 'nowrap',
-      }}>
-        {status}
       </span>
     </div>
   )
@@ -618,7 +649,7 @@ export default function WarRoom() {
       if (aRead !== bRead) return aRead - bRead
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     })
-    .slice(0, 10)
+    .slice(0, 5)
 
   // ── Signal-driven competitor quadrants ─────────────────────────────────────
   const quadrantMap = buildSignalQuadrants()
@@ -638,7 +669,7 @@ export default function WarRoom() {
       return (EVENT_TYPE_MAP[eventFilter] || []).includes(e.type)
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 8)
+    .slice(0, 5)
 
   const groupedEvents = groupByMonth(upcomingEvents)
   const monthKeys     = Object.keys(groupedEvents)
@@ -713,29 +744,26 @@ export default function WarRoom() {
         borderRadius: '16px',
         padding: '16px',
         marginBottom: '24px',
-        display: 'flex', gap: '24px', alignItems: 'flex-start',
+        display: 'flex', gap: '24px', alignItems: 'stretch',
       }}>
 
         {/* Top signals to triage */}
         <div style={{
           flex: 1, minWidth: 0,
-          height: '700px',
           background: '#ffffff',
           border: '1.8px solid var(--blue-light)',
           borderRadius: '16px',
           padding: '16px',
           display: 'flex', flexDirection: 'column', gap: '12px',
-          overflow: 'hidden',
-          position: 'relative',
         }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-              <p style={{ margin: 0, fontSize: '18px', fontWeight: 500, lineHeight: '25.2px', color: 'var(--font-primary)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+              <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, lineHeight: '21.6px', color: '#2b2a2a', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
                 Top signals to triage
               </p>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
-                10 shown • {unreadCount} unread
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                {topAlerts.length} shown • {unreadCount} unread
               </p>
             </div>
             <PillSelect
@@ -746,22 +774,18 @@ export default function WarRoom() {
             />
           </div>
 
-          {/* Scrollable signal list — padded at the bottom so last row clears the sticky button */}
-          <div style={{
-            display: 'flex', flexDirection: 'column',
-            overflowY: 'auto', flex: 1, minHeight: 0,
-            paddingBottom: '52px',
-          }}>
+          {/* Signal list — no scroll, flat */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {topAlerts.map((alert, i) => (
               <SignalRow key={alert.id} alert={alert} isLast={i === topAlerts.length - 1} />
             ))}
           </div>
 
-          {/* Sticky "Read full assessment" — bottom-right, underlined text link */}
+          {/* Read full assessment — inline at bottom */}
           <Link
             to="/alerts"
             style={{
-              position: 'absolute', bottom: '16px', right: '16px',
+              alignSelf: 'flex-end',
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               fontSize: '12px', fontWeight: 500,
               color: 'var(--font-primary)',
@@ -769,9 +793,6 @@ export default function WarRoom() {
               borderBottom: '1px solid var(--font-primary)',
               paddingBottom: '2px',
               lineHeight: 1.2,
-              background: 'rgba(255,255,255,0.92)',
-              backdropFilter: 'blur(4px)',
-              padding: '4px 2px 5px',
             }}
           >
             <FileSearch size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
@@ -788,10 +809,9 @@ export default function WarRoom() {
           padding: '16px',
           display: 'flex', flexDirection: 'column', gap: '16px',
           flexShrink: 0, width: '380px',
-          height: '700px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ margin: 0, fontSize: '18px', fontWeight: 500, lineHeight: '25.2px', color: 'var(--font-primary)', fontFamily: 'Satoshi, sans-serif' }}>
+            <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, lineHeight: '21.6px', color: '#2b2a2a', fontFamily: 'Satoshi, sans-serif' }}>
               Market weather · Ekterly
             </p>
             <div style={{ background: 'rgba(174,169,177,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
@@ -870,10 +890,10 @@ export default function WarRoom() {
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, lineHeight: '21.6px', color: '#2b2a2a', fontFamily: 'Satoshi, sans-serif' }}>
                 Tracked Competitors
               </p>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', fontFamily: 'Inter, sans-serif' }}>
                 {Object.keys(quadrantMap).length} shown
               </p>
             </div>
@@ -909,13 +929,13 @@ export default function WarRoom() {
           overflow: 'hidden',
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, lineHeight: '21.6px', color: '#2b2a2a', fontFamily: 'Satoshi, sans-serif' }}>
                   Upcoming events
                 </p>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', fontFamily: 'Inter, sans-serif' }}>
                   {upcomingEvents.length} shown
                 </p>
               </div>
@@ -939,51 +959,41 @@ export default function WarRoom() {
               No upcoming events for this filter.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {monthKeys.map(month => (
-                <div key={month}>
+                <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-                  {/* Month header + optional conference pill */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    marginBottom: '4px',
-                  }}>
-                    <span style={{
-                      fontSize: '11px', fontWeight: 700,
-                      color: 'var(--font-secondary)',
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {month}
-                    </span>
-                    {CONF_PILLS[month] && (
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '6px',
-                        fontSize: '10px', fontWeight: 600,
-                        background: 'rgba(42,118,244,0.10)',
-                        color: '#2a76f4',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {CONF_PILLS[month].name} · {CONF_PILLS[month].dates}
-                      </span>
-                    )}
-                    <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+                  {/* Month header — bottom border, blue month text, coloured pills */}
+                  <div style={{ borderBottom: '2px solid #DED8E1', paddingTop: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ padding: '8px 16px', flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                          color: '#152d61', lineHeight: '21px', whiteSpace: 'nowrap',
+                        }}>
+                          {month}
+                        </span>
+                      </div>
+                      {CONF_PILLS[month] && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
+                          {CONF_PILLS[month].map((pill, i) => (
+                            <span key={i} style={{
+                              padding: '4px 8px', borderRadius: '8px',
+                              fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
+                              color: pill.color, lineHeight: '21px', whiteSpace: 'nowrap',
+                            }}>
+                              {pill.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Event rows */}
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {groupedEvents[month].map((ev, i) => (
-                      <div key={ev.id}>
-                        <EventRow event={ev} />
-                        {i < groupedEvents[month].length - 1 && (
-                          <div style={{
-                            height: '1px',
-                            background: 'var(--border-subtle)',
-                            margin: '0 0 0 34px',
-                          }} />
-                        )}
-                      </div>
+                  {/* Event row cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {groupedEvents[month].map(ev => (
+                      <EventRow key={ev.id} event={ev} />
                     ))}
                   </div>
 
