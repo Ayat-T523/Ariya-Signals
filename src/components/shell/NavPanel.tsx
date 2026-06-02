@@ -29,7 +29,7 @@ import { userData } from '../../data/kalvista'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const W_COLLAPSED = 64
-const W_EXPANDED  = 184  // 12px padding each side + 160px items = 184px
+const W_EXPANDED  = 200  // 12px padding each side + 176px items = 200px
 
 // Shell background — matches Figma outer bg
 const SHELL_BG = '#152d61'
@@ -298,7 +298,6 @@ function NavItem({ item, isExpanded, unreadCount }: {
             </span>
           )}
         </NavLink>
-      </div>
 
       {showSubs && (
         <div style={{ marginBottom: '4px' }}>
