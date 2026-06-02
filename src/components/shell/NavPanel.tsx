@@ -29,7 +29,7 @@ import { userData } from '../../data/kalvista'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const W_COLLAPSED = 64
-const W_EXPANDED  = 208
+const W_EXPANDED  = 184  // 12px padding each side + 160px items = 184px
 
 // Shell background — matches Figma outer bg
 const SHELL_BG = '#152d61'
@@ -202,10 +202,11 @@ function NavLogo() {
 function GroupLabel({ label }: { label: string }) {
   return (
     <p style={{
-      margin: '16px 0 6px', padding: '0 20px',
-      fontSize: '10px', fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.12em',
-      color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap',
+      margin: '12px 0 8px', padding: '0',
+      fontSize: '12px', fontWeight: 500,
+      fontFamily: 'Satoshi, sans-serif',
+      textTransform: 'uppercase', letterSpacing: '0.06em',
+      color: '#FFFFFF', whiteSpace: 'nowrap',
     }}>
       {label}
     </p>
@@ -264,22 +265,20 @@ function NavItem({ item, isExpanded, unreadCount }: {
 
   return (
     <div>
-      <div style={{ position: 'relative', marginBottom: '2px' }}>
-        <NavLink
+      <NavLink
           to={item.to}
           end={item.end}
           aria-current={isActive ? 'page' : undefined}
           style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            height: '40px',
-            paddingLeft: '12px', paddingRight: '12px',
-            marginLeft: '0px',
-            marginRight: '8px',
+            display: 'flex', alignItems: 'center', gap: '12px',
+            height: '35px',
+            paddingLeft: '6px', paddingRight: '6px',
             borderRadius: '6px',
             background: isActive ? '#FFFFFF' : 'transparent',
             color: isActive ? '#2A76F4' : '#FFFFFF',
             textDecoration: 'none',
-            fontSize: '14px', fontWeight: isActive ? 600 : 400,
+            fontSize: '14px', fontWeight: isActive ? 500 : 400,
+            fontFamily: 'Satoshi, sans-serif',
             whiteSpace: 'nowrap', overflow: 'hidden',
             transition: 'background 150ms ease, color 150ms ease',
           }}
@@ -434,9 +433,10 @@ export default function NavPanel() {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          paddingTop: '20px',
+          paddingTop: '24px',
           paddingBottom: '12px',
-          paddingLeft: '20px',
+          paddingLeft: '12px',
+          paddingRight: '12px',
           flexShrink: 0,
         }}>
           <NavLogo />
@@ -448,20 +448,24 @@ export default function NavPanel() {
           style={{
             flex: 1,
             overflowY: 'auto', overflowX: 'hidden',
-            padding: isExpanded ? '8px 0' : '8px 12px',
+            padding: isExpanded ? '8px 12px' : '8px 12px',
           }}
         >
           {isExpanded && <GroupLabel label="Monitor" />}
-          {MONITOR.map(item => (
-            <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {MONITOR.map(item => (
+              <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
+            ))}
+          </div>
 
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '12px 8px' }} />
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
 
           {isExpanded && <GroupLabel label="Decide" />}
-          {DECIDE.map(item => (
-            <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
-          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {DECIDE.map(item => (
+              <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
+            ))}
+          </div>
         </div>
 
         {/* ── Footer: user identity + utility icons ─────────────────────────── */}
