@@ -279,12 +279,12 @@ function NavItem({ item, isExpanded, unreadCount }: {
             textDecoration: 'none',
             fontSize: '14px', fontWeight: isActive ? 500 : 400,
             fontFamily: 'Satoshi, sans-serif',
-            whiteSpace: 'nowrap', overflow: 'hidden',
+            whiteSpace: 'nowrap',
             transition: 'background 150ms ease, color 150ms ease',
           }}
         >
           <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ flex: 1 }}>
             {item.label}
           </span>
           {item.badge && unreadCount > 0 && (
