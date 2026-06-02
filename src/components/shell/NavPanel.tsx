@@ -265,32 +265,19 @@ function NavItem({ item, isExpanded, unreadCount }: {
   return (
     <div>
       <div style={{ position: 'relative', marginBottom: '2px' }}>
-        {isActive && (
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'absolute', left: 0, top: '50%',
-              transform: 'translateY(-50%)',
-              width: '12px', height: '35px',
-              background: 'var(--bg-1)',
-              borderRadius: '0 6px 6px 0', zIndex: 1,
-            }}
-          />
-        )}
         <NavLink
           to={item.to}
           end={item.end}
           aria-current={isActive ? 'page' : undefined}
           style={{
-            position: 'relative', zIndex: 2,
             display: 'flex', alignItems: 'center', gap: '10px',
             height: '40px',
             paddingLeft: '20px', paddingRight: '12px',
-            marginLeft: isActive ? '12px' : '0px',
+            marginLeft: '0px',
             marginRight: '8px',
-            borderRadius: '8px',
-            background: isActive ? 'var(--bg-1)' : 'transparent',
-            color: isActive ? 'var(--blue-primary)' : '#FFFFFF',
+            borderRadius: '6px',
+            background: isActive ? '#FFFFFF' : 'transparent',
+            color: isActive ? '#2A76F4' : '#FFFFFF',
             textDecoration: 'none',
             fontSize: '14px', fontWeight: isActive ? 600 : 400,
             whiteSpace: 'nowrap', overflow: 'hidden',

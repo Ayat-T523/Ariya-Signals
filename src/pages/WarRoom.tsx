@@ -697,44 +697,11 @@ export default function WarRoom() {
   return (
     <div style={{ padding: '8px 36px 36px' }}>
 
-      {/* ── Welcome section ─────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
-        gap: '24px', padding: '8px 0 16px',
-      }}>
-        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          {/* Top — last refreshed */}
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            Last refreshed:{' '}
-            <span style={{ fontWeight: 500, color: 'var(--font-primary)' }}>2 mins ago</span>
-          </p>
-
-          {/* Bottom — welcome + stats */}
-          <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
-            <h1 style={{
-              margin: 0,
-              fontSize: '32px', fontWeight: 500,
-              color: 'var(--font-primary)', lineHeight: 1.2,
-            }}>
-              Welcome back, {userData.user.name}.
-            </h1>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '16px',
-              marginTop: '6px',
-              fontSize: '14px', color: 'var(--font-primary)',
-            }}>
-              <span>{trackedCompetitorCount} tracked competitors</span>
-              <span style={{ color: 'var(--font-secondary)' }}>•</span>
-              <span>{totalSignals} signals found</span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'flex-end', flexShrink: 0 }}>
-          {kpiTiles.map((tile, i) => (
-            <KpiTile key={i} {...tile} />
-          ))}
-        </div>
+      {/* ── KPI tiles ───────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 0 16px' }}>
+        {kpiTiles.map((tile, i) => (
+          <KpiTile key={i} {...tile} />
+        ))}
       </div>
 
       {/* ── Row 1: Top signals + Market weather ─────────────────────────── */}
