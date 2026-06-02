@@ -53,7 +53,7 @@ export default function TopBar() {
       {/* ── Header row ─────────────────────────────────────────────────────── */}
       <div style={{
         padding: '8px 36px',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         gap: '16px',
       }}>
 
@@ -99,7 +99,6 @@ export default function TopBar() {
             color: '#ffffff',
             whiteSpace: 'nowrap',
             flexShrink: 0,
-            marginTop: '4px',
           }}
         >
           <Sparkles size={14} strokeWidth={1.5} />

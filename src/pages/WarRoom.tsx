@@ -698,7 +698,7 @@ export default function WarRoom() {
     <div style={{ padding: '8px 36px 36px' }}>
 
       {/* ── KPI tiles ───────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 0 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '8px 0 16px' }}>
         {kpiTiles.map((tile, i) => (
           <KpiTile key={i} {...tile} />
         ))}
