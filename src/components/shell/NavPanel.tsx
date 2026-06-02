@@ -272,7 +272,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             height: '40px',
-            paddingLeft: '20px', paddingRight: '12px',
+            paddingLeft: '12px', paddingRight: '12px',
             marginLeft: '0px',
             marginRight: '8px',
             borderRadius: '6px',
