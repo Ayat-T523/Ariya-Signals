@@ -14,19 +14,30 @@ const DIGEST_BULLETS = [
   'CSL Behring confirms Andembry formulary access in Germany ahead of schedule.',
 ]
 
+// ── Section card ──────────────────────────────────────────────────────────────
 function SectionCard({ title, description, children }) {
   return (
     <section style={{
-      background: '#FFFFFF', borderRadius: '20px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 4px 12px rgba(5,10,68,0.04)',
-      padding: '24px 28px', marginBottom: '20px',
+      background: '#FFFFFF',
+      borderRadius: '12px',
+      border: '1px solid rgba(210,226,255,1)',
+      padding: '20px 24px',
+      marginBottom: '16px',
     }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+      <p style={{
+        margin: '0 0 4px',
+        fontSize: '11px', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.10em',
+        color: 'rgba(5,10,68,0.40)',
+      }}>
         {title}
-      </h2>
+      </p>
       {description && (
-        <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
+        <p style={{
+          margin: '0 0 16px', fontSize: '14px',
+          fontFamily: 'Inter, sans-serif',
+          color: '#434c5b', lineHeight: '1.5',
+        }}>
           {description}
         </p>
       )}
@@ -35,18 +46,20 @@ function SectionCard({ title, description, children }) {
   )
 }
 
+// ── Field label ───────────────────────────────────────────────────────────────
 function FieldLabel({ children }) {
   return (
     <p style={{
       margin: '0 0 6px', fontSize: '11px', fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.08em',
-      color: 'rgba(5,10,68,0.45)',
+      textTransform: 'uppercase', letterSpacing: '0.09em',
+      color: 'rgba(5,10,68,0.50)',
     }}>
       {children}
     </p>
   )
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function MyAlerts() {
   const [format, setFormat] = useState(() => {
     return localStorage.getItem('ariya-delivery-format') || 'structured'
@@ -58,35 +71,38 @@ export default function MyAlerts() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '880px' }}>
+    <div style={{ padding: '20px 36px 36px', maxWidth: '720px' }}>
+
       {/* Breadcrumb */}
       <Link
         to="/myspace"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'rgba(5,10,68,0.45)', textDecoration: 'none', marginBottom: '16px' }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          fontSize: '14px', fontWeight: 600,
+          fontFamily: 'Satoshi, sans-serif', color: '#10224A',
+          textDecoration: 'none', marginBottom: '16px',
+        }}
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={16} />
         My Space
       </Link>
 
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          My Alerts
-        </h1>
-        <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.45)' }}>
-          How and when Ariya delivers signals to you.
-        </p>
-      </div>
+      {/* Description */}
+      <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b', lineHeight: '1.5' }}>
+        How and when Ariya delivers signals to you.
+      </p>
 
-      {/* ── Delivery preferences ─────────────────────────────────────────── */}
-      <SectionCard title="Delivery preferences" description="How and when Ariya sends you signals.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* ── Delivery preferences ─────────────────────────────────────────────── */}
+      <SectionCard title="Delivery preferences" description="Configure when and how Ariya sends you signals.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
           {/* Scheduled delivery */}
           <div>
             <FieldLabel>Scheduled delivery</FieldLabel>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 14px', borderRadius: '10px',
-              border: '1.5px solid rgba(5,10,68,0.12)', background: '#FFFFFF',
+              padding: '10px 14px', borderRadius: '8px',
+              border: '1px solid rgba(210,226,255,1)', background: '#FFFFFF',
             }}>
               <Mail size={14} color="rgba(5,10,68,0.45)" />
               <select
@@ -94,8 +110,8 @@ export default function MyAlerts() {
                 value="weekly-mon-7"
                 style={{
                   flex: 1, border: 'none', background: 'transparent',
-                  fontSize: '13px', color: 'rgba(5,10,68,0.75)', fontFamily: 'inherit',
-                  cursor: 'not-allowed', outline: 'none',
+                  fontSize: '13px', fontFamily: 'Inter, sans-serif',
+                  color: 'rgba(5,10,68,0.75)', cursor: 'not-allowed', outline: 'none',
                 }}
               >
                 <option value="weekly-mon-7">Weekly digest — Monday 07:00 — Email</option>
@@ -108,11 +124,11 @@ export default function MyAlerts() {
             <FieldLabel>Real-time push</FieldLabel>
             <div style={{
               display: 'flex', alignItems: 'center', gap: '12px',
-              padding: '10px 14px', borderRadius: '10px',
-              border: '1.5px solid rgba(5,10,68,0.12)', background: '#FFFFFF',
+              padding: '10px 14px', borderRadius: '8px',
+              border: '1px solid rgba(210,226,255,1)', background: '#FFFFFF',
             }}>
               <Bell size={14} color="rgba(5,10,68,0.45)" />
-              <p style={{ margin: 0, flex: 1, fontSize: '13px', color: 'rgba(5,10,68,0.75)' }}>
+              <p style={{ margin: 0, flex: 1, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.75)' }}>
                 High-priority alerts — Microsoft Teams
               </p>
               <div
@@ -120,8 +136,7 @@ export default function MyAlerts() {
                 aria-checked="true"
                 style={{
                   width: '36px', height: '20px', borderRadius: '9999px',
-                  background: '#050A44', position: 'relative', flexShrink: 0,
-                  opacity: 0.7,
+                  background: '#2A76F4', position: 'relative', flexShrink: 0,
                 }}
               >
                 <div style={{
@@ -144,9 +159,9 @@ export default function MyAlerts() {
                     key={opt.value}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: '12px',
-                      padding: '10px 14px', borderRadius: '10px',
-                      border: `1.5px solid ${isSelected ? '#050A44' : 'rgba(5,10,68,0.12)'}`,
-                      background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
+                      padding: '10px 14px', borderRadius: '8px',
+                      border: `1px solid ${isSelected ? '#2A76F4' : 'rgba(210,226,255,1)'}`,
+                      background: isSelected ? 'rgba(42,118,244,0.06)' : '#FFFFFF',
                       cursor: 'pointer', transition: 'all 120ms ease',
                     }}
                   >
@@ -156,13 +171,13 @@ export default function MyAlerts() {
                       value={opt.value}
                       checked={isSelected}
                       onChange={() => updateFormat(opt.value)}
-                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#050A44' }}
+                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#2A76F4' }}
                     />
                     <div>
-                      <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.92)' }}>
+                      <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
                         {opt.label}
                       </p>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+                      <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)' }}>
                         {opt.description}
                       </p>
                     </div>
@@ -174,27 +189,36 @@ export default function MyAlerts() {
         </div>
       </SectionCard>
 
-      {/* ── Weekly digest preview ────────────────────────────────────────── */}
+      {/* ── Weekly digest preview ─────────────────────────────────────────────── */}
       <SectionCard title="Weekly digest preview" description="Preview of your next Monday digest.">
         <div style={{
-          border: '1px solid rgba(5,10,68,0.10)', borderRadius: '12px',
-          background: '#FAFBFE', padding: '20px 24px',
+          border: '1px solid rgba(210,226,255,1)', borderRadius: '8px',
+          background: 'rgba(42,118,244,0.04)', padding: '16px 20px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
-            <Mail size={14} color="#0055BB" />
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0055BB' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            marginBottom: '12px', paddingBottom: '10px',
+            borderBottom: '1px solid rgba(5,10,68,0.06)',
+          }}>
+            <Mail size={14} color="#2A76F4" />
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2A76F4' }}>
               Subject: Your Ariya weekly digest — Monday 07:00
             </span>
           </div>
           <ul style={{ margin: 0, padding: '0 0 0 18px', listStyleType: 'disc' }}>
             {DIGEST_BULLETS.map((b, i) => (
-              <li key={i} style={{ fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.6', marginBottom: i < DIGEST_BULLETS.length - 1 ? '6px' : 0 }}>
+              <li key={i} style={{
+                fontSize: '13px', fontFamily: 'Inter, sans-serif',
+                color: '#434c5b', lineHeight: '1.6',
+                marginBottom: i < DIGEST_BULLETS.length - 1 ? '6px' : 0,
+              }}>
                 {b}
               </li>
             ))}
           </ul>
         </div>
       </SectionCard>
+
     </div>
   )
 }

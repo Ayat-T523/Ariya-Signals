@@ -35,25 +35,23 @@ function SectionHeader({ label }) {
 function CurrentMessageCard({ data }) {
   return (
     <div style={{
-      background: '#FFFFFF',
+      background: 'rgba(42,118,244,0.15)',
       borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      borderLeft: '4px solid #0055BB',
+      border: '1px solid rgba(210,226,255,1)',
       padding: '20px 24px',
     }}>
       {/* Label */}
       <p style={{
-        margin: '0 0 8px', fontSize: '11px', fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'rgba(5,10,68,0.40)',
+        margin: '0 0 8px', fontSize: '13px', fontWeight: 600,
+        color: '#434c5b', fontFamily: 'Satoshi, sans-serif',
       }}>
         Current core message
       </p>
 
       {/* The message */}
       <p style={{
-        margin: '0 0 14px', fontSize: '17px', fontWeight: 600,
-        color: 'rgba(5,10,68,0.90)', lineHeight: '1.45',
+        margin: '0 0 14px', fontSize: '15px', fontWeight: 600,
+        color: '#434c5b', lineHeight: '1.45',
       }}>
         &ldquo;{data.currentCoreMessage}&rdquo;
       </p>
@@ -63,7 +61,7 @@ function CurrentMessageCard({ data }) {
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
           {data.messagePillars.map((pillar, i) => (
             <span key={i} style={{
-              padding: '4px 12px', borderRadius: '9999px',
+              padding: '4px 12px', borderRadius: '8px',
               fontSize: '12px', fontWeight: 600,
               background: i === 0 ? '#050A44' : i === 1 ? 'rgba(0,85,187,0.10)' : 'rgba(5,10,68,0.07)',
               color: i === 0 ? '#FFFFFF' : i === 1 ? '#0055BB' : 'rgba(5,10,68,0.60)',
@@ -77,8 +75,8 @@ function CurrentMessageCard({ data }) {
       {/* Source */}
       {data.currentMessageSource && (
         <p style={{
-          margin: 0, fontSize: '11px', color: 'rgba(5,10,68,0.38)',
-          fontStyle: 'italic', textAlign: 'right',
+          margin: 0, fontSize: '12px', color: '#708090',
+          textAlign: 'right',
         }}>
           Source: {data.currentMessageSource}
         </p>
@@ -96,7 +94,7 @@ function TimelineCard({ entry }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '12px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(210,226,255,1)',
       padding: '16px',
       display: 'flex',
       flexDirection: 'column',
@@ -153,11 +151,11 @@ function TimelineCard({ entry }) {
 
       {/* Why it matters */}
       {entry.whyItMatters && (
-        <div style={{ background: '#E8EAF6', borderRadius: '8px', padding: '10px 12px' }}>
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
             <strong style={{
-              color: 'rgba(5,10,68,0.55)', fontWeight: 600,
-              fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: '#434c5b', fontWeight: 600,
+              fontSize: '13px', fontFamily: 'Satoshi, sans-serif',
             }}>
               Why it matters —{' '}
             </strong>
@@ -183,7 +181,7 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(210,226,255,1)',
       overflow: 'hidden',
     }}>
       {/* Column headers */}
@@ -194,18 +192,16 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
       }}>
         <div style={{ padding: '12px 16px', borderRight: '1px solid rgba(5,10,68,0.08)' }}>
           <p style={{
-            margin: 0, fontSize: '11px', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.09em',
-            color: 'rgba(5,10,68,0.45)',
+            margin: 0, fontSize: '13px', fontWeight: 600,
+            color: '#434c5b',
           }}>
             {competitorName}'s message
           </p>
         </div>
         <div style={{ padding: '12px 16px' }}>
           <p style={{
-            margin: 0, fontSize: '11px', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.09em',
-            color: '#0055BB',
+            margin: 0, fontSize: '13px', fontWeight: 600,
+            color: '#434c5b',
           }}>
             Pharma Inc's position
           </p>

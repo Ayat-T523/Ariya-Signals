@@ -14,8 +14,6 @@
 
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
-import { competitorsData, alertsData } from '../../data/kalvista'
-
 // ── Route → page title map ────────────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
   '/':                    'War Room',
@@ -37,28 +35,31 @@ function getPageTitle(pathname: string): string {
   return 'Ariya Signals'
 }
 
-// Computed once at module level — same data across every page
-const COMPETITOR_COUNT = competitorsData.length
-const SIGNAL_COUNT     = alertsData.length
-
 // ── TopBar ────────────────────────────────────────────────────────────────────
 export default function TopBar() {
   const location  = useLocation()
   const navigate  = useNavigate()
   const pageTitle = getPageTitle(location.pathname)
 
+  // Competitor profile pages have their own sticky header — suppress the global title row
+  const isCompetitorProfile = location.pathname.startsWith('/competitors/') &&
+    location.pathname.length > '/competitors/'.length
+
+  // On the Ask Ariya page itself, the Ask Ariya button is redundant
+  const isAskPage = location.pathname === '/ask'
+
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>
 
-      {/* ── Header row ─────────────────────────────────────────────────────── */}
-      <div style={{
-        padding: '8px 36px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: '16px',
-      }}>
+      {/* ── Header row (hidden on competitor profile pages) ────────────────── */}
+      {!isCompetitorProfile && (
+        <div style={{
+          padding: '8px 36px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '16px',
+        }}>
 
-        {/* Left — title + stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {/* Left — title */}
           <h1 style={{
             margin: 0,
             fontSize: '32px', fontWeight: 500,
@@ -69,42 +70,30 @@ export default function TopBar() {
           }}>
             {pageTitle}
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-              {COMPETITOR_COUNT} tracked competitors
-            </span>
-            <span style={{ color: '#434c5b', lineHeight: '21px' }}>•</span>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-              {SIGNAL_COUNT} signals found
-            </span>
-            <span style={{ color: '#434c5b', lineHeight: '21px' }}>•</span>
-            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-              Last refreshed:{' '}
-              <span style={{ fontWeight: 500 }}>2 mins ago</span>
-            </span>
-          </div>
-        </div>
 
-        {/* Right — Ask Ariya CTA */}
-        <button
-          onClick={() => navigate('/ask')}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            padding: '6px 12px',
-            background: '#10224a',
-            border: 'none', borderRadius: '8px',
-            cursor: 'pointer',
-            fontFamily: 'Satoshi, sans-serif',
-            fontSize: '14px', fontWeight: 500,
-            color: '#ffffff',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}
-        >
-          <Sparkles size={14} strokeWidth={1.5} />
-          Ask Ariya
-        </button>
-      </div>
+          {/* Right — Ask Ariya CTA (hidden when already on the Ask page) */}
+          {!isAskPage && (
+            <button
+              onClick={() => navigate('/ask')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '6px 12px',
+                background: '#10224a',
+                border: 'none', borderRadius: '8px',
+                cursor: 'pointer',
+                fontFamily: 'Satoshi, sans-serif',
+                fontSize: '14px', fontWeight: 500,
+                color: '#ffffff',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={14} strokeWidth={1.5} />
+              Ask Ariya
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Illustrative data ribbon ───────────────────────────────────────── */}
       <div

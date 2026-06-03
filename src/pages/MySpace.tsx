@@ -21,32 +21,40 @@ function SectionLinkCard({ section }) {
   return (
     <Link
       to={section.to}
-      className="hover-lift"
       style={{
         textDecoration: 'none',
         background: '#FFFFFF',
-        borderRadius: '20px',
-        border: '1px solid rgba(5,10,68,0.08)',
-        boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 8px 24px rgba(5,10,68,0.04)',
-        padding: '24px 28px',
-        display: 'flex', alignItems: 'flex-start', gap: '18px',
+        borderRadius: '12px',
+        border: '1px solid rgba(210,226,255,1)',
+        padding: '20px 24px',
+        display: 'flex', alignItems: 'flex-start', gap: '16px',
       }}
     >
+      {/* Icon */}
       <div style={{
-        width: '44px', height: '44px', borderRadius: '12px',
-        background: '#E8EAF6', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        width: '40px', height: '40px', borderRadius: '10px',
+        background: 'rgba(42,118,244,0.10)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
       }}>
-        <Icon size={20} color="#0055BB" />
+        <Icon size={18} color="#2A76F4" />
       </div>
+
+      {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+          <h2 style={{
+            margin: 0, fontSize: '15px', fontWeight: 500,
+            fontFamily: 'Satoshi, sans-serif', color: '#434c5b',
+          }}>
             {section.title}
           </h2>
-          <ArrowRight size={14} color="rgba(5,10,68,0.40)" />
+          <ArrowRight size={14} color="rgba(5,10,68,0.35)" />
         </div>
-        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.58)', lineHeight: '1.55' }}>
+        <p style={{
+          margin: 0, fontSize: '13px',
+          fontFamily: 'Inter, sans-serif',
+          color: 'rgba(5,10,68,0.65)', lineHeight: '1.55',
+        }}>
           {section.description}
         </p>
       </div>
@@ -56,17 +64,15 @@ function SectionLinkCard({ section }) {
 
 export default function MySpace() {
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '880px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          My Space
-        </h1>
-        <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.45)' }}>
-          Tailor how Ariya delivers signals to you and store your private reference documents.
-        </p>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ padding: '20px 36px 36px' }}>
+      <p style={{
+        margin: '0 0 28px',
+        fontSize: '14px', fontFamily: 'Inter, sans-serif',
+        color: '#434c5b', lineHeight: '1.5',
+      }}>
+        Tailor how Ariya delivers signals to you and store your private reference documents.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '640px' }}>
         {SECTIONS.map((s) => (
           <SectionLinkCard key={s.to} section={s} />
         ))}

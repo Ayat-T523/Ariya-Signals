@@ -73,7 +73,7 @@ function ProductCard({ product }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '20px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(210,226,255,1)',
       boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 8px 24px rgba(5,10,68,0.04)',
       padding: '24px',
     }}>

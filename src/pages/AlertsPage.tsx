@@ -155,10 +155,9 @@ function AlertCard({ alert }) {
   return (
     <div style={{
       background: '#FFFFFF',
-      borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      borderRadius: '12px',
+      border: '1px solid rgba(210,226,255,1)',
       borderLeft: `4px solid ${sevBorder}`,
-      boxShadow: '0 1px 3px rgba(5,10,68,0.04)',
       padding: '18px 20px',
       opacity: isRead ? 0.72 : 1,
       transition: 'opacity 150ms ease',
@@ -233,7 +232,7 @@ function AlertCard({ alert }) {
       {/* Why it matters strip */}
       {alert.whyItMatters && (
         <div style={{
-          background: '#E8EAF6', borderRadius: '10px',
+          background: 'rgba(42,118,244,0.12)', borderRadius: '8px',
           padding: '10px 14px', marginLeft: '44px', marginBottom: '12px',
         }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
@@ -316,8 +315,8 @@ function AlertCard({ alert }) {
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             fontSize: '11px', fontWeight: 600, padding: '2px 8px',
             borderRadius: '9999px',
-            background: '#F0F0F0',
-            color: 'rgba(5,10,68,0.55)',
+            background: 'rgba(5,10,68,0.06)',
+            color: 'rgba(5,10,68,0.60)',
             whiteSpace: 'nowrap',
           }}>
             <Database size={10} strokeWidth={1.8} />
@@ -367,9 +366,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
   return (
     <div style={{
       background: '#FFFFFF',
-      borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 3px rgba(5,10,68,0.04)',
+      borderRadius: '12px',
+      border: '1px solid rgba(210,226,255,1)',
       overflow: 'hidden',
     }}>
 
@@ -385,7 +383,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
         {/* Theme icon */}
         <div style={{
           width: '36px', height: '36px', borderRadius: '10px',
-          background: '#E8EAF6', display: 'flex', alignItems: 'center',
+          background: 'rgba(42,118,244,0.10)', display: 'flex', alignItems: 'center',
           justifyContent: 'center', flexShrink: 0,
         }}>
           <IconComp size={16} color="rgba(5,10,68,0.60)" />
@@ -432,7 +430,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
 
           {/* Theme summary callout */}
           <div style={{
-            background: '#E8EAF6', borderRadius: '10px',
+            background: 'rgba(42,118,244,0.08)', borderRadius: '8px',
+            border: '1px solid rgba(210,226,255,1)',
             padding: '12px 16px', marginBottom: '16px',
           }}>
             <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
@@ -627,23 +626,18 @@ export default function AlertsPage() {
     onlyUnread
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '840px' }}>
+    <div style={{ padding: '20px 36px 36px' }}>
 
-      {/* Page header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          Signals &amp; Alerts
-        </h1>
-        <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
-          {alertsData.length} signals tracked · {unreadCount} unread
-        </p>
-      </div>
+      {/* Description */}
+      <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
+        {alertsData.length} signals tracked · {unreadCount} unread
+      </p>
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div style={{
         background: '#FFFFFF',
-        borderRadius: '16px',
-        border: '1px solid rgba(5,10,68,0.08)',
+        borderRadius: '12px',
+        border: '1px solid rgba(210,226,255,1)',
         padding: '14px 16px',
         marginBottom: '20px',
         display: 'flex', flexDirection: 'column', gap: '10px',
