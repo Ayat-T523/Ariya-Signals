@@ -24,3 +24,5 @@ Icon\r
 *.njsproj
 *.sln
 *.sw?
+
+.vercel

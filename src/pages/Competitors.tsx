@@ -257,13 +257,19 @@ function CompetitorListItem({ competitor, isLast }) {
 
 // ── Competitor Card (Figma 84:1682) ──────────────────────────────────────────
 function CompetitorCard({ competitor }) {
+  const [hovered, setHovered] = useState(false)
   const postureCfg    = POSTURE_CONFIG[competitor.strategicPosture] || { bg: 'rgba(67,76,91,0.15)', text: '#434c5b' }
   const pipelineCount = (competitor.pipeline || []).length
   const activityCount = getQuarterlyActivity(competitor.id)
   const lastActivity  = getMostRecentActivity(competitor.id)
 
   return (
-    <Link to={`/competitors/${competitor.id}`} style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
+    <Link
+      to={`/competitors/${competitor.id}`}
+      style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div style={{
         background: '#ffffff',
         border: '1px solid rgba(210,226,255,1)',
@@ -271,6 +277,10 @@ function CompetitorCard({ competitor }) {
         padding: '16px',
         display: 'flex', flexDirection: 'column', gap: '12px',
         flex: 1, cursor: 'pointer',
+        transition: 'box-shadow 200ms ease',
+        boxShadow: hovered
+          ? '0px 0px 12px 2px rgba(194,219,255,0.80), 0px 0px 40px 4px rgba(194,219,255,0.48)'
+          : 'none',
       }}>
 
         {/* Badge + name + posture pill */}

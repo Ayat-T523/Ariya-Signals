@@ -72,7 +72,7 @@ export default function MySpace() {
       }}>
         Tailor how Ariya delivers signals to you and store your private reference documents.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '640px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {SECTIONS.map((s) => (
           <SectionLinkCard key={s.to} section={s} />
         ))}

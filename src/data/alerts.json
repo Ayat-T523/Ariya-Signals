@@ -17,40 +17,6 @@
     "source": "ClinicalTrials.gov"
   },
   {
-    "id": "alert-002",
-    "timestamp": "2026-04-18T14:02:00Z",
-    "competitorId": "pharvaris",
-    "type": "exec-move",
-    "severity": "high",
-    "headline": "Pharvaris hires Head of Commercial, US",
-    "whatHappened": "Senior commercial hire announced (illustrative), from a company with a recent rare disease launch.",
-    "whyItMatters": "Senior commercial builds at this stage signal confidence in the readout and imminent commercial infrastructure buildout. Map against Pharma Inc field plans.",
-    "read": false,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-003",
-    "timestamp": "2026-04-16T09:45:00Z",
-    "competitorId": "takeda",
-    "type": "publication",
-    "severity": "medium",
-    "headline": "Takeda publishes 3-year pediatric lanadelumab safety extension",
-    "whatHappened": "Long-term safety data in patients aged 2 to 11 published in JACI.",
-    "whyItMatters": "Reinforces Takhzyro pediatric positioning and will anchor KOL talking points. Informs Pharma Inc pediatric on-demand timing considerations.",
-    "read": false,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
     "id": "alert-004",
     "timestamp": "2026-04-14T11:30:00Z",
     "competitorId": "biocryst",
@@ -66,40 +32,6 @@
       "inferenceDepth": "low"
     },
     "source": "ClinicalTrials.gov"
-  },
-  {
-    "id": "alert-005",
-    "timestamp": "2026-04-10T16:20:00Z",
-    "competitorId": "pharvaris",
-    "type": "regulatory",
-    "severity": "medium",
-    "headline": "Pharvaris confirms rolling filing strategy under Fast Track",
-    "whatHappened": "Company reaffirmed intention to pursue rolling submission for deucrictibant on-demand following RAPIDe-3 readout (illustrative).",
-    "whyItMatters": "Rolling submission could shorten post-readout-to-approval timeline by roughly 6 months. Supports an H2 2027 US launch scenario.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-006",
-    "timestamp": "2026-04-05T07:50:00Z",
-    "competitorId": "takeda",
-    "type": "exec-move",
-    "severity": "medium",
-    "headline": "Takeda hires new VP, Rare Immunology Commercial",
-    "whatHappened": "Commercial leadership hire from Sanofi (illustrative).",
-    "whyItMatters": "Commercial reinforcement ahead of anticipated oral competition. Watch for follow-on hires across medical affairs and market access.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
   },
   {
     "id": "alert-007",
@@ -119,74 +51,6 @@
     "source": "SEC EDGAR"
   },
   {
-    "id": "alert-008",
-    "timestamp": "2026-03-28T10:00:00Z",
-    "competitorId": "pharvaris",
-    "type": "publication",
-    "severity": "medium",
-    "headline": "Deucrictibant Phase II follow-up analyses posted as preprint (illustrative)",
-    "whatHappened": "Pre-specified sub-group analyses from CHAPTER-1 shared as preprint ahead of EAACI 2026.",
-    "whyItMatters": "Preview of sub-population positioning (e.g., severe phenotypes). Anticipate seeds of launch messaging against sebetralstat.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-009",
-    "timestamp": "2026-03-22T15:30:00Z",
-    "competitorId": "takeda",
-    "type": "publication",
-    "severity": "low",
-    "headline": "Post-hoc analysis: lanadelumab effect on attack severity",
-    "whatHappened": "Published in Allergy. Argues prophylaxis reduces both frequency and severity of breakthrough attacks.",
-    "whyItMatters": "Intended to blunt on-demand-only positioning. Relevant for Pharma Inc positioning against prophylaxis-first messaging.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-010",
-    "timestamp": "2026-03-15T09:15:00Z",
-    "competitorId": "pharvaris",
-    "type": "deal",
-    "severity": "low",
-    "headline": "Pharvaris signs ex-US manufacturing partnership",
-    "whatHappened": "Undisclosed CMO agreement for commercial-scale manufacturing (illustrative).",
-    "whyItMatters": "Pre-commercial manufacturing readiness locking in. Consistent with approval-and-launch planning in 18 to 24 months.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData Deals"
-  },
-  {
-    "id": "alert-011",
-    "timestamp": "2026-03-10T11:20:00Z",
-    "competitorId": "biocryst",
-    "type": "exec-move",
-    "severity": "high",
-    "headline": "BioCryst Chief Commercial Officer transition announced",
-    "whatHappened": "CCO transition announced (illustrative).",
-    "whyItMatters": "Leadership change often signals strategy recalibration. Watch next earnings call for commercial priorities.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
     "id": "alert-013",
     "timestamp": "2026-02-28T14:55:00Z",
     "competitorId": "pharvaris",
@@ -202,23 +66,6 @@
       "inferenceDepth": "low"
     },
     "source": "SEC EDGAR"
-  },
-  {
-    "id": "alert-014",
-    "timestamp": "2026-02-22T10:05:00Z",
-    "competitorId": "biocryst",
-    "type": "publication",
-    "severity": "low",
-    "headline": "Real-world PRO study in Orladeyo patients published",
-    "whatHappened": "Industry-sponsored PRO study in ~300 patients in Allergy and Asthma Proceedings.",
-    "whyItMatters": "Validates oral route benefits broadly. Can be leveraged by Pharma Inc as modality-level evidence supporting oral on-demand positioning.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
   },
   {
     "id": "alert-015",
@@ -255,89 +102,6 @@
     "source": "ClinicalTrials.gov"
   },
   {
-    "id": "alert-017",
-    "timestamp": "2026-01-30T11:45:00Z",
-    "competitorId": "takeda",
-    "type": "publication",
-    "severity": "low",
-    "headline": "Takeda presents RWE analysis at AAAAI 2026",
-    "whatHappened": "Multinational registry analysis of approximately 1,200 Takhzyro patients (illustrative).",
-    "whyItMatters": "Reinforces real-world adherence and attack rate reduction narrative. Anchor data for prophylaxis defense through 2026.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-018",
-    "timestamp": "2026-01-25T15:10:00Z",
-    "competitorId": "pharvaris",
-    "type": "exec-move",
-    "severity": "medium",
-    "headline": "Pharvaris posts ~15 commercial and market access roles",
-    "whatHappened": "LinkedIn job listings increase noted (illustrative).",
-    "whyItMatters": "Commercial scale-up in motion. Expect visible field presence by late 2026.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-019",
-    "timestamp": "2026-01-18T08:20:00Z",
-    "competitorId": "biocryst",
-    "type": "exec-move",
-    "severity": "low",
-    "headline": "BioCryst hiring in EU medical affairs",
-    "whatHappened": "Approximately 6 new medical affairs roles posted in EU (illustrative).",
-    "whyItMatters": "Suggests preparation for pediatric label launch and / or defensive response to oral on-demand entrants in EU.",
-    "read": true,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-020",
-    "timestamp": "2026-01-10T10:30:00Z",
-    "competitorId": "pharvaris",
-    "type": "publication",
-    "severity": "medium",
-    "headline": "NEJM publishes deucrictibant Phase II on-demand data",
-    "whatHappened": "Peer-reviewed publication in NEJM.",
-    "whyItMatters": "High-profile placement raises KOL familiarity ahead of Phase III readout. Strengthens pre-launch perception of deucrictibant.",
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-021",
-    "timestamp": "2025-12-18T14:00:00Z",
-    "competitorId": "takeda",
-    "type": "deal",
-    "severity": "low",
-    "headline": "Takeda extends HAEi patient advocacy partnership to 2028",
-    "whatHappened": "Multi-year extension announced.",
-    "whyItMatters": "Patient community anchoring. Reduces advocacy-group neutrality for competing launches.",
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData Deals"
-  },
-  {
     "id": "alert-022",
     "timestamp": "2025-12-10T09:50:00Z",
     "competitorId": "biocryst",
@@ -352,54 +116,6 @@
       "inferenceDepth": "low"
     },
     "source": "ClinicalTrials.gov"
-  },
-  {
-    "id": "alert-023",
-    "timestamp": "2025-11-28T13:25:00Z",
-    "competitorId": "pharvaris",
-    "type": "exec-move",
-    "severity": "medium",
-    "headline": "Pharvaris hires VP Medical Affairs from Vertex",
-    "whatHappened": "Senior MA leadership hire (illustrative).",
-    "whyItMatters": "Rare disease launch experience being recruited in. Expect aggressive KOL engagement starting Q2 2026.",
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-024",
-    "timestamp": "2025-11-15T11:10:00Z",
-    "competitorId": "biocryst",
-    "type": "regulatory",
-    "severity": "low",
-    "headline": "FDA accepts Orladeyo sNDA for label update",
-    "whatHappened": "Supplemental filing with long-term OLE data accepted (illustrative). PDUFA Q3 2026.",
-    "whyItMatters": "Durability narrative strengthened for Orladeyo. Peripheral to sebetralstat on-demand positioning.",
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
-  },
-  {
-    "id": "alert-025",
-    "timestamp": "2025-10-15T08:30:00Z",
-    "competitorId": "pharvaris",
-    "type": "conference",
-    "severity": "medium",
-    "headline": "HAEi Global Conference 2025: Pharvaris dual-program showcase",
-    "whatHappened": "Three oral presentations across on-demand and prophylaxis programs.",
-    "whyItMatters": "Explicit 'one drug, two indications' framing previewed. This is the positioning Pharma Inc will need to counter at launch.",
-    "confidence": {
-      "sourceCoverage": "high",
-      "dataFreshness": "medium",
-      "inferenceDepth": "low"
-    },
-    "source": "GlobalData News"
   },
   {
     "id": "alert-026",
@@ -475,40 +191,6 @@
       "sourceCoverage": "medium",
       "dataFreshness": "high",
       "inferenceDepth": "medium"
-    }
-  },
-  {
-    "id": "alert-030",
-    "timestamp": "2026-04-08T09:30:00Z",
-    "competitorId": "pharvaris",
-    "type": "strategic-shift",
-    "severity": "high",
-    "source": "GlobalData Filings",
-    "headline": "Pharvaris elevates commercial readiness language in 10-K filing",
-    "whatHappened": "Pharvaris' 10-K introduced new risk-factor and commitment language describing launch readiness, manufacturing scale-up, and US commercial team build-out (illustrative).",
-    "whyItMatters": "Filing-level commitment shift suggests management sees imminent commercial activation. Tightens the sebetralstat first-mover window unless RAPIDe-3 disappoints.",
-    "read": false,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "high"
-    }
-  },
-  {
-    "id": "alert-031",
-    "timestamp": "2026-03-30T15:00:00Z",
-    "competitorId": "csl-behring",
-    "type": "strategic-shift",
-    "severity": "medium",
-    "source": "GlobalData Filings",
-    "headline": "CSL Behring reorganises rare disease commercial leadership",
-    "whatHappened": "Filings disclose a reorganisation of CSL Behring's rare immunology commercial unit, with a new VP-level role created focused on HAE franchise leadership in EU (illustrative).",
-    "whyItMatters": "Senior commercial appointment signals intent to defend Andembry uptake versus oral entrants. Expect EU-focused real-world adherence campaigns in H2 2026.",
-    "read": false,
-    "confidence": {
-      "sourceCoverage": "medium",
-      "dataFreshness": "high",
-      "inferenceDepth": "high"
     }
   }
 ]

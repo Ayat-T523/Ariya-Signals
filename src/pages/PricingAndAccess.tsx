@@ -12,7 +12,7 @@ export default function PricingAndAccess() {
         fontSize: '14px', fontFamily: 'Inter, sans-serif',
         color: '#434c5b', lineHeight: '1.5',
       }}>
-        Multi-region benchmark · Sources: GlobalData POLI · MMIT (US) · Illustrative
+        Multi-region benchmark · Sources: MMIT (US) · Illustrative
       </p>
 
       {/* ── Section label ────────────────────────────────────────────────────── */}

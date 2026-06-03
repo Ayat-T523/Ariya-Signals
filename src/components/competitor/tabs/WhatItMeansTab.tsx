@@ -295,7 +295,7 @@ function PersonnelSection({ personnel }) {
         })}
       </div>
       <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.38)', fontStyle: 'italic' }}>
-        Illustrative · requires GlobalData / Crunchbase data
+        Illustrative
       </p>
     </div>
   )

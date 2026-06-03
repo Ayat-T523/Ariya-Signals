@@ -71,7 +71,7 @@ export default function MyAlerts() {
   }
 
   return (
-    <div style={{ padding: '20px 36px 36px', maxWidth: '720px' }}>
+    <div style={{ padding: '20px 36px 36px' }}>
 
       {/* Breadcrumb */}
       <Link

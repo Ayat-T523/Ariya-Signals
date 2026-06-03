@@ -8,7 +8,7 @@ export default function MarketPerformance() {
         fontSize: '14px', fontFamily: 'Inter, sans-serif',
         color: '#434c5b', lineHeight: '1.5',
       }}>
-        Ekterly vs HAE class · Sources: IQVIA DE/UK/US · Veeva CRM · Movianto logistics · GlobalData Drug Sales
+        Ekterly vs HAE class · Sources: IQVIA DE/UK/US · Veeva CRM · Movianto logistics
       </p>
 
       {/* ── Section label ────────────────────────────────────────────────────── */}

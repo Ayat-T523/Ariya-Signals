@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, Zap, Activity, ArrowRight, TrendingUp, Clock, BarChart2, FileSearch } from 'lucide-react'
+import { Bell, Zap, Activity, ArrowRight, TrendingUp, TrendingDown, Minus, Clock, BarChart2, FileSearch, Info } from 'lucide-react'
 import {
   alertsData,
   competitorsData,
@@ -280,6 +280,7 @@ function DashedLink({ to, children, icon: Icon = ArrowRight }: {
   return (
     <Link
       to={to}
+      className="ariya-dashed-link"
       style={{
         fontSize: '12px', fontWeight: 400,
         color: 'var(--font-primary)',
@@ -296,40 +297,67 @@ function DashedLink({ to, children, icon: Icon = ArrowRight }: {
   )
 }
 
-/** KPI tile */
-function KpiTile({
-  icon: Icon, value, label, sublabel, unread, linkLabel, linkTo,
+/** KPI card — Figma node 1572:49060 */
+type TrendDir = 'up' | 'down' | 'neutral'
+function KpiCard({
+  icon: Icon, label, value, trendDir, trendPct,
 }: {
   icon: typeof Bell
-  value: number
   label: string
-  sublabel: string
-  unread: number
-  linkLabel: string
-  linkTo: string
+  value: number | string
+  trendDir: TrendDir
+  trendPct: string
 }) {
+  const TREND_STYLES: Record<TrendDir, { bg: string; color: string; Icon: typeof TrendingUp }> = {
+    up:      { bg: 'rgba(73,160,120,0.15)',  color: '#49a078', Icon: TrendingUp   },
+    down:    { bg: 'rgba(183,63,84,0.15)',   color: '#b73f54', Icon: TrendingDown },
+    neutral: { bg: 'rgba(112,128,144,0.15)', color: '#708090', Icon: Minus        },
+  }
+  const trend = TREND_STYLES[trendDir]
+  const TrendIcon = trend.Icon
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
-        <Icon size={16} color="var(--font-secondary)" strokeWidth={1.5} style={{ marginBottom: '4px' }} />
-        <span style={{
-          fontSize: '32px', fontWeight: 500,
-          color: 'var(--font-primary)', lineHeight: 1,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {value}
-        </span>
-        <span style={{ fontSize: '14px', color: 'var(--font-primary)', marginBottom: '4px' }}>
-          &nbsp;{label}
+    <div style={{
+      background: '#F4F8FE',
+      border: '1px solid #87B2FA',
+      borderRadius: '16px',
+      padding: '8px',
+      display: 'flex',
+      gap: '6px',
+      alignItems: 'flex-start',
+      flex: 'none',
+      minWidth: '200px',
+    }}>
+      <Icon size={20} color="rgba(5,10,68,0.45)" strokeWidth={1.5} style={{ marginTop: '2px', flexShrink: 0 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Label + info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ fontSize: '12px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', whiteSpace: 'nowrap' }}>
+            {label}
+          </span>
+          <Info size={12} color="rgba(5,10,68,0.35)" strokeWidth={1.5} />
+        </div>
+        {/* Value + trend badge */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21.6px' }}>
+            {value}
+          </span>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            padding: '2px 6px', borderRadius: '8px',
+            background: trend.bg, alignSelf: 'flex-start',
+          }}>
+            <TrendIcon size={10} color={trend.color} strokeWidth={2} />
+            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: trend.color, lineHeight: '21px', whiteSpace: 'nowrap' }}>
+              {trendPct}
+            </span>
+          </div>
+        </div>
+        {/* Footer */}
+        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090' }}>
+          vs. last 30 days
         </span>
       </div>
-      <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-primary)', letterSpacing: '0.02em' }}>
-        {sublabel}
-      </p>
-      <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-primary)' }}>
-        {unread} unread
-      </p>
-      <DashedLink to={linkTo} icon={ArrowRight}>{linkLabel}</DashedLink>
     </div>
   )
 }
@@ -341,12 +369,12 @@ function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 0' }}>
-        <div style={{ flexShrink: 0, paddingTop: '2px' }}>
-          <CompetitorBadge name={competitor?.name ?? alert.competitorId} size={24} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px 0', minHeight: '80px' }}>
+        <div style={{ flexShrink: 0, paddingTop: '3px' }}>
+          <CompetitorBadge name={competitor?.name ?? alert.competitorId} size={28} />
         </div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: 1.4 }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: 1.4 }}>
             {alert.headline}
           </p>
           {alert.whyItMatters && (
@@ -363,21 +391,21 @@ function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
         <div style={{
           display: 'flex', flexDirection: 'column',
           alignItems: 'flex-end', justifyContent: 'space-between',
-          gap: '4px', flexShrink: 0, alignSelf: 'stretch',
+          gap: '6px', flexShrink: 0, alignSelf: 'stretch',
         }}>
           <div style={{
             background: badge.bg, color: badge.text,
-            fontSize: '12px', fontWeight: 500,
+            fontSize: '14px', fontWeight: 500,
             padding: '4px 12px', borderRadius: '6px',
           }}>
             {badge.label}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)', fontWeight: 300 }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)', fontWeight: 400 }}>
               {relTimeShort(alert.timestamp)}
             </p>
             {alert.source && (
-              <p style={{ margin: '2px 0 0', fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 300 }}>
+              <p style={{ margin: '2px 0 0', fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400 }}>
                 {alert.source}
               </p>
             )}
@@ -397,15 +425,25 @@ function QuadrantCard({
   quadrant:        typeof QUADRANT_CONFIG[number]
   lastSignalLabel: string
 }) {
+  const [hovered, setHovered] = useState(false)
   const pipelineCount = (competitor.pipeline || []).length
 
   return (
-    <Link to={`/competitors/${competitor.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+    <Link
+      to={`/competitors/${competitor.id}`}
+      style={{ textDecoration: 'none', display: 'block' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div style={{
         background: quadrant.outerBg,
         borderRadius: '16px',
         padding: '10px',
         display: 'flex', flexDirection: 'column', gap: '10px',
+        transition: 'box-shadow 200ms ease',
+        boxShadow: hovered
+          ? '0px 0px 12px 2px rgba(194,219,255,0.80), 0px 0px 40px 4px rgba(194,219,255,0.48)'
+          : 'none',
       }}>
         {/* Header: competitor name */}
         <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: quadrant.labelColor, lineHeight: 1.2 }}>
@@ -496,6 +534,8 @@ function PillSelect<T extends string>({
       border: '1px solid var(--blue-light)',
       borderRadius: '16px',
       flexWrap: 'wrap',
+      alignSelf: 'flex-start',
+      width: 'fit-content',
     }}>
       {options.map(opt => {
         const active = opt === value
@@ -661,46 +701,39 @@ export default function WarRoom() {
     return recent ? relTimeShort(recent.timestamp) + ' ago' : '—'
   }
 
-  // ── Upcoming events ────────────────────────────────────────────────────────
-  const upcomingEvents = [...eventsData]
+  // ── Upcoming events — first 2 months only (no scroll) ─────────────────────
+  const allUpcomingEvents = [...eventsData]
     .filter(e => {
       if (new Date(e.date) < TODAY) return false
       if (eventFilter === 'All events') return true
       return (EVENT_TYPE_MAP[eventFilter] || []).includes(e.type)
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5)
 
-  const groupedEvents = groupByMonth(upcomingEvents)
-  const monthKeys     = Object.keys(groupedEvents)
+  const groupedEvents  = groupByMonth(allUpcomingEvents)
+  const monthKeys      = Object.keys(groupedEvents).slice(0, 2)
+  const upcomingEvents = monthKeys.flatMap(m => groupedEvents[m])
 
-  // ── KPI tiles ──────────────────────────────────────────────────────────────
-  const kpiTiles = [
-    {
-      icon: Bell, value: 3, label: 'alerts',
-      sublabel: 'NEW SINCE LAST VISIT', unread: 3,
-      linkLabel: 'Open new arrivals', linkTo: '/alerts',
-    },
-    {
-      icon: Activity, value: unreadCount, label: 'alerts',
-      sublabel: 'NEW SINCE LAST VISIT', unread: unreadCount,
-      linkLabel: 'Open new arrivals', linkTo: '/alerts',
-    },
-    {
-      icon: Zap, value: highUnread, label: 'alerts',
-      sublabel: 'NEW SINCE LAST VISIT', unread: highUnread,
-      linkLabel: 'Open new arrivals', linkTo: '/alerts',
-    },
+  // ── KPI cards (Figma 1572:49060) ──────────────────────────────────────────
+  const kpiCards = [
+    { icon: BarChart2, label: 'Tracked competitors', value: trackedCompetitorCount, trendDir: 'neutral' as const, trendPct: '0%'    },
+    { icon: Bell,      label: 'New signals',          value: totalSignals,           trendDir: 'up'      as const, trendPct: '+12.4%' },
+    { icon: Zap,       label: 'High priority',        value: highUnread,             trendDir: 'neutral' as const, trendPct: '0%'    },
   ]
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: '8px 36px 36px' }}>
 
-      {/* ── KPI tiles ───────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '8px 0 16px' }}>
-        {kpiTiles.map((tile, i) => (
-          <KpiTile key={i} {...tile} />
+      {/* ── KPI cards — Figma 1572:49060 ────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        gap: '16px',
+        alignItems: 'center',
+        marginBottom: '24px',
+      }}>
+        {kpiCards.map((card, i) => (
+          <KpiCard key={i} {...card} />
         ))}
       </div>
 
@@ -741,8 +774,8 @@ export default function WarRoom() {
             />
           </div>
 
-          {/* Signal list — no scroll, flat */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Signal list — no scroll, fills available height */}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             {topAlerts.map((alert, i) => (
               <SignalRow key={alert.id} alert={alert} isLast={i === topAlerts.length - 1} />
             ))}
@@ -847,13 +880,11 @@ export default function WarRoom() {
         {/* ── Tracked competitors — signal-driven 2×2 grid ────────────── */}
         <div style={{
           flex: 1, minWidth: 0,
-          height: '600px',
           background: '#ffffff',
           border: '1.8px solid var(--blue-light)',
           borderRadius: '16px',
           padding: '16px',
           display: 'flex', flexDirection: 'column', gap: '16px',
-          overflow: 'hidden',
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
@@ -891,9 +922,7 @@ export default function WarRoom() {
           borderRadius: '16px',
           padding: '16px',
           flexShrink: 0, width: '600px',
-          height: '600px',
           display: 'flex', flexDirection: 'column', gap: '10px',
-          overflow: 'hidden',
         }}>
           {/* Header */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -903,7 +932,7 @@ export default function WarRoom() {
                   Upcoming events
                 </p>
                 <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', fontFamily: 'Inter, sans-serif' }}>
-                  {upcomingEvents.length} shown
+                  {upcomingEvents.length} shown · 2 months
                 </p>
               </div>
               <DashedLink to="/intelligence?tab=events">View in competitor mode</DashedLink>
@@ -926,7 +955,7 @@ export default function WarRoom() {
               No upcoming events for this filter.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {monthKeys.map(month => (
                 <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
