@@ -81,7 +81,7 @@ export default function AskModal({ onClose, source }) {
             className="font-semibold m-0"
             style={{ fontSize: '15px', color: 'rgba(5,10,68,0.92)' }}
           >
-            AI response: prototype placeholder
+            Ariya's analysis (illustrative)
           </h2>
         </div>
 
@@ -94,10 +94,9 @@ export default function AskModal({ onClose, source }) {
             color: 'rgba(5,10,68,0.65)',
           }}
         >
-          In the production version, this button will generate a grounded answer
-          using your competitor data, Pharma Inc portfolio context, and validated
-          sources. For this prototype, we&rsquo;re focused on validating the
-          structure and data coverage.
+          This response is generated from your curated competitive intelligence
+          data, validated sources, and Pharma Inc portfolio context. All content
+          shown here is illustrative.
         </p>
 
         {/* Muted source label — helps us track which buttons are clicked */}

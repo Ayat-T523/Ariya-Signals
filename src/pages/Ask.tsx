@@ -238,9 +238,9 @@ export default function Ask() {
       }}>
         <Sparkles size={14} color="#2A76F4" strokeWidth={1.5} style={{ marginTop: '2px', flexShrink: 0 }} />
         <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#434c5b', lineHeight: '1.55' }}>
-          <strong style={{ fontWeight: 600, color: '#2A76F4' }}>AI — prototype placeholder.</strong>
-          {' '}In the live product, answers are grounded in your curated CI data and analyst-reviewed sources.
-          All content shown here is illustrative only.
+          <strong style={{ fontWeight: 600, color: '#2A76F4' }}>AI summary (illustrative).</strong>
+          {' '}Answers are grounded in your curated CI data and analyst-reviewed sources.
+          All content shown here is illustrative.
         </p>
       </div>
 
