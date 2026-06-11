@@ -1,0 +1,99 @@
+import { Link } from 'react-router-dom'
+
+interface Props {
+  heading?: string
+  subtext?: string
+  backTo?: string
+  backLabel?: string
+}
+
+// ── Ariya circle logo mark (dark-blue on white) ───────────────────────────────
+function AriyaMark() {
+  return (
+    <svg
+      width="56"
+      height="56"
+      viewBox="17 -1 50 50"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <mask id="nf-logo-mask" fill="white">
+        <path d="M18 24C18 10.7452 28.7452 0 42 0C55.2548 0 66 10.7452 66 24C66 37.2548 55.2548 48 42 48C28.7452 48 18 37.2548 18 24Z" />
+      </mask>
+      <path
+        d="M18 24M66 24M66 24M18 24M42 0M66 24M42 48M18 24M42 48V47C29.2975 47 19 36.7025 19 24H18H17C17 37.8071 28.1929 49 42 49V48ZM66 24H65C65 36.7025 54.7025 47 42 47V48V49C55.8071 49 67 37.8071 67 24H66ZM42 0V1C54.7025 1 65 11.2975 65 24H66H67C67 10.1929 55.8071 -1 42 -1V0ZM42 0V-1C28.1929 -1 17 10.1929 17 24H18H19C19 11.2975 29.2975 1 42 1V0Z"
+        fill="var(--dark-blue)"
+        mask="url(#nf-logo-mask)"
+      />
+      <path
+        d="M53.9989 27.108C53.988 28.6629 53.4806 29.9046 52.4746 30.8375C51.4577 31.7559 50.1054 32.2196 48.4134 32.2196H35.5866C33.9165 32.2196 32.5687 31.7738 31.5429 30.8877C30.5151 29.987 30 28.8089 30 27.3454V27.1091C30 25.6501 30.5139 24.4708 31.5429 23.5713C32.5687 22.6707 33.9165 22.2204 35.5866 22.2204H48.4134C49.5202 22.2204 50.5032 22.4344 51.3645 22.8613V21.2105C51.3645 20.524 51.0829 19.9076 50.5196 19.3558C49.9224 18.7606 49.2211 18.4619 48.4134 18.4619H31.8399V15.7812H48.4134C49.929 15.7812 51.2363 16.3219 52.3431 17.3997C53.4477 18.4686 54 19.737 54 21.2105V27.1091L53.9989 27.108ZM48.4123 29.5546C50.3793 29.5546 51.3634 28.7353 51.3634 27.0946C51.3634 26.2397 50.9832 25.6256 50.2205 25.2566C49.7219 25.0203 49.1202 24.9022 48.4123 24.9022H35.5866C34.8666 24.9022 34.265 25.0203 33.7785 25.2566C33.0158 25.6256 32.6366 26.2442 32.6366 27.108V27.3443C32.6366 28.2126 33.0168 28.8312 33.7785 29.199C34.2771 29.4353 34.8787 29.5535 35.5866 29.5535H48.4134L48.4123 29.5546Z"
+        fill="var(--dark-blue)"
+      />
+    </svg>
+  )
+}
+
+export default function NotFoundState({
+  heading  = "We couldn't find that page",
+  subtext  = 'It may have moved, or the link may be out of date.',
+  backTo   = '/',
+  backLabel = 'Back to War Room',
+}: Props) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 'calc(100vh - 120px)',
+      padding: '40px 32px',
+      textAlign: 'center',
+    }}>
+      <AriyaMark />
+
+      <h2 style={{
+        margin: '20px 0 8px',
+        fontSize: '22px',
+        fontWeight: 600,
+        fontFamily: 'Satoshi, sans-serif',
+        color: 'var(--font-bold)',
+        lineHeight: '1.3',
+      }}>
+        {heading}
+      </h2>
+
+      <p style={{
+        margin: '0 0 28px',
+        fontSize: '14px',
+        fontFamily: 'Inter, sans-serif',
+        color: 'var(--font-secondary)',
+        lineHeight: '1.6',
+        maxWidth: '320px',
+      }}>
+        {subtext}
+      </p>
+
+      <Link
+        to={backTo}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '9px 20px',
+          background: 'var(--dark-blue)',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 600,
+          fontFamily: 'Satoshi, sans-serif',
+          color: '#ffffff',
+          textDecoration: 'none',
+          transition: 'opacity 140ms ease',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.85' }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
+      >
+        {backLabel}
+      </Link>
+    </div>
+  )
+}

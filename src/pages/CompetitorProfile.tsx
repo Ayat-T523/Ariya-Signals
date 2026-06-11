@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronDown } from 'lucide-react'
+import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import AIButton from '../components/ui/AIButton'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
@@ -113,12 +114,12 @@ export default function CompetitorProfile() {
   const competitor = competitors.find((c) => c.id === id)
   if (!competitor) {
     return (
-      <div style={{ padding: '40px 32px', textAlign: 'center' }}>
-        <p style={{ color: 'rgba(5,10,68,0.45)', fontSize: '15px' }}>
-          Competitor "{id}" not found.{' '}
-          <Link to="/competitors" style={{ color: '#0055BB' }}>View all competitors</Link>
-        </p>
-      </div>
+      <NotFoundState
+        heading="Competitor not found"
+        subtext="This competitor may have been removed or the URL may be incorrect."
+        backTo="/competitors"
+        backLabel="View all competitors"
+      />
     )
   }
 
