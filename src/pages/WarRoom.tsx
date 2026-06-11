@@ -16,6 +16,7 @@ import {
   competitorsData,
   eventsData,
   userData,
+  DEMO_SNAPSHOT_DATE,
 } from '../data/kalvista'
 import { useApp } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -26,7 +27,7 @@ type Competitor = (typeof competitorsData)[0]
 type EventItem  = (typeof eventsData)[0]
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TODAY = new Date('2026-04-21')
+const TODAY = new Date(DEMO_SNAPSHOT_DATE)
 
 const IMPLICATION_ITEMS = [
   "Sebetralstat's first-mover window is compressing — plausibly 18 months ahead of Pharvaris rather than 24. Commercial readiness and KOL anchoring should accelerate.",
@@ -35,9 +36,9 @@ const IMPLICATION_ITEMS = [
 ]
 
 const WHAT_MOVED_ITEMS = [
-  "Sebetralstat's first-mover window is compressing — plausibly 18 months ahead of Pharvaris rather than 24. Commercial readiness and KOL anchoring should accelerate.",
-  "Pediatric expansion across Takhzyro and Andembry creates pressure to clarify Ekterly's pediatric narrative within Q3 to avoid ceding ground in this segment.",
-  "Incumbents' defensive posture is softening on tone (BioCryst, CSL) but tightening on access — double down on real-world time-to-relief evidence to support switching conversations.",
+  "Pharvaris tightened RAPIDe-3 primary completion to Q2 2026, 4 weeks ahead of prior guidance — removing enrollment risk from the readout timeline.",
+  "EMA approved Takhzyro adolescent label extension (12+); CSL Behring confirmed Andembry reimbursement across 6 EU markets in the same week.",
+  "BioCryst MSLs deploying Orladeyo starter kits at DACH HAE clinics; Takeda offering unusual rebate concessions at top-10 US prescribing accounts.",
 ]
 
 // ── Severity ──────────────────────────────────────────────────────────────────
@@ -342,16 +343,18 @@ function KpiCard({
           <span style={{ fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21.6px' }}>
             {value}
           </span>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '2px 6px', borderRadius: '8px',
-            background: trend.bg, alignSelf: 'flex-start',
-          }}>
-            <TrendIcon size={10} color={trend.color} strokeWidth={2} />
-            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: trend.color, lineHeight: '21px', whiteSpace: 'nowrap' }}>
-              {trendPct}
-            </span>
-          </div>
+          {trendPct && trendPct !== '0%' && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '2px 6px', borderRadius: '8px',
+              background: trend.bg, alignSelf: 'flex-start',
+            }}>
+              <TrendIcon size={10} color={trend.color} strokeWidth={2} />
+              <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: trend.color, lineHeight: '21px', whiteSpace: 'nowrap' }}>
+                {trendPct}
+              </span>
+            </div>
+          )}
         </div>
         {/* Footer */}
         <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090' }}>
@@ -735,6 +738,14 @@ export default function WarRoom() {
         {kpiCards.map((card, i) => (
           <KpiCard key={i} {...card} />
         ))}
+        <span style={{
+          marginLeft: 'auto', flexShrink: 0,
+          fontSize: '11px', fontFamily: 'Inter, sans-serif',
+          color: 'rgba(5,10,68,0.38)',
+          fontStyle: 'italic',
+        }}>
+          Data as of {TODAY.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
       </div>
 
       {/* ── Row 1: Top signals + Market weather ─────────────────────────── */}

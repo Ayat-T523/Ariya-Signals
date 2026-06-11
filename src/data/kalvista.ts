@@ -18,3 +18,6 @@ export { default as pricingData }          from './pricing.json'
 export { default as reportsData }          from './reports.json'
 export { default as themesData }           from './themes.json'
 export { default as userData }             from './user.json'
+
+// ── Demo snapshot date — all "relative time" displays compute from this ───────
+export const DEMO_SNAPSHOT_DATE = '2026-04-21'

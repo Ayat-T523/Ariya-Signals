@@ -61,7 +61,7 @@ const DECIDE: NavItemDef[] = [
     to: '/myspace', icon: User, label: 'My Space', end: true,
     subItems: [
       { to: '/myspace/alerts',    label: 'My Alerts'    },
-      { to: '/myspace/documents', label: 'My Documents', disabled: true },
+      { to: '/myspace/documents', label: 'My Documents' },
     ],
   },
 ]

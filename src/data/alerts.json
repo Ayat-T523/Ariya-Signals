@@ -192,5 +192,107 @@
       "dataFreshness": "high",
       "inferenceDepth": "medium"
     }
+  },
+  {
+    "id": "alert-030",
+    "timestamp": "2026-04-08T10:00:00Z",
+    "competitorId": "csl-behring",
+    "type": "label-change",
+    "severity": "medium",
+    "source": "FDA",
+    "headline": "FDA accepts Andembry sBLA with 12-month real-world safety data",
+    "whatHappened": "CSL Behring filed a supplemental BLA adding 12-month post-marketing real-world safety data for Andembry (garadacimab). FDA acceptance with PDUFA target Q3 2026 (illustrative).",
+    "whyItMatters": "Strengthens Andembry's durability narrative in US. Increases switching friction for centers already initiated on injectable prophylaxis ahead of oral entrant launches.",
+    "read": false,
+    "confidence": {
+      "sourceCoverage": "high",
+      "dataFreshness": "high",
+      "inferenceDepth": "low"
+    }
+  },
+  {
+    "id": "alert-031",
+    "timestamp": "2026-02-22T14:00:00Z",
+    "competitorId": "csl-behring",
+    "type": "strategic-shift",
+    "severity": "low",
+    "source": "Investor update",
+    "headline": "CSL Behring confirms Andembry reimbursement secured in 6 EU markets",
+    "whatHappened": "CSL Behring reported national pricing agreements for Andembry in Germany, France, UK, Netherlands, Belgium, and Austria (illustrative).",
+    "whyItMatters": "Broad EU formulary access established before oral entrants. Creates incumbent formulary position in Pharma Inc core markets that will require active displacement.",
+    "read": true,
+    "confidence": {
+      "sourceCoverage": "high",
+      "dataFreshness": "medium",
+      "inferenceDepth": "low"
+    }
+  },
+  {
+    "id": "alert-032",
+    "timestamp": "2026-03-18T09:30:00Z",
+    "competitorId": "ionis",
+    "type": "trial-update",
+    "severity": "low",
+    "source": "ClinicalTrials.gov",
+    "headline": "Ionis initiates quarterly-dosing Phase II extension for Dawnzera",
+    "whatHappened": "First patients dosed in the ION-449 extended dosing interval study evaluating quarterly SC administration in patients stable on monthly Dawnzera (illustrative).",
+    "whyItMatters": "Quarterly dosing would close Dawnzera's convenience gap vs oral alternatives. Monitor for PK/PD interim data expected Q4 2026.",
+    "read": true,
+    "confidence": {
+      "sourceCoverage": "high",
+      "dataFreshness": "high",
+      "inferenceDepth": "low"
+    }
+  },
+  {
+    "id": "alert-033",
+    "timestamp": "2026-01-15T08:00:00Z",
+    "competitorId": "adverum",
+    "type": "trial-update",
+    "severity": "low",
+    "source": "SEC filing",
+    "headline": "Adverum IND-enabling studies on track; IND filing targeted 2027",
+    "whatHappened": "Adverum confirmed in its Q3 2025 update that IND-enabling studies for the AAV-HAE gene therapy program remain on schedule (illustrative).",
+    "whyItMatters": "No acceleration of gene therapy timeline. Commercial impact, if any, remains early 2030s — monitoring confirms the long-range horizon holds.",
+    "read": true,
+    "confidence": {
+      "sourceCoverage": "medium",
+      "dataFreshness": "medium",
+      "inferenceDepth": "low"
+    }
+  },
+  {
+    "id": "alert-034",
+    "timestamp": "2026-04-01T11:00:00Z",
+    "competitorId": "intellia",
+    "type": "trial-update",
+    "severity": "medium",
+    "source": "ClinicalTrials.gov",
+    "headline": "Intellia completes NTLA-2002 Phase II expansion cohort enrollment",
+    "whatHappened": "Full enrollment of the Phase II expansion cohort for NTLA-2002 (in vivo CRISPR/Cas9 targeting KLKB1) confirmed; Phase III planning discussions with FDA underway (illustrative).",
+    "whyItMatters": "Accelerating CRISPR timeline in HAE. Phase III initiation expected H2 2026 — watch for KOL excitement that could distract from near-term therapy adoption decisions.",
+    "read": false,
+    "confidence": {
+      "sourceCoverage": "high",
+      "dataFreshness": "high",
+      "inferenceDepth": "low"
+    }
+  },
+  {
+    "id": "alert-035",
+    "timestamp": "2026-03-28T13:00:00Z",
+    "competitorId": "astria",
+    "type": "trial-update",
+    "severity": "medium",
+    "source": "Press release",
+    "headline": "Astria: STAR-0215 meets primary endpoint in ALPHA-STAR Phase II",
+    "whatHappened": "STAR-0215 (long-acting anti-plasma kallikrein mAb, quarterly dosing) met its primary endpoint of attack rate reduction vs placebo in the ALPHA-STAR Phase II study. Phase III initiation planned Q4 2026 (illustrative).",
+    "whyItMatters": "Validates long-acting injectable prophylaxis lane. Phase III success adds a quarterly-dosing competitor to the 2028+ prophylaxis market. Minimal near-term impact on sebetralstat on-demand positioning.",
+    "read": false,
+    "confidence": {
+      "sourceCoverage": "high",
+      "dataFreshness": "high",
+      "inferenceDepth": "low"
+    }
   }
 ]
