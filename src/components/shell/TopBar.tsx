@@ -166,6 +166,9 @@ export default function TopBar() {
   const isCompetitorProfile = location.pathname.startsWith('/competitors/') &&
     location.pathname.length > '/competitors/'.length
 
+  // War Room renders its own greeting header in-page — suppress the global title row
+  const isWarRoom = location.pathname === '/'
+
   // On the Ask Ariya page itself, the Ask Ariya button is redundant
   const isAskPage     = location.pathname === '/ask'
   // My Space is a settings/config screen — Ask Ariya not needed there
@@ -176,8 +179,8 @@ export default function TopBar() {
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>
 
-      {/* ── Header row (hidden on competitor profile pages) ────────────────── */}
-      {!isCompetitorProfile && (
+      {/* ── Header row (hidden on competitor profile pages and War Room) ───── */}
+      {!isCompetitorProfile && !isWarRoom && (
         <div style={{
           padding: '8px 36px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
