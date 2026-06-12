@@ -618,7 +618,7 @@ function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null
   )
 }
 
-function EventCard({ event, pastVariant, cardRef, flashing }) {
+function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const past = Boolean(pastVariant)
   const isMultiDay = Boolean(event.endDate)
   const dateLabel = isMultiDay
@@ -630,7 +630,8 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
   const digestReport = past ? findDigestForEvent(event) : null
   const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
   const TypeIcon = typeCfg.icon
-  const noteText = (event as any).note ?? (LEADERSHIP_ANNOTATIONS[event.type]?.expect ?? null)
+  const noteText = (event as any).note ?? null
+  const annotations = showAnnotations ? (LEADERSHIP_ANNOTATIONS[event.type] ?? null) : null
 
   return (
     <div
@@ -691,7 +692,7 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
         </div>
       )}
 
-      {/* Row 5: Note (event.note or leadership annotation) */}
+      {/* Row 5: Note (event.note only) */}
       {noteText && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: '6px',
@@ -702,6 +703,20 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
           <span style={{ fontSize: '12px', color: '#0055BB', lineHeight: '1.5' }}>
             {noteText}
           </span>
+        </div>
+      )}
+
+      {/* Row 6: Leadership annotations — only in leadership priority view */}
+      {annotations && (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.10)' }}>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What we expect:</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
+          </div>
+          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.08)' }}>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What would surprise us:</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
+          </div>
         </div>
       )}
 
@@ -913,6 +928,7 @@ function EventsTab() {
                           event={e}
                           cardRef={(node) => setCardRef((e as any).id, node)}
                           flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
                         />
                       </div>
                     )
@@ -957,6 +973,7 @@ function EventsTab() {
                           pastVariant
                           cardRef={(node) => setCardRef((e as any).id, node)}
                           flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
                         />
                       </div>
                     )
