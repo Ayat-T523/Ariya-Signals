@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Bell, ChevronLeft } from 'lucide-react'
+import { Mail, ChevronLeft, Bell } from 'lucide-react'
 
 const FORMAT_OPTIONS = [
   { value: 'narrative',  label: 'Narrative summary', description: 'Conversational prose, contextualized takeaways' },
   { value: 'structured', label: 'Structured brief',  description: 'Headlines, bullets, clear sections' },
   { value: 'raw',        label: 'Raw signal',        description: 'Source extracts only, minimal interpretation' },
+]
+
+const FREQUENCY_OPTIONS = [
+  { value: 'daily',          label: 'Daily digest',         description: 'Every morning at 07:00' },
+  { value: 'weekly',         label: 'Weekly digest',        description: 'Mondays at 07:00' },
+  { value: 'critical-only',  label: 'Critical alerts only', description: 'Immediate, high-priority only' },
 ]
 
 const DIGEST_BULLETS = [
@@ -14,8 +20,38 @@ const DIGEST_BULLETS = [
   'CSL Behring confirms Andembry formulary access in Germany ahead of schedule.',
 ]
 
+// ── Reusable toggle ───────────────────────────────────────────────────────────
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      style={{
+        width: '36px', height: '20px', borderRadius: '9999px',
+        background: on ? '#2A76F4' : 'rgba(5,10,68,0.15)',
+        position: 'relative', flexShrink: 0, cursor: 'pointer',
+        transition: 'background 150ms ease',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: '2px',
+        left: on ? '18px' : '2px',
+        width: '16px', height: '16px', borderRadius: '50%',
+        background: '#FFFFFF',
+        transition: 'left 150ms ease',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+      }} />
+    </div>
+  )
+}
+
 // ── Section card ──────────────────────────────────────────────────────────────
-function SectionCard({ title, description, children }) {
+function SectionCard({ title, description, children }: {
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
   return (
     <section style={{
       background: '#FFFFFF',
@@ -47,10 +83,10 @@ function SectionCard({ title, description, children }) {
 }
 
 // ── Field label ───────────────────────────────────────────────────────────────
-function FieldLabel({ children }) {
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
-      margin: '0 0 6px', fontSize: '11px', fontWeight: 700,
+      margin: '0 0 8px', fontSize: '11px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.09em',
       color: 'rgba(5,10,68,0.50)',
     }}>
@@ -64,10 +100,34 @@ export default function MyAlerts() {
   const [format, setFormat] = useState(() => {
     return localStorage.getItem('ariya-delivery-format') || 'structured'
   })
+  const [emailEnabled, setEmailEnabled] = useState(() => {
+    return localStorage.getItem('ariya-channel-email') !== 'false'
+  })
+  const [slackEnabled, setSlackEnabled] = useState(() => {
+    return localStorage.getItem('ariya-channel-slack') === 'true'
+  })
+  const [frequency, setFrequency] = useState(() => {
+    return localStorage.getItem('ariya-delivery-freq') || 'weekly'
+  })
 
-  const updateFormat = (value) => {
+  function updateFormat(value: string) {
     setFormat(value)
     localStorage.setItem('ariya-delivery-format', value)
+  }
+
+  function updateEmail(value: boolean) {
+    setEmailEnabled(value)
+    localStorage.setItem('ariya-channel-email', String(value))
+  }
+
+  function updateSlack(value: boolean) {
+    setSlackEnabled(value)
+    localStorage.setItem('ariya-channel-slack', String(value))
+  }
+
+  function updateFrequency(value: string) {
+    setFrequency(value)
+    localStorage.setItem('ariya-delivery-freq', value)
   }
 
   return (
@@ -92,100 +152,126 @@ export default function MyAlerts() {
         How and when Ariya delivers signals to you.
       </p>
 
-      {/* ── Delivery preferences ─────────────────────────────────────────────── */}
-      <SectionCard title="Delivery preferences" description="Configure when and how Ariya sends you signals.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* ── Channels ─────────────────────────────────────────────────────────── */}
+      <SectionCard title="Channels" description="Enable the channels where Ariya will send your alerts.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-          {/* Scheduled delivery */}
-          <div>
-            <FieldLabel>Scheduled delivery</FieldLabel>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 14px', borderRadius: '8px',
-              border: '1px solid rgba(210,226,255,1)', background: '#FFFFFF',
-            }}>
-              <Mail size={14} color="rgba(5,10,68,0.45)" />
-              <select
-                disabled
-                value="weekly-mon-7"
-                style={{
-                  flex: 1, border: 'none', background: 'transparent',
-                  fontSize: '13px', fontFamily: 'Inter, sans-serif',
-                  color: 'rgba(5,10,68,0.75)', cursor: 'not-allowed', outline: 'none',
-                }}
-              >
-                <option value="weekly-mon-7">Weekly digest — Monday 07:00 — Email</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Real-time push */}
-          <div>
-            <FieldLabel>Real-time push</FieldLabel>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              padding: '10px 14px', borderRadius: '8px',
-              border: '1px solid rgba(210,226,255,1)', background: '#FFFFFF',
-            }}>
-              <Bell size={14} color="rgba(5,10,68,0.45)" />
-              <p style={{ margin: 0, flex: 1, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.75)' }}>
-                High-priority alerts — Microsoft Teams
+          {/* Email */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px 16px', borderRadius: '8px',
+            border: `1px solid ${emailEnabled ? 'rgba(42,118,244,0.30)' : 'rgba(210,226,255,1)'}`,
+            background: emailEnabled ? 'rgba(42,118,244,0.04)' : '#FFFFFF',
+            transition: 'all 150ms ease',
+          }}>
+            <Mail size={16} color={emailEnabled ? '#2A76F4' : 'rgba(5,10,68,0.35)'} />
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#10224A' }}>
+                Email
               </p>
-              <div
-                role="switch"
-                aria-checked="true"
-                style={{
-                  width: '36px', height: '20px', borderRadius: '9999px',
-                  background: '#2A76F4', position: 'relative', flexShrink: 0,
-                }}
-              >
-                <div style={{
-                  position: 'absolute', top: '2px', left: '18px',
-                  width: '16px', height: '16px', borderRadius: '50%',
-                  background: '#FFFFFF',
-                }} />
-              </div>
+              <p style={{ margin: 0, fontSize: '12px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.50)' }}>
+                david.nguyen@pharmainc.com
+              </p>
             </div>
+            <Toggle on={emailEnabled} onChange={updateEmail} />
           </div>
 
-          {/* Format */}
-          <div>
-            <FieldLabel>Format</FieldLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {FORMAT_OPTIONS.map((opt) => {
-                const isSelected = format === opt.value
-                return (
-                  <label
-                    key={opt.value}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '12px',
-                      padding: '10px 14px', borderRadius: '8px',
-                      border: `1px solid ${isSelected ? '#2A76F4' : 'rgba(210,226,255,1)'}`,
-                      background: isSelected ? 'rgba(42,118,244,0.06)' : '#FFFFFF',
-                      cursor: 'pointer', transition: 'all 120ms ease',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="delivery-format"
-                      value={opt.value}
-                      checked={isSelected}
-                      onChange={() => updateFormat(opt.value)}
-                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#2A76F4' }}
-                    />
-                    <div>
-                      <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
-                        {opt.label}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)' }}>
-                        {opt.description}
-                      </p>
-                    </div>
-                  </label>
-                )
-              })}
+          {/* Slack / Teams */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '12px 16px', borderRadius: '8px',
+            border: `1px solid ${slackEnabled ? 'rgba(42,118,244,0.30)' : 'rgba(210,226,255,1)'}`,
+            background: slackEnabled ? 'rgba(42,118,244,0.04)' : '#FFFFFF',
+            transition: 'all 150ms ease',
+          }}>
+            <Bell size={16} color={slackEnabled ? '#2A76F4' : 'rgba(5,10,68,0.35)'} />
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#10224A' }}>
+                Microsoft Teams
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.50)' }}>
+                High-priority alerts only
+              </p>
             </div>
+            <Toggle on={slackEnabled} onChange={updateSlack} />
           </div>
+
+        </div>
+      </SectionCard>
+
+      {/* ── Frequency ────────────────────────────────────────────────────────── */}
+      <SectionCard title="Frequency" description="How often Ariya sends scheduled digests.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {FREQUENCY_OPTIONS.map((opt) => {
+            const isSelected = frequency === opt.value
+            return (
+              <label
+                key={opt.value}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  padding: '10px 14px', borderRadius: '8px',
+                  border: `1px solid ${isSelected ? '#2A76F4' : 'rgba(210,226,255,1)'}`,
+                  background: isSelected ? 'rgba(42,118,244,0.06)' : '#FFFFFF',
+                  cursor: 'pointer', transition: 'all 120ms ease',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="delivery-frequency"
+                  value={opt.value}
+                  checked={isSelected}
+                  onChange={() => updateFrequency(opt.value)}
+                  style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#2A76F4' }}
+                />
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+                    {opt.label}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)' }}>
+                    {opt.description}
+                  </p>
+                </div>
+              </label>
+            )
+          })}
+        </div>
+      </SectionCard>
+
+      {/* ── Format ──────────────────────────────────────────────────────────── */}
+      <SectionCard title="Format" description="How Ariya presents intelligence in your digests.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {FORMAT_OPTIONS.map((opt) => {
+            const isSelected = format === opt.value
+            return (
+              <label
+                key={opt.value}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  padding: '10px 14px', borderRadius: '8px',
+                  border: `1px solid ${isSelected ? '#2A76F4' : 'rgba(210,226,255,1)'}`,
+                  background: isSelected ? 'rgba(42,118,244,0.06)' : '#FFFFFF',
+                  cursor: 'pointer', transition: 'all 120ms ease',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="delivery-format"
+                  value={opt.value}
+                  checked={isSelected}
+                  onChange={() => updateFormat(opt.value)}
+                  style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#2A76F4' }}
+                />
+                <div>
+                  <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+                    {opt.label}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)' }}>
+                    {opt.description}
+                  </p>
+                </div>
+              </label>
+            )
+          })}
         </div>
       </SectionCard>
 

@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { analytics } from '../lib/analytics'
 import { ChevronRight, FileText, BarChart2, Plus } from 'lucide-react'
+import { motion } from 'framer-motion'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import competitors from '../data/competitors.json'
 import alerts from '../data/alerts.json'
 import { formatDate } from '../utils/formatDate'
+import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 
 // ── Threat classification (for KPI count) ────────────────────────────────────
 const HIGH_THREAT_POSTURES = new Set([
@@ -269,6 +274,7 @@ function CompetitorCard({ competitor }) {
       style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => analytics.competitor_viewed(competitor.name)}
     >
       <div style={{
         background: '#ffffff',
@@ -575,6 +581,7 @@ function KeyCompetitorTimeline() {
 export default function Competitors() {
   const [filter, setFilter]           = useState('all')
   const [showTimeline, setShowTimeline] = useState(false)
+  const loaded = usePageLoad('competitors')
 
   const filtered = competitors.filter(c => {
     if (filter === 'hae-acute')       return isHaeAcute(c)
@@ -584,7 +591,7 @@ export default function Competitors() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '8px 36px 36px' }}>
+      <div data-tour="competitors-page" style={{ padding: '8px 36px 36px' }}>
 
         {/* Header: subtitle + filter pills + View Timeline button */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -662,10 +669,23 @@ export default function Competitors() {
           <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
             No competitors match this filter.
           </p>
+        ) : !loaded ? (
+          <SkeletonCompetitorGrid count={competitors.length} />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}
+          >
             {filtered.map(c => (
-              <CompetitorCard key={c.id} competitor={c} />
+              <motion.div
+                key={c.id}
+                variants={listItem}
+                whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+                transition={{ duration: 0.12 }}
+              >
+                <CompetitorCard competitor={c} />
+              </motion.div>
             ))}
 
             {/* Add competitor placeholder */}
@@ -696,7 +716,7 @@ export default function Competitors() {
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
       </div>

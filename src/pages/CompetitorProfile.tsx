@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { analytics } from '../lib/analytics'
+
 import { ChevronLeft, ChevronDown } from 'lucide-react'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -70,7 +72,7 @@ function ExecutiveSummaryCard({ summary }) {
 }
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
-function TabBar({ activeTab, onChange }) {
+function TabBar({ activeTab, onChange, competitorId }) {
   return (
     <div style={{
       display: 'flex',
@@ -82,7 +84,10 @@ function TabBar({ activeTab, onChange }) {
         return (
           <button
             key={tab.label}
-            onClick={() => onChange(i)}
+            onClick={() => {
+              onChange(i)
+              analytics.competitor_tab_viewed(tab.label, competitorId)
+            }}
             style={{
               padding: '10px 20px',
               fontSize: '14px',
@@ -127,7 +132,7 @@ export default function CompetitorProfile() {
     <div>
 
       {/* ── STICKY HEADER (company info + AI summary + tab bar) ───────────── */}
-      <div style={{
+      <div data-tour="competitor-profile" style={{
         position: 'sticky',
         top: 0,
         zIndex: 10,
@@ -170,7 +175,7 @@ export default function CompetitorProfile() {
         </div>
 
         {/* Tab bar — no overflow scroll */}
-        <TabBar activeTab={activeTab} onChange={setActiveTab} />
+        <TabBar activeTab={activeTab} onChange={setActiveTab} competitorId={id} />
       </div>
 
       {/* ── TAB CONTENT (scrollable with page) ────────────────────────────── */}

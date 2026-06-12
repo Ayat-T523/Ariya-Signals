@@ -64,7 +64,7 @@ function SectionLinkCard({ section }) {
 
 export default function MySpace() {
   return (
-    <div style={{ padding: '20px 36px 36px' }}>
+    <div data-tour="myspace-page" style={{ padding: '20px 36px 36px' }}>
       <p style={{
         margin: '0 0 28px',
         fontSize: '14px', fontFamily: 'Inter, sans-serif',

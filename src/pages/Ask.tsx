@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Sparkles, Filter, Mic, Send } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { analytics } from '../lib/analytics'
 
 // ── 4 categories, 3 questions each ────────────────────────────────────────────
 const QUESTION_CATEGORIES = [
@@ -92,7 +93,11 @@ function QuestionCard({ question, category, onOpen, index }) {
         </span>
         <button
           type="button"
-          onClick={() => onOpen(`ask-q-${category.toLowerCase().replace(/\s+/g, '-')}-${index}`)}
+          onClick={() => {
+            const promptId = `ask-q-${category.toLowerCase().replace(/\s+/g, '-')}-${index}`
+            analytics.ariya_prompt_clicked(promptId, question)
+            onOpen(promptId)
+          }}
           style={{
             padding: '3px 8px',
             background: '#2A76F4', border: 'none', borderRadius: '6px',

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { analytics } from '../lib/analytics'
 import {
   CheckCheck, Circle, Filter,
   ChevronDown, ChevronRight, Sparkles,
@@ -6,7 +7,11 @@ import {
   FlaskConical, Pill, Shield, Landmark, Mic, Layers,
   Database,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { staggerContainer, listItem } from '../lib/motion'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonAlertList } from '../components/ui/Skeleton'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
@@ -149,6 +154,7 @@ function AlertCard({ alert }) {
 
   function toggleRead(e) {
     e.stopPropagation()
+    if (!isRead) analytics.alert_expanded(alert.id)
     isRead ? markAlertUnread(alert.id) : markAlertRead(alert.id)
   }
 
@@ -543,7 +549,8 @@ function GroupedView({ filteredAlerts }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AlertsPage() {
-  const { readAlerts } = useApp()
+  const { readAlerts, markAllRead } = useApp()
+  const loaded = usePageLoad('alerts')
 
   // Filter state — multi-select Sets backing the dropdowns
   const [competitorFilter, setCompetitorFilter] = useState(() => new Set())
@@ -626,7 +633,7 @@ export default function AlertsPage() {
     onlyUnread
 
   return (
-    <div style={{ padding: '20px 36px 36px' }}>
+    <div data-tour="alerts-page" style={{ padding: '20px 36px 36px' }}>
 
       {/* Description */}
       <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
@@ -662,6 +669,24 @@ export default function AlertsPage() {
             }}
             count={unreadCount}
           />
+          <button
+            onClick={markAllRead}
+            disabled={unreadCount === 0}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '5px 13px', borderRadius: '9999px',
+              fontSize: '13px', fontWeight: 500,
+              background: 'transparent',
+              color: unreadCount > 0 ? 'rgba(5,10,68,0.55)' : 'rgba(5,10,68,0.25)',
+              border: `1.5px solid ${unreadCount > 0 ? 'rgba(5,10,68,0.15)' : 'rgba(5,10,68,0.08)'}`,
+              cursor: unreadCount > 0 ? 'pointer' : 'default',
+              transition: 'all 120ms ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <CheckCheck size={13} />
+            Mark all read
+          </button>
           <div style={{ marginLeft: 'auto' }}>
             <ViewToggle value={viewMode} onChange={handleViewChange} />
           </div>
@@ -693,8 +718,11 @@ export default function AlertsPage() {
         </div>
       </div>
 
+      {/* ── Loading skeleton ────────────────────────────────────────────────── */}
+      {!loaded && <SkeletonAlertList count={alertsData.length} />}
+
       {/* ── List view ───────────────────────────────────────────────────────── */}
-      {viewMode === 'list' && (
+      {loaded && viewMode === 'list' && (
         <>
           {/* Sort toggle — matches War Room (Task 4b) */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px' }}>
@@ -730,8 +758,10 @@ export default function AlertsPage() {
               No signals match the current filters.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Section label — context depends on sort mode */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.35 }}
+            >
               {!hasActiveFilter && (
                 <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'rgba(5,10,68,0.35)' }}>
                   {sortMode === 'importance'
@@ -739,16 +769,25 @@ export default function AlertsPage() {
                     : `${unreadCount} unread`}
                 </p>
               )}
-              {filtered.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
+              <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
+                style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              >
+                {filtered.map((alert) => (
+                  <motion.div key={alert.id} variants={listItem}>
+                    <AlertCard alert={alert} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
           )}
         </>
       )}
 
       {/* ── Grouped view ────────────────────────────────────────────────────── */}
-      {viewMode === 'grouped' && (
+      {loaded && viewMode === 'grouped' && (
         <GroupedView filteredAlerts={filtered} />
       )}
 

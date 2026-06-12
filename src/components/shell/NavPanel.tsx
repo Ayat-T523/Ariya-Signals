@@ -24,8 +24,10 @@ import {
   Home, LayoutGrid, Building2, BarChart3, DollarSign,
   Bell, Sparkles, User, Compass, Settings, HelpCircle, X,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { userData } from '../../data/kalvista'
+import { REDUCED_MOTION } from '../../lib/motion'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const W_COLLAPSED = 64
@@ -43,20 +45,21 @@ interface NavItemDef {
   end?: boolean
   badge?: boolean
   subItems?: SubItem[]
+  tourId?: string
 }
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 const MONITOR: NavItemDef[] = [
   { to: '/',                   icon: Home,       label: 'War Room',          end: true  },
   { to: '/intelligence',       icon: LayoutGrid, label: 'Intelligence Feed'             },
-  { to: '/competitors', icon: Building2, label: 'Competitors' },
+  { to: '/competitors', icon: Building2, label: 'Competitors', tourId: 'nav-competitors' },
   { to: '/market-performance', icon: BarChart3,  label: 'Market Performance'            },
   { to: '/pricing',            icon: DollarSign, label: 'Pricing and Access'            },
 ]
 
 const DECIDE: NavItemDef[] = [
-  { to: '/alerts', icon: Bell,     label: 'Alerts',    badge: true },
-  { to: '/ask',    icon: Sparkles, label: 'Ask Ariya'              },
+  { to: '/alerts', icon: Bell,     label: 'Alerts',    badge: true, tourId: 'nav-alerts' },
+  { to: '/ask',    icon: Sparkles, label: 'Ask Ariya', tourId: 'nav-ask' },
   {
     to: '/myspace', icon: User, label: 'My Space', end: true,
     subItems: [
@@ -264,7 +267,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
   }
 
   return (
-    <div>
+    <div {...(item.tourId ? { 'data-tour': item.tourId } : {})}>
       <NavLink
           to={item.to}
           end={item.end}
@@ -288,14 +291,20 @@ function NavItem({ item, isExpanded, unreadCount }: {
             {item.label}
           </span>
           {item.badge && unreadCount > 0 && (
-            <span style={{
-              fontSize: '11px', fontWeight: 700,
-              background: 'var(--status-red)', color: 'var(--bg-1)',
-              borderRadius: '9999px', padding: '1px 6px',
-              minWidth: '18px', textAlign: 'center', lineHeight: '1.6', flexShrink: 0,
-            }}>
+            <motion.span
+              key={unreadCount}
+              animate={REDUCED_MOTION ? {} : { scale: [1, 1.15, 1] }}
+              transition={{ duration: 0.4 }}
+              style={{
+                display: 'inline-block',
+                fontSize: '11px', fontWeight: 700,
+                background: 'var(--status-red)', color: 'var(--bg-1)',
+                borderRadius: '9999px', padding: '1px 6px',
+                minWidth: '18px', textAlign: 'center', lineHeight: '1.6', flexShrink: 0,
+              }}
+            >
               {unreadCount}
-            </span>
+            </motion.span>
           )}
         </NavLink>
 

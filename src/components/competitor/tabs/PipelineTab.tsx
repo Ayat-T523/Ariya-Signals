@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { FileText, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
+import { REDUCED_MOTION } from '../../../lib/motion'
 
 // ── Mini Gantt column definitions ─────────────────────────────────────────────
 // Compressed view: Q3 2025 → Q4 2027 quarterly, then 2028 / 2029 annual
@@ -405,18 +407,40 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
               {/* Phase bars */}
               {row.bars.map((bar, bi) => {
                 const cfg = MINI_PHASE_CFG[bar.phase] || MINI_PHASE_CFG.phase3
+                const fullWidth = barWidth(bar.sy, bar.sq, bar.ey, bar.eq)
+                if (REDUCED_MOTION) {
+                  return (
+                    <div key={bi} style={{
+                      position: 'absolute',
+                      left:   barLeft(bar.sy, bar.sq),
+                      width:  fullWidth,
+                      top:    (MINI_ROW_H - 20) / 2,
+                      height: 20,
+                      background: cfg.bg,
+                      border: `1px solid ${cfg.border}`,
+                      borderRadius: 4,
+                      zIndex: 1,
+                    }} />
+                  )
+                }
                 return (
-                  <div key={bi} style={{
-                    position: 'absolute',
-                    left:   barLeft(bar.sy, bar.sq),
-                    width:  barWidth(bar.sy, bar.sq, bar.ey, bar.eq),
-                    top:    (MINI_ROW_H - 20) / 2,
-                    height: 20,
-                    background: cfg.bg,
-                    border: `1px solid ${cfg.border}`,
-                    borderRadius: 4,
-                    zIndex: 1,
-                  }} />
+                  <motion.div
+                    key={bi}
+                    initial={{ width: 0 }}
+                    whileInView={{ width: fullWidth }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: bi * 0.06, ease: 'easeOut' }}
+                    style={{
+                      position: 'absolute',
+                      left:   barLeft(bar.sy, bar.sq),
+                      top:    (MINI_ROW_H - 20) / 2,
+                      height: 20,
+                      background: cfg.bg,
+                      border: `1px solid ${cfg.border}`,
+                      borderRadius: 4,
+                      zIndex: 1,
+                    }}
+                  />
                 )
               })}
 

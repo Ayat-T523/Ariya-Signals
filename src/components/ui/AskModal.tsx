@@ -1,5 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { SkeletonAskResponse } from './Skeleton'
+import { REDUCED_MOTION } from '../../lib/motion'
 
 /**
  * Shared AI placeholder modal (§5).
@@ -13,10 +16,13 @@ import { X, Sparkles } from 'lucide-react'
  */
 export default function AskModal({ onClose, source }) {
   const modalRef = useRef(null)
+  const [responding, setResponding] = useState(REDUCED_MOTION)
 
-  // Focus the CTA on open for accessibility
   useEffect(() => {
     modalRef.current?.focus()
+    if (REDUCED_MOTION) return
+    const timer = setTimeout(() => setResponding(true), 1400)
+    return () => clearTimeout(timer)
   }, [])
 
   function handleBackdropClick(e) {
@@ -85,22 +91,30 @@ export default function AskModal({ onClose, source }) {
           </h2>
         </div>
 
-        {/* Body */}
-        <p
-          className="m-0 mb-6"
-          style={{
-            fontSize: '14px',
-            lineHeight: '1.65',
-            color: 'rgba(5,10,68,0.65)',
-          }}
-        >
-          This response is generated from your curated competitive intelligence
-          data, validated sources, and Pharma Inc portfolio context. All content
-          shown here is illustrative.
-        </p>
+        {/* Body — skeleton while "thinking", then fade in response */}
+        {!responding ? (
+          <div className="m-0 mb-6">
+            <SkeletonAskResponse />
+          </div>
+        ) : (
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="m-0 mb-6"
+            style={{
+              fontSize: '14px',
+              lineHeight: '1.65',
+              color: 'rgba(5,10,68,0.65)',
+            }}
+          >
+            This response is generated from your curated competitive intelligence
+            data, validated sources, and Pharma Inc portfolio context. All content
+            shown here is illustrative.
+          </motion.p>
+        )}
 
-        {/* Muted source label — helps us track which buttons are clicked */}
-        {source && (
+        {/* Muted source label — only shown once response appears */}
+        {responding && source && (
           <p
             className="m-0 mb-5"
             style={{ fontSize: '11px', color: 'rgba(5,10,68,0.30)' }}

@@ -1,15 +1,20 @@
 import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { fadeUp } from '../../lib/motion'
 import NavPanel from '../shell/NavPanel'
 import TopBar from '../shell/TopBar'
 import ContentColumn from '../shell/ContentColumn'
 import AskModal from '../ui/AskModal'
+import FeedbackWidget from '../ui/FeedbackWidget'
 import OnboardingModal from '../OnboardingModal'
-import GuidedTour from '../GuidedTour'
 import { useApp } from '../../context/AppContext'
+import { useTour } from '../../hooks/useTour'
 
 export default function Layout() {
-  const { askModal, closeAskModal, openAskModal, showOnboarding, tourActive } = useApp()
+  const { askModal, closeAskModal, openAskModal, showOnboarding } = useApp()
+  useTour()
+  const location = useLocation()
 
   /**
    * Keyboard shortcuts:
@@ -46,17 +51,26 @@ export default function Layout() {
       <ContentColumn>
         <TopBar />
 
-        {/* Page content — scrollable; extra bottom padding when guided tour banner is active */}
+        {/* Page content — scrollable area */}
         <main
           className="flex-1"
           style={{
-            paddingBottom: tourActive ? '132px' : 0,
             background: 'var(--bg-1)',
             overflowY: 'auto',
             minHeight: 0,
           }}
         >
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.key}
+              variants={fadeUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </ContentColumn>
 
@@ -68,8 +82,9 @@ export default function Layout() {
       {/* Onboarding modal — shown on first visit or triggered from Admin */}
       {showOnboarding && <OnboardingModal />}
 
-      {/* Guided tour banner — persistent across pages while active */}
-      <GuidedTour />
+      {/* Feedback pill — fixed bottom-right, all pages */}
+      <FeedbackWidget />
+
     </div>
   )
 }

@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { analytics } from './lib/analytics'
 import { AppProvider } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Loader from './components/atoms/Loader'
@@ -20,6 +21,17 @@ const MySpace           = lazy(() => import('./pages/MySpace'))
 const MyAlerts          = lazy(() => import('./pages/MyAlerts'))
 const MyDocuments       = lazy(() => import('./pages/MyDocuments'))
 
+// ── PostHog page-view tracker ─────────────────────────────────────────────────
+function PostHogPageTracker() {
+  const location = useLocation()
+  const prevPathRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    analytics.page_viewed(location.pathname, prevPathRef.current)
+    prevPathRef.current = location.pathname
+  }, [location.pathname])
+  return null
+}
+
 // ── Full-page loading fallback ────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -38,6 +50,7 @@ function PageLoader() {
 export default function App() {
   return (
     <BrowserRouter>
+      <PostHogPageTracker />
       <AppProvider>
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>

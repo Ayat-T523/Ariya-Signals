@@ -26,3 +26,11 @@ Icon\r
 *.sw?
 
 .vercel
+
+# Environment files — never commit real values
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.*.local

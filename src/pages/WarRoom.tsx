@@ -8,9 +8,11 @@
  *   - lucide-react for all icons, no other icon library.
  */
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { analytics } from '../lib/analytics'
 import { Bell, Zap, Activity, ArrowRight, TrendingUp, TrendingDown, Minus, Clock, BarChart2, FileSearch, Info } from 'lucide-react'
+import { motion } from 'framer-motion'
 import {
   alertsData,
   competitorsData,
@@ -20,6 +22,16 @@ import {
 } from '../data/kalvista'
 import { useApp } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
+import SlideOver from '../components/ui/SlideOver'
+import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
+import { usePageLoad } from '../hooks/usePageLoad'
+import {
+  SkeletonKpiRow,
+  SkeletonSignalList,
+  SkeletonQuadrantGrid,
+  SkeletonMarketWeatherBody,
+  SkeletonEventList,
+} from '../components/ui/Skeleton'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Alert      = (typeof alertsData)[0]
@@ -298,6 +310,35 @@ function DashedLink({ to, children, icon: Icon = ArrowRight }: {
   )
 }
 
+// ── Count-up animation hook ───────────────────────────────────────────────────
+// Animates from 0 → target on first mount only. Returns [displayed, done].
+// `done` flips to true when the count completes so dependents can fade in.
+function useCountUp(target: number, duration = 600): [number, boolean] {
+  const [current, setCurrent] = useState(REDUCED_MOTION ? target : 0)
+  const [done, setDone] = useState(REDUCED_MOTION)
+  const didStart = useRef(false)
+
+  useEffect(() => {
+    if (REDUCED_MOTION || didStart.current) return
+    didStart.current = true
+    const snap = target
+    const start = performance.now()
+    let cancelled = false
+    function step(ts: number) {
+      if (cancelled) return
+      const t = Math.min((ts - start) / duration, 1)
+      const eased = 1 - (1 - t) ** 3
+      setCurrent(Math.round(eased * snap))
+      if (t < 1) requestAnimationFrame(step)
+      else setDone(true)
+    }
+    requestAnimationFrame(step)
+    return () => { cancelled = true }
+  }, []) // intentional: mount-once
+
+  return [current, done]
+}
+
 /** KPI card — Figma node 1572:49060 */
 type TrendDir = 'up' | 'down' | 'neutral'
 function KpiCard({
@@ -316,6 +357,11 @@ function KpiCard({
   }
   const trend = TREND_STYLES[trendDir]
   const TrendIcon = trend.Icon
+
+  const isNum = typeof value === 'number'
+  const [animated, trendReady] = useCountUp(isNum ? (value as number) : 0)
+  const displayValue = isNum ? animated : value
+  const showTrend = isNum ? trendReady : true
 
   return (
     <div style={{
@@ -341,19 +387,24 @@ function KpiCard({
         {/* Value + trend badge */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21.6px' }}>
-            {value}
+            {displayValue}
           </span>
-          {trendPct && trendPct !== '0%' && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '4px',
-              padding: '2px 6px', borderRadius: '8px',
-              background: trend.bg, alignSelf: 'flex-start',
-            }}>
+          {trendPct && trendPct !== '0%' && showTrend && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                padding: '2px 6px', borderRadius: '8px',
+                background: trend.bg, alignSelf: 'flex-start',
+              }}
+            >
               <TrendIcon size={10} color={trend.color} strokeWidth={2} />
               <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: trend.color, lineHeight: '21px', whiteSpace: 'nowrap' }}>
                 {trendPct}
               </span>
-            </div>
+            </motion.div>
           )}
         </div>
         {/* Footer */}
@@ -366,13 +417,18 @@ function KpiCard({
 }
 
 /** Signal row */
-function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
+function SignalRow({ alert, isLast, onSelect }: { alert: Alert; isLast: boolean; onSelect: () => void }) {
   const badge      = SEV_BADGE[alert.severity] ?? SEV_BADGE.low
   const competitor = competitorsData.find(c => c.id === alert.competitorId)
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px 0', minHeight: '80px' }}>
+      <motion.div
+        onClick={onSelect}
+        whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+        transition={{ duration: 0.12 }}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px 0', minHeight: '80px', cursor: 'pointer' }}
+      >
         <div style={{ flexShrink: 0, paddingTop: '3px' }}>
           <CompetitorBadge name={competitor?.name ?? alert.competitorId} size={28} />
         </div>
@@ -414,7 +470,7 @@ function SignalRow({ alert, isLast }: { alert: Alert; isLast: boolean }) {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
       {!isLast && <div style={{ height: '1px', background: 'rgba(42,118,244,0.15)' }} />}
     </>
   )
@@ -668,8 +724,11 @@ function EventRow({ event }: { event: EventItem }) {
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const { unreadCount, readAlerts } = useApp()
-  const [sortMode, setSortMode]       = useState<'Importance' | 'Recency'>('Importance')
-  const [eventFilter, setEventFilter] = useState<EventFilter>('All events')
+  const loaded = usePageLoad('war-room')
+  const [sortMode, setSortMode]         = useState<'Importance' | 'Recency'>('Importance')
+  const [eventFilter, setEventFilter]   = useState<EventFilter>('All events')
+  const [assessmentOpen, setAssessmentOpen] = useState(false)
+  const [selectedSignal, setSelectedSignal] = useState<Alert | null>(null)
 
 
   // Derived counts
@@ -729,23 +788,28 @@ export default function WarRoom() {
     <div style={{ padding: '8px 36px 36px' }}>
 
       {/* ── KPI cards — Figma 1572:49060 ────────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        alignItems: 'center',
-        marginBottom: '24px',
-      }}>
-        {kpiCards.map((card, i) => (
-          <KpiCard key={i} {...card} />
-        ))}
-        <span style={{
-          marginLeft: 'auto', flexShrink: 0,
-          fontSize: '11px', fontFamily: 'Inter, sans-serif',
-          color: 'rgba(5,10,68,0.38)',
-          fontStyle: 'italic',
-        }}>
-          Data as of {TODAY.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </span>
+      <div data-tour="kpi-row" style={{ marginBottom: '24px' }}>
+        {!loaded ? (
+          <SkeletonKpiRow />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.35, ease: [0.25, 0, 0.25, 1] }}
+            style={{ display: 'flex', gap: '16px', alignItems: 'center' }}
+          >
+            {kpiCards.map((card, i) => (
+              <KpiCard key={i} {...card} />
+            ))}
+            <span style={{
+              marginLeft: 'auto', flexShrink: 0,
+              fontSize: '11px', fontFamily: 'Inter, sans-serif',
+              color: 'rgba(5,10,68,0.38)',
+              fontStyle: 'italic',
+            }}>
+              Data as of {TODAY.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </motion.div>
+        )}
       </div>
 
       {/* ── Row 1: Top signals + Market weather ─────────────────────────── */}
@@ -759,7 +823,7 @@ export default function WarRoom() {
       }}>
 
         {/* Top signals to triage */}
-        <div style={{
+        <div data-tour="top-signals" style={{
           flex: 1, minWidth: 0,
           background: '#ffffff',
           border: '1.8px solid var(--blue-light)',
@@ -780,27 +844,50 @@ export default function WarRoom() {
             <PillSelect
               options={['Importance', 'Recency'] as const}
               value={sortMode}
-              onChange={setSortMode}
+              onChange={(v) => {
+                setSortMode(v)
+                analytics.signal_sorted(v)
+              }}
               iconMap={{ Importance: TrendingUp, Recency: Clock }}
             />
           </div>
 
           {/* Signal list — no scroll, fills available height */}
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            {topAlerts.map((alert, i) => (
-              <SignalRow key={alert.id} alert={alert} isLast={i === topAlerts.length - 1} />
-            ))}
-          </div>
+          {!loaded ? (
+            <SkeletonSignalList />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+              style={{ flex: 1 }}
+            >
+              <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
+                style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
+              >
+                {topAlerts.map((alert, i) => (
+                  <motion.div key={alert.id} variants={listItem}>
+                    <SignalRow alert={alert} isLast={i === topAlerts.length - 1} onSelect={() => {
+                      analytics.signal_opened(alert.id, alert.severity, alert.type ?? 'unknown')
+                      setSelectedSignal(alert)
+                    }} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          )}
 
           {/* Read full assessment — inline at bottom */}
-          <Link
-            to="/alerts"
+          <button
+            onClick={() => setAssessmentOpen(true)}
             style={{
               alignSelf: 'flex-end',
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               fontSize: '12px', fontWeight: 500,
               color: 'var(--font-primary)',
-              textDecoration: 'none',
+              background: 'none', border: 'none', cursor: 'pointer',
               borderBottom: '1px solid var(--font-primary)',
               paddingBottom: '2px',
               lineHeight: 1.2,
@@ -809,11 +896,11 @@ export default function WarRoom() {
             <FileSearch size={12} strokeWidth={1.8} style={{ flexShrink: 0 }} />
             Read full assessment
             <ArrowRight size={11} strokeWidth={2} style={{ flexShrink: 0 }} />
-          </Link>
+          </button>
         </div>
 
         {/* Market weather */}
-        <div style={{
+        <div data-tour="market-weather" style={{
           background: '#ffffff',
           border: '1px solid rgba(246,246,246,0.36)',
           borderRadius: '16px',
@@ -830,47 +917,69 @@ export default function WarRoom() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {!loaded ? (
+            <SkeletonMarketWeatherBody />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.35, delay: 0.1 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+            >
+              <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{
+                    margin: 0, fontSize: '12px', fontWeight: 500,
+                    color: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.04em',
+                  }}>
+                    Implications · last 7 days
+                  </p>
+                  <div style={{ background: 'rgba(183,63,84,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--status-red)' }}>
+                      Pressure building
+                    </p>
+                  </div>
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {IMPLICATION_ITEMS.map((text, i) => (
+                    <li key={i} style={{ fontSize: '14px', color: 'var(--font-primary)', lineHeight: 1.4 }}>{text}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ height: '1px', background: 'var(--border-subtle)' }} />
+
+              <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{
                   margin: 0, fontSize: '12px', fontWeight: 500,
                   color: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.04em',
                 }}>
-                  Implications · last 7 days
+                  What moved this week
                 </p>
-                <div style={{ background: 'rgba(183,63,84,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--status-red)' }}>
-                    Pressure building
-                  </p>
-                </div>
+                <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {WHAT_MOVED_ITEMS.map((text, i) => (
+                    <li key={i} style={{ fontSize: '14px', color: 'var(--font-primary)', lineHeight: 1.4 }}>{text}</li>
+                  ))}
+                </ul>
               </div>
-              <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {IMPLICATION_ITEMS.map((text, i) => (
-                  <li key={i} style={{ fontSize: '14px', color: 'var(--font-primary)', lineHeight: 1.4 }}>{text}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div style={{ height: '1px', background: 'var(--border-subtle)' }} />
-
-            <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <p style={{
-                margin: 0, fontSize: '12px', fontWeight: 500,
-                color: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.04em',
-              }}>
-                What moved this week
-              </p>
-              <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {WHAT_MOVED_ITEMS.map((text, i) => (
-                  <li key={i} style={{ fontSize: '14px', color: 'var(--font-primary)', lineHeight: 1.4 }}>{text}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
+            </motion.div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <DashedLink to="/alerts">Read full assessment</DashedLink>
+            <button
+              onClick={() => setAssessmentOpen(true)}
+              style={{
+                fontSize: '12px', fontWeight: 400,
+                color: 'var(--font-primary)',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: '1px dashed var(--font-primary)',
+                paddingBottom: '2px',
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                lineHeight: 1.2,
+              }}
+            >
+              Read full assessment
+              <ArrowRight size={11} strokeWidth={2} style={{ flexShrink: 0 }} />
+            </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Confidence:</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -910,20 +1019,33 @@ export default function WarRoom() {
           </div>
 
           {/* Grid — only renders filled quadrant slots */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {QUADRANT_CONFIG.map(quadrant => {
-              const entry = quadrantMap[quadrant.key]
-              if (!entry) return null
-              return (
-                <QuadrantCard
-                  key={quadrant.key}
-                  competitor={entry.competitor}
-                  quadrant={quadrant}
-                  lastSignalLabel={lastSignalFor(entry.competitor.id)}
-                />
-              )
-            })}
-          </div>
+          {!loaded ? (
+            <SkeletonQuadrantGrid />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.35, delay: 0.1 }}
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}
+            >
+              {QUADRANT_CONFIG.map(quadrant => {
+                const entry = quadrantMap[quadrant.key]
+                if (!entry) return null
+                return (
+                  <motion.div
+                    key={quadrant.key}
+                    whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+                    transition={{ duration: 0.12 }}
+                  >
+                    <QuadrantCard
+                      competitor={entry.competitor}
+                      quadrant={quadrant}
+                      lastSignalLabel={lastSignalFor(entry.competitor.id)}
+                    />
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
         </div>
 
         {/* ── Upcoming events ─────────────────────────────────────────── */}
@@ -958,55 +1080,64 @@ export default function WarRoom() {
           </div>
 
           {/* Grouped events — scrollable, flex:1 fills remaining card height */}
-          {monthKeys.length === 0 ? (
-            <p style={{
-              margin: 0, fontSize: '12px', color: 'var(--font-secondary)',
-              textAlign: 'center', padding: '24px 0',
-            }}>
-              No upcoming events for this filter.
-            </p>
+          {!loaded ? (
+            <SkeletonEventList />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {monthKeys.map(month => (
-                <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.35, delay: 0.15 }}
+            >
+              {monthKeys.length === 0 ? (
+                <p style={{
+                  margin: 0, fontSize: '12px', color: 'var(--font-secondary)',
+                  textAlign: 'center', padding: '24px 0',
+                }}>
+                  No upcoming events for this filter.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {monthKeys.map(month => (
+                    <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-                  {/* Month header — bottom border, blue month text, coloured pills */}
-                  <div style={{ borderBottom: '2px solid #DED8E1', paddingTop: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ padding: '8px 16px', flexShrink: 0 }}>
-                        <span style={{
-                          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-                          color: '#152d61', lineHeight: '21px', whiteSpace: 'nowrap',
-                        }}>
-                          {month}
-                        </span>
-                      </div>
-                      {CONF_PILLS[month] && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
-                          {CONF_PILLS[month].map((pill, i) => (
-                            <span key={i} style={{
-                              padding: '4px 8px', borderRadius: '8px',
-                              fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
-                              color: pill.color, lineHeight: '21px', whiteSpace: 'nowrap',
+                      {/* Month header — bottom border, blue month text, coloured pills */}
+                      <div style={{ borderBottom: '2px solid #DED8E1', paddingTop: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ padding: '8px 16px', flexShrink: 0 }}>
+                            <span style={{
+                              fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                              color: '#152d61', lineHeight: '21px', whiteSpace: 'nowrap',
                             }}>
-                              {pill.name}
+                              {month}
                             </span>
-                          ))}
+                          </div>
+                          {CONF_PILLS[month] && (
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
+                              {CONF_PILLS[month].map((pill, i) => (
+                                <span key={i} style={{
+                                  padding: '4px 8px', borderRadius: '8px',
+                                  fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
+                                  color: pill.color, lineHeight: '21px', whiteSpace: 'nowrap',
+                                }}>
+                                  {pill.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+
+                      {/* Event row cards */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {groupedEvents[month].map(ev => (
+                          <EventRow key={ev.id} event={ev} />
+                        ))}
+                      </div>
+
                     </div>
-                  </div>
-
-                  {/* Event row cards */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {groupedEvents[month].map(ev => (
-                      <EventRow key={ev.id} event={ev} />
-                    ))}
-                  </div>
-
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </motion.div>
           )}
         </div>
       </div>
@@ -1150,6 +1281,187 @@ export default function WarRoom() {
         </div>
 
       </div>
+
+      {/* ── Assessment slide-over ────────────────────────────────────────────── */}
+      <SlideOver
+        open={assessmentOpen}
+        onClose={() => setAssessmentOpen(false)}
+        title="Market assessment · Ekterly"
+        width={520}
+      >
+        {/* Header badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+          <div style={{ background: 'rgba(183,63,84,0.12)', borderRadius: '8px', padding: '4px 10px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--status-red)' }}>Pressure building</span>
+          </div>
+          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>30-day window · Apr 21, 2026</span>
+        </div>
+
+        {/* Implications */}
+        <div style={{ marginBottom: '24px' }}>
+          <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
+            Strategic implications
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {IMPLICATION_ITEMS.map((text, i) => (
+              <li key={i} style={{ fontSize: '14px', color: 'rgba(5,10,68,0.80)', lineHeight: 1.55 }}>{text}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div style={{ height: '1px', background: 'rgba(5,10,68,0.08)', marginBottom: '24px' }} />
+
+        {/* What moved */}
+        <div style={{ marginBottom: '24px' }}>
+          <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
+            What moved this week
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {WHAT_MOVED_ITEMS.map((text, i) => (
+              <li key={i} style={{ fontSize: '14px', color: 'rgba(5,10,68,0.80)', lineHeight: 1.55 }}>{text}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div style={{ height: '1px', background: 'rgba(5,10,68,0.08)', marginBottom: '24px' }} />
+
+        {/* Context paragraphs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.65 }}>
+            The convergence of Pharvaris's accelerated timeline and Takeda's defensive pricing posture signals that the oral on-demand window is narrowing faster than prior-quarter assumptions. Commercial readiness activities planned for Q4 2026 may need to pull forward.
+          </p>
+          <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.65 }}>
+            CSL Behring and BioCryst's parallel EU access expansions increase the complexity of launch sequencing. Payer conversations in DACH and Benelux should emphasise time-to-relief differentiators rather than prophylaxis-versus-on-demand comparisons that incumbents are already countering.
+          </p>
+        </div>
+
+        {/* Confidence */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '12px 16px', borderRadius: '10px',
+          background: 'rgba(73,160,120,0.08)', border: '1px solid rgba(73,160,120,0.20)',
+          marginBottom: '24px',
+        }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--status-green)', flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.65)' }}>
+            <strong style={{ fontWeight: 600, color: 'rgba(5,10,68,0.80)' }}>Confidence: Strong</strong> — based on public filings, ClinicalTrials.gov, and validated field reports
+          </span>
+        </div>
+
+        {/* Footer */}
+        <p style={{ margin: 0, fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
+          Generated by Ariya · Apr 21, 2026 · Illustrative
+        </p>
+      </SlideOver>
+
+      {/* ── Signal detail slide-over ─────────────────────────────────────────── */}
+      <SlideOver
+        open={selectedSignal !== null}
+        onClose={() => setSelectedSignal(null)}
+        title="Signal detail"
+        width={480}
+      >
+        {selectedSignal && (() => {
+          const badge      = SEV_BADGE[selectedSignal.severity] ?? SEV_BADGE.low
+          const competitor = competitorsData.find(c => c.id === selectedSignal.competitorId)
+          const typeLabel  = SIGNAL_TYPE_LABELS[selectedSignal.type] ?? selectedSignal.type
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Meta chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{
+                  padding: '3px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600,
+                  background: badge.bg, color: badge.text,
+                }}>
+                  {badge.label}
+                </span>
+                <span style={{
+                  padding: '3px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: 600,
+                  background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.55)',
+                }}>
+                  {typeLabel}
+                </span>
+                {selectedSignal.source && (
+                  <span style={{
+                    padding: '3px 10px', borderRadius: '9999px', fontSize: '12px', fontWeight: 500,
+                    background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.55)',
+                  }}>
+                    {selectedSignal.source}
+                  </span>
+                )}
+                <span style={{
+                  marginLeft: 'auto', fontSize: '12px', color: 'rgba(5,10,68,0.40)',
+                  alignSelf: 'center', whiteSpace: 'nowrap',
+                }}>
+                  {relTimeShort(selectedSignal.timestamp)} ago
+                </span>
+              </div>
+
+              {/* Headline */}
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.92)', lineHeight: 1.4 }}>
+                {selectedSignal.headline}
+              </h3>
+
+              {/* What happened */}
+              {(selectedSignal as any).whatHappened && (
+                <div>
+                  <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+                    What happened
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.6 }}>
+                    {(selectedSignal as any).whatHappened}
+                  </p>
+                </div>
+              )}
+
+              {/* Why it matters */}
+              {selectedSignal.whyItMatters && (
+                <div style={{
+                  background: 'rgba(42,118,244,0.08)', borderRadius: '10px',
+                  border: '1px solid rgba(210,226,255,1)',
+                  padding: '14px 16px',
+                }}>
+                  <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+                    Why it matters
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.80)', lineHeight: 1.6 }}>
+                    {selectedSignal.whyItMatters}
+                  </p>
+                </div>
+              )}
+
+              {/* Competitor link */}
+              {competitor && (
+                <div style={{ borderTop: '1px solid rgba(5,10,68,0.07)', paddingTop: '16px' }}>
+                  <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+                    Competitor
+                  </p>
+                  <Link
+                    to={`/competitors/${competitor.id}`}
+                    onClick={() => setSelectedSignal(null)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '8px',
+                      padding: '8px 14px', borderRadius: '10px',
+                      border: '1px solid rgba(210,226,255,1)',
+                      background: '#FFFFFF',
+                      textDecoration: 'none',
+                      color: 'rgba(5,10,68,0.80)',
+                      fontSize: '13px', fontWeight: 600,
+                      transition: 'box-shadow 150ms ease',
+                    }}
+                  >
+                    <CompetitorBadge name={competitor.name} id={competitor.id} size={20} />
+                    {competitor.name}
+                    <ArrowRight size={12} strokeWidth={2} />
+                  </Link>
+                </div>
+              )}
+
+            </div>
+          )
+        })()}
+      </SlideOver>
 
     </div>
   )

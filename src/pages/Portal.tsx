@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
   CalendarDays, FileText, TrendingUp,
   MapPin, Users, ChevronRight, ChevronDown,
@@ -7,6 +8,8 @@ import {
   FileSearch, ArrowRight, Link2,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonPortalList } from '../components/ui/Skeleton'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
@@ -473,7 +476,7 @@ function TabBar({ active, onChange }) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ── Week calendar strip ───────────────────────────────────────────────────────
-function WeekStrip() {
+function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null; onDateSelect: (d: string | null) => void }) {
   const MS       = 86400000
   const start    = new Date(TODAY.getTime() - 3 * MS)
   const DAY_LTRS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -548,46 +551,50 @@ function WeekStrip() {
               </span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                 {group.days.map(({ date, str }) => {
-                  const isToday   = str === todayStr
-                  const isPast    = str < todayStr
-                  const evtType   = eventMap.get(str)
-                  const typeCfg   = evtType ? EVENT_TYPE[evtType] : null
-                  const EventIcon = typeCfg?.icon ?? null
-                  const letter    = DAY_LTRS[date.getUTCDay()]
-                  const num       = String(date.getUTCDate()).padStart(2, '0')
+                  const isToday    = str === todayStr
+                  const isSelected = str === selectedDate
+                  const isPast     = str < todayStr
+                  const evtType    = eventMap.get(str)
+                  const typeCfg    = evtType ? EVENT_TYPE[evtType] : null
+                  const EventIcon  = typeCfg?.icon ?? null
+                  const letter     = DAY_LTRS[date.getUTCDay()]
+                  const num        = String(date.getUTCDate()).padStart(2, '0')
                   return (
                     <div
                       key={str}
                       data-today={isToday ? 'true' : undefined}
+                      onClick={() => onDateSelect(isSelected ? null : str)}
                       style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                         padding: isToday ? '8px 4px' : '6px 4px',
                         borderRadius: '10px',
                         height: isToday ? '100px' : '91px',
                         width: isToday ? '52px' : '42px',
-                        border: isToday ? '1.5px solid rgba(16,34,74,0.22)' : '1px solid rgba(210,226,255,1)',
-                        background: isToday ? '#f0f5ff' : '#ffffff',
-                        opacity: isPast && !isToday ? 0.3 : 1,
+                        border: isSelected ? '1.5px solid #2A76F4' : isToday ? '1.5px solid rgba(16,34,74,0.22)' : '1px solid rgba(210,226,255,1)',
+                        background: isSelected ? 'rgba(42,118,244,0.08)' : isToday ? '#f0f5ff' : '#ffffff',
+                        opacity: isPast && !isToday && !isSelected ? 0.3 : 1,
                         flexShrink: 0,
                         boxSizing: 'border-box',
+                        cursor: 'pointer',
                         boxShadow: isToday ? '0 4px 14px rgba(16,34,74,0.14), 0 2px 4px rgba(16,34,74,0.08)' : 'none',
+                        transition: 'border 120ms ease, background 120ms ease',
                       }}
                     >
-                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: isSelected ? '#2A76F4' : '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
                         {letter}
                       </span>
                       <div style={{
                         width: isToday ? '36px' : '32px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: '4px', borderRadius: '8px',
-                        background: isToday ? '#10224a' : 'rgba(112,128,144,0.15)',
+                        background: isSelected ? '#2A76F4' : isToday ? '#10224a' : 'rgba(112,128,144,0.15)',
                       }}>
                         <span style={{
                           display: 'block', width: '100%',
                           fontSize: isToday ? '14px' : '13px',
                           fontFamily: 'Satoshi, sans-serif',
-                          fontWeight: isToday ? 700 : 500,
-                          color: isToday ? '#ffffff' : '#434c5b',
+                          fontWeight: isToday || isSelected ? 700 : 500,
+                          color: isSelected || isToday ? '#ffffff' : '#434c5b',
                           lineHeight: isToday ? '21px' : '19px',
                           textAlign: 'center',
                         }}>
@@ -729,6 +736,7 @@ function EventsTab() {
   const [showCatalysts, setShowCatalysts]   = useState(false)
   const [upcomingOpen, setUpcomingOpen]     = useState(true)
   const [pastOpen, setPastOpen]             = useState(true)
+  const [selectedDate, setSelectedDate]     = useState<string | null>(null)
   const cardRefs = useRef(new Map())
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
@@ -737,6 +745,7 @@ function EventsTab() {
   const filtered = eventsData.filter((e) => {
     if (typeFilter !== 'all' && (e as any).type !== typeFilter) return false
     if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has((e as any).type)) return false
+    if (selectedDate && (e as any).date.substring(0, 10) !== selectedDate) return false
     return true
   })
 
@@ -852,7 +861,30 @@ function EventsTab() {
       </div>
 
       {/* ── Calendar strip ─────────────────────────────────────────────────── */}
-      <WeekStrip />
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+
+      {/* ── Date filter indicator ─────────────────────────────────────────── */}
+      {selectedDate && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+            Showing events on{' '}
+            <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
+          </span>
+          <button
+            onClick={() => setSelectedDate(null)}
+            style={{
+              padding: '2px 10px', borderRadius: '9999px',
+              fontSize: '12px', fontWeight: 600,
+              background: 'transparent',
+              color: 'rgba(5,10,68,0.50)',
+              border: '1px solid rgba(5,10,68,0.15)',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* ── Sections ─────────────────────────────────────────────────────────── */}
       {upcoming.length === 0 && past.length === 0 ? (
@@ -1853,6 +1885,7 @@ export default function Portal() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? 0)
+  const loaded = usePageLoad('portal')
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1862,16 +1895,25 @@ export default function Portal() {
   }, [tabFromUrl])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Underline tab bar — spans full content width */}
       <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>
-        <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab /></div>
-        <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
-        <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab /></div>
+        {!loaded ? (
+          <SkeletonPortalList />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+          >
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
+            <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab /></div>
+          </motion.div>
+        )}
       </div>
     </div>
   )
