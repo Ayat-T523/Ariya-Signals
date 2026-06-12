@@ -784,39 +784,36 @@ function EventsTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* ── VIEW filter bar ─────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{
-          fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
-          fontFamily: 'Satoshi, sans-serif',
-        }}>
-          View:
-        </span>
-        <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
-          {VIEW_OPTS.map(opt => {
-            const isAct = viewFilter === opt.value
-            return (
-              <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
-                padding: '4px 12px', borderRadius: '16px',
-                background: isAct ? '#10224a' : 'transparent',
-                color: isAct ? '#ffffff' : '#434c5b',
-                border: 'none', cursor: 'pointer',
-                fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                whiteSpace: 'nowrap', transition: 'all 120ms ease',
-              }}>
-                {opt.label}
-              </button>
-            )
-          })}
+      {/* ── VIEW filter bar + catalyst toggle ──────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
+            fontFamily: 'Satoshi, sans-serif',
+          }}>
+            View:
+          </span>
+          <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
+            {VIEW_OPTS.map(opt => {
+              const isAct = viewFilter === opt.value
+              return (
+                <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
+                  padding: '4px 12px', borderRadius: '16px',
+                  background: isAct ? '#10224a' : 'transparent',
+                  color: isAct ? '#ffffff' : '#434c5b',
+                  border: 'none', cursor: 'pointer',
+                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                  whiteSpace: 'nowrap', transition: 'all 120ms ease',
+                }}>
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* ── Calendar strip ──────────────────────────────────────────────────── */}
-      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
-
-      {/* ── Below-calendar row: catalyst toggle + "Showing" text ─────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '-4px' }}>
+        {/* View / Hide key catalyst events — back in filter bar */}
         <button
           onClick={() => setShowCatalysts(v => !v)}
           style={{
@@ -824,15 +821,29 @@ function EventsTab() {
             borderBottom: '1px dashed rgba(5,10,68,0.35)',
             cursor: 'pointer', fontSize: '12px',
             fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
           {showCatalysts ? 'Hide key catalyst events' : 'View key catalyst events'}
         </button>
+      </div>
+
+      {/* ── Calendar strip ──────────────────────────────────────────────────── */}
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+
+      {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
         <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
           Showing 90 days · scroll to navigate
         </span>
       </div>
+
+      {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
+      {showCatalysts && (
+        <div style={{ height: '400px', borderRadius: '12px', overflow: 'hidden' }}>
+          <KeyCatalystsCalendar count={eventsData.length} />
+        </div>
+      )}
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
       {selectedDate && (
@@ -885,38 +896,29 @@ function EventsTab() {
                 <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
               </div>
 
-              {/* Cards + catalyst panel side by side */}
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                {upcomingOpen && (
-                  <div style={{ flex: showCatalysts ? '0 0 520px' : '1 1 0', minWidth: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {upcoming.map((e) => {
-                        const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
-                        return (
-                          <div key={(e as any).id} style={{
-                            background: '#ffffff',
-                            border: '1px solid rgba(210,226,255,1)',
-                            borderLeft: `3px solid ${leftColor}`,
-                            borderRadius: '12px',
-                            overflow: 'hidden',
-                          }}>
-                            <EventCard
-                              event={e}
-                              cardRef={(node) => setCardRef((e as any).id, node)}
-                              flashing={flashedId === (e as any).id}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                {showCatalysts && (
-                  <div style={{ flex: '1 1 0', minWidth: 0, position: 'sticky', top: '16px', height: '556px' }}>
-                    <KeyCatalystsCalendar count={eventsData.length} />
-                  </div>
-                )}
-              </div>
+              {/* Cards — always full width */}
+              {upcomingOpen && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {upcoming.map((e) => {
+                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
+                    return (
+                      <div key={(e as any).id} style={{
+                        background: '#ffffff',
+                        border: '1px solid rgba(210,226,255,1)',
+                        borderLeft: `3px solid ${leftColor}`,
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                      }}>
+                        <EventCard
+                          event={e}
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
             </div>
           )}
@@ -1882,8 +1884,10 @@ export default function Portal() {
   return (
     <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
 
-      {/* Underline tab bar — spans full content width */}
-      <TabBar active={activeTab} onChange={setActiveTab} />
+      {/* Underline tab bar — sticky so it stays visible while scrolling events */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-1)' }}>
+        <TabBar active={activeTab} onChange={setActiveTab} />
+      </div>
 
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>
