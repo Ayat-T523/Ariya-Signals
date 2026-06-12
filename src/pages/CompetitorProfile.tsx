@@ -2,23 +2,21 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 
-import { ChevronLeft, ChevronDown } from 'lucide-react'
+import { ChevronLeft, ChevronDown, Eye } from 'lucide-react'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import AIButton from '../components/ui/AIButton'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
-import WhatItMeansTab from '../components/competitor/tabs/WhatItMeansTab'
-import StrategicSignalsTab from '../components/competitor/tabs/StrategicSignalsTab'
-import KeyEventsTab from '../components/competitor/tabs/KeyEventsTab'
+import PipelineTab from '../components/competitor/tabs/PipelineTab'
+import CompanyTab from '../components/competitor/tabs/CompanyTab'
 import MessagingTab from '../components/competitor/tabs/MessagingTab'
 import competitors from '../data/competitors.json'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { label: 'What It Means' },
-  { label: 'Signals'       },
-  { label: 'Events'        },
-  { label: 'Messaging'     },
+  { label: 'Pipeline' },
+  { label: 'Company'  },
+  { label: 'Messaging'},
 ]
 
 // ── Executive summary card — matches Figma 104:777 ───────────────────────────
@@ -156,17 +154,49 @@ export default function CompetitorProfile() {
           </Link>
         </div>
 
-        {/* Company badge + name + Ask Ariya */}
-        <div style={{ padding: '8px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Company badge + name + buttons */}
+        <div style={{ padding: '8px 36px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
             <CompetitorBadge name={competitor.name} id={competitor.id} size={36} />
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 500, lineHeight: '1.2', color: '#434c5b', fontFamily: 'Satoshi, sans-serif' }}>
-              {competitor.name}
-            </h1>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 500, lineHeight: '1.2', color: '#434c5b', fontFamily: 'Satoshi, sans-serif' }}>
+                {competitor.name}
+              </h1>
+              {(competitor as any).strategicPosture && (
+                <span style={{
+                  display: 'inline-block', alignSelf: 'flex-start',
+                  padding: '2px 10px', borderRadius: '9999px',
+                  fontSize: '11px', fontWeight: 600,
+                  background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.65)',
+                  fontFamily: 'Satoshi, sans-serif',
+                }}>
+                  {(competitor as any).strategicPosture}
+                </span>
+              )}
+              {(competitor as any).oneLineDescription && (
+                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.5', fontFamily: 'Satoshi, sans-serif', maxWidth: '480px' }}>
+                  {(competitor as any).oneLineDescription}
+                </p>
+              )}
+            </div>
           </div>
-          <AIButton source={`competitor-profile-${id}-summarize-for-me`}>
-            Ask Ariya
-          </AIButton>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '7px 16px',
+              background: '#10224A', color: '#ffffff',
+              border: 'none', borderRadius: '9999px',
+              fontSize: '13px', fontWeight: 600,
+              fontFamily: 'Satoshi, sans-serif',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              <Eye size={13} />
+              Watching
+            </button>
+            <AIButton source={`competitor-profile-${id}-summarize-for-me`}>
+              Summarise for me
+            </AIButton>
+          </div>
         </div>
 
         {/* AI summary card */}
@@ -181,15 +211,12 @@ export default function CompetitorProfile() {
       {/* ── TAB CONTENT (scrollable with page) ────────────────────────────── */}
       <div style={{ padding: '20px 36px 36px' }}>
         <div style={{ display: activeTab === 0 ? 'block' : 'none' }}>
-          <WhatItMeansTab competitor={competitor} />
+          <PipelineTab competitor={competitor} />
         </div>
         <div style={{ display: activeTab === 1 ? 'block' : 'none' }}>
-          <StrategicSignalsTab competitor={competitor} />
+          <CompanyTab competitor={competitor} />
         </div>
         <div style={{ display: activeTab === 2 ? 'block' : 'none' }}>
-          <KeyEventsTab competitor={competitor} />
-        </div>
-        <div style={{ display: activeTab === 3 ? 'block' : 'none' }}>
           <MessagingTab competitor={competitor} />
         </div>
       </div>

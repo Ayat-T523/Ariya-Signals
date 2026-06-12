@@ -491,13 +491,13 @@ function ExpectedTimelineSection({ asset }) {
         type="button"
         onClick={() => setOpen(v => !v)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
           padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
           fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.65)', fontFamily: 'inherit',
         }}
       >
-        <span>Expected timeline</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <span>Expected timeline</span>
       </button>
       {open && (
         <div style={{ padding: '4px 14px 14px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
@@ -545,13 +545,13 @@ function TrialDesignSection({ asset }) {
         type="button"
         onClick={() => setOpen(v => !v)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
           padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
           fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.65)', fontFamily: 'inherit',
         }}
       >
-        <span>Trial design</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <span>Trial design</span>
       </button>
       {open && (
         <div style={{ padding: '4px 14px 14px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
