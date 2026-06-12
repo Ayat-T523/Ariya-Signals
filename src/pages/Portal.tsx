@@ -620,117 +620,115 @@ function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null
 
 function EventCard({ event, pastVariant, cardRef, flashing }) {
   const past = Boolean(pastVariant)
-  const annotations = LEADERSHIP_ANNOTATIONS[event.type]
   const isMultiDay = Boolean(event.endDate)
   const dateLabel = isMultiDay
     ? `${formatDateAbs(event.date)} – ${formatDateAbs(event.endDate)}`
     : formatDateAbs(event.date)
-  const format = event.location === 'Virtual' ? 'Virtual'
-    : event.location ? event.location : 'In person'
+  const locationStr = event.location && event.location !== 'Virtual'
+    ? ` · ${event.location}`
+    : event.location === 'Virtual' ? ' · Virtual' : ''
   const digestReport = past ? findDigestForEvent(event) : null
-  const primaryCompetitor = event.attendingCompetitors?.[0]
+  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
+  const TypeIcon = typeCfg.icon
+  const noteText = (event as any).note ?? (LEADERSHIP_ANNOTATIONS[event.type]?.expect ?? null)
 
   return (
     <div
       ref={cardRef}
       style={{
-        padding: '8px 0',
-        display: 'flex', flexDirection: 'column', gap: '12px',
+        padding: '14px 16px',
+        display: 'flex', flexDirection: 'column', gap: '10px',
         opacity: past ? 0.65 : 1,
         background: flashing ? 'rgba(42,118,244,0.04)' : 'transparent',
-        borderRadius: flashing ? '8px' : 0,
         transition: 'background 350ms ease',
         scrollMarginTop: '80px',
       }}
     >
-      {/* Title row: competitor badge + title … date / format */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: 0 }}>
-          {primaryCompetitor && (
-            <div style={{ flexShrink: 0, marginTop: '2px' }}>
-              <CompetitorBadge name={competitorName(primaryCompetitor)} size={20} />
-            </div>
-          )}
-          <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.45' }}>
-            {event.title}
-            {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-secondary)', whiteSpace: 'nowrap', lineHeight: '21px' }}>{dateLabel}</p>
-          <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', whiteSpace: 'nowrap', lineHeight: '18px' }}>{format}</p>
-        </div>
+      {/* Row 1: type pill (left) + date/location (right) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '2px 9px', borderRadius: '9999px',
+          fontSize: '11px', fontWeight: 700,
+          background: typeCfg.bg, color: typeCfg.text,
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}>
+          {TypeIcon && <TypeIcon size={10} />}
+          {typeCfg.label}
+        </span>
+        <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
+          {dateLabel}{locationStr}
+        </span>
       </div>
 
-      {/* Expected topics — label + bullet list */}
+      {/* Row 2: title */}
+      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
+        {event.title}
+        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
+      </p>
+
+      {/* Row 3: Attending badges */}
+      {event.attendingCompetitors?.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '12px', color: 'var(--font-secondary)', fontWeight: 500 }}>Attending</span>
+          {event.attendingCompetitors.map((id) => (
+            <CompetitorBadge key={id} name={competitorName(id)} size={18} />
+          ))}
+        </div>
+      )}
+
+      {/* Row 4: Expected topics */}
       {event.expectedTopics?.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '21px' }}>Expected Topics:</p>
-          <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+            Expected topics
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
             {event.expectedTopics.map((topic, i) => (
-              <li key={i} style={{ fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{topic}</li>
+              <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>{topic}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Annotation boxes — always shown when defined */}
-      {annotations && (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What we expect:</p>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
-          </div>
-          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What would surprise us:</p>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Attendees + confidence */}
-      {event.attendingCompetitors?.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Attendees:</span>
-            {event.attendingCompetitors.map((id) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CompetitorBadge name={competitorName(id)} size={12} />
-                <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>{competitorName(id)}</span>
-              </div>
-            ))}
-          </div>
-          {annotations && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Confidence:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '9999px', background: 'var(--status-green)', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Strong</span>
-              </div>
-            </div>
-          )}
+      {/* Row 5: Note (event.note or leadership annotation) */}
+      {noteText && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '6px',
+          padding: '6px 10px', borderRadius: '6px',
+          background: 'rgba(42,118,244,0.08)',
+        }}>
+          <AlertCircle size={12} color='#0055BB' style={{ marginTop: '3px', flexShrink: 0 }} />
+          <span style={{ fontSize: '12px', color: '#0055BB', lineHeight: '1.5' }}>
+            {noteText}
+          </span>
         </div>
       )}
 
       {/* Post-event digest link */}
       {digestReport && (
-        <div>
-          <Link
-            to={`/intelligence?tab=reports&competitor=${digestReport.competitorId}`}
-            style={{ fontSize: '12px', fontWeight: 600, color: '#0055BB', textDecoration: 'none', borderBottom: '1px dashed rgba(0,85,187,0.40)' }}
-          >
-            Read digest →
-          </Link>
-        </div>
+        <Link
+          to={`/intelligence?tab=reports&competitor=${digestReport.competitorId}`}
+          style={{ fontSize: '12px', fontWeight: 600, color: '#0055BB', textDecoration: 'none', borderBottom: '1px dashed rgba(0,85,187,0.40)' }}
+        >
+          Read digest →
+        </Link>
       )}
     </div>
   )
 }
 
+const EVENT_LEFT_BORDER: Record<string, string> = {
+  conference: '#0055BB',
+  earnings:   '#94A3B8',
+  regulatory: '#10B981',
+  investor:   '#8B5CF6',
+  milestone:  '#EF4444',
+}
+
 function EventsTab() {
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
-  const [typeFilter, setTypeFilter]         = useState('all')
   const [viewFilter, setViewFilter]         = useState('all')
   const [flashedId, setFlashedId]           = useState(null)
   const [showCatalysts, setShowCatalysts]   = useState(false)
@@ -743,7 +741,6 @@ function EventsTab() {
   const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
 
   const filtered = eventsData.filter((e) => {
-    if (typeFilter !== 'all' && (e as any).type !== typeFilter) return false
     if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has((e as any).type)) return false
     if (selectedDate && (e as any).date.substring(0, 10) !== selectedDate) return false
     return true
@@ -779,89 +776,63 @@ function EventsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventFromUrl])
 
-  const TYPE_OPTS = [
-    { value: 'all',        label: 'All events'    },
-    { value: 'earnings',   label: 'Earnings call' },
-    { value: 'regulatory', label: 'Regulatory'    },
-  ]
   const VIEW_OPTS = [
     { value: 'all',        label: 'All events'          },
     { value: 'leadership', label: 'Leadership priority' },
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* ── Filter / View bar ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-
-          {/* Filter by */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>Filter by:</span>
-            <div style={{ display: 'inline-flex', gap: '8px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '4px' }}>
-              {TYPE_OPTS.map(opt => {
-                const isAct = typeFilter === opt.value
-                return (
-                  <button key={opt.value} onClick={() => setTypeFilter(opt.value)} style={{
-                    padding: '4px 8px', borderRadius: isAct ? '16px' : '12px',
-                    background: isAct ? '#10224a' : 'transparent',
-                    color: isAct ? '#ffffff' : '#434c5b',
-                    border: 'none', cursor: 'pointer',
-                    fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                    whiteSpace: 'nowrap', transition: 'all 120ms ease',
-                  }}>
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{ width: '1px', height: '20px', background: 'rgba(5,10,68,0.15)', flexShrink: 0 }} />
-
-          {/* View by */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>View by:</span>
-            <div style={{ display: 'inline-flex', gap: '8px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '4px' }}>
-              {VIEW_OPTS.map(opt => {
-                const isAct = viewFilter === opt.value
-                return (
-                  <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
-                    padding: '4px 8px', borderRadius: isAct ? '16px' : '12px',
-                    background: isAct ? '#10224a' : 'transparent',
-                    color: isAct ? '#ffffff' : '#434c5b',
-                    border: 'none', cursor: 'pointer',
-                    fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                    whiteSpace: 'nowrap', transition: 'all 120ms ease',
-                  }}>
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
+      {/* ── VIEW filter bar ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{
+          fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
+          fontFamily: 'Satoshi, sans-serif',
+        }}>
+          View:
+        </span>
+        <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
+          {VIEW_OPTS.map(opt => {
+            const isAct = viewFilter === opt.value
+            return (
+              <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
+                padding: '4px 12px', borderRadius: '16px',
+                background: isAct ? '#10224a' : 'transparent',
+                color: isAct ? '#ffffff' : '#434c5b',
+                border: 'none', cursor: 'pointer',
+                fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                whiteSpace: 'nowrap', transition: 'all 120ms ease',
+              }}>
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
+      </div>
 
-        {/* View / Hide key catalyst events */}
+      {/* ── Calendar strip ──────────────────────────────────────────────────── */}
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+
+      {/* ── Below-calendar row: catalyst toggle + "Showing" text ─────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '-4px' }}>
         <button
           onClick={() => setShowCatalysts(v => !v)}
           style={{
-            background: 'none', border: 'none', padding: '0 0 4px',
-            borderBottom: '1px dashed #434343',
+            background: 'none', border: 'none', padding: '0 0 2px',
+            borderBottom: '1px dashed rgba(5,10,68,0.35)',
             cursor: 'pointer', fontSize: '12px',
-            fontFamily: 'Inter, sans-serif', color: '#434343',
-            whiteSpace: 'nowrap', flexShrink: 0,
+            fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
+            whiteSpace: 'nowrap',
           }}
         >
           {showCatalysts ? 'Hide key catalyst events' : 'View key catalyst events'}
         </button>
+        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+          Showing 90 days · scroll to navigate
+        </span>
       </div>
-
-      {/* ── Calendar strip ─────────────────────────────────────────────────── */}
-      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
       {selectedDate && (
@@ -894,41 +865,49 @@ function EventsTab() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
 
-          {/* ── Upcoming — header spans full width, then cards + gantt row ──── */}
+          {/* ── Upcoming ────────────────────────────────────────────────────── */}
           {upcoming.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
 
-              {/* Full-width header row */}
+              {/* Section header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                 <button
                   onClick={() => setUpcomingOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
                 >
                   <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
                   </div>
-                  <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
-                    Upcoming{' '}
-                    <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({upcoming.length} events)</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                    Upcoming · {upcoming.length} events
                   </span>
                 </button>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
               </div>
 
-              {/* Cards + gantt side by side (both sit under the shared header) */}
+              {/* Cards + catalyst panel side by side */}
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                 {upcomingOpen && (
                   <div style={{ flex: showCatalysts ? '0 0 520px' : '1 1 0', minWidth: 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {upcoming.map((e) => (
-                        <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
-                          <EventCard
-                            event={e}
-                            cardRef={(node) => setCardRef((e as any).id, node)}
-                            flashing={flashedId === (e as any).id}
-                          />
-                        </div>
-                      ))}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {upcoming.map((e) => {
+                        const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
+                        return (
+                          <div key={(e as any).id} style={{
+                            background: '#ffffff',
+                            border: '1px solid rgba(210,226,255,1)',
+                            borderLeft: `3px solid ${leftColor}`,
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                          }}>
+                            <EventCard
+                              event={e}
+                              cardRef={(node) => setCardRef((e as any).id, node)}
+                              flashing={flashedId === (e as any).id}
+                            />
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -945,35 +924,41 @@ function EventsTab() {
           {/* ── Past ─────────────────────────────────────────────────────────── */}
           {past.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {/* Full-width header row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                 <button
                   onClick={() => setPastOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
                 >
                   <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={16} color='var(--font-secondary)' strokeWidth={2} />
+                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
                   </div>
-                  <span style={{ fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>
-                    Past{' '}
-                    <span style={{ fontWeight: 400, color: 'var(--font-secondary)' }}>({past.length} events)</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                    Past · last 90 days · {past.length} {past.length === 1 ? 'event' : 'events'}
                   </span>
-                  <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)' }}>• Past 90 days</span>
                 </button>
                 <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
               </div>
               {pastOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {past.map((e) => (
-                    <div key={(e as any).id} style={{ background: '#ffffff', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', padding: '0 16px' }}>
-                      <EventCard
-                        event={e}
-                        pastVariant
-                        cardRef={(node) => setCardRef((e as any).id, node)}
-                        flashing={flashedId === (e as any).id}
-                      />
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {past.map((e) => {
+                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
+                    return (
+                      <div key={(e as any).id} style={{
+                        background: '#ffffff',
+                        border: '1px solid rgba(210,226,255,1)',
+                        borderLeft: `3px solid ${leftColor}`,
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                      }}>
+                        <EventCard
+                          event={e}
+                          pastVariant
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
