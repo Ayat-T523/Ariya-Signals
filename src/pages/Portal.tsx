@@ -377,7 +377,7 @@ function KpiCountdownCard({ event }) {
         </span>
         <span style={{ fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400, alignSelf: 'flex-end', paddingBottom: '5px' }}>days</span>
       </div>
-      <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
         {event.title}
       </p>
       <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
@@ -404,7 +404,7 @@ function KpiDealCard({ deal }) {
           </span>
         )}
       </div>
-      <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
         {(deal.parties || []).join(' × ')}
       </p>
       <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
@@ -542,7 +542,7 @@ function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null
               <span style={{
                 position: 'sticky', left: '4px', zIndex: 1,
                 display: 'block',
-                fontSize: '13px', fontWeight: 700,
+                fontSize: '14px', fontWeight: 700,
                 fontFamily: 'Satoshi, sans-serif',
                 color: '#434c5b', lineHeight: '20px',
                 whiteSpace: 'nowrap', paddingRight: '8px',
@@ -651,7 +651,7 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
               <CompetitorBadge name={competitorName(primaryCompetitor)} size={20} />
             </div>
           )}
-          <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.45' }}>
+          <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.45' }}>
             {event.title}
             {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
           </p>
@@ -665,7 +665,7 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
       {/* Expected topics — label + bullet list */}
       {event.expectedTopics?.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 2px', fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '21px' }}>Expected Topics:</p>
+          <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '21px' }}>Expected Topics:</p>
           <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
             {event.expectedTopics.map((topic, i) => (
               <li key={i} style={{ fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{topic}</li>
@@ -678,11 +678,11 @@ function EventCard({ event, pastVariant, cardRef, flashing }) {
       {annotations && (
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What we expect:</p>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What we expect:</p>
             <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
           </div>
           <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What would surprise us:</p>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, lineHeight: '21px', color: 'var(--font-primary)' }}>What would surprise us:</p>
             <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
           </div>
         </div>
@@ -866,7 +866,7 @@ function EventsTab() {
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
       {selectedDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+          <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
             Showing events on{' '}
             <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
           </span>
@@ -1025,7 +1025,7 @@ function ReportListCard({ report }) {
         <div style={{ flexShrink: 0 }}>
           <CompetitorBadge name={cName} size={24} />
         </div>
-        <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
+        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
           {report.title}
         </p>
       </div>
@@ -1033,7 +1033,7 @@ function ReportListCard({ report }) {
       {/* Row 3: HAE extract */}
       {report.haeExtract && (
         <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
             HAE extract:
           </p>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
@@ -1726,7 +1726,7 @@ function MarketDevCard({ item }) {
       {/* Row 2: competitor badge + title */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
         {badgeName && <div style={{ flexShrink: 0 }}><CompetitorBadge name={badgeName} size={24} /></div>}
-        <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
+        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
           {item.headline}
         </p>
       </div>
