@@ -10,7 +10,8 @@ import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
 import { useAuth } from '@clerk/clerk-react'
 
-const CLERK_CONFIGURED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()
+const CLERK_CONFIGURED  = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()
+const DEMO_PASSWORD_MODE = !!import.meta.env.VITE_DEMO_PASSWORD_HASH?.trim()
 
 // ── Lazy page chunks — each page loads only when first visited ────────────────
 const WarRoom           = lazy(() => import('./pages/WarRoom'))
@@ -68,7 +69,14 @@ function ClerkAuthGuard() {
   return <Outlet />
 }
 
+function DemoPasswordGuard() {
+  const unlocked = localStorage.getItem('ariya-demo-unlocked') === '1'
+  if (unlocked) return <Outlet />
+  return <Navigate to="/sign-in" replace />
+}
+
 function AuthGuard() {
+  if (DEMO_PASSWORD_MODE) return <DemoPasswordGuard />
   if (!CLERK_CONFIGURED) return <Outlet />
   return <ClerkAuthGuard />
 }
