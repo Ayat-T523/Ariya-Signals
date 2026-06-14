@@ -1,20 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { analytics } from '../lib/analytics'
 import alertsData from '../data/alerts.json'
 
 const AppContext = createContext(null)
 
-// ── Guided tour route plan ──────────────────────────────────────────────────
-export const TOUR_ROUTES = [
-  '/',                                 // Step 1 — War Room
-  '/competitors',                      // Step 2 — Competitors
-  '/competitors/pharvaris',            // Step 3 — Competitor profile
-  '/intelligence?tab=events',          // Step 4 — Events
-  '/intelligence?tab=reports',         // Step 5 — Reports & Earnings
-  '/intelligence?tab=market',          // Step 6 — Market Developments
-  '/alerts',                           // Step 7 — Alerts
-  '/myspace',                          // Step 8 — My Space
-]
 
 export function AppProvider({ children }) {
   const navigate = useNavigate()
@@ -67,6 +57,8 @@ export function AppProvider({ children }) {
     }
   }
 
+  useEffect(() => { analytics.identify(userRole) }, [userRole])
+
   function openOnboarding() {
     setShowOnboarding(true)
   }
@@ -84,42 +76,28 @@ export function AppProvider({ children }) {
 
   // ── Guided tour ──────────────────────────────────────────────────────────
   const [tourActive, setTourActive] = useState(false)
-  const [currentTourStep, setCurrentTourStep] = useState(0)
 
   function startTour() {
+    analytics.tour_started()
     setTourActive(true)
-    setCurrentTourStep(0)
     setShowOnboarding(false)
-    navigate(TOUR_ROUTES[0])
+    navigate('/')
   }
 
-  function endTour() {
+  function endTour(isComplete = false, step = 0) {
+    if (isComplete) {
+      analytics.tour_completed()
+    } else {
+      analytics.tour_skipped(step)
+    }
     setTourActive(false)
-    setCurrentTourStep(0)
     setOnboardingComplete(true)
     setShowOnboarding(false)
     try { localStorage.setItem('onboardingComplete', 'true') } catch { /* noop */ }
   }
 
-  function nextTourStep() {
-    if (currentTourStep < TOUR_ROUTES.length - 1) {
-      const next = currentTourStep + 1
-      setCurrentTourStep(next)
-      navigate(TOUR_ROUTES[next])
-    } else {
-      // already on last step: Finish behaviour
-      endTour()
-      navigate('/')
-    }
-  }
-
-  function prevTourStep() {
-    if (currentTourStep > 0) {
-      const prev = currentTourStep - 1
-      setCurrentTourStep(prev)
-      navigate(TOUR_ROUTES[prev])
-    }
-  }
+  // ── Mobile nav overlay ───────────────────────────────────────────────────
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // ── AI modal state ────────────────────────────────────────────────────────
   const [askModal, setAskModal] = useState({ open: false, source: null })
@@ -164,6 +142,11 @@ export function AppProvider({ children }) {
     })
   }
 
+  function markAllRead() {
+    analytics.alerts_marked_all_read(alertsData.length)
+    setReadAlerts(new Set(alertsData.map((a) => a.id)))
+  }
+
   function openAskModal(source) {
     const entry = { source, timestamp: new Date().toISOString() }
     setAiClickLog((prev) => [...prev, entry])
@@ -185,6 +168,7 @@ export function AppProvider({ children }) {
         readAlerts,
         markAlertRead,
         markAlertUnread,
+        markAllRead,
         unreadCount,
         onboardingComplete,
         showOnboarding,
@@ -194,11 +178,11 @@ export function AppProvider({ children }) {
         userRole,
         setUserRole,
         tourActive,
-        currentTourStep,
         startTour,
         endTour,
-        nextTourStep,
-        prevTourStep,
+        mobileNavOpen,
+        openMobileNav: () => setMobileNavOpen(true),
+        closeMobileNav: () => setMobileNavOpen(false),
         askModal,
         openAskModal,
         closeAskModal,

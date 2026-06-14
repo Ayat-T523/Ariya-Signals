@@ -1,0 +1,121 @@
+/* Ariya tour popover — overrides driver.js defaults */
+
+.driver-popover.ariya-tour-popover {
+  background: var(--bg-1);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+  padding: 20px;
+  max-width: 320px;
+  font-family: var(--font-family);
+}
+
+.driver-popover.ariya-tour-popover .driver-popover-title {
+  color: var(--dark-blue);
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-family: var(--font-family);
+}
+
+.driver-popover.ariya-tour-popover .driver-popover-description {
+  color: var(--font-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  font-family: var(--font-family);
+}
+
+.driver-popover.ariya-tour-popover .driver-popover-footer {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Next / Done — navy filled */
+.driver-popover.ariya-tour-popover .driver-popover-next-btn,
+.driver-popover.ariya-tour-popover .driver-popover-done-btn {
+  background: var(--dark-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 6px 14px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-shadow: none;
+  transition: background 150ms ease;
+}
+.driver-popover.ariya-tour-popover .driver-popover-next-btn:hover,
+.driver-popover.ariya-tour-popover .driver-popover-done-btn:hover {
+  background: var(--dark-blue-50);
+}
+
+/* Back — ghost */
+.driver-popover.ariya-tour-popover .driver-popover-prev-btn {
+  background: transparent;
+  color: var(--font-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 6px 14px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  cursor: pointer;
+  text-shadow: none;
+  transition: border-color 150ms ease;
+}
+.driver-popover.ariya-tour-popover .driver-popover-prev-btn:hover {
+  border-color: var(--font-secondary);
+}
+
+/* Skip tour — quiet text link via close button */
+.driver-popover.ariya-tour-popover .driver-popover-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--font-secondary);
+  font-size: 11px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+  line-height: 1;
+  transition: color 150ms ease;
+}
+.driver-popover.ariya-tour-popover .driver-popover-close-btn:hover {
+  color: var(--font-primary);
+}
+/* Replace the ✕ icon with "Skip tour" text */
+.driver-popover.ariya-tour-popover .driver-popover-close-btn::after {
+  content: 'Skip tour';
+}
+.driver-popover.ariya-tour-popover .driver-popover-close-btn svg,
+.driver-popover.ariya-tour-popover .driver-popover-close-btn span {
+  display: none;
+}
+
+/* Progress text */
+.driver-popover.ariya-tour-popover .driver-popover-progress-text {
+  color: var(--font-secondary);
+  font-size: 11px;
+  font-family: var(--font-family);
+}
+
+/* Arrow */
+.driver-popover.ariya-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-right-color: var(--bg-1);
+}
+.driver-popover.ariya-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-left-color: var(--bg-1);
+}
+.driver-popover.ariya-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-bottom-color: var(--bg-1);
+}
+.driver-popover.ariya-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-top-color: var(--bg-1);
+}

@@ -1,9 +1,10 @@
 /**
- * TopBar.tsx — Page tab bar + illustrative-data ribbon.
- * Matches Figma node 23:655–659 (file IXHI4HJFuZpw5hPMrv7DVb).
+ * TopBar.tsx — Global page header.
+ * Matches Figma node 77:1956 (file IXHI4HJFuZpw5hPMrv7DVb).
  *
- * Replaces the previous full header row. Bell, user avatar, and help
- * icon have moved to the NavPanel footer.
+ * Layout:
+ *   [page title 32px Satoshi Medium] [stats row 14px]   [Ask Ariya CTA →]
+ *   [illustrative data ribbon]
  *
  * Rules:
  *   - No raw hex (RGBA exempt)
@@ -11,7 +12,11 @@
  *   - Never log data to console
  */
 
-import { useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Menu } from 'lucide-react'
+import { useApp } from '../../context/AppContext'
+import { DEMO } from '../../config/demo-config'
 
 // ── Route → page title map ────────────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
@@ -34,70 +39,158 @@ function getPageTitle(pathname: string): string {
   return 'Ariya Signals'
 }
 
+// ── Per-page subtitle stats (hard-coded from demo snapshot 2026-04-21) ────────
+const TRACKED_COMPETITOR_COUNT = 8
+const SIGNAL_COUNT             = 17
+const UPCOMING_EVENT_COUNT     = 11
+const REPORT_COUNT             = 13
+const MARKET_DEV_COUNT         = 23
+const COMPETITOR_COUNT         = 8
+
+function getPageSubtitle(pathname: string): string | null {
+  if (pathname === '/') {
+    return `${DEMO.assetName} · ${DEMO.therapeuticArea} · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
+  }
+  if (pathname === '/intelligence') {
+    return `${UPCOMING_EVENT_COUNT} upcoming events · ${REPORT_COUNT} reports · ${MARKET_DEV_COUNT} market developments`
+  }
+  if (pathname === '/competitors') {
+    return `${COMPETITOR_COUNT} competitors tracked · ${DEMO.therapeuticArea} therapeutic area`
+  }
+  return null
+}
+
+// ── Static fallback button (shown before Lottie loads) ───────────────────────
+function StaticAskButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: '8px',
+        padding: '6px 16px',
+        background: '#10224a',
+        border: 'none', borderRadius: '8px',
+        cursor: 'pointer',
+        fontFamily: 'Satoshi, sans-serif',
+        fontSize: '14px', fontWeight: 500,
+        color: '#ffffff',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
+    >
+      Ask Ariya
+    </button>
+  )
+}
+
+function AskAriyaButton({ onClick }: { onClick: () => void }) {
+  return <StaticAskButton onClick={onClick} />
+}
+
 // ── TopBar ────────────────────────────────────────────────────────────────────
 export default function TopBar() {
   const location  = useLocation()
+  const navigate  = useNavigate()
+  const { openMobileNav } = useApp()
   const pageTitle = getPageTitle(location.pathname)
+
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 767)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryList | MediaQueryListEvent) => setIsMobile(e.matches)
+    handler(mq)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  // Competitor profile pages have their own sticky header — suppress the global title row
+  const isCompetitorProfile = location.pathname.startsWith('/competitors/') &&
+    location.pathname.length > '/competitors/'.length
+
+  // War Room renders its own greeting header in-page — suppress the global title row
+  const isWarRoom = location.pathname === '/'
+
+  // On the Ask Ariya page itself, the Ask Ariya button is redundant
+  const isAskPage     = location.pathname === '/ask'
+  // My Space is a settings/config screen — Ask Ariya not needed there
+  const isMySpacePage = location.pathname === '/myspace'
+
+  const pageSubtitle = getPageSubtitle(location.pathname)
 
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>
 
-      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          borderBottom: '2px solid #ded8e1',
-          paddingTop: '12px',
-          paddingLeft: '24px',
-          paddingRight: '24px',
-        }}
-      >
-        {/* Active tab — navy 4 px underline, Inter SemiBold 24 px */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '8px 16px',
-            borderBottom: '4px solid #152d61',
-            marginBottom: '-2px', /* overlap the container border-bottom */
-          }}
-        >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: '24px',
-              fontWeight: 600,
-              color: '#152d61',
-              fontFamily: 'Inter, sans-serif',
-              lineHeight: 'normal',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {pageTitle}
-          </h1>
-        </div>
-      </div>
-
       {/* ── Illustrative data ribbon ───────────────────────────────────────── */}
       <div
         role="note"
-        style={{
-          padding: '6px 24px',
-          background: '#d2e2ff',
-        }}
+        style={{ padding: '6px 24px', background: '#d2e2ff', display: 'flex', alignItems: 'center', gap: '10px' }}
       >
-        <p
-          style={{
-            margin: 0,
-            fontSize: '12px',
-            fontWeight: 400,
-            color: 'var(--font-primary)',
-            fontFamily: 'Inter, sans-serif',
-          }}
-        >
-          Illustrative data - not for clinical or commercial decisions
+        {/* Hamburger — mobile only */}
+        {isMobile && (
+          <button
+            onClick={openMobileNav}
+            aria-label="Open navigation"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(5,10,68,0.65)', padding: '2px', borderRadius: '4px', flexShrink: 0,
+            }}
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
+        )}
+        <p style={{
+          margin: 0,
+          fontSize: '12px', fontWeight: 400,
+          color: 'var(--font-primary)',
+          fontFamily: 'Inter, sans-serif',
+          flex: 1,
+        }}>
+          {DEMO.demoBadgeLabel}
         </p>
       </div>
+
+      {/* ── Header row (hidden on competitor profile pages and War Room) ───── */}
+      {!isCompetitorProfile && !isWarRoom && (
+        <div style={{
+          padding: '8px 36px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '16px',
+        }}>
+
+          {/* Left — title + optional subtitle */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <h1 data-topbar-title style={{
+              margin: 0,
+              fontSize: '32px', fontWeight: 500,
+              fontFamily: 'Satoshi, sans-serif',
+              color: '#434c5b',
+              lineHeight: '38.4px',
+              whiteSpace: 'nowrap',
+            }}>
+              {pageTitle}
+            </h1>
+
+            {pageSubtitle && (
+              <p data-topbar-subtitle style={{
+                margin: 0,
+                fontSize: '14px', fontWeight: 400,
+                fontFamily: 'Inter, sans-serif',
+                color: 'rgba(5,10,68,0.50)',
+                lineHeight: '18px',
+                whiteSpace: 'nowrap',
+              }}>
+                {pageSubtitle}
+              </p>
+            )}
+          </div>
+
+          {/* Right — Ask Ariya CTA (hidden on Ask page and My Space) */}
+          {!isAskPage && !isMySpacePage && (
+            <AskAriyaButton onClick={() => navigate('/ask')} />
+          )}
+        </div>
+      )}
 
     </div>
   )

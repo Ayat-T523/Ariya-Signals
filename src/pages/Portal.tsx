@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
   CalendarDays, FileText, TrendingUp,
-  MapPin, Users, ChevronRight,
+  MapPin, Users, ChevronRight, ChevronDown,
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair, Copy,
+  FileSearch, ArrowRight, Link2,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonPortalList } from '../components/ui/Skeleton'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
@@ -14,9 +18,10 @@ import reportsData from '../data/reports.json'
 import marketData from '../data/market-developments.json'
 import competitorsData from '../data/competitors.json'
 import { formatDateAbs } from '../utils/formatDate'
+import { DEMO } from '../config/demo-config'
 
 // ── Reference date ────────────────────────────────────────────────────────────
-const TODAY = new Date('2026-04-21')
+const TODAY = new Date(DEMO.snapshotDate)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function competitorName(id) {
@@ -83,8 +88,8 @@ const DEAL_TYPE_CFG = {
 
 // ── HTA status badge config ───────────────────────────────────────────────────
 const HTA_STATUS_CFG = {
-  'Under review':           { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB' },
-  'Horizon scan':           { bg: 'rgba(245,158,11,0.12)', text: '#92500A' },
+  'Under review':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
+  'Horizon scan':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
   'Approved':               { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
   'Restricted':             { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
   'Framework update':       { bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
@@ -93,11 +98,11 @@ const HTA_STATUS_CFG = {
 
 // ── Signal card config ────────────────────────────────────────────────────────
 const SIGNAL_CARD_CFG = {
-  guideline:            { label: 'Guideline',          labelColor: 'rgba(5,10,68,0.65)',  cardBg: 'rgba(5,10,68,0.03)'     },
-  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',             cardBg: 'rgba(0,85,187,0.06)'    },
-  advocacy:             { label: 'Advocacy',            labelColor: '#7C3AED',             cardBg: 'rgba(139,92,246,0.08)'  },
-  'launch-performance': { label: 'Launch Performance',  labelColor: '#0055BB',             cardBg: 'rgba(210,226,255,0.50)' },
-  payer:                { label: 'Payer',               labelColor: '#7C3AED',             cardBg: 'rgba(139,92,246,0.06)'  },
+  guideline:            { label: 'Guideline',          labelColor: '#10224A',  outerBg: 'rgba(16,34,74,0.15)'    },
+  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',  outerBg: 'rgba(0,85,187,0.09)'    },
+  advocacy:             { label: 'Advocacy',            labelColor: '#B99CFC',  outerBg: 'rgba(185,156,252,0.30)' },
+  'launch-performance': { label: 'Launch Performance',  labelColor: '#2A76F4',  outerBg: 'rgba(42,118,244,0.15)'  },
+  payer:                { label: 'Payer',               labelColor: '#7C3AED',  outerBg: 'rgba(139,92,246,0.10)'  },
 }
 
 const SIGNAL_FILTER_TABS = [
@@ -239,13 +244,13 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
   const N        = MONTHS_LABELS.length
 
   return (
-    <div style={{ flex: 1, minWidth: 0, background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+    <div style={{ background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
         <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
         <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
       </div>
 
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: '100%', minWidth: `${FIRST_W + COL_W * N}px` }}>
           <colgroup>
             <col style={{ width: FIRST_W }} />
@@ -368,12 +373,12 @@ function KpiCountdownCard({ event }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {days}
         </span>
         <span style={{ fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400, alignSelf: 'flex-end', paddingBottom: '5px' }}>days</span>
       </div>
-      <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
         {event.title}
       </p>
       <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
@@ -391,7 +396,7 @@ function KpiDealCard({ deal }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1 }}>
+        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1 }}>
           {displayValue}
         </span>
         {unit && (
@@ -400,7 +405,7 @@ function KpiDealCard({ deal }) {
           </span>
         )}
       </div>
-      <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
         {(deal.parties || []).join(' × ')}
       </p>
       <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
@@ -412,9 +417,9 @@ function KpiDealCard({ deal }) {
 
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
 const TABS = [
-  { label: 'Events'              },
-  { label: 'Reports & Earnings'  },
-  { label: 'Market Developments' },
+  { label: 'Events',              icon: CalendarDays },
+  { label: 'Reports & Earnings',  icon: FileText     },
+  { label: 'Market Developments', icon: TrendingUp   },
 ]
 
 const TAB_COUNTS = [eventsData.length, reportsData.length, marketData.length]
@@ -424,36 +429,38 @@ function TabBar({ active, onChange }) {
     <div style={{
       display: 'flex',
       padding: '0 36px',
-      borderBottom: '1px solid rgba(5,10,68,0.10)',
+      borderBottom: '1px solid #708090',
     }}>
-      {TABS.map(({ label }, i) => {
+      {TABS.map(({ label, icon: TabIcon }, i) => {
         const isActive = active === i
         return (
           <button
             key={label}
             onClick={() => onChange(i)}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: '7px',
-              padding: '10px 20px',
-              fontSize: '14px', fontWeight: isActive ? 600 : 400,
-              color: isActive ? 'var(--font-primary)' : 'var(--font-secondary)',
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '6px 12px',
+              fontSize: '14px', fontWeight: isActive ? 500 : 400,
+              fontFamily: 'Satoshi, sans-serif',
+              color: isActive ? '#10224a' : '#434c5b',
               background: 'transparent',
               border: 'none',
-              borderBottom: isActive ? '3px solid rgba(21,45,97,1)' : '3px solid transparent',
+              borderBottom: isActive ? '4px solid #10224a' : '3px solid transparent',
               marginBottom: '-1px',
               cursor: 'pointer', whiteSpace: 'nowrap',
               transition: 'color 150ms ease, border-color 150ms ease',
             }}
           >
-            <Star size={13} />
+            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} />}
             {label}
             <span style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minWidth: '22px', height: '18px', padding: '0 5px',
-              borderRadius: '9999px',
-              background: isActive ? 'rgba(21,45,97,1)' : 'rgba(5,10,68,0.10)',
-              color: isActive ? '#FFFFFF' : 'var(--font-secondary)',
-              fontSize: '11px', fontWeight: 700,
+              minWidth: '22px', height: '18px', padding: '0 4px',
+              borderRadius: '4px',
+              background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
+              color: isActive ? '#10224a' : '#434c5b',
+              fontSize: '12px', fontWeight: 500,
+              fontFamily: 'Satoshi, sans-serif',
               lineHeight: 1,
             }}>
               {String(TAB_COUNTS[i]).padStart(2, '0')}
@@ -468,142 +475,303 @@ function TabBar({ active, onChange }) {
 // ──────────────────────────────────────────────────────────────────────────────
 // TAB 1: EVENTS
 // ──────────────────────────────────────────────────────────────────────────────
-function EventCard({ event, pastVariant, cardRef, flashing }) {
+
+// ── Week calendar strip ───────────────────────────────────────────────────────
+function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null; onDateSelect: (d: string | null) => void }) {
+  const MS       = 86400000
+  const start    = new Date(TODAY.getTime() - 3 * MS)
+  const DAY_LTRS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const todayStr = TODAY.toISOString().substring(0, 10)
+  const stripRef = useRef<HTMLDivElement>(null)
+
+  // date → first event type on that day
+  const eventMap = new Map<string, string>()
+  eventsData.forEach((e: any) => {
+    const key = e.date.substring(0, 10)
+    if (!eventMap.has(key)) eventMap.set(key, e.type)
+  })
+
+  const days = Array.from({ length: 90 }, (_, i) => {
+    const d   = new Date(start.getTime() + i * MS)
+    const str = d.toISOString().substring(0, 10)
+    return { date: d, str }
+  })
+
+  const groups: { name: string; days: typeof days }[] = []
+  days.forEach(day => {
+    const name = day.date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })
+    const last = groups[groups.length - 1]
+    if (!last || last.name !== name) groups.push({ name, days: [day] })
+    else last.days.push(day)
+  })
+
+  // Vibrant badge backgrounds for the 20×20 date-strip dot
+  // (EVENT_TYPE.bg uses rgba at 7–10% — too transparent to read at small size)
+  const STRIP_BADGE_BG: Record<string, string> = {
+    conference: '#DBEAFE',  // blue-100
+    earnings:   '#E2E8F0',  // slate-200
+    regulatory: '#D1FAE5',  // green-100
+    investor:   '#EDE9FE',  // violet-100
+    milestone:  '#FFE4E6',  // rose-100
+  }
+
+  // Centre today in the strip on mount
+  useEffect(() => {
+    const container = stripRef.current
+    if (!container) return
+    const todayEl = container.querySelector('[data-today="true"]') as HTMLElement | null
+    if (todayEl) {
+      const offset = todayEl.offsetLeft - container.clientWidth / 2 + todayEl.offsetWidth / 2
+      container.scrollLeft = Math.max(0, offset)
+    }
+  }, [])
+
+  return (
+    <div
+      ref={stripRef}
+      className="hide-scrollbar"
+      style={{ overflowX: 'auto', overflowY: 'hidden', padding: '6px 4px 10px' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 'max-content' }}>
+        {groups.map((group, gi) => (
+          <div key={group.name} style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {gi > 0 && (
+              <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(5,10,68,0.12)', margin: '0 8px', flexShrink: 0 }} />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Month label — left-aligned, sticky on horizontal scroll */}
+              <span style={{
+                position: 'sticky', left: '4px', zIndex: 1,
+                display: 'block',
+                fontSize: '14px', fontWeight: 700,
+                fontFamily: 'Satoshi, sans-serif',
+                color: '#434c5b', lineHeight: '20px',
+                whiteSpace: 'nowrap', paddingRight: '8px',
+              }}>
+                {group.name}
+              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                {group.days.map(({ date, str }) => {
+                  const isToday    = str === todayStr
+                  const isSelected = str === selectedDate
+                  const isPast     = str < todayStr
+                  const evtType    = eventMap.get(str)
+                  const typeCfg    = evtType ? EVENT_TYPE[evtType] : null
+                  const EventIcon  = typeCfg?.icon ?? null
+                  const letter     = DAY_LTRS[date.getUTCDay()]
+                  const num        = String(date.getUTCDate()).padStart(2, '0')
+                  return (
+                    <div
+                      key={str}
+                      data-today={isToday ? 'true' : undefined}
+                      onClick={() => onDateSelect(isSelected ? null : str)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                        padding: isToday ? '8px 4px' : '6px 4px',
+                        borderRadius: '10px',
+                        height: isToday ? '100px' : '91px',
+                        width: isToday ? '52px' : '42px',
+                        border: isSelected ? '1.5px solid #2A76F4' : isToday ? '1.5px solid rgba(16,34,74,0.22)' : '1px solid rgba(210,226,255,1)',
+                        background: isSelected ? 'rgba(42,118,244,0.08)' : isToday ? '#f0f5ff' : '#ffffff',
+                        opacity: isPast && !isToday && !isSelected ? 0.3 : 1,
+                        flexShrink: 0,
+                        boxSizing: 'border-box',
+                        cursor: 'pointer',
+                        boxShadow: isToday ? '0 4px 14px rgba(16,34,74,0.14), 0 2px 4px rgba(16,34,74,0.08)' : 'none',
+                        transition: 'border 120ms ease, background 120ms ease',
+                      }}
+                    >
+                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: isSelected ? '#2A76F4' : '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+                        {letter}
+                      </span>
+                      <div style={{
+                        width: isToday ? '36px' : '32px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '4px', borderRadius: '8px',
+                        background: isSelected ? '#2A76F4' : isToday ? '#10224a' : 'rgba(112,128,144,0.15)',
+                      }}>
+                        <span style={{
+                          display: 'block', width: '100%',
+                          fontSize: isToday ? '14px' : '13px',
+                          fontFamily: 'Satoshi, sans-serif',
+                          fontWeight: isToday || isSelected ? 700 : 500,
+                          color: isSelected || isToday ? '#ffffff' : '#434c5b',
+                          lineHeight: isToday ? '21px' : '19px',
+                          textAlign: 'center',
+                        }}>
+                          {num}
+                        </span>
+                      </div>
+                      {typeCfg && EventIcon && evtType && (
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: STRIP_BADGE_BG[evtType] ?? typeCfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <EventIcon size={10} color={typeCfg.text} strokeWidth={2} />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const past = Boolean(pastVariant)
-  const annotations = LEADERSHIP_ANNOTATIONS[event.type]
   const isMultiDay = Boolean(event.endDate)
   const dateLabel = isMultiDay
     ? `${formatDateAbs(event.date)} – ${formatDateAbs(event.endDate)}`
     : formatDateAbs(event.date)
-  const format = event.location === 'Virtual' ? 'Virtual'
-    : event.location ? event.location : 'In person'
+  const locationStr = event.location && event.location !== 'Virtual'
+    ? ` · ${event.location}`
+    : event.location === 'Virtual' ? ' · Virtual' : ''
   const digestReport = past ? findDigestForEvent(event) : null
-  const primaryCompetitor = event.attendingCompetitors?.[0]
+  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
+  const TypeIcon = typeCfg.icon
+  const noteText = (event as any).note ?? null
+  const annotations = showAnnotations ? (LEADERSHIP_ANNOTATIONS[event.type] ?? null) : null
 
   return (
     <div
       ref={cardRef}
       style={{
-        padding: '8px 0',
-        display: 'flex', flexDirection: 'column', gap: '12px',
+        padding: '14px 16px',
+        display: 'flex', flexDirection: 'column', gap: '10px',
         opacity: past ? 0.65 : 1,
         background: flashing ? 'rgba(42,118,244,0.04)' : 'transparent',
-        borderRadius: flashing ? '8px' : 0,
         transition: 'background 350ms ease',
         scrollMarginTop: '80px',
       }}
     >
-      {/* Title row: competitor badge + title … date / format */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: 0 }}>
-          {primaryCompetitor && (
-            <div style={{ flexShrink: 0, marginTop: '2px' }}>
-              <CompetitorBadge name={competitorName(primaryCompetitor)} size={20} />
-            </div>
-          )}
-          <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.5' }}>
-            {event.title}
-            {past && <span style={{ marginLeft: '6px', fontSize: '11px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-secondary)', whiteSpace: 'nowrap', lineHeight: '21px' }}>{dateLabel}</p>
-          <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, color: 'var(--font-secondary)', whiteSpace: 'nowrap', lineHeight: '18px' }}>{format}</p>
-        </div>
+      {/* Row 1: type pill (left) + date/location (right) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          padding: '2px 9px', borderRadius: '9999px',
+          fontSize: '11px', fontWeight: 700,
+          background: typeCfg.bg, color: typeCfg.text,
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }}>
+          {TypeIcon && <TypeIcon size={10} />}
+          {typeCfg.label}
+        </span>
+        <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
+          {dateLabel}{locationStr}
+        </span>
       </div>
 
-      {/* Expected topics — label + bullet list */}
+      {/* Row 2: title */}
+      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
+        {event.title}
+        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
+      </p>
+
+      {/* Row 3: Attending badges */}
+      {event.attendingCompetitors?.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '12px', color: 'var(--font-secondary)', fontWeight: 500 }}>Attending</span>
+          {event.attendingCompetitors.map((id) => (
+            <CompetitorBadge key={id} name={competitorName(id)} size={18} />
+          ))}
+        </div>
+      )}
+
+      {/* Row 4: Expected topics */}
       {event.expectedTopics?.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 2px', fontSize: '12px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '21px' }}>Expected Topics:</p>
-          <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: 'disc' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+            Expected topics
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
             {event.expectedTopics.map((topic, i) => (
-              <li key={i} style={{ fontSize: '14px', lineHeight: '21px', color: 'var(--font-primary)' }}>{topic}</li>
+              <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>{topic}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Annotation boxes — always shown when defined */}
-      {annotations && (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, minWidth: 0, padding: '4px 8px', borderRadius: '8px', background: 'rgba(42,118,244,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>What we expect:</p>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
-          </div>
-          <div style={{ flex: 1, minWidth: 0, padding: '4px 8px', borderRadius: '8px', background: 'rgba(16,34,74,0.15)' }}>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, lineHeight: '21px', color: 'var(--font-primary)' }}>What would surprise us:</p>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: '21px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
-          </div>
+      {/* Row 5: Note (event.note only) */}
+      {noteText && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '6px',
+          padding: '6px 10px', borderRadius: '6px',
+          background: 'rgba(42,118,244,0.08)',
+        }}>
+          <AlertCircle size={12} color='#0055BB' style={{ marginTop: '3px', flexShrink: 0 }} />
+          <span style={{ fontSize: '12px', color: '#0055BB', lineHeight: '1.5' }}>
+            {noteText}
+          </span>
         </div>
       )}
 
-      {/* Attendees + confidence */}
-      {event.attendingCompetitors?.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Attendees:</span>
-            {event.attendingCompetitors.map((id) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CompetitorBadge name={competitorName(id)} size={12} />
-                <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>{competitorName(id)}</span>
-              </div>
-            ))}
+      {/* Row 6: Leadership annotations — only in leadership priority view */}
+      {annotations && (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.10)' }}>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What we expect:</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
           </div>
-          {annotations && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Confidence:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '9999px', background: 'var(--status-green)', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: 'var(--font-primary)' }}>Strong</span>
-              </div>
-            </div>
-          )}
+          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.08)' }}>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What would surprise us:</p>
+            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
+          </div>
         </div>
       )}
 
       {/* Post-event digest link */}
       {digestReport && (
-        <div>
-          <Link
-            to={`/intelligence?tab=reports&competitor=${digestReport.competitorId}`}
-            style={{ fontSize: '12px', fontWeight: 600, color: '#0055BB', textDecoration: 'none', borderBottom: '1px dashed rgba(0,85,187,0.40)' }}
-          >
-            Read digest →
-          </Link>
-        </div>
+        <Link
+          to={`/intelligence?tab=reports&competitor=${digestReport.competitorId}`}
+          style={{ fontSize: '12px', fontWeight: 600, color: '#0055BB', textDecoration: 'none', borderBottom: '1px dashed rgba(0,85,187,0.40)' }}
+        >
+          Read digest →
+        </Link>
       )}
     </div>
   )
 }
 
+const EVENT_LEFT_BORDER: Record<string, string> = {
+  conference: '#0055BB',
+  earnings:   '#94A3B8',
+  regulatory: '#10B981',
+  investor:   '#8B5CF6',
+  milestone:  '#EF4444',
+}
+
 function EventsTab() {
-  const [searchParams] = useSearchParams()
-  const eventFromUrl = searchParams.get('event')
-  const [filter, setFilter] = useState('all')
-  const [flashedId, setFlashedId] = useState(null)
+  const [searchParams]  = useSearchParams()
+  const eventFromUrl    = searchParams.get('event')
+  const [viewFilter, setViewFilter]         = useState('all')
+  const [flashedId, setFlashedId]           = useState(null)
+  const [showCatalysts, setShowCatalysts]   = useState(false)
+  const [upcomingOpen, setUpcomingOpen]     = useState(true)
+  const [pastOpen, setPastOpen]             = useState(true)
+  const [selectedDate, setSelectedDate]     = useState<string | null>(null)
   const cardRefs = useRef(new Map())
-  const leadershipMode = filter === 'leadership'
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
-  const pastCutoffTs = TODAY.getTime() - NINETY_DAYS_MS
+  const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
 
-  const filtered = leadershipMode
-    ? eventsData.filter((e) => LEADERSHIP_TYPES.has(e.type))
-    : eventsData
+  const filtered = eventsData.filter((e) => {
+    if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has((e as any).type)) return false
+    if (selectedDate && (e as any).date.substring(0, 10) !== selectedDate) return false
+    return true
+  })
 
   const upcoming = filtered
-    .filter((e) => new Date(e.date) >= TODAY)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .filter((e) => new Date((e as any).date) >= TODAY)
+    .sort((a, b) => new Date((a as any).date).getTime() - new Date((b as any).date).getTime())
 
   const past = filtered
     .filter((e) => {
-      const ts = new Date(e.date).getTime()
+      const ts = new Date((e as any).date).getTime()
       return ts < TODAY.getTime() && ts >= pastCutoffTs
     })
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-
-  const allEvents = [...upcoming, ...past]
+    .sort((a, b) => new Date((b as any).date).getTime() - new Date((a as any).date).getTime())
 
   function jumpToEvent(eventId) {
     const node = cardRefs.current.get(eventId)
@@ -624,47 +792,35 @@ function EventsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventFromUrl])
 
-  return (
-    <div style={{
-      background: 'var(--bg-2)',
-      border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      height: 'calc(100vh - 268px)',
-      minHeight: '500px',
-      overflow: 'hidden',
-    }}>
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch', height: '100%' }}>
+  const VIEW_OPTS = [
+    { value: 'all',        label: 'All events'          },
+    { value: 'leadership', label: 'Leadership priority' },
+  ]
 
-      {/* ── Left: upcoming events list ─────────────────────────────────────── */}
-      <div style={{
-        flex: '0 0 420px',
-        background: 'var(--bg-1)',
-        border: '1.8px solid rgba(210,226,255,1)',
-        borderRadius: '16px',
-        padding: '16px',
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>Upcoming events</span>
-            <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{upcoming.length} events</span>
-          </div>
-          <div style={{ display: 'inline-flex', padding: '4px', borderRadius: '16px', border: '1px solid rgba(210,226,255,1)', gap: '8px' }}>
-            {[{ value: 'all', label: 'All events' }, { value: 'leadership', label: 'Leadership priorities' }].map((opt) => {
-              const isActive = filter === opt.value
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* ── VIEW filter bar + catalyst toggle ──────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
+            fontFamily: 'Satoshi, sans-serif',
+          }}>
+            View:
+          </span>
+          <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
+            {VIEW_OPTS.map(opt => {
+              const isAct = viewFilter === opt.value
               return (
-                <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
-                  padding: '4px 8px',
-                  borderRadius: isActive ? '16px' : '12px',
-                  fontSize: '14px', fontWeight: 400, border: 'none',
-                  background: isActive ? 'rgba(16,34,74,1)' : 'transparent',
-                  color: isActive ? 'var(--bg-1)' : 'var(--font-primary)',
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 120ms ease',
+                <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
+                  padding: '4px 12px', borderRadius: '16px',
+                  background: isAct ? '#10224a' : 'transparent',
+                  color: isAct ? '#ffffff' : '#434c5b',
+                  border: 'none', cursor: 'pointer',
+                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                  whiteSpace: 'nowrap', transition: 'all 120ms ease',
                 }}>
                   {opt.label}
                 </button>
@@ -673,52 +829,162 @@ function EventsTab() {
           </div>
         </div>
 
-        {/* Event cards with dividers — scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {upcoming.length === 0 && past.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '24px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
-              No events found
-            </p>
-          ) : (
-            <>
-              {upcoming.map((e, idx) => (
-                <div key={e.id}>
-                  <EventCard
-                    event={e}
-                    cardRef={(node) => setCardRef(e.id, node)}
-                    flashing={flashedId === e.id}
-                  />
-                  {(idx < upcoming.length - 1 || past.length > 0) && (
-                    <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-                  )}
-                </div>
-              ))}
-              {past.map((e, idx) => (
-                <div key={e.id}>
-                  <EventCard
-                    event={e}
-                    pastVariant
-                    cardRef={(node) => setCardRef(e.id, node)}
-                    flashing={flashedId === e.id}
-                  />
-                  {idx < past.length - 1 && (
-                    <div style={{ height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
+        {/* View / Hide key catalyst events — back in filter bar */}
+        <button
+          onClick={() => setShowCatalysts(v => !v)}
+          style={{
+            background: 'none', border: 'none', padding: '0 0 2px',
+            borderBottom: '1px dashed rgba(5,10,68,0.35)',
+            cursor: 'pointer', fontSize: '12px',
+            fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}
+        >
+          {showCatalysts ? 'Hide key catalyst events' : 'View key catalyst events'}
+        </button>
+      </div>
 
-        <div style={{ flexShrink: 0, marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
-          <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#0055BB', borderBottom: '1px dashed rgba(0,85,187,0.45)' }}>
-            Read full assessment
+      {/* ── Calendar strip ──────────────────────────────────────────────────── */}
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+
+      {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+          Showing 90 days · scroll to navigate
+        </span>
+      </div>
+
+      {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
+      {showCatalysts && (
+        <KeyCatalystsCalendar count={eventsData.length} />
+      )}
+
+      {/* ── Date filter indicator ─────────────────────────────────────────── */}
+      {selectedDate && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+            Showing events on{' '}
+            <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
+          </span>
+          <button
+            onClick={() => setSelectedDate(null)}
+            style={{
+              padding: '2px 10px', borderRadius: '9999px',
+              fontSize: '12px', fontWeight: 600,
+              background: 'transparent',
+              color: 'rgba(5,10,68,0.50)',
+              border: '1px solid rgba(5,10,68,0.15)',
+              cursor: 'pointer',
+            }}
+          >
+            Clear
           </button>
         </div>
-      </div>
+      )}
 
-      <KeyCatalystsCalendar count={eventsData.length} />
-      </div>
+      {/* ── Sections ─────────────────────────────────────────────────────────── */}
+      {upcoming.length === 0 && past.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+          No events found
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+
+          {/* ── Upcoming ────────────────────────────────────────────────────── */}
+          {upcoming.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
+
+              {/* Section header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <button
+                  onClick={() => setUpcomingOpen(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
+                >
+                  <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
+                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                    Upcoming · {upcoming.length} events
+                  </span>
+                </button>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+              </div>
+
+              {/* Cards — always full width */}
+              {upcomingOpen && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {upcoming.map((e) => {
+                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
+                    return (
+                      <div key={(e as any).id} style={{
+                        background: '#ffffff',
+                        border: '1px solid rgba(210,226,255,1)',
+                        borderLeft: `3px solid ${leftColor}`,
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                      }}>
+                        <EventCard
+                          event={e}
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ── Past ─────────────────────────────────────────────────────────── */}
+          {past.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <button
+                  onClick={() => setPastOpen(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
+                >
+                  <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
+                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                    Past · last 90 days · {past.length} {past.length === 1 ? 'event' : 'events'}
+                  </span>
+                </button>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+              </div>
+              {pastOpen && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {past.map((e) => {
+                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
+                    return (
+                      <div key={(e as any).id} style={{
+                        background: '#ffffff',
+                        border: '1px solid rgba(210,226,255,1)',
+                        borderLeft: `3px solid ${leftColor}`,
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                      }}>
+                        <EventCard
+                          event={e}
+                          pastVariant
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
+
     </div>
   )
 }
@@ -729,69 +995,75 @@ function EventsTab() {
 
 const ALL_REPORT_TYPES = [...new Set(reportsData.map((r) => r.type))]
 
-function ReportListCard({ report, isSelected, onSelect }) {
-  const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
+function ReportListCard({ report }) {
+  const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(42,118,244,0.15)', text: '#2A76F4', icon: null }
   const cName = competitorName(report.competitorId)
 
   return (
-    <div
-      onClick={onSelect}
-      style={{
-        padding: '12px',
-        borderRadius: '12px',
-        border: isSelected ? '1.5px solid rgba(210,226,255,1)' : '1.5px solid transparent',
-        background: isSelected ? 'rgba(210,226,255,0.18)' : 'transparent',
-        cursor: 'pointer',
-      }}
-    >
+    <div style={{
+      background: '#ffffff',
+      border: '1px solid rgba(210,226,255,1)',
+      borderRadius: '12px',
+      padding: '8px 16px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+    }}>
       {/* Row 1: type pill + date */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <TypePill cfg={typeCfg} />
-        <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', borderRadius: '8px',
+          fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
+          background: typeCfg.bg, color: typeCfg.text,
+          whiteSpace: 'nowrap',
+        }}>
+          {typeCfg.label}
+        </span>
+        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
           {formatDateAbs(report.date)}
         </span>
       </div>
 
       {/* Row 2: badge + title */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
-        <div style={{ flexShrink: 0, marginTop: '1px' }}>
-          <CompetitorBadge name={cName} size={20} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexShrink: 0 }}>
+        <div style={{ flexShrink: 0 }}>
+          <CompetitorBadge name={cName} size={24} />
         </div>
-        <p style={{
-          margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>
+        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
           {report.title}
         </p>
       </div>
 
-      {/* HAE extract box */}
+      {/* Row 3: TA extract */}
       {report.haeExtract && (
-        <div style={{ background: 'rgba(5,10,68,0.04)', borderRadius: '8px', padding: '8px 10px', marginBottom: '8px' }}>
-          <p style={{ margin: '0 0 3px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)', fontWeight: 700 }}>
-            HAE extract:
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+            {DEMO.therapeuticArea} extract:
           </p>
-          <p style={{
-            margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.65)', lineHeight: '1.5',
-            display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
             {report.haeExtract}
           </p>
         </div>
       )}
 
-      {/* Row 4: source + confidence */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{
-          fontSize: '11px', color: 'rgba(5,10,68,0.40)', flex: 1, minWidth: 0,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          Sources: {report.source}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(5,10,68,0.55)', flexShrink: 0 }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '9999px', background: 'var(--status-green)', display: 'inline-block' }} />
-          Confidence: Strong
-        </span>
+      {/* Row 4: sources + confidence */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b', whiteSpace: 'nowrap', flexShrink: 0 }}>Sources:</span>
+          <span style={{
+            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px',
+            borderBottom: '1px dashed #434343', paddingBottom: '2px',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {report.source}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b', whiteSpace: 'nowrap' }}>Confidence:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#49A078', display: 'inline-block', flexShrink: 0 }} />
+            Strong
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -816,37 +1088,52 @@ function ReportDetailPanel({ report }) {
           {report.title}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {(() => { const TypeIcon = typeCfg?.icon; return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {typeCfg.label ?? report.type}
+            {TypeIcon ? <TypeIcon size={12} strokeWidth={1.8} /> : <FileText size={12} strokeWidth={1.8} />}
+            {typeCfg.label ?? report.type}
+          </span>
+          )})()}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
+            <CalendarDays size={12} strokeWidth={1.8} /> {formatDateAbs(report.date)}
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {formatDateAbs(report.date)}
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Star size={12} /> {report.source}
+            <Link2 size={12} strokeWidth={1.8} /> {report.source}
           </span>
         </div>
       </div>
 
       {/* Section 2 — KPI cards */}
       {report.kpis && (
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {report.kpis.map((kpi, i) => (
-            <div key={i} style={{ flex: 1, background: 'rgba(21,45,97,1)', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Crosshair size={12} color='rgba(255,255,255,0.5)' />
-                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
-                  {kpi.label}
-                </span>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+          {report.kpis.map((kpi, i) => {
+            const l = kpi.label.toUpperCase()
+            const KpiIcon = l.includes('REVENUE') || l.includes('CASH') || l.includes('DEAL') || l.includes('VALUE')
+              ? DollarSign
+              : l.includes('PIPELINE') || l.includes('FILING') || l.includes('PHASE') || l.includes('ORAL')
+              ? FlaskConical
+              : l.includes('GUIDANCE') || l.includes('GROWTH') || l.includes('RWE') || l.includes('INVEST')
+              ? TrendingUp
+              : l.includes('DATE') || l.includes('TIMELINE') || l.includes('READOUT')
+              ? CalendarDays
+              : Crosshair
+            return (
+              <div key={i} style={{ flex: '0 0 auto', background: 'rgba(21,45,97,1)', borderRadius: '12px', padding: '16px 32px', minWidth: '140px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <KpiIcon size={12} color='rgba(255,255,255,0.5)' />
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
+                    {kpi.label}
+                  </span>
+                </div>
+                <p style={{ margin: '0 0 4px', fontSize: '26px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
+                  {kpi.value}
+                </p>
+                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
+                  {kpi.subtext}
+                </p>
               </div>
-              <p style={{ margin: '0 0 4px', fontSize: '26px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
-                {kpi.value}
-              </p>
-              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
-                {kpi.subtext}
-              </p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -854,7 +1141,7 @@ function ReportDetailPanel({ report }) {
       {report.signal && (
         <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '10px', padding: '14px 16px' }}>
           <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(42,118,244,0.85)' }}>
-            {report.signal.label}:
+            Relevance to {DEMO.assetName}:
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6' }}>
             {report.signal.text}
@@ -874,11 +1161,11 @@ function ReportDetailPanel({ report }) {
         </div>
       )}
 
-      {/* Section 5 — HAE extract fallback (only if no kpis) */}
+      {/* Section 5 — TA extract fallback (only if no kpis) */}
       {!report.kpis && report.haeExtract && (
         <div>
           <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            HAE Extract
+            {DEMO.therapeuticArea} Extract
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.7' }}>
             {report.haeExtract}
@@ -894,28 +1181,35 @@ function ReportDetailPanel({ report }) {
           </p>
           {report.quotes.map((q, i) => (
             <div key={i} style={{
-              padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(5,10,68,0.08)',
-              background: '#FFFFFF', marginBottom: '8px',
+              padding: '8px', borderRadius: '8px',
+              border: '1.8px solid rgba(210,226,255,1)',
+              display: 'flex', flexDirection: 'column', gap: '4px',
+              marginBottom: '8px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6', flex: 1 }}>
-                  "{q.text}"
-                </p>
+              {/* Quote text */}
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+                "{q.text}"
+              </p>
+              {/* Footer: attribution + copy */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px' }}>
+                  {q.attribution}
+                </span>
                 <button
                   onClick={() => navigator.clipboard?.writeText(q.text)}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', padding: '2px 4px',
-                    cursor: 'pointer', fontSize: '12px', color: 'rgba(5,10,68,0.45)',
-                    flexShrink: 0, fontFamily: 'inherit',
+                    background: 'none', border: 'none', padding: '0 0 4px',
+                    borderBottom: '1px dashed #434343',
+                    cursor: 'pointer', fontSize: '12px', fontWeight: 500,
+                    fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)',
+                    flexShrink: 0, lineHeight: '18px',
                   }}
                 >
-                  <Copy size={12} /> Copy
+                  <Copy size={13} strokeWidth={1.8} />
+                  Copy
                 </button>
               </div>
-              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--font-secondary)' }}>
-                {q.attribution}
-              </p>
             </div>
           ))}
         </div>
@@ -928,14 +1222,11 @@ function ReportsTab() {
   const [searchParams] = useSearchParams()
   const competitorFromUrl = searchParams.get('competitor')
 
-  // Filter state — multi-select Sets backing the dropdowns
   const [competitorFilter, setCompetitorFilter] = useState(
     () => competitorFromUrl ? new Set([competitorFromUrl]) : new Set()
   )
   const [typeFilter, setTypeFilter] = useState(() => new Set())
-  const [selectedId, setSelectedId] = useState(null)
 
-  // Sync competitor filter when URL param changes (e.g. navigating from a past event's "Read digest →")
   useEffect(() => {
     if (competitorFromUrl) {
       setCompetitorFilter(new Set([competitorFromUrl]))
@@ -943,7 +1234,6 @@ function ReportsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [competitorFromUrl])
 
-  // Option lists for each dropdown (with per-option report counts, alphabetically sorted)
   const byLabel = (a, b) => a.label.localeCompare(b.label)
   const competitorOptions = competitorsData.map((c) => ({
     value: c.id,
@@ -958,94 +1248,41 @@ function ReportsTab() {
 
   const filtered = reportsData
     .filter((r) => competitorFilter.size === 0 || competitorFilter.has(r.competitorId))
-    .filter((r) => typeFilter.size === 0       || typeFilter.has(r.type))
+    .filter((r) => typeFilter.size === 0 || typeFilter.has(r.type))
     .sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  const effectiveSelectedId = selectedId ?? filtered[0]?.id ?? null
-  const selectedReport = filtered.find((r) => r.id === effectiveSelectedId) ?? null
-
   return (
-    <div style={{
-      background: 'var(--bg-2)',
-      border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      height: 'calc(100vh - 268px)',
-      minHeight: '500px',
-      overflow: 'hidden',
-    }}>
-      <div style={{ display: 'flex', gap: '16px', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        {/* LEFT PANEL — report list */}
-        <div style={{
-          flex: '0 0 380px',
-          background: 'var(--bg-1)',
-          border: '1.8px solid rgba(210,226,255,1)',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          {/* Header row */}
-          <div style={{
-            flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 14px 10px',
-            gap: '8px',
-          }}>
-            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)' }}>Reports</span>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              <FilterDropdown
-                label="Competitor"
-                options={competitorOptions}
-                applied={competitorFilter}
-                onApply={setCompetitorFilter}
-              />
-              <FilterDropdown
-                label="Type"
-                options={typeOptions}
-                applied={typeFilter}
-                onApply={setTypeFilter}
-              />
-            </div>
-          </div>
-
-          {/* Scrollable list */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 8px' }}>
-            {filtered.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
-                No reports match the current filters.
-              </p>
-            ) : (
-              filtered.map((r, idx) => (
-                <div key={r.id}>
-                  <ReportListCard
-                    report={r}
-                    isSelected={r.id === effectiveSelectedId}
-                    onSelect={() => setSelectedId(r.id)}
-                  />
-                  {idx < filtered.length - 1 && (
-                    <div style={{ height: '1px', background: 'rgba(5,10,68,0.06)', margin: '0 4px' }} />
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT PANEL — report detail */}
-        <div style={{
-          flex: 1,
-          background: 'var(--bg-1)',
-          border: '1.8px solid rgba(210,226,255,1)',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          minWidth: 0,
-        }}>
-          <ReportDetailPanel report={selectedReport} />
-        </div>
-
+      {/* Filter row */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <FilterDropdown
+          label="Competitor"
+          options={competitorOptions}
+          applied={competitorFilter}
+          onApply={setCompetitorFilter}
+        />
+        <FilterDropdown
+          label="Type"
+          options={typeOptions}
+          applied={typeFilter}
+          onApply={setTypeFilter}
+        />
       </div>
+
+      {/* Full-width card list */}
+      {filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+          No reports match the current filters.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {filtered.map((r) => (
+            <ReportListCard key={r.id} report={r} />
+          ))}
+        </div>
+      )}
+
     </div>
   )
 }
@@ -1096,129 +1333,156 @@ function DealsPanel({ deals }) {
     return 0
   })
 
-  function ColHeader({ label, sortK }) {
-    const isActive = sortKey === sortK
+  const TYPE_W = 144
+  const VAL_W  = 144
+  const DATE_W = 76
+
+  function SortIcon({ k }: { k: string }) {
+    const active = sortKey === k
     return (
-      <button
-        onClick={() => toggleSort(sortK)}
-        style={{
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          color: isActive ? 'var(--font-primary)' : 'rgba(5,10,68,0.45)',
-          userSelect: 'none', fontFamily: 'inherit',
-        }}
-      >
-        {label}
-        <span style={{ fontSize: '9px', opacity: isActive ? 1 : 0.5 }}>
-          {isActive ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
-        </span>
-      </button>
+      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'rgba(5,10,68,0.35)', marginLeft: '4px' }}>
+        {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
     )
+  }
+
+  const colBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', background: 'none', border: 'none',
+    cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px',
   }
 
   return (
     <div style={{
       flex: '0 0 58%', minWidth: 0,
-      background: 'var(--bg-1)',
+      background: '#FFFFFF',
       border: '1.8px solid rgba(210,226,255,1)',
       borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
       overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
     }}>
       {/* Panel header */}
-      <div style={{ flexShrink: 0, padding: '14px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>
-            Deals &amp; Partnership
-          </span>
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{deals.length} deals</span>
-        </div>
-        {/* Column headers */}
-        <div style={{ display: 'flex', gap: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
-          <div style={{ flex: 1, minWidth: 0 }}><ColHeader label="Parties" sortK="parties" /></div>
-          <div style={{ width: '110px', flexShrink: 0 }}><ColHeader label="Type" sortK="type" /></div>
-          <div style={{ width: '68px', flexShrink: 0 }}><ColHeader label="Value" sortK="value" /></div>
-          <div style={{ width: '70px', flexShrink: 0 }}><ColHeader label="Date" sortK="date" /></div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>
+          Deals &amp; Partnership
+        </span>
+        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{deals.length} deals</span>
       </div>
-      {/* Scrollable rows */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {sorted.map((deal, idx) => {
-          const isExpanded = expandedIds.has(deal.id)
-          const typeCfg = DEAL_TYPE_CFG[deal.dealType] || { bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
-          const partiesLabel = (deal.parties || []).join(' & ')
-          const dateLabel = formatMonthYear(deal.date)
-          const valueLabel = (() => {
-            const v = deal.dealValue ?? ''
-            const m = v.match(/\$[\d,.]+[KMBkm]?/)
-            return m ? m[0] : (v.slice(0, 8) || '—')
-          })()
-          return (
-            <div
-              key={deal.id}
-              style={{ borderTop: idx === 0 ? 'none' : '1px solid rgba(5,10,68,0.06)' }}
-            >
-              {/* Row */}
-              <div style={{ display: 'flex', gap: '8px', padding: '10px 16px 0', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {partiesLabel}
-                  </p>
-                  <p style={{ margin: '1px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic', lineHeight: '1.4',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {deal.headline}
-                  </p>
+
+      {/* Table area */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Column headers */}
+        <div style={{
+          display: 'flex', alignItems: 'center', flexShrink: 0,
+          background: '#FFFFFF', borderBottom: '1px solid rgba(191,214,254,1)', borderRadius: '4px',
+        }}>
+          <button onClick={() => toggleSort('parties')} style={{ ...colBtn, flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Parties</span>
+            <SortIcon k="parties" />
+          </button>
+          <button onClick={() => toggleSort('type')} style={{ ...colBtn, width: TYPE_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Type</span>
+            <SortIcon k="type" />
+          </button>
+          <button onClick={() => toggleSort('value')} style={{ ...colBtn, width: VAL_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Value</span>
+            <SortIcon k="value" />
+          </button>
+          <button onClick={() => toggleSort('date')} style={{ ...colBtn, width: DATE_W, flexShrink: 0 }}>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Date</span>
+            <SortIcon k="date" />
+          </button>
+        </div>
+
+        {/* Scrollable rows */}
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {sorted.map((deal) => {
+            const isExpanded = expandedIds.has(deal.id)
+            const typeCfg = DEAL_TYPE_CFG[deal.dealType] || { bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' }
+            const partiesLabel = (deal.parties || []).join(' & ')
+            const dateLabel = formatMonthYear(deal.date)
+            const valueLabel = (() => {
+              const v = deal.dealValue ?? ''
+              const m = v.match(/\$[\d,.]+[KMBkm]?/)
+              return m ? m[0] : (v.slice(0, 8) || '—')
+            })()
+            return (
+              <div key={deal.id} style={{ display: 'flex', alignItems: 'flex-start', borderBottom: '1px solid rgba(191,214,254,1)', padding: '8px 0' }}>
+                {/* Parties + content */}
+                <div style={{ flex: 1, minWidth: 0, padding: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                        <CompetitorBadge name={(deal.parties ?? [''])[0]} size={20} />
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {partiesLabel}
+                        </p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#2B2A2A', lineHeight: '21px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {deal.headline}
+                      </p>
+                    </div>
+                    <p style={{
+                      margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                      color: 'var(--font-primary)', lineHeight: '21px',
+                      display: isExpanded ? 'block' : '-webkit-box',
+                      WebkitLineClamp: isExpanded ? undefined : 3,
+                      WebkitBoxOrient: isExpanded ? undefined : 'vertical',
+                      overflow: isExpanded ? 'visible' : 'hidden',
+                    }}>
+                      {deal.summary}
+                    </p>
+                    <div style={{ padding: '4px 0' }}>
+                      <button
+                        onClick={() => toggleExpand(deal.id)}
+                        style={{
+                          background: 'none', border: 'none', padding: '0 0 1px', cursor: 'pointer',
+                          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                          color: '#10224A', lineHeight: '21px',
+                          borderBottom: '1px dashed #10224A',
+                        }}
+                      >
+                        {isExpanded ? 'Collapse relevance note' : 'Expand relevance note'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ width: '110px', flexShrink: 0, paddingTop: '1px' }}>
+                {/* Type */}
+                <div style={{ width: TYPE_W, flexShrink: 0, padding: '4px 8px' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center',
-                    padding: '2px 8px', borderRadius: '9999px',
-                    fontSize: '11px', fontWeight: 600,
+                    padding: '4px 8px', borderRadius: '8px',
+                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
                     background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
                   }}>
                     {deal.dealType ?? 'Deal'}
                   </span>
                 </div>
-                <div style={{ width: '68px', flexShrink: 0, fontSize: '12px', fontWeight: 600,
-                  color: 'var(--font-primary)', paddingTop: '2px', fontVariantNumeric: 'tabular-nums' }}>
+                {/* Value */}
+                <div style={{ width: VAL_W, flexShrink: 0, padding: '4px 8px', fontSize: '14px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', fontVariantNumeric: 'tabular-nums' }}>
                   {valueLabel}
                 </div>
-                <div style={{ width: '70px', flexShrink: 0, fontSize: '12px', color: 'rgba(5,10,68,0.55)', paddingTop: '2px' }}>
+                {/* Date */}
+                <div style={{ width: DATE_W, flexShrink: 0, padding: '4px 12px 4px 8px', fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#03070F', lineHeight: '21px' }}>
                   {dateLabel}
                 </div>
               </div>
-              {/* Description + expand toggle */}
-              <div style={{ padding: '6px 16px 10px' }}>
-                <p style={{
-                  margin: '0 0 4px', fontSize: '12px', color: 'rgba(5,10,68,0.65)', lineHeight: '1.55',
-                  display: isExpanded ? 'block' : '-webkit-box',
-                  WebkitLineClamp: isExpanded ? undefined : 3,
-                  WebkitBoxOrient: isExpanded ? undefined : 'vertical',
-                  overflow: isExpanded ? 'visible' : 'hidden',
-                }}>
-                  {deal.summary}
-                </p>
-                <button
-                  onClick={() => toggleExpand(deal.id)}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    fontSize: '12px', fontWeight: 500, color: 'rgba(5,10,68,0.55)',
-                    textDecoration: 'underline', textDecorationStyle: 'dashed',
-                    textUnderlineOffset: '2px', fontFamily: 'inherit',
-                  }}
-                >
-                  {isExpanded ? 'Collapse relevance note' : 'Expand relevance note'}
-                </button>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
+}
+
+// ── Flag emoji → ISO 3166-1 alpha-2 code (e.g. "🇬🇧" → "gb") ─────────────────
+function flagEmojiToIso(emoji: string): string {
+  if (!emoji) return ''
+  const codePoints = [...emoji].map(c => c.codePointAt(0) ?? 0)
+  const letters = codePoints
+    .filter(cp => cp >= 127462 && cp <= 127487)
+    .map(cp => String.fromCharCode(cp - 127397))
+  return letters.join('').toLowerCase()
 }
 
 // ── HTA & Payer access panel ──────────────────────────────────────────────────
@@ -1228,8 +1492,8 @@ function HtaStatusBadge({ status }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      padding: '3px 10px', borderRadius: '9999px',
-      fontSize: '11px', fontWeight: 700,
+      padding: '4px 8px', borderRadius: '8px',
+      fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
       background: cfg.bg, color: cfg.text, whiteSpace: 'nowrap', flexShrink: 0,
     }}>
       {status}
@@ -1241,60 +1505,58 @@ function HtaPayerPanel({ items }) {
   return (
     <div style={{
       flex: 1, minWidth: 0,
-      background: 'var(--bg-1)',
-      border: '1.8px solid rgba(210,226,255,1)',
+      background: '#FFFFFF',
+      border: '1.086px solid rgba(210,226,255,1)',
       borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
       overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{
-        flexShrink: 0, padding: '14px 16px 10px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>HTA &amp; Payer access</span>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>by market</span>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>HTA &amp; Payer access</span>
+        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>by market</span>
       </div>
       {/* Scrollable cards */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              background: 'var(--bg-2)',
-              border: '1px solid rgba(210,226,255,0.70)',
-              borderRadius: '12px',
-              padding: '12px',
-            }}
-          >
-            {/* Flag + agency + badge */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-                <span style={{ fontSize: '14px', lineHeight: 1, flexShrink: 0 }}>{item.flagEmoji ?? '🌍'}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.3',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {item.country}: {item.agencyShort ?? item.agency}
-                </span>
+          <div key={item.id} style={{
+            background: '#FFFFFF',
+            border: '1.8px solid rgba(210,226,255,1)',
+            borderRadius: '8px',
+            padding: '8px',
+            display: 'flex', flexDirection: 'column', gap: '12px',
+          }}>
+            {/* Top row: flag + country/product + badge */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '4px', flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
+                {flagEmojiToIso(item.flagEmoji ?? '')
+                  ? <img src={`https://flagcdn.com/20x15/${flagEmojiToIso(item.flagEmoji ?? '')}.png`} alt={item.country ?? ''} style={{ width: 20, height: 15, flexShrink: 0, marginTop: 3, borderRadius: 2 }} />
+                  : <span style={{ fontSize: '14px', lineHeight: '20px', flexShrink: 0 }}>🌍</span>}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.country}: {item.agencyShort ?? item.agency}
+                  </span>
+                  {item.productLabel && (
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+                      {item.productLabel}
+                    </span>
+                  )}
+                </div>
               </div>
               <HtaStatusBadge status={item.htaStatusBadge} />
             </div>
-            {/* Product label */}
-            {item.productLabel && (
-              <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(5,10,68,0.50)', lineHeight: '1.4' }}>
-                {item.productLabel}
-              </p>
-            )}
             {/* Description box */}
             {item.summary && (
-              <div style={{ background: 'rgba(42,118,244,0.07)', borderRadius: '8px', padding: '8px 10px', marginBottom: '8px' }}>
-                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.70)', lineHeight: '1.55' }}>
+              <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
                   {item.summary}
                 </p>
               </div>
             )}
-            {/* Footer date */}
+            {/* Footer */}
             {item.initiatedDate && (
-              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal' }}>
                 Assessment initiated {item.initiatedDate}
               </p>
             )}
@@ -1312,28 +1574,36 @@ function HtaPayerPanel({ items }) {
 
 // ── Market Signals panel ──────────────────────────────────────────────────────
 function SignalCard({ item }) {
-  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.55)', cardBg: 'rgba(5,10,68,0.03)' }
+  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.65)', outerBg: 'rgba(5,10,68,0.05)' }
   return (
     <div style={{
-      background: cfg.cardBg,
-      borderRadius: '14px',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '8px',
-      breakInside: 'avoid',
+      background: cfg.outerBg,
+      borderRadius: '16px',
+      padding: '10px',
+      display: 'flex', flexDirection: 'column', gap: '10px',
+      height: '100%', boxSizing: 'border-box',
     }}>
-      <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.08em', color: cfg.labelColor }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: cfg.labelColor, lineHeight: 'normal', whiteSpace: 'nowrap' }}>
         {cfg.label}
       </p>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
-        {item.headline}
-      </p>
-      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.62)', lineHeight: '1.60', flex: 1 }}>
-        {item.summary}
-      </p>
-      <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)', textAlign: 'right' }}>
-        {formatMonthYear(item.date)}
-      </p>
+      <div style={{
+        background: '#FFFFFF',
+        borderRadius: '16px',
+        padding: '8px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+            {item.headline}
+          </p>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
+            {item.summary}
+          </p>
+        </div>
+        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)', lineHeight: '18px', textAlign: 'right' }}>
+          {formatMonthYear(item.date)}
+        </p>
+      </div>
     </div>
   )
 }
@@ -1346,21 +1616,27 @@ function MarketSignalsPanel({ items }) {
     : items.filter(i => i.type === activeFilter)
 
   return (
-    <div style={{ marginTop: '24px' }}>
+    <div style={{
+      marginTop: '24px',
+      background: '#FFFFFF',
+      border: '1.8px solid rgba(210,226,255,1)',
+      borderRadius: '16px',
+      padding: '16px',
+      display: 'flex', flexDirection: 'column', gap: '16px',
+    }}>
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--font-primary)' }}>Market Signals</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>Market Signals</span>
         <button style={{
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          fontSize: '12px', fontWeight: 500, color: 'rgba(5,10,68,0.55)',
-          textDecoration: 'underline', textDecorationStyle: 'dashed',
-          textUnderlineOffset: '2px', fontFamily: 'inherit',
+          background: 'none', border: 'none', padding: '0 0 4px', cursor: 'pointer',
+          fontSize: '12px', color: '#434343', borderBottom: '1px dashed #434343',
+          fontFamily: 'inherit', lineHeight: 'normal',
         }}>
           View full competitor list
         </button>
       </div>
       {/* Filter pill tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', flexWrap: 'wrap', flexShrink: 0, alignSelf: 'flex-start' }}>
         {SIGNAL_FILTER_TABS.map(tab => {
           const isActive = activeFilter === tab.value
           return (
@@ -1368,12 +1644,12 @@ function MarketSignalsPanel({ items }) {
               key={tab.value}
               onClick={() => setActiveFilter(tab.value)}
               style={{
-                padding: '5px 14px', borderRadius: '9999px',
-                fontSize: '13px', fontWeight: isActive ? 700 : 400,
-                background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                border: `1px solid ${isActive ? 'rgba(21,45,97,1)' : 'rgba(5,10,68,0.15)'}`,
-                cursor: 'pointer', transition: 'all 120ms ease', fontFamily: 'inherit',
+                padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
+                fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
+                background: isActive ? '#10224A' : 'transparent',
+                color: isActive ? '#FFFFFF' : 'var(--font-primary)',
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 120ms ease',
               }}
             >
               {tab.label}
@@ -1381,17 +1657,15 @@ function MarketSignalsPanel({ items }) {
           )
         })}
       </div>
-      {/* 3-column grid */}
+      {/* 3-column flex grid */}
       {filtered.length === 0 ? (
         <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
           No signals match the current filter.
         </p>
       ) : (
-        <div style={{ columns: 3, columnGap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {filtered.map(item => (
-            <div key={item.id} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
-              <SignalCard item={item} />
-            </div>
+            <SignalCard key={item.id} item={item} />
           ))}
         </div>
       )}
@@ -1399,30 +1673,240 @@ function MarketSignalsPanel({ items }) {
   )
 }
 
-function MarketTab() {
-  const deals    = [...marketData].filter(m => m.type === 'deal').sort((a, b) => new Date(b.date) - new Date(a.date))
-  const htaPayer = [...marketData].filter(m => m.type === 'hta' || m.type === 'payer').sort((a, b) => new Date(b.date) - new Date(a.date))
-  const signals  = [...marketData].filter(m => SIGNAL_ITEM_TYPES.has(m.type)).sort((a, b) => new Date(b.date) - new Date(a.date))
+// ── Market Development card type config ──────────────────────────────────────
+const MARKET_DEV_TYPE_CFG = {
+  deal:                 { label: 'Deal',             bg: 'rgba(42,118,244,0.15)',  text: '#2A76F4' },
+  guideline:            { label: 'Guideline',         bg: 'rgba(73,160,120,0.15)', text: '#49A078' },
+  hta:                  { label: 'HTA decision',      bg: 'rgba(185,156,252,0.15)',text: '#B99CFC' },
+  epidemiology:         { label: 'Epidemiology',       bg: 'rgba(16,34,74,0.15)',   text: '#10224A' },
+  advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
+  payer:                { label: 'Payer',              bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
+  'launch-performance': { label: 'Launch Performance', bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' },
+}
+
+const MARKET_FILTER_TABS = [
+  { value: 'all',  label: 'All'           },
+  { value: 'deal', label: 'Deals'         },
+  { value: 'hta',  label: 'HTA decisions' },
+]
+
+function MarketDevCard({ item }) {
+  const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'rgba(5,10,68,0.07)', text: '#10224A' }
+
+  const badgeName: string = (() => {
+    if (item.type === 'deal')  return item.parties?.[0] ?? ''
+    if (item.type === 'hta')   return (item.productLabel ?? '').split(/[\s(•]/)[0] || item.agencyShort || ''
+    if (item.type === 'payer') return item.agencyShort ?? ''
+    return ''
+  })()
+
+  const hasMetadata = item.type === 'deal' || item.type === 'hta' || item.type === 'payer'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Top two-panel card */}
-      <div style={{
-        background: 'var(--bg-2)',
-        border: '1px solid rgba(210,226,255,1)',
-        borderRadius: '16px',
-        padding: '16px',
-        height: '440px',
-        minHeight: '360px',
-        overflow: 'hidden',
-      }}>
-        <div style={{ display: 'flex', gap: '16px', height: '100%' }}>
-          <DealsPanel deals={deals} />
-          <HtaPayerPanel items={htaPayer} />
+    <div style={{
+      background: '#ffffff',
+      border: '1px solid rgba(210,226,255,1)',
+      borderRadius: '12px',
+      padding: '12px 16px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+    }}>
+
+      {/* Row 1: type pill + date */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', borderRadius: '8px',
+          fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
+          background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
+        }}>
+          {typeCfg.label}
+        </span>
+        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+          {formatDateAbs(item.date)}
+        </span>
+      </div>
+
+      {/* Row 2: competitor badge + title */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
+        {badgeName && <div style={{ flexShrink: 0 }}><CompetitorBadge name={badgeName} size={24} /></div>}
+        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
+          {item.headline}
+        </p>
+      </div>
+
+      {/* Row 3: blue extract box */}
+      {item.summary && (
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px', flexShrink: 0 }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+            {item.summary}
+          </p>
+        </div>
+      )}
+
+      {/* Divider + metadata (deals and HTA / payer only) */}
+      {hasMetadata && (
+        <>
+          <div style={{ height: '1px', background: 'rgba(5,10,68,0.08)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+
+            {item.type === 'deal' && (
+              <>
+                {item.parties && item.parties.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Parties:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.parties.join(' • ')}
+                    </span>
+                  </div>
+                )}
+                {item.dealValue && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Deal value:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.dealValue}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {(item.type === 'hta' || item.type === 'payer') && (
+              <>
+                {(item.agency || item.agencyShort) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Agency:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.agency ?? item.agencyShort}
+                    </span>
+                  </div>
+                )}
+                {item.outcome && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Outcome:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.outcome}
+                    </span>
+                  </div>
+                )}
+                {item.timeToReimbursement && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Time to reimbursement:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.timeToReimbursement}
+                    </span>
+                  </div>
+                )}
+                {!item.outcome && item.htaStatusBadge && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Status:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.htaStatusBadge}
+                    </span>
+                  </div>
+                )}
+                {!item.outcome && item.initiatedDate && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Assessment initiated:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                      {item.initiatedDate}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function MarketTab() {
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
+
+  const sorted = [...marketData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const filtered = activeFilter === 'all'
+    ? sorted
+    : activeFilter === 'deal'
+    ? sorted.filter(m => m.type === 'deal')
+    : sorted.filter(m => m.type === 'hta' || m.type === 'payer')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Filter row + view toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+            Filter by:
+          </span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px' }}>
+            {MARKET_FILTER_TABS.map(tab => {
+              const isActive = activeFilter === tab.value
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveFilter(tab.value)}
+                  style={{
+                    padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
+                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
+                    background: isActive ? '#10224A' : 'transparent',
+                    color: isActive ? '#FFFFFF' : '#434c5b',
+                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                    transition: 'all 120ms ease',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Feed / Landscape toggle */}
+        <div style={{ display: 'inline-flex', padding: '3px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', gap: '2px' }}>
+          {(['feed', 'landscape'] as const).map(mode => {
+            const isActive = viewMode === mode
+            return (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  padding: '4px 12px', borderRadius: '16px',
+                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                  background: isActive ? '#10224A' : 'transparent',
+                  color: isActive ? '#FFFFFF' : '#434c5b',
+                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  transition: 'all 120ms ease',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {mode}
+              </button>
+            )
+          })}
         </div>
       </div>
-      {/* Market Signals */}
-      <MarketSignalsPanel items={signals} />
+
+      {/* Card list — Feed (1 col) or Landscape (2-col grid) */}
+      {filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+          No market developments match the current filter.
+        </p>
+      ) : (
+        <div style={viewMode === 'landscape'
+          ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }
+          : { display: 'flex', flexDirection: 'column', gap: '12px' }
+        }>
+          {filtered.map(item => (
+            <MarketDevCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
+
     </div>
   )
 }
@@ -1434,6 +1918,7 @@ export default function Portal() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? 0)
+  const loaded = usePageLoad('portal')
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1442,47 +1927,28 @@ export default function Portal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl])
 
-  const nextUpcomingEvents = eventsData
-    .filter((e) => !isPast(e.endDate || e.date))
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-
-  const mostRecentDeal = [...marketData]
-    .filter((m) => m.type === 'deal')
-    .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null
-
-  const totalSignals = eventsData.length + reportsData.length + marketData.length
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
 
-      {/* Stats row (left) + KPI items (right) */}
-      <div style={{ padding: '16px 36px 20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            Last refreshed: <span style={{ fontWeight: 600, color: 'var(--font-primary)' }}>2 mins ago</span>
-          </p>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <span style={{ color: 'var(--font-primary)' }}>{competitorsData.length} tracked competitors</span>
-            <span style={{ margin: '0 6px' }}>•</span>
-            <span style={{ color: 'var(--font-primary)' }}>{totalSignals} signals found</span>
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '36px', flexShrink: 0 }}>
-          {nextUpcomingEvents.slice(0, 1).map((e) => (
-            <KpiCountdownCard key={e.id} event={e} />
-          ))}
-          <KpiDealCard deal={mostRecentDeal} />
-        </div>
+      {/* Underline tab bar — sticky so it stays visible while scrolling events */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-1)' }}>
+        <TabBar active={activeTab} onChange={setActiveTab} />
       </div>
-
-      {/* Underline tab bar — spans full content width */}
-      <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>
-        <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab /></div>
-        <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
-        <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab /></div>
+        {!loaded ? (
+          <SkeletonPortalList />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+          >
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
+            <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab /></div>
+          </motion.div>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { SkeletonAskResponse } from './Skeleton'
+import { REDUCED_MOTION } from '../../lib/motion'
+import { DEMO } from '../../config/demo-config'
 
 /**
  * Shared AI placeholder modal (§5).
@@ -13,10 +17,36 @@ import { X, Sparkles } from 'lucide-react'
  */
 export default function AskModal({ onClose, source }) {
   const modalRef = useRef(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [responding, setResponding] = useState(REDUCED_MOTION)
 
-  // Focus the CTA on open for accessibility
   useEffect(() => {
     modalRef.current?.focus()
+    if (REDUCED_MOTION) return
+    const timer = setTimeout(() => setResponding(true), 1400)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Focus trap — keep Tab inside the modal (WCAG 2.1.2)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last  = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first.focus() }
+      }
+    }
+    el.addEventListener('keydown', onKeyDown)
+    return () => el.removeEventListener('keydown', onKeyDown)
   }, [])
 
   function handleBackdropClick(e) {
@@ -33,6 +63,7 @@ export default function AskModal({ onClose, source }) {
       aria-labelledby="ask-modal-title"
     >
       <div
+        ref={containerRef}
         className="relative flex flex-col"
         style={{
           background: '#FFFFFF',
@@ -81,33 +112,30 @@ export default function AskModal({ onClose, source }) {
             className="font-semibold m-0"
             style={{ fontSize: '15px', color: 'rgba(5,10,68,0.92)' }}
           >
-            AI response: prototype placeholder
+            Ariya's analysis (illustrative)
           </h2>
         </div>
 
-        {/* Body */}
-        <p
-          className="m-0 mb-6"
-          style={{
-            fontSize: '14px',
-            lineHeight: '1.65',
-            color: 'rgba(5,10,68,0.65)',
-          }}
-        >
-          In the production version, this button will generate a grounded answer
-          using your competitor data, Pharma Inc portfolio context, and validated
-          sources. For this prototype, we&rsquo;re focused on validating the
-          structure and data coverage.
-        </p>
-
-        {/* Muted source label — helps us track which buttons are clicked */}
-        {source && (
-          <p
-            className="m-0 mb-5"
-            style={{ fontSize: '11px', color: 'rgba(5,10,68,0.30)' }}
+        {/* Body — skeleton while "thinking", then fade in response */}
+        {!responding ? (
+          <div className="m-0 mb-6">
+            <SkeletonAskResponse />
+          </div>
+        ) : (
+          <motion.p
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="m-0 mb-6"
+            style={{
+              fontSize: '14px',
+              lineHeight: '1.65',
+              color: 'rgba(5,10,68,0.65)',
+            }}
           >
-            Triggered from: {source}
-          </p>
+            This response is generated from your curated competitive intelligence
+            data, validated sources, and {DEMO.companyLabel} portfolio context. All content
+            shown here is illustrative.
+          </motion.p>
         )}
 
         {/* CTA */}

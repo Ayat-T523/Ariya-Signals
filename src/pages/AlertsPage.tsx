@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { analytics } from '../lib/analytics'
 import {
   CheckCheck, Circle, Filter,
   ChevronDown, ChevronRight, Sparkles,
@@ -6,7 +7,11 @@ import {
   FlaskConical, Pill, Shield, Landmark, Mic, Layers,
   Database,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { staggerContainer, listItem } from '../lib/motion'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonAlertList } from '../components/ui/Skeleton'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
@@ -39,7 +44,7 @@ const SEVERITY_BORDER = {
 const SEVERITY_LABEL = {
   high:   { text: '#C01041', bg: 'rgba(225,29,72,0.10)' },
   medium: { text: '#92500A', bg: 'rgba(245,158,11,0.10)' },
-  low:    { text: 'rgba(5,10,68,0.45)', bg: 'rgba(5,10,68,0.06)' },
+  low:    { text: 'rgba(5,10,68,0.70)', bg: 'rgba(5,10,68,0.06)' },
 }
 
 // Severity rank used by the "Importance" sort mode
@@ -69,11 +74,12 @@ function Chip({ label, active, onClick, count }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '5px',
         padding: '5px 13px',
         borderRadius: '9999px',
-        fontSize: '13px', fontWeight: active ? 700 : 500,
+        fontSize: '14px', fontWeight: active ? 700 : 500,
         background: active ? '#050A44' : 'transparent',
         color: active ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
         border: `1.5px solid ${active ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
@@ -117,18 +123,20 @@ function ViewToggle({ value, onChange }) {
           <button
             key={id}
             onClick={() => onChange(id)}
+            aria-pressed={active}
+            aria-label={label}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               padding: '4px 11px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: active ? 700 : 500,
+              fontSize: '14px', fontWeight: active ? 700 : 500,
               background: active ? '#050A44' : 'transparent',
-              color: active ? '#FFFFFF' : 'rgba(5,10,68,0.50)',
+              color: active ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
               border: 'none', cursor: 'pointer',
               transition: 'all 120ms ease',
               whiteSpace: 'nowrap',
             }}
           >
-            <Icon size={12} />
+            <Icon size={12} aria-hidden="true" />
             {label}
           </button>
         )
@@ -149,16 +157,16 @@ function AlertCard({ alert }) {
 
   function toggleRead(e) {
     e.stopPropagation()
+    if (!isRead) analytics.alert_expanded(alert.id)
     isRead ? markAlertUnread(alert.id) : markAlertRead(alert.id)
   }
 
   return (
     <div style={{
       background: '#FFFFFF',
-      borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      borderRadius: '12px',
+      border: '1px solid rgba(210,226,255,1)',
       borderLeft: `4px solid ${sevBorder}`,
-      boxShadow: '0 1px 3px rgba(5,10,68,0.04)',
       padding: '18px 20px',
       opacity: isRead ? 0.72 : 1,
       transition: 'opacity 150ms ease',
@@ -195,7 +203,7 @@ function AlertCard({ alert }) {
               {alert.severity}
             </span>
 
-            <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'rgba(5,10,68,0.38)', whiteSpace: 'nowrap' }}>
+            <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'rgba(5,10,68,0.60)', whiteSpace: 'nowrap' }}>
               {formatDate(alert.timestamp)}
             </span>
           </div>
@@ -208,11 +216,14 @@ function AlertCard({ alert }) {
             lineHeight: '1.4',
           }}>
             {!isRead && (
-              <span style={{
-                display: 'inline-block', width: '7px', height: '7px',
-                borderRadius: '50%', background: '#E11D48',
-                marginRight: '8px', marginBottom: '1px', verticalAlign: 'middle',
-              }} />
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block', width: '7px', height: '7px',
+                  borderRadius: '50%', background: '#E11D48',
+                  marginRight: '8px', marginBottom: '1px', verticalAlign: 'middle',
+                }}
+              />
             )}
             {alert.headline}
           </p>
@@ -233,7 +244,7 @@ function AlertCard({ alert }) {
       {/* Why it matters strip */}
       {alert.whyItMatters && (
         <div style={{
-          background: '#E8EAF6', borderRadius: '10px',
+          background: 'rgba(42,118,244,0.12)', borderRadius: '8px',
           padding: '10px 14px', marginLeft: '44px', marginBottom: '12px',
         }}>
           <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
@@ -253,10 +264,12 @@ function AlertCard({ alert }) {
         <div style={{ marginLeft: '44px', marginBottom: '12px' }}>
           <button
             onClick={() => setWhatChangedOpen((v) => !v)}
+            aria-expanded={whatChangedOpen}
+            aria-controls={`diff-${alert.id}`}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               padding: '5px 12px', borderRadius: '9999px',
-              fontSize: '12px', fontWeight: 600,
+              fontSize: '14px', fontWeight: 600,
               background: 'transparent', color: 'rgba(5,10,68,0.65)',
               border: '1.5px solid rgba(5,10,68,0.12)',
               cursor: 'pointer', transition: 'all 120ms ease',
@@ -266,7 +279,7 @@ function AlertCard({ alert }) {
             What changed
           </button>
           {whatChangedOpen && (
-            <div style={{
+            <div id={`diff-${alert.id}`} style={{
               marginTop: '10px',
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -308,7 +321,7 @@ function AlertCard({ alert }) {
         display: 'flex', alignItems: 'center',
         paddingLeft: '44px', gap: '12px', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.60)', whiteSpace: 'nowrap' }}>
           {formatDateAbs(alert.timestamp)}
         </span>
         {alert.source && (
@@ -316,8 +329,8 @@ function AlertCard({ alert }) {
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             fontSize: '11px', fontWeight: 600, padding: '2px 8px',
             borderRadius: '9999px',
-            background: '#F0F0F0',
-            color: 'rgba(5,10,68,0.55)',
+            background: 'rgba(5,10,68,0.06)',
+            color: 'rgba(5,10,68,0.60)',
             whiteSpace: 'nowrap',
           }}>
             <Database size={10} strokeWidth={1.8} />
@@ -329,21 +342,22 @@ function AlertCard({ alert }) {
         )}
         <button
           onClick={toggleRead}
+          aria-label={isRead ? `Mark unread: ${alert.headline}` : `Mark read: ${alert.headline}`}
           style={{
             marginLeft: 'auto',
             display: 'inline-flex', alignItems: 'center', gap: '5px',
             padding: '4px 11px', borderRadius: '9999px',
-            fontSize: '12px', fontWeight: 600,
+            fontSize: '14px', fontWeight: 600,
             background: 'transparent',
-            color: isRead ? 'rgba(5,10,68,0.40)' : 'rgba(5,10,68,0.55)',
+            color: isRead ? 'rgba(5,10,68,0.55)' : 'rgba(5,10,68,0.65)',
             border: '1.5px solid rgba(5,10,68,0.12)',
             cursor: 'pointer',
             transition: 'all 120ms ease',
           }}
         >
           {isRead
-            ? <><Circle size={11} /> Mark unread</>
-            : <><CheckCheck size={11} /> Mark read</>
+            ? <><Circle size={11} aria-hidden="true" /> Mark unread</>
+            : <><CheckCheck size={11} aria-hidden="true" /> Mark read</>
           }
         </button>
       </div>
@@ -367,9 +381,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
   return (
     <div style={{
       background: '#FFFFFF',
-      borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 3px rgba(5,10,68,0.04)',
+      borderRadius: '12px',
+      border: '1px solid rgba(210,226,255,1)',
       overflow: 'hidden',
     }}>
 
@@ -385,7 +398,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
         {/* Theme icon */}
         <div style={{
           width: '36px', height: '36px', borderRadius: '10px',
-          background: '#E8EAF6', display: 'flex', alignItems: 'center',
+          background: 'rgba(42,118,244,0.10)', display: 'flex', alignItems: 'center',
           justifyContent: 'center', flexShrink: 0,
         }}>
           <IconComp size={16} color="rgba(5,10,68,0.60)" />
@@ -432,7 +445,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
 
           {/* Theme summary callout */}
           <div style={{
-            background: '#E8EAF6', borderRadius: '10px',
+            background: 'rgba(42,118,244,0.08)', borderRadius: '8px',
+            border: '1px solid rgba(210,226,255,1)',
             padding: '12px 16px', marginBottom: '16px',
           }}>
             <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
@@ -460,7 +474,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 padding: '8px 18px', borderRadius: '9999px',
-                fontSize: '13px', fontWeight: 600,
+                fontSize: '14px', fontWeight: 600,
                 background: '#050A44', color: '#FFFFFF',
                 border: 'none', cursor: 'pointer',
                 transition: 'transform 120ms ease, box-shadow 120ms ease',
@@ -544,7 +558,8 @@ function GroupedView({ filteredAlerts }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AlertsPage() {
-  const { readAlerts } = useApp()
+  const { readAlerts, markAllRead } = useApp()
+  const loaded = usePageLoad('alerts')
 
   // Filter state — multi-select Sets backing the dropdowns
   const [competitorFilter, setCompetitorFilter] = useState(() => new Set())
@@ -627,23 +642,18 @@ export default function AlertsPage() {
     onlyUnread
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '840px' }}>
+    <div data-tour="alerts-page" style={{ padding: '20px 36px 36px' }}>
 
-      {/* Page header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          Signals &amp; Alerts
-        </h1>
-        <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
-          {alertsData.length} signals tracked · {unreadCount} unread
-        </p>
-      </div>
+      {/* Description */}
+      <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
+        {alertsData.length} signals tracked · {unreadCount} unread
+      </p>
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div style={{
         background: '#FFFFFF',
-        borderRadius: '16px',
-        border: '1px solid rgba(5,10,68,0.08)',
+        borderRadius: '12px',
+        border: '1px solid rgba(210,226,255,1)',
         padding: '14px 16px',
         marginBottom: '20px',
         display: 'flex', flexDirection: 'column', gap: '10px',
@@ -668,6 +678,24 @@ export default function AlertsPage() {
             }}
             count={unreadCount}
           />
+          <button
+            onClick={markAllRead}
+            disabled={unreadCount === 0}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '5px 13px', borderRadius: '9999px',
+              fontSize: '14px', fontWeight: 500,
+              background: 'transparent',
+              color: unreadCount > 0 ? 'rgba(5,10,68,0.55)' : 'rgba(5,10,68,0.25)',
+              border: `1.5px solid ${unreadCount > 0 ? 'rgba(5,10,68,0.15)' : 'rgba(5,10,68,0.08)'}`,
+              cursor: unreadCount > 0 ? 'pointer' : 'default',
+              transition: 'all 120ms ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <CheckCheck size={13} />
+            Mark all read
+          </button>
           <div style={{ marginLeft: 'auto' }}>
             <ViewToggle value={viewMode} onChange={handleViewChange} />
           </div>
@@ -699,8 +727,11 @@ export default function AlertsPage() {
         </div>
       </div>
 
+      {/* ── Loading skeleton ────────────────────────────────────────────────── */}
+      {!loaded && <SkeletonAlertList count={alertsData.length} />}
+
       {/* ── List view ───────────────────────────────────────────────────────── */}
-      {viewMode === 'list' && (
+      {loaded && viewMode === 'list' && (
         <>
           {/* Sort toggle — matches War Room (Task 4b) */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px' }}>
@@ -718,7 +749,7 @@ export default function AlertsPage() {
                   onClick={() => setSortMode(opt.value)}
                   style={{
                     padding: '4px 12px', borderRadius: '9999px',
-                    fontSize: '12px', fontWeight: 600,
+                    fontSize: '14px', fontWeight: 600,
                     border: `1.5px solid ${isActive ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
                     background: isActive ? '#050A44' : 'transparent',
                     color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
@@ -736,8 +767,10 @@ export default function AlertsPage() {
               No signals match the current filters.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Section label — context depends on sort mode */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.35 }}
+            >
               {!hasActiveFilter && (
                 <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'rgba(5,10,68,0.35)' }}>
                   {sortMode === 'importance'
@@ -745,16 +778,25 @@ export default function AlertsPage() {
                     : `${unreadCount} unread`}
                 </p>
               )}
-              {filtered.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
+              <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
+                style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              >
+                {filtered.map((alert) => (
+                  <motion.div key={alert.id} variants={listItem}>
+                    <AlertCard alert={alert} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
           )}
         </>
       )}
 
       {/* ── Grouped view ────────────────────────────────────────────────────── */}
-      {viewMode === 'grouped' && (
+      {loaded && viewMode === 'grouped' && (
         <GroupedView filteredAlerts={filtered} />
       )}
 

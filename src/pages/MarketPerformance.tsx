@@ -1,61 +1,66 @@
+import { ExportButton } from '../components/ui/ExportButton'
+import { DEMO } from '../config/demo-config'
+
 export default function MarketPerformance() {
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '1100px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '8px' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          Market Performance — Ekterly vs HAE class
-        </h1>
-        <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.45)' }}>
-          Sources: IQVIA DE/UK/US · Veeva CRM · Movianto logistics · GlobalData Drug Sales
+    <div style={{ padding: '20px 36px 36px' }}>
+
+      {/* ── Page description ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '28px' }}>
+        <p style={{
+          margin: 0,
+          fontSize: '14px', fontFamily: 'Inter, sans-serif',
+          color: '#434c5b', lineHeight: '1.5',
+        }}>
+          {DEMO.assetName} vs {DEMO.therapeuticArea} class · Sources: {DEMO.dataSources}
         </p>
+        <ExportButton label="Export report" />
       </div>
 
-      {/* Illustrative-data label */}
-      <div style={{
-        display: 'inline-block', marginTop: '14px', marginBottom: '20px',
-        padding: '4px 10px', borderRadius: '9999px',
-        background: 'rgba(245,158,11,0.10)', color: '#92500A',
-        fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
+      {/* ── Section label ────────────────────────────────────────────────────── */}
+      <p style={{
+        margin: '0 0 12px',
+        fontSize: '11px', fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.10em',
+        color: 'rgba(5,10,68,0.40)',
       }}>
-        Illustrative data
-      </div>
+        Market data
+      </p>
 
-      {/* Power BI embed placeholder */}
+      {/* ── Power BI embed placeholder ───────────────────────────────────────── */}
       <div
         role="region"
         aria-label="Power BI embed placeholder"
         style={{
-          minHeight: '400px',
-          background: '#E8EAF6',
-          border: '1.5px dashed rgba(5,10,68,0.18)',
-          borderRadius: '20px',
-          padding: '40px 32px',
+          minHeight: '480px',
+          background: 'rgba(42,118,244,0.04)',
+          border: '1px solid rgba(210,226,255,1)',
+          borderRadius: '12px',
+          padding: '48px 32px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '14px',
+          gap: '16px',
           textAlign: 'center',
         }}
       >
-        {/* Power BI wordmark — yellow square + label */}
+        {/* Power BI wordmark */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '10px',
-          padding: '6px 14px', borderRadius: '8px',
+          padding: '8px 16px', borderRadius: '8px',
           background: '#FFFFFF',
-          border: '1px solid rgba(5,10,68,0.08)',
-          boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+          border: '1px solid rgba(210,226,255,1)',
         }}>
-          {/* Stylised Power BI mark — three vertical bars */}
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
             <rect x="2"  y="6"  width="4" height="14" rx="1" fill="#F2C811" />
             <rect x="9"  y="2"  width="4" height="18" rx="1" fill="#E6A609" />
             <rect x="16" y="9"  width="4" height="11" rx="1" fill="#C68A07" />
           </svg>
           <span style={{
-            fontSize: '13px', fontWeight: 700,
-            color: 'rgba(5,10,68,0.78)', letterSpacing: '-0.01em',
+            fontSize: '13px', fontWeight: 600,
+            fontFamily: 'Satoshi, sans-serif',
+            color: '#434c5b', letterSpacing: '-0.01em',
           }}>
             Power BI
           </span>
@@ -63,32 +68,36 @@ export default function MarketPerformance() {
 
         {/* Heading */}
         <h2 style={{
-          margin: '8px 0 0', fontSize: '18px', fontWeight: 700,
-          color: 'rgba(5,10,68,0.85)',
+          margin: '4px 0 0',
+          fontSize: '16px', fontWeight: 600,
+          fontFamily: 'Satoshi, sans-serif',
+          color: '#434c5b',
         }}>
           Embedded Power BI report
         </h2>
 
         {/* Body */}
         <p style={{
-          margin: 0, maxWidth: '560px',
-          fontSize: '13px', color: 'rgba(5,10,68,0.60)',
-          lineHeight: '1.6',
+          margin: 0, maxWidth: '520px',
+          fontSize: '14px', fontFamily: 'Inter, sans-serif',
+          color: '#434c5b', lineHeight: '1.65',
         }}>
           Live market performance data will appear here via Power BI embed,
           aligned with the Azure data pipeline. Configuration in progress with
           the data engineering team.
         </p>
 
-        {/* Contact caption */}
+        {/* Contact */}
         <p style={{
-          margin: '8px 0 0',
-          fontSize: '12px', fontStyle: 'italic',
-          color: 'rgba(5,10,68,0.45)',
+          margin: '4px 0 0',
+          fontSize: '13px', fontStyle: 'italic',
+          fontFamily: 'Inter, sans-serif',
+          color: 'rgba(5,10,68,0.55)',
         }}>
           Contact: Ananda Ramachandra · data pipeline lead
         </p>
       </div>
+
     </div>
   )
 }

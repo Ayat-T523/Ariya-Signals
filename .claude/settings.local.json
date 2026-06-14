@@ -29,7 +29,29 @@
       "PowerShell($f = \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\src\\\\pages\\\\WarRoom.tsx\"; \\(Get-Content $f\\).Count)",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "PowerShell(git config --global user.name)",
-      "PowerShell(git config --global user.email)"
+      "PowerShell(git config --global user.email)",
+      "Bash(vercel --version)",
+      "Bash(cp \"C:\\\\Users\\\\AyatTayebulla\\\\Downloads\\\\Frame 1437252898.svg\" \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\public\\\\avatar-user.svg\" 2>&1)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(where gh *)",
+      "mcp__Control_Chrome__get_current_tab",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(gh pr *)",
+      "Bash(which vercel *)",
+      "Bash(npx vercel *)",
+      "Bash(ls .vercel)",
+      "Bash(cat .vercel/project.json)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\\\\Competitor Signals\\\\src\\\\data\" -File)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(cat vercel.json)",
+      "Bash(dir)",
+      "Bash(Start-Process -NoNewWindow powershell -ArgumentList '-Command', 'npm run preview -- --port 4173')",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4173/)"
     ]
   }
 }

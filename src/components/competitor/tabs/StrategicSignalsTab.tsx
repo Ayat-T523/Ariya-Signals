@@ -35,7 +35,7 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '12px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(210,226,255,1)',
       padding: '16px',
       display: 'flex', flexDirection: 'column', gap: '8px',
     }}>
@@ -50,9 +50,9 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }) {
         )}
       </div>
       {whyItMatters && (
-        <div style={{ background: '#E8EAF6', borderRadius: '8px', padding: '10px 12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
-            <strong style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#434c5b', lineHeight: '1.55' }}>
+            <strong style={{ color: '#434c5b', fontWeight: 600, fontSize: '13px', fontFamily: 'Satoshi, sans-serif' }}>
               Why it matters —{' '}
             </strong>
             {whyItMatters}
@@ -80,12 +80,12 @@ function QuoteCard({ date, source, quote, whyItMatters, confidence }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '12px',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(210,226,255,1)',
       padding: '16px',
     }}>
       <p style={{
         margin: '0 0 8px', fontSize: '14px', fontStyle: 'italic', lineHeight: '1.55',
-        color: 'rgba(5,10,68,0.80)', borderLeft: '3px solid #E8EAF6', paddingLeft: '12px',
+        color: 'rgba(5,10,68,0.80)', borderLeft: '3px solid rgba(210,226,255,1)', paddingLeft: '12px',
       }}>
         &ldquo;{quote}&rdquo;
       </p>
@@ -94,9 +94,9 @@ function QuoteCard({ date, source, quote, whyItMatters, confidence }) {
         {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.35)' }}>· {formatDateAbs(date)}</span>}
       </div>
       {whyItMatters && (
-        <div style={{ background: '#E8EAF6', borderRadius: '8px', padding: '10px 12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
-            <strong style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#434c5b', lineHeight: '1.55' }}>
+            <strong style={{ color: '#434c5b', fontWeight: 600, fontSize: '13px', fontFamily: 'Satoshi, sans-serif' }}>
               Why it matters —{' '}
             </strong>
             {whyItMatters}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Bell, ChevronLeft } from 'lucide-react'
+import { Mail, ChevronLeft, Bell, ChevronDown } from 'lucide-react'
 
 const FORMAT_OPTIONS = [
   { value: 'narrative',  label: 'Narrative summary', description: 'Conversational prose, contextualized takeaways' },
@@ -14,187 +14,274 @@ const DIGEST_BULLETS = [
   'CSL Behring confirms Andembry formulary access in Germany ahead of schedule.',
 ]
 
-function SectionCard({ title, description, children }) {
+// ── Toggle ────────────────────────────────────────────────────────────────────
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
-    <section style={{
-      background: '#FFFFFF', borderRadius: '20px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 4px 12px rgba(5,10,68,0.04)',
-      padding: '24px 28px', marginBottom: '20px',
-    }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-        {title}
-      </h2>
-      {description && (
-        <p style={{ margin: '0 0 18px', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
-          {description}
-        </p>
-      )}
-      {children}
-    </section>
+    <div
+      role="switch"
+      aria-checked={on}
+      className="ariya-focus"
+      tabIndex={0}
+      onClick={() => onChange(!on)}
+      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') onChange(!on) }}
+      style={{
+        width: '42px', height: '24px', borderRadius: '9999px',
+        background: on ? '#2A76F4' : 'rgba(5,10,68,0.15)',
+        position: 'relative', flexShrink: 0, cursor: 'pointer',
+        transition: 'background 150ms ease',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: '3px',
+        left: on ? '21px' : '3px',
+        width: '18px', height: '18px', borderRadius: '50%',
+        background: '#FFFFFF',
+        transition: 'left 150ms ease',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.20)',
+      }} />
+    </div>
   )
 }
 
-function FieldLabel({ children }) {
+// ── Sub-section label ─────────────────────────────────────────────────────────
+function SubLabel({ children }: { children: React.ReactNode }) {
   return (
     <p style={{
-      margin: '0 0 6px', fontSize: '11px', fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.08em',
-      color: 'rgba(5,10,68,0.45)',
+      margin: '0 0 8px',
+      fontSize: '11px', fontWeight: 700,
+      textTransform: 'uppercase', letterSpacing: '0.10em',
+      color: 'rgba(5,10,68,0.40)',
     }}>
       {children}
     </p>
   )
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function MyAlerts() {
-  const [format, setFormat] = useState(() => {
-    return localStorage.getItem('ariya-delivery-format') || 'structured'
-  })
+  const [format, setFormat] = useState(() =>
+    localStorage.getItem('ariya-delivery-format') || 'structured'
+  )
+  const [teamsEnabled, setTeamsEnabled] = useState(() =>
+    localStorage.getItem('ariya-channel-teams') !== 'false'
+  )
 
-  const updateFormat = (value) => {
+  function updateFormat(value: string) {
     setFormat(value)
     localStorage.setItem('ariya-delivery-format', value)
   }
 
+  function updateTeams(value: boolean) {
+    setTeamsEnabled(value)
+    localStorage.setItem('ariya-channel-teams', String(value))
+  }
+
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '880px' }}>
+    <div style={{ padding: '20px 36px 36px' }}>
+
       {/* Breadcrumb */}
       <Link
         to="/myspace"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'rgba(5,10,68,0.45)', textDecoration: 'none', marginBottom: '16px' }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px',
+          fontSize: '14px', fontWeight: 500,
+          fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
+          textDecoration: 'none', marginBottom: '12px',
+        }}
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={15} strokeWidth={2} />
         My Space
       </Link>
 
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-          My Alerts
-        </h1>
-        <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.45)' }}>
-          How and when Ariya delivers signals to you.
+      {/* Page title + subtitle */}
+      <h1 style={{
+        margin: '0 0 4px',
+        fontSize: '28px', fontWeight: 700,
+        fontFamily: 'Satoshi, sans-serif', color: '#10224A',
+        lineHeight: '1.2',
+      }}>
+        My Alerts
+      </h1>
+      <p style={{
+        margin: '0 0 28px',
+        fontSize: '14px', fontFamily: 'Inter, sans-serif',
+        color: 'rgba(5,10,68,0.50)', lineHeight: '1.5',
+      }}>
+        How and when Ariya delivers signals to you.
+      </p>
+
+      {/* ── CARD 1: Delivery preferences ─────────────────────────────────────── */}
+      <section style={{
+        background: '#FFFFFF',
+        borderRadius: '12px',
+        border: '1px solid rgba(210,226,255,1)',
+        padding: '24px',
+        marginBottom: '16px',
+      }}>
+        <p style={{
+          margin: '0 0 2px',
+          fontSize: '16px', fontWeight: 600,
+          fontFamily: 'Satoshi, sans-serif', color: '#10224A',
+        }}>
+          Delivery preferences
         </p>
-      </div>
+        <p style={{
+          margin: '0 0 20px',
+          fontSize: '13px', fontFamily: 'Inter, sans-serif',
+          color: 'rgba(5,10,68,0.50)', lineHeight: '1.5',
+        }}>
+          How and when Ariya sends you signals.
+        </p>
 
-      {/* ── Delivery preferences ─────────────────────────────────────────── */}
-      <SectionCard title="Delivery preferences" description="How and when Ariya sends you signals.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Scheduled delivery */}
-          <div>
-            <FieldLabel>Scheduled delivery</FieldLabel>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 14px', borderRadius: '10px',
-              border: '1.5px solid rgba(5,10,68,0.12)', background: '#FFFFFF',
+        {/* SCHEDULED DELIVERY */}
+        <div style={{ marginBottom: '20px' }}>
+          <SubLabel>Scheduled delivery</SubLabel>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 14px',
+            background: '#FAFBFF',
+            border: '1px solid rgba(210,226,255,1)',
+            borderRadius: '8px',
+            cursor: 'default',
+          }}>
+            <Mail size={15} color="rgba(5,10,68,0.40)" strokeWidth={1.5} />
+            <span style={{
+              flex: 1,
+              fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+              color: '#434c5b', fontWeight: 400,
             }}>
-              <Mail size={14} color="rgba(5,10,68,0.45)" />
-              <select
-                disabled
-                value="weekly-mon-7"
-                style={{
-                  flex: 1, border: 'none', background: 'transparent',
-                  fontSize: '13px', color: 'rgba(5,10,68,0.75)', fontFamily: 'inherit',
-                  cursor: 'not-allowed', outline: 'none',
-                }}
-              >
-                <option value="weekly-mon-7">Weekly digest — Monday 07:00 — Email</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Real-time push */}
-          <div>
-            <FieldLabel>Real-time push</FieldLabel>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              padding: '10px 14px', borderRadius: '10px',
-              border: '1.5px solid rgba(5,10,68,0.12)', background: '#FFFFFF',
-            }}>
-              <Bell size={14} color="rgba(5,10,68,0.45)" />
-              <p style={{ margin: 0, flex: 1, fontSize: '13px', color: 'rgba(5,10,68,0.75)' }}>
-                High-priority alerts — Microsoft Teams
-              </p>
-              <div
-                role="switch"
-                aria-checked="true"
-                style={{
-                  width: '36px', height: '20px', borderRadius: '9999px',
-                  background: '#050A44', position: 'relative', flexShrink: 0,
-                  opacity: 0.7,
-                }}
-              >
-                <div style={{
-                  position: 'absolute', top: '2px', left: '18px',
-                  width: '16px', height: '16px', borderRadius: '50%',
-                  background: '#FFFFFF',
-                }} />
-              </div>
-            </div>
-          </div>
-
-          {/* Format */}
-          <div>
-            <FieldLabel>Format</FieldLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {FORMAT_OPTIONS.map((opt) => {
-                const isSelected = format === opt.value
-                return (
-                  <label
-                    key={opt.value}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '12px',
-                      padding: '10px 14px', borderRadius: '10px',
-                      border: `1.5px solid ${isSelected ? '#050A44' : 'rgba(5,10,68,0.12)'}`,
-                      background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
-                      cursor: 'pointer', transition: 'all 120ms ease',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="delivery-format"
-                      value={opt.value}
-                      checked={isSelected}
-                      onChange={() => updateFormat(opt.value)}
-                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#050A44' }}
-                    />
-                    <div>
-                      <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.92)' }}>
-                        {opt.label}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
-                        {opt.description}
-                      </p>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
+              Weekly digest — Monday 07:00 — Email
+            </span>
+            <ChevronDown size={15} color="rgba(5,10,68,0.35)" strokeWidth={1.5} />
           </div>
         </div>
-      </SectionCard>
 
-      {/* ── Weekly digest preview ────────────────────────────────────────── */}
-      <SectionCard title="Weekly digest preview" description="Preview of your next Monday digest.">
-        <div style={{
-          border: '1px solid rgba(5,10,68,0.10)', borderRadius: '12px',
-          background: '#FAFBFE', padding: '20px 24px',
+        {/* REAL-TIME PUSH */}
+        <div style={{ marginBottom: '20px' }}>
+          <SubLabel>Real-time push</SubLabel>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '10px 14px',
+            background: '#FAFBFF',
+            border: '1px solid rgba(210,226,255,1)',
+            borderRadius: '8px',
+          }}>
+            <Bell size={15} color="rgba(5,10,68,0.40)" strokeWidth={1.5} />
+            <span style={{
+              flex: 1,
+              fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+              color: '#434c5b', fontWeight: 400,
+            }}>
+              High-priority alerts — Microsoft Teams
+            </span>
+            <Toggle on={teamsEnabled} onChange={updateTeams} />
+          </div>
+        </div>
+
+        {/* FORMAT */}
+        <div>
+          <SubLabel>Format</SubLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {FORMAT_OPTIONS.map((opt) => {
+              const isSelected = format === opt.value
+              return (
+                <label
+                  key={opt.value}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                    padding: '10px 14px', borderRadius: '8px',
+                    border: `1px solid ${isSelected ? '#2A76F4' : 'rgba(210,226,255,1)'}`,
+                    background: isSelected ? 'rgba(42,118,244,0.04)' : '#FFFFFF',
+                    cursor: 'pointer', transition: 'all 120ms ease',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="delivery-format"
+                    value={opt.value}
+                    checked={isSelected}
+                    onChange={() => updateFormat(opt.value)}
+                    style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#2A76F4' }}
+                  />
+                  <div>
+                    <p style={{
+                      margin: '0 0 2px',
+                      fontSize: '14px', fontWeight: isSelected ? 600 : 400,
+                      fontFamily: 'Satoshi, sans-serif', color: '#434c5b',
+                    }}>
+                      {opt.label}
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '13px', fontFamily: 'Inter, sans-serif',
+                      color: 'rgba(5,10,68,0.50)',
+                    }}>
+                      {opt.description}
+                    </p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CARD 2: Weekly digest preview ─────────────────────────────────────── */}
+      <section style={{
+        background: '#FFFFFF',
+        borderRadius: '12px',
+        border: '1px solid rgba(210,226,255,1)',
+        padding: '24px',
+      }}>
+        <p style={{
+          margin: '0 0 2px',
+          fontSize: '16px', fontWeight: 600,
+          fontFamily: 'Satoshi, sans-serif', color: '#10224A',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
-            <Mail size={14} color="#0055BB" />
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0055BB' }}>
+          Weekly digest preview
+        </p>
+        <p style={{
+          margin: '0 0 16px',
+          fontSize: '13px', fontFamily: 'Inter, sans-serif',
+          color: 'rgba(5,10,68,0.50)', lineHeight: '1.5',
+        }}>
+          Preview of your next Monday digest.
+        </p>
+
+        <div style={{
+          border: '1px solid rgba(42,118,244,0.18)',
+          borderRadius: '8px',
+          background: 'rgba(42,118,244,0.03)',
+          padding: '14px 18px',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            marginBottom: '12px', paddingBottom: '10px',
+            borderBottom: '1px solid rgba(5,10,68,0.06)',
+          }}>
+            <Mail size={14} color="#2A76F4" strokeWidth={1.5} />
+            <span style={{
+              fontSize: '11px', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+              color: '#2A76F4',
+            }}>
               Subject: Your Ariya weekly digest — Monday 07:00
             </span>
           </div>
           <ul style={{ margin: 0, padding: '0 0 0 18px', listStyleType: 'disc' }}>
             {DIGEST_BULLETS.map((b, i) => (
-              <li key={i} style={{ fontSize: '13px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.6', marginBottom: i < DIGEST_BULLETS.length - 1 ? '6px' : 0 }}>
+              <li key={i} style={{
+                fontSize: '13px', fontFamily: 'Inter, sans-serif',
+                color: '#434c5b', lineHeight: '1.65',
+                marginBottom: i < DIGEST_BULLETS.length - 1 ? '6px' : 0,
+              }}>
                 {b}
               </li>
             ))}
           </ul>
         </div>
-      </SectionCard>
+      </section>
+
     </div>
   )
 }

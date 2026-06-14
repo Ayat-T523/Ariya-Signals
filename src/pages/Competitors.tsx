@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Crosshair, ChevronRight, FileText } from 'lucide-react'
+import { analytics } from '../lib/analytics'
+import { ChevronRight, FileText, BarChart2, Plus } from 'lucide-react'
+import { motion } from 'framer-motion'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import competitors from '../data/competitors.json'
 import alerts from '../data/alerts.json'
 import { formatDate } from '../utils/formatDate'
+import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
+import { usePageLoad } from '../hooks/usePageLoad'
+import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 
 // ── Threat classification (for KPI count) ────────────────────────────────────
 const HIGH_THREAT_POSTURES = new Set([
@@ -255,6 +260,83 @@ function CompetitorListItem({ competitor, isLast }) {
   )
 }
 
+// ── Competitor Card (Figma 84:1682) ──────────────────────────────────────────
+function CompetitorCard({ competitor }) {
+  const [hovered, setHovered] = useState(false)
+  const postureCfg    = POSTURE_CONFIG[competitor.strategicPosture] || { bg: 'rgba(67,76,91,0.15)', text: '#434c5b' }
+  const pipelineCount = (competitor.pipeline || []).length
+  const activityCount = getQuarterlyActivity(competitor.id)
+  const lastActivity  = getMostRecentActivity(competitor.id)
+
+  return (
+    <Link
+      to={`/competitors/${competitor.id}`}
+      style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => analytics.competitor_viewed(competitor.name)}
+    >
+      <div style={{
+        background: '#ffffff',
+        border: '1px solid rgba(210,226,255,1)',
+        borderRadius: '16px',
+        padding: '16px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+        flex: 1, cursor: 'pointer',
+        transition: 'box-shadow 200ms ease',
+        boxShadow: hovered
+          ? '0px 0px 12px 2px rgba(194,219,255,0.80), 0px 0px 40px 4px rgba(194,219,255,0.48)'
+          : 'none',
+      }}>
+
+        {/* Badge + name + posture pill */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ flexShrink: 0 }}>
+            <CompetitorBadge name={competitor.name} size={44} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <p style={{ margin: 0, fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.25' }}>
+              {competitor.name}
+            </p>
+            <span style={{
+              display: 'inline-block', alignSelf: 'flex-start',
+              padding: '4px 8px', borderRadius: '8px',
+              fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
+              background: postureCfg.bg, color: postureCfg.text, whiteSpace: 'nowrap',
+            }}>
+              {competitor.strategicPosture}
+            </span>
+          </div>
+        </div>
+
+        {/* Description */}
+        <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', flex: 1 }}>
+          {competitor.oneLineDescription}
+        </p>
+
+        {/* Three-column stats */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Pipeline</span>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>{pipelineCount} assets</span>
+          </div>
+          <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.10)', flexShrink: 0, margin: '0 4px' }} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Signals</span>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>{activityCount}</span>
+          </div>
+          <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.10)', flexShrink: 0, margin: '0 4px' }} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Last signal</span>
+            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>{formatDate(lastActivity)}</span>
+          </div>
+        </div>
+
+      </div>
+    </Link>
+  )
+}
+
 // ── KeyCompetitorTimeline ─────────────────────────────────────────────────────
 function KeyCompetitorTimeline() {
   const YEARS = [2025, 2026, 2027, 2028, 2029]
@@ -497,148 +579,146 @@ function KeyCompetitorTimeline() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Competitors() {
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter]           = useState('all')
+  const [showTimeline, setShowTimeline] = useState(false)
+  const loaded = usePageLoad('competitors')
 
   const filtered = competitors.filter(c => {
-    if (filter === 'hae-acute') return isHaeAcute(c)
+    if (filter === 'hae-acute')       return isHaeAcute(c)
     if (filter === 'hae-prophylaxis') return isHaeProphylaxis(c)
     return true
   })
 
-  const highThreatCount = competitors.filter(c => HIGH_THREAT_POSTURES.has(c.strategicPosture)).length
-  const totalSignals = alerts.length
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Stats row + KPIs */}
-      <div style={{ padding: '16px 36px 20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            Last refreshed: <span style={{ fontWeight: 600, color: 'var(--font-primary)' }}>2 mins ago</span>
-          </p>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <span style={{ color: 'var(--font-primary)' }}>{competitors.length} tracked competitors</span>
-            <span style={{ margin: '0 6px' }}>•</span>
-            <span style={{ color: 'var(--font-primary)' }}>{totalSignals} signals found</span>
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '36px', flexShrink: 0 }}>
-          {/* KPI: Tracked Competitors */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Crosshair size={14} color='var(--font-secondary)' />
-              <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                {competitors.length}
-              </span>
-            </div>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
-              Tracked
-            </p>
-            <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
-              Competitors
-            </p>
-          </div>
-          {/* KPI: High threat */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Crosshair size={14} color='var(--font-secondary)' />
-              <span style={{ fontSize: '38px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                {highThreatCount}
-              </span>
-            </div>
-            <p style={{ margin: 0, fontSize: '13px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
-              High threat
-            </p>
-            <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
-              direct or incumbent
-            </p>
-          </div>
-        </div>
-      </div>
+      <div data-tour="competitors-page" style={{ padding: '8px 36px 36px' }}>
 
-      {/* Main card surface */}
-      <div style={{ padding: '0 36px 36px' }}>
-        <div style={{
-          background: 'var(--bg-2)',
-          border: '1px solid rgba(210,226,255,1)',
-          borderRadius: '16px',
-          padding: '16px',
-          height: 'calc(100vh - 268px)',
-          minHeight: '500px',
-          overflow: 'hidden',
-          display: 'flex',
-          gap: '16px',
-        }}>
-          {/* LEFT: Competitor list */}
+        {/* Header: subtitle + filter pills + View Timeline button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Filter pills */}
+            <div style={{ display: 'inline-flex', padding: '3px', borderRadius: '9999px', border: '1px solid rgba(210,226,255,1)', gap: '2px' }}>
+              {[
+                { value: 'all',             label: 'All'             },
+                { value: 'hae-acute',       label: 'HAE acute'       },
+                { value: 'hae-prophylaxis', label: 'HAE prophylaxis' },
+              ].map(opt => {
+                const isActive = filter === opt.value
+                return (
+                  <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
+                    padding: '4px 10px', borderRadius: '9999px',
+                    fontSize: '14px', fontWeight: isActive ? 700 : 400,
+                    background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
+                    color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
+                    border: 'none', cursor: 'pointer',
+                    transition: 'all 120ms ease', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                  }}>
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* View Timeline toggle — text + dotted underline style */}
+          <button
+            onClick={() => setShowTimeline(v => !v)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: 'none', border: 'none', padding: '0',
+              cursor: 'pointer', flexShrink: 0,
+              fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
+              color: '#10224A',
+            }}
+          >
+            <BarChart2 size={14} strokeWidth={2} color="#10224A" />
+            <span style={{ borderBottom: '1px dashed #10224A', paddingBottom: '1px', lineHeight: '1.4' }}>
+              {showTimeline ? 'Hide timeline' : 'View timeline'}
+            </span>
+          </button>
+        </div>
+
+        {/* Timeline panel — shown above the grid */}
+        {showTimeline && (
           <div style={{
-            flex: '0 0 380px',
-            background: 'var(--bg-1)',
-            border: '1.8px solid rgba(210,226,255,1)',
+            marginBottom: '0',
+            border: '1px solid rgba(210,226,255,1)',
             borderRadius: '16px',
             overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}>
-            {/* Header + filter tabs */}
-            <div style={{ flexShrink: 0, padding: '14px 14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>Competitors</span>
-              {/* Pill filter row */}
-              <div style={{ display: 'inline-flex', padding: '3px', borderRadius: '9999px', border: '1px solid rgba(210,226,255,1)', gap: '2px' }}>
-                {[
-                  { value: 'all',             label: 'All'             },
-                  { value: 'hae-acute',       label: 'HAE acute'       },
-                  { value: 'hae-prophylaxis', label: 'HAE prophylaxis' },
-                ].map(opt => {
-                  const isActive = filter === opt.value
-                  return (
-                    <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
-                      padding: '4px 10px',
-                      borderRadius: '9999px',
-                      fontSize: '12px',
-                      fontWeight: isActive ? 700 : 400,
-                      background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
-                      color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 120ms ease',
-                      fontFamily: 'inherit',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Scrollable list */}
-            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-              {filtered.length === 0 ? (
-                <p style={{ textAlign: 'center', padding: '40px 16px', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
-                  No competitors match this filter.
-                </p>
-              ) : (
-                filtered.map((c, idx) => (
-                  <CompetitorListItem key={c.id} competitor={c} isLast={idx === filtered.length - 1} />
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT: Timeline */}
-          <div style={{
-            flex: 1,
-            background: 'var(--bg-1)',
-            border: '1.8px solid rgba(210,226,255,1)',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
+            height: '520px',
+            display: 'flex', flexDirection: 'column',
           }}>
             <KeyCompetitorTimeline />
           </div>
-        </div>
+        )}
+
+        {/* Separator between timeline and grid */}
+        {showTimeline && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+              Tracked competitors
+            </span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+          </div>
+        )}
+
+        {/* 3-column card grid */}
+        {filtered.length === 0 ? (
+          <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+            No competitors match this filter.
+          </p>
+        ) : !loaded ? (
+          <SkeletonCompetitorGrid count={competitors.length} />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ duration: 0.35 }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}
+          >
+            {filtered.map(c => (
+              <motion.div
+                key={c.id}
+                variants={listItem}
+                whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+                transition={{ duration: 0.12 }}
+              >
+                <CompetitorCard competitor={c} />
+              </motion.div>
+            ))}
+
+            {/* Add competitor placeholder */}
+            <div style={{
+              border: '1px dashed rgba(210,226,255,1)',
+              borderRadius: '16px',
+              padding: '10px',
+              display: 'flex', flexDirection: 'column',
+            }}>
+              <div style={{
+                background: 'rgba(112,128,144,0.10)',
+                borderRadius: '12px',
+                flex: 1, minHeight: '160px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}>
+                <div style={{
+                  background: 'rgba(112,128,144,0.50)',
+                  borderRadius: '9999px', padding: '6px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Plus size={20} color="#ffffff" strokeWidth={2} />
+                </div>
+                <p style={{ margin: 0, fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.25' }}>
+                  Add competitor
+                </p>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', textAlign: 'center' }}>
+                  Available in paid version
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
       </div>
     </div>
   )
