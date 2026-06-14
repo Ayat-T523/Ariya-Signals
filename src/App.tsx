@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { analytics } from './lib/analytics'
-import { AppProvider } from './context/AppContext'
+import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import Loader from './components/atoms/Loader'
 import Layout from './components/layout/Layout'
@@ -76,14 +76,16 @@ function AuthGuard() {
 // ── Resets onboarding when a new Clerk user signs in ─────────────────────────
 function ClerkOnboardingSyncInner() {
   const { userId } = useAuth()
+  const { openOnboarding } = useApp()
   useEffect(() => {
     if (!userId) return
     const lastId = localStorage.getItem('ariya-last-clerk-user')
     if (lastId !== userId) {
       localStorage.removeItem('onboardingComplete')
       localStorage.setItem('ariya-last-clerk-user', userId)
+      openOnboarding()
     }
-  }, [userId])
+  }, [userId, openOnboarding])
   return null
 }
 
