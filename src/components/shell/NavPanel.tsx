@@ -16,18 +16,20 @@
  *   - Never log data to console
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Home, LayoutGrid, Building2, BarChart3, DollarSign,
   Bell, Sparkles, User, Compass, Settings, HelpCircle, X,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useApp } from '../../context/AppContext'
 import { userData } from '../../data/kalvista'
 import { REDUCED_MOTION } from '../../lib/motion'
+import { DEMO, APP_VERSION } from '../../config/demo-config'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const W_COLLAPSED = 64
@@ -64,7 +66,7 @@ const DECIDE: NavItemDef[] = [
     to: '/myspace', icon: User, label: 'My Space', end: true,
     subItems: [
       { to: '/myspace/alerts',    label: 'My Alerts'    },
-      { to: '/myspace/documents', label: 'My Documents' },
+      { to: '/myspace/documents', label: 'My Documents', disabled: true },
     ],
   },
 ]
@@ -74,13 +76,41 @@ const HELP_SECTIONS = [
   { name: 'War Room',          description: 'Your personalised landing page: the highest-priority signals and recent alerts in one view.' },
   { name: 'Intelligence Feed', description: 'Events calendar, earnings digests, deal landscape, and HTA tracker — all in one feed.' },
   { name: 'Competitors',       description: 'Pipeline, company, and messaging profiles for all tracked competitors with timeline view.' },
-  { name: 'Market Performance',description: 'Sebetralstat uptake vs the HAE class across DE, UK, US, and other key markets.' },
+  { name: 'Market Performance',description: `${DEMO.assetName} uptake vs the ${DEMO.therapeuticArea} class across DE, UK, US, and other key markets.` },
   { name: 'Pricing and Access',description: 'Multi-region pricing benchmark and reimbursement status across tracked markets.' },
   { name: 'Alerts',            description: 'Full signal feed, filterable by type and competitor. Mark alerts read and archive.' },
   { name: 'My Space',          description: 'Configure your delivery preferences, personal saved alerts, and uploaded documents.' },
 ]
 
 function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Auto-focus dialog on open; ESC closes (WCAG 2.1.2)
+  useEffect(() => {
+    dialogRef.current?.focus()
+    function onKeyDown(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    const el = dialogRef.current
+    if (!el) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable.length) return
+      const first = focusable[0], last = focusable[focusable.length - 1]
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus() } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus() } }
+    }
+    el.addEventListener('keydown', onKeyDown)
+    return () => el.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return createPortal(
     <div
       onClick={onClose}
@@ -92,6 +122,11 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
       }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-modal-title"
+        tabIndex={-1}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--bg-1)', borderRadius: '20px',
@@ -100,6 +135,7 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           padding: '36px 40px',
           boxShadow: 'var(--shadow-overlay)',
           position: 'relative',
+          outline: 'none',
         }}
       >
         <button
@@ -114,11 +150,11 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           <X size={18} />
         </button>
 
-        <h2 style={{ margin: '0 0 10px', fontSize: '24px', fontWeight: 700, color: 'var(--font-bold)' }}>
+        <h2 id="help-modal-title" style={{ margin: '0 0 10px', fontSize: '24px', fontWeight: 700, color: 'var(--font-bold)' }}>
           What is Ariya Signals?
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>
-          A competitive intelligence hub for Pharma Inc's HAE franchise. It monitors the competitive
+          A competitive intelligence hub for {DEMO.companyLabel}'s {DEMO.therapeuticArea} franchise. It monitors the competitive
           environment, tracks competitor pipeline and commercial moves, and delivers role-tailored
           insights so you spend less time gathering and more time deciding.
         </p>
@@ -151,6 +187,9 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
             Take the tour
           </button>
         </div>
+        <p style={{ margin: '16px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.22)', textAlign: 'center', letterSpacing: '0.03em' }}>
+          {DEMO.appName} demo · {APP_VERSION}
+        </p>
       </div>
     </div>,
     document.body
@@ -181,7 +220,7 @@ function NavLogo() {
       <div>
         <p style={{
           margin: 0,
-          fontSize: '14px', fontWeight: 700,
+          fontSize: '18px', fontWeight: 700,
           color: '#FFFFFF',
           lineHeight: 1.2, letterSpacing: '-0.01em',
           whiteSpace: 'nowrap',
@@ -190,8 +229,8 @@ function NavLogo() {
         </p>
         <p style={{
           margin: 0,
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.42)',
+          fontSize: '16px',
+          color: 'rgba(255,255,255,0.70)',
           lineHeight: 1, letterSpacing: '0.01em',
         }}>
           by phamax
@@ -379,14 +418,14 @@ function FooterIconBtn({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: '24px', height: '24px',
         background: 'none', border: 'none', cursor: 'pointer',
-        color: 'rgba(255,255,255,0.55)',
+        color: 'rgba(255,255,255,0.75)',
         borderRadius: '4px',
         transition: 'color 150ms ease',
         padding: '4px',
         boxSizing: 'content-box',
       }}
       onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.90)' }}
-      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.55)' }}
+      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)' }}
     >
       <Icon size={16} strokeWidth={1.5} />
       {badge && (
@@ -407,71 +446,91 @@ function FooterIconBtn({
 // ── NavPanel (main export) ────────────────────────────────────────────────────
 export default function NavPanel() {
   const [helpOpen, setHelpOpen] = useState(false)
-  const { unreadCount, openOnboarding, startTour } = useApp()
+  const { unreadCount, openOnboarding, startTour, mobileNavOpen, closeMobileNav } = useApp()
   const navigate = useNavigate()
+
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [isMobile, setIsMobile]     = useState(() => window.innerWidth <= 767)
+
+  // Track mobile breakpoint
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryList | MediaQueryListEvent) => setIsMobile(e.matches)
+    handler(mq)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const user    = userData.user
   const company = userData.company
-
-  // Nav is always expanded — no hover expand/collapse
-  const isExpanded = true
 
   function handleTakeTour() {
     setHelpOpen(false)
     startTour()
   }
 
-  return (
-    <>
-      <nav
-        role="navigation"
-        aria-label="Main navigation"
-        aria-expanded={true}
-        style={{
-          height: '100vh',
-          width: `${W_EXPANDED}px`,
-          background: 'transparent',
-          display: 'flex', flexDirection: 'column',
-          flexShrink: 0,
-          zIndex: 40,
-          overflow: 'hidden',
-        }}
-      >
-        {/* ── Logo ──────────────────────────────────────────────────────────── */}
+  // On mobile the nav always renders in expanded (label-visible) mode
+  const showExpanded = isMobile || isExpanded
+
+  function NavContent() {
+    return (
+      <>
+        {/* ── Logo + collapse/close toggle ─────────────────────────────── */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          paddingTop: '24px',
-          paddingBottom: '12px',
-          paddingLeft: '12px',
-          paddingRight: '12px',
+          position: 'relative',
+          display: 'flex', alignItems: 'center',
+          paddingTop: '24px', paddingBottom: '12px',
+          paddingLeft: '12px', paddingRight: '12px',
           flexShrink: 0,
         }}>
           <NavLogo />
+          {isMobile ? (
+            <button
+              onClick={closeMobileNav}
+              aria-label="Close navigation"
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '24px', height: '24px', background: 'none', border: 'none',
+                cursor: 'pointer', color: 'rgba(255,255,255,0.75)', borderRadius: '4px', padding: 0,
+              }}
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsExpanded(v => !v)}
+              aria-label={isExpanded ? 'Collapse nav' : 'Expand nav'}
+              title={isExpanded ? 'Collapse nav' : 'Expand nav'}
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: '24px', height: '24px', background: 'none', border: 'none',
+                cursor: 'pointer', color: 'rgba(255,255,255,0.75)', borderRadius: '4px', padding: 0, flexShrink: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)' }}
+            >
+              {isExpanded ? <ChevronLeft size={16} strokeWidth={1.5} /> : <ChevronRight size={16} strokeWidth={1.5} />}
+            </button>
+          )}
         </div>
 
-        {/* ── Nav scroll area ───────────────────────────────────────────────── */}
-        <div
-          className="hide-scrollbar"
-          style={{
-            flex: 1,
-            overflowY: 'auto', overflowX: 'hidden',
-            padding: isExpanded ? '8px 12px' : '8px 12px',
-          }}
-        >
-          {isExpanded && <GroupLabel label="Monitor" />}
+        {/* ── Nav scroll area ──────────────────────────────────────────── */}
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 12px' }}>
+          {showExpanded && <GroupLabel label="Monitor" />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {MONITOR.map(item => (
-              <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
+              <NavItem key={item.to} item={item} isExpanded={showExpanded} unreadCount={unreadCount} />
             ))}
           </div>
 
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
 
-          {isExpanded && <GroupLabel label="Decide" />}
+          {showExpanded && <GroupLabel label="Decide" />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {DECIDE.map(item => (
-              <NavItem key={item.to} item={item} isExpanded={isExpanded} unreadCount={unreadCount} />
+              <NavItem key={item.to} item={item} isExpanded={showExpanded} unreadCount={unreadCount} />
             ))}
           </div>
         </div>
@@ -489,29 +548,22 @@ export default function NavPanel() {
             gap: '10px',
             marginBottom: '10px',
             overflow: 'hidden',
-            justifyContent: isExpanded ? 'flex-start' : 'center',
+            justifyContent: showExpanded ? 'flex-start' : 'center',
           }}>
-            {/* User avatar SVG */}
+            {/* User avatar — generic icon */}
             <div
               title={`${user.name} · ${company}`}
               style={{
-                width: '44px', height: '44px', borderRadius: '50%',
+                width: '36px', height: '36px', borderRadius: '50%',
                 flexShrink: 0, cursor: 'default',
-                overflow: 'hidden',
-                border: '2px solid rgba(255,255,255,0.30)',
+                background: 'rgba(255,255,255,0.12)',
+                border: '1.5px solid rgba(255,255,255,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <img
-                src="/avatar-user.svg"
-                alt={user.name}
-                style={{
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
+              <User size={18} color="rgba(255,255,255,0.80)" strokeWidth={1.5} />
             </div>
-            {isExpanded && (
+            {showExpanded && (
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
                   margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--bg-1)',
@@ -520,7 +572,7 @@ export default function NavPanel() {
                   {user.name}
                 </p>
                 <p style={{
-                  margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.50)',
+                  margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.70)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {company}
@@ -532,35 +584,60 @@ export default function NavPanel() {
           {/* Utility icons — column when collapsed, row when expanded */}
           <div style={{
             display: 'flex',
-            flexDirection: isExpanded ? 'row' : 'column',
+            flexDirection: showExpanded ? 'row' : 'column',
             alignItems: 'center',
-            justifyContent: isExpanded ? 'flex-start' : 'center',
-            gap: isExpanded ? '4px' : '8px',
+            justifyContent: showExpanded ? 'flex-start' : 'center',
+            gap: showExpanded ? '4px' : '8px',
           }}>
-            <FooterIconBtn
-              icon={Compass}
-              label="Take the tour"
-              onClick={openOnboarding}
-            />
+            <FooterIconBtn icon={Compass} label="Take the tour" onClick={openOnboarding} />
             <FooterIconBtn
               icon={Bell}
               label={`${unreadCount} unread alert${unreadCount !== 1 ? 's' : ''}`}
               onClick={() => navigate('/alerts')}
               badge={unreadCount > 0}
             />
-            <FooterIconBtn
-              icon={HelpCircle}
-              label="Help"
-              onClick={() => setHelpOpen(true)}
-            />
-            <FooterIconBtn
-              icon={Settings}
-              label="Admin"
-              onClick={() => navigate('/admin')}
-            />
+            <FooterIconBtn icon={HelpCircle} label="Help" onClick={() => setHelpOpen(true)} />
+            <FooterIconBtn icon={Settings} label="Admin" onClick={() => navigate('/admin')} />
           </div>
         </div>
-      </nav>
+      </>
+    )
+  }
+
+  return (
+    <>
+      {/* Mobile backdrop — closes nav on tap outside */}
+      {isMobile && mobileNavOpen && createPortal(
+        <div
+          aria-hidden="true"
+          onClick={closeMobileNav}
+          style={{ position: 'fixed', inset: 0, zIndex: 199, background: 'rgba(0,0,0,0.50)' }}
+        />,
+        document.body
+      )}
+
+      {/* The actual nav — fixed overlay on mobile-open, in-flow on desktop */}
+      {(!isMobile || mobileNavOpen) && (
+        <nav
+          role="navigation"
+          aria-label="Main navigation"
+          aria-expanded={showExpanded}
+          style={{
+            position: isMobile ? 'fixed' : 'relative',
+            left: 0, top: 0,
+            height: '100vh',
+            width: isMobile ? `${W_EXPANDED}px` : `${isExpanded ? W_EXPANDED : W_COLLAPSED}px`,
+            transition: isMobile ? 'none' : 'width 200ms ease',
+            background: 'transparent',
+            display: 'flex', flexDirection: 'column',
+            flexShrink: 0,
+            zIndex: isMobile ? 200 : 40,
+            overflow: 'hidden',
+          }}
+        >
+          <NavContent />
+        </nav>
+      )}
 
       {helpOpen && (
         <HelpModal onClose={() => setHelpOpen(false)} onTakeTour={handleTakeTour} />

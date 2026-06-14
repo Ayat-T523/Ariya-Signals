@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import { REDUCED_MOTION } from '../../../lib/motion'
+import { DEMO } from '../../../config/demo-config'
 
 // ── Mini Gantt column definitions ─────────────────────────────────────────────
 // Compressed view: Q3 2025 → Q4 2027 quarterly, then 2028 / 2029 annual
@@ -123,7 +124,7 @@ const INDICATION_SECTION_LABEL = {
 const COMP_ROWS_BY_TYPE = {
   'on-demand': [
     {
-      competitorId: 'pharma-inc', name: 'Pharma Inc', drugLabel: 'Ekterly (sebetralstat)',
+      competitorId: 'pharma-inc', name: DEMO.companyLabel, drugLabel: `${DEMO.assetName} (${DEMO.assetGenericName})`,
       threat: null, isOwn: true,
       bars: [{ sy: 2025, sq: 4, ey: 2026, eq: 2, phase: 'own' }],
       milestones: [{ y: 2026, q: 3, type: 'approval', label: 'US' }],
@@ -292,7 +293,7 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
   const totalW = MINI_LABEL_W + MINI_THREAT_W + MINI_COLS.length * MINI_COL_W
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div tabIndex={0} aria-label="Pipeline comparison chart — scroll horizontally to see all assets" style={{ overflowX: 'auto', outline: 'none' }}>
       <div style={{ minWidth: totalW }}>
 
         {/* Legend */}
@@ -302,7 +303,7 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
             { marker: <FileText size={13} color="#0055BB" />,                                                                                                     label: 'Filing'            },
             { marker: <Check size={13} color="#059669" strokeWidth={2.5} />,                                                                                      label: 'Approval'          },
             { marker: <span style={{ fontSize: 14, color: 'rgba(5,10,68,0.45)', lineHeight: 1 }}>○</span>,                                                        label: 'Phase start'       },
-            { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: MINI_PHASE_CFG.own.bg, border: `1px solid ${MINI_PHASE_CFG.own.border}` }} />, label: 'Ekterly (own product)' },
+            { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: MINI_PHASE_CFG.own.bg, border: `1px solid ${MINI_PHASE_CFG.own.border}` }} />, label: `${DEMO.assetName} (own product)` },
             { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: 'rgba(245,158,11,0.18)' }} />,                  label: 'Today'             },
           ].map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -667,7 +668,7 @@ export default function PipelineTab({ competitor }) {
   const assets = competitor.pipeline || []
 
   if (!assets.length) {
-    return <EmptyState message="No pipeline assets recorded in HAE." />
+    return <EmptyState message={`No pipeline assets recorded in ${DEMO.therapeuticArea}.`} />
   }
 
   return (

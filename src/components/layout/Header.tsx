@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { Bell, Sparkles, HelpCircle, X } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import user from '../../data/user.json'
+import { DEMO } from '../../config/demo-config'
 
 // ── Help modal content (Task 6c) ──────────────────────────────────────────────
 const HELP_SECTIONS = [
   { name: 'War Room',            description: 'Your personalised landing page with the signals that matter most to you this week.' },
   { name: 'Competitors',         description: 'Pipeline, company, and messaging profiles for all 8 tracked competitors.' },
-  { name: 'Market Performance',  description: 'Ekterly uptake vs the HAE class across DE, UK, and US.' },
+  { name: 'Market Performance',  description: `${DEMO.assetName} uptake vs the ${DEMO.therapeuticArea} class across DE, UK, and US.` },
   { name: 'Intelligence Feed',   description: 'Events calendar, earnings digests, deal landscape, and HTA tracker.' },
   { name: 'Pricing and Access',  description: 'Multi-region pricing benchmark across 7 markets.' },
   { name: 'Alerts',              description: 'Full signal feed, filterable by type and competitor.' },
@@ -55,7 +56,7 @@ function HelpModal({ onClose, onTakeTour }) {
           What is Ariya Signals?
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'rgba(5,10,68,0.62)', lineHeight: '1.65' }}>
-          A competitive intelligence hub for Pharma Inc's HAE franchise. It monitors Ekterly's competitive
+          A competitive intelligence hub for {DEMO.companyLabel}'s {DEMO.therapeuticArea} franchise. It monitors {DEMO.assetName}'s competitive
           environment, tracks competitor pipeline and commercial moves, and delivers role-tailored insights
           so you spend less time gathering and more time deciding.
         </p>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 import { ChevronLeft, ChevronDown, Eye } from 'lucide-react'
+import { ExportButton } from '../components/ui/ExportButton'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import AIButton from '../components/ui/AIButton'
@@ -14,9 +16,9 @@ import competitors from '../data/competitors.json'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { label: 'Pipeline' },
-  { label: 'Company'  },
-  { label: 'Messaging'},
+  { label: 'Pipeline',  id: 'tab-pipeline',  panelId: 'panel-pipeline'  },
+  { label: 'Company',   id: 'tab-company',   panelId: 'panel-company'   },
+  { label: 'Messaging', id: 'tab-messaging', panelId: 'panel-messaging' },
 ]
 
 // ── Executive summary card — matches Figma 104:777 ───────────────────────────
@@ -71,27 +73,43 @@ function ExecutiveSummaryCard({ summary }) {
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 function TabBar({ activeTab, onChange, competitorId }) {
+  function handleKeyDown(e: React.KeyboardEvent, i: number) {
+    if (e.key === 'ArrowRight') { e.preventDefault(); onChange((i + 1) % TABS.length) }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); onChange((i - 1 + TABS.length) % TABS.length) }
+    if (e.key === 'Home')       { e.preventDefault(); onChange(0) }
+    if (e.key === 'End')        { e.preventDefault(); onChange(TABS.length - 1) }
+  }
   return (
-    <div style={{
-      display: 'flex',
-      padding: '0 36px',
-      borderBottom: '2px solid rgba(5,10,68,0.06)',
-    }}>
+    <div
+      role="tablist"
+      aria-label="Competitor profile sections"
+      style={{
+        display: 'flex',
+        padding: '0 36px',
+        borderBottom: '2px solid rgba(5,10,68,0.06)',
+      }}
+    >
       {TABS.map((tab, i) => {
         const isActive = activeTab === i
         return (
           <button
             key={tab.label}
+            id={tab.id}
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={tab.panelId}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => {
               onChange(i)
               analytics.competitor_tab_viewed(tab.label, competitorId)
             }}
+            onKeyDown={(e) => handleKeyDown(e, i)}
             style={{
               padding: '10px 20px',
               fontSize: '14px',
               fontFamily: 'Satoshi, sans-serif',
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#434c5b' : 'rgba(5,10,68,0.40)',
+              color: isActive ? '#434c5b' : 'rgba(5,10,68,0.55)',
               background: 'none',
               border: 'none',
               borderBottom: isActive ? '2px solid #434c5b' : '2px solid transparent',
@@ -115,6 +133,7 @@ export default function CompetitorProfile() {
   const [activeTab, setActiveTab] = useState(0)
 
   const competitor = competitors.find((c) => c.id === id)
+  useDocumentTitle(competitor?.name ?? 'Competitor Profile')
   if (!competitor) {
     return (
       <NotFoundState
@@ -181,6 +200,7 @@ export default function CompetitorProfile() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <ExportButton label="Export" />
             <button style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               padding: '7px 16px',
@@ -210,13 +230,22 @@ export default function CompetitorProfile() {
 
       {/* ── TAB CONTENT (scrollable with page) ────────────────────────────── */}
       <div style={{ padding: '20px 36px 36px' }}>
-        <div style={{ display: activeTab === 0 ? 'block' : 'none' }}>
+        <div
+          id={TABS[0].panelId} role="tabpanel" aria-labelledby={TABS[0].id} tabIndex={0}
+          style={{ display: activeTab === 0 ? 'block' : 'none', outline: 'none' }}
+        >
           <PipelineTab competitor={competitor} />
         </div>
-        <div style={{ display: activeTab === 1 ? 'block' : 'none' }}>
+        <div
+          id={TABS[1].panelId} role="tabpanel" aria-labelledby={TABS[1].id} tabIndex={0}
+          style={{ display: activeTab === 1 ? 'block' : 'none', outline: 'none' }}
+        >
           <CompanyTab competitor={competitor} />
         </div>
-        <div style={{ display: activeTab === 2 ? 'block' : 'none' }}>
+        <div
+          id={TABS[2].panelId} role="tabpanel" aria-labelledby={TABS[2].id} tabIndex={0}
+          style={{ display: activeTab === 2 ? 'block' : 'none', outline: 'none' }}
+        >
           <MessagingTab competitor={competitor} />
         </div>
       </div>

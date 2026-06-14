@@ -32,14 +32,14 @@ export default function PricingAndAccess() {
         border: '1px solid rgba(210,226,255,1)',
         overflow: 'hidden',
       }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
             <thead>
               <tr style={{
                 background: 'rgba(5,10,68,0.03)',
                 borderBottom: '1px solid rgba(210,226,255,1)',
               }}>
-                <th style={headerCellStyle('left')}>Product</th>
+                <th style={{ ...headerCellStyle('left'), position: 'sticky', left: 0, zIndex: 2, background: 'rgba(5,10,68,0.03)' }}>Product</th>
                 <th style={headerCellStyle('left')}>Company</th>
                 <th style={headerCellStyle('left')}>Indication</th>
                 {markets.map((m) => (
@@ -59,8 +59,8 @@ export default function PricingAndAccess() {
                       background: isOurs ? 'rgba(42,118,244,0.06)' : 'transparent',
                     }}
                   >
-                    {/* Product name + badge */}
-                    <td style={bodyCellStyle('left', isOurs)}>
+                    {/* Product name + badge — sticky first column */}
+                    <td style={{ ...bodyCellStyle('left', isOurs), position: 'sticky', left: 0, zIndex: 1, background: isOurs ? 'rgba(42,118,244,0.06)' : '#FFFFFF' }}>
                       <span style={{ fontFamily: 'Satoshi, sans-serif' }}>{row.name}</span>
                       {isOurs && (
                         <span style={{

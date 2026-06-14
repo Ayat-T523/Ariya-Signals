@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import Loader from './components/atoms/Loader'
 import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
+import { useDocumentTitle } from './hooks/useDocumentTitle'
 
 // ── Lazy page chunks — each page loads only when first visited ────────────────
 const WarRoom           = lazy(() => import('./pages/WarRoom'))
@@ -21,13 +22,20 @@ const MySpace           = lazy(() => import('./pages/MySpace'))
 const MyAlerts          = lazy(() => import('./pages/MyAlerts'))
 const MyDocuments       = lazy(() => import('./pages/MyDocuments'))
 
-// ── PostHog page-view tracker ─────────────────────────────────────────────────
+// ── Per-route document title ──────────────────────────────────────────────────
+function RouteTitle({ title }: { title: string }) {
+  useDocumentTitle(title)
+  return null
+}
+
+// ── PostHog page-view tracker + session-route persistence ─────────────────────
 function PostHogPageTracker() {
   const location = useLocation()
   const prevPathRef = useRef<string | undefined>(undefined)
   useEffect(() => {
     analytics.page_viewed(location.pathname, prevPathRef.current)
     prevPathRef.current = location.pathname
+    sessionStorage.setItem('ariya-last-route', location.pathname)
   }, [location.pathname])
   return null
 }
@@ -56,20 +64,20 @@ export default function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route element={<Layout />}>
-                <Route path="/"                   element={<WarRoom />} />
-                <Route path="/competitors"          element={<Competitors />} />
+                <Route path="/"                   element={<><RouteTitle title="War Room" /><WarRoom /></>} />
+                <Route path="/competitors"          element={<><RouteTitle title="Competitors" /><Competitors /></>} />
                 <Route path="/competitors/timeline" element={<Navigate to="/competitors" replace />} />
                 <Route path="/competitors/:id"      element={<CompetitorProfile />} />
-                <Route path="/market-performance"   element={<MarketPerformance />} />
-                <Route path="/intelligence"         element={<Portal />} />
+                <Route path="/market-performance"   element={<><RouteTitle title="Market Performance" /><MarketPerformance /></>} />
+                <Route path="/intelligence"         element={<><RouteTitle title="Intelligence Feed" /><Portal /></>} />
                 <Route path="/portal"               element={<Navigate to="/intelligence" replace />} />
-                <Route path="/pricing"              element={<PricingAndAccess />} />
-                <Route path="/alerts"               element={<AlertsPage />} />
-                <Route path="/myspace"              element={<MySpace />} />
-                <Route path="/myspace/alerts"       element={<MyAlerts />} />
-                <Route path="/myspace/documents"    element={<MyDocuments />} />
-                <Route path="/ask"                  element={<Ask />} />
-                <Route path="/admin"                element={<AdminPage />} />
+                <Route path="/pricing"              element={<><RouteTitle title="Pricing & Access" /><PricingAndAccess /></>} />
+                <Route path="/alerts"               element={<><RouteTitle title="Alerts" /><AlertsPage /></>} />
+                <Route path="/myspace"              element={<><RouteTitle title="My Space" /><MySpace /></>} />
+                <Route path="/myspace/alerts"       element={<><RouteTitle title="Alert Preferences" /><MyAlerts /></>} />
+                <Route path="/myspace/documents"    element={<><RouteTitle title="My Documents" /><MyDocuments /></>} />
+                <Route path="/ask"                  element={<><RouteTitle title="Ask Ariya" /><Ask /></>} />
+                <Route path="/admin"                element={<><RouteTitle title="Admin" /><AdminPage /></>} />
                 <Route path="*"                     element={<NotFoundState />} />
               </Route>
             </Routes>

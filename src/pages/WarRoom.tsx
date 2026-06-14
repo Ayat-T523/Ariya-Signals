@@ -18,6 +18,7 @@ import {
 import { useApp } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
+import { ExportButton } from '../components/ui/ExportButton'
 import {
   alertsData,
   competitorsData,
@@ -25,6 +26,7 @@ import {
   userData,
   DEMO_SNAPSHOT_DATE,
 } from '../data/kalvista'
+import { DEMO } from '../config/demo-config'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Alert      = (typeof alertsData)[0]
@@ -43,7 +45,7 @@ const SEVERITY_BORDER: Record<string, string> = {
 const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
   high:   { bg: 'rgba(225,29,72,0.10)',  text: '#C01041',           label: 'HIGH' },
   medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',           label: 'MED'  },
-  low:    { bg: 'rgba(5,10,68,0.06)',    text: 'rgba(5,10,68,0.55)', label: 'LOW'  },
+  low:    { bg: 'rgba(5,10,68,0.06)',    text: 'rgba(5,10,68,0.70)', label: 'LOW'  },
 }
 
 const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
@@ -92,12 +94,12 @@ const NEEDLE_ITEMS: { competitorId: string; text: string }[] = [
 
 const IMPLICATION_ITEMS = [
   "Sebetralstat's first-mover window is compressing — plausibly 18 months ahead of Pharvaris rather than 24. Commercial readiness and KOL anchoring should accelerate.",
-  "Pediatric expansion across Takhzyro and Andembry creates pressure to clarify Ekterly's pediatric narrative within Q3 to avoid ceding ground in this segment.",
+  `Pediatric expansion across Takhzyro and Andembry creates pressure to clarify ${DEMO.assetName}'s pediatric narrative within Q3 to avoid ceding ground in this segment.`,
   "Incumbents' defensive posture is softening on tone (BioCryst, CSL) but tightening on access — double down on real-world time-to-relief evidence to support switching conversations.",
 ]
 
 const ASK_PROMPTS = [
-  'Compare Pharvaris vs Ekterly timeline',
+  `Compare Pharvaris vs ${DEMO.assetName} timeline`,
   "Summarise Takeda's pediatric narrative",
   'Draft IR talking points',
 ]
@@ -185,7 +187,7 @@ function CardHeader({ title, subtitle, right }: {
           {title}
         </h2>
         {subtitle && (
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.60)' }}>
             {subtitle}
           </span>
         )}
@@ -233,7 +235,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
       <p style={{
         margin: 0, fontSize: '10px', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'rgba(5,10,68,0.45)',
+        color: 'rgba(5,10,68,0.65)',
       }}>
         {label}
       </p>
@@ -249,7 +251,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
             display: 'inline-flex', alignItems: 'center', gap: '2px',
             fontSize: '12px', fontWeight: 600, color: deltaColor,
           }}>
-            <ArrowUpRight size={12} />
+            <ArrowUpRight size={12} aria-hidden="true" />
             {delta}
           </span>
         )}
@@ -312,7 +314,7 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
         }}>
           {sevLabel.label}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
           {relTimeShort(alert.timestamp)}
         </span>
       </div>
@@ -323,7 +325,7 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
           {alert.headline}
         </p>
         {alert.source && (
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
             {alert.source}
           </span>
         )}
@@ -333,7 +335,7 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
       {alert.whyItMatters && (
         <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.62)', lineHeight: 1.5 }}>
           <strong style={{
-            fontSize: '10px', fontWeight: 700, color: 'rgba(5,10,68,0.45)',
+            fontSize: '10px', fontWeight: 700, color: 'rgba(5,10,68,0.65)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
             WHY —{' '}
@@ -402,7 +404,7 @@ function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
         borderTop: '1px solid rgba(5,10,68,0.06)',
       }}>
         <div>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
             Pipeline
           </p>
           <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.85)' }}>
@@ -410,7 +412,7 @@ function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
             Last signal
           </p>
           <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.65)' }}>
@@ -441,7 +443,7 @@ function EventRow({ event, last }: { event: EventItem; last: boolean }) {
         <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {day}
         </p>
-        <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(5,10,68,0.65)' }}>
           {month}
         </p>
       </div>
@@ -466,7 +468,7 @@ function EventRow({ event, last }: { event: EventItem; last: boolean }) {
       </div>
 
       {/* Countdown */}
-      <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
         {daysUntilLabel(event.date)}
       </span>
     </Link>
@@ -519,7 +521,7 @@ export default function WarRoom() {
   const StatusIcon = statusCfg.icon
 
   return (
-    <div style={{ padding: '20px 32px' }}>
+    <div data-page-pad style={{ padding: '20px 32px' }}>
 
       {/* ── Top header: timestamp + greeting + actions ──────────────────── */}
       <div style={{
@@ -529,7 +531,7 @@ export default function WarRoom() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
             margin: '0 0 4px', fontSize: '11px', fontWeight: 700,
-            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)',
+            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)',
           }}>
             {headerTimestamp()}
           </p>
@@ -539,11 +541,11 @@ export default function WarRoom() {
           }}>
             {greeting()}, {userData.user.name}.{' '}
             <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
-              Here's the state of HAE.
+              Here's the state of {DEMO.therapeuticArea}.
             </span>
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
-            Ekterly · HAE · {trackedCompetitorCount} tracked competitors · {alertsData.length} signals on file
+            {DEMO.assetName} · {DEMO.therapeuticArea} · {trackedCompetitorCount} tracked competitors · {alertsData.length} signals on file
           </p>
         </div>
 
@@ -583,7 +585,7 @@ export default function WarRoom() {
       </div>
 
       {/* ── 3 KPI tiles ─────────────────────────────────────────────────── */}
-      <div style={{
+      <div data-tour="war-room" data-kpi-grid style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
         gap: '14px', marginBottom: '20px',
       }}>
@@ -617,7 +619,7 @@ export default function WarRoom() {
       </div>
 
       {/* ── 2-column main grid ──────────────────────────────────────────── */}
-      <div style={{
+      <div data-war-room-grid style={{
         display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px',
         gap: '20px', alignItems: 'flex-start',
       }}>
@@ -641,6 +643,7 @@ export default function WarRoom() {
                       <button
                         key={opt.value}
                         onClick={() => setSortMode(opt.value)}
+                        aria-pressed={on}
                         style={{
                           padding: '4px 10px', borderRadius: '9999px',
                           fontSize: '11px', fontWeight: on ? 700 : 500,
@@ -672,7 +675,7 @@ export default function WarRoom() {
               subtitle="last 7 days · signal volume"
               right={<HeaderLink to="/competitors">All competitors</HeaderLink>}
             />
-            <div style={{
+            <div data-two-col-grid style={{
               display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
               gap: '12px',
             }}>
@@ -690,21 +693,24 @@ export default function WarRoom() {
                 Ask Ariya
               </h2>
             </div>
-            <div
+            <button
+              type="button"
+              onClick={() => openAskModal('war-room-ask-panel')}
+              aria-label={`Ask Ariya: What changed for ${DEMO.assetName} this week?`}
               style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '10px 14px', borderRadius: '10px',
                 background: '#FAFBFE',
                 border: '1px solid rgba(5,10,68,0.10)',
                 cursor: 'pointer', marginBottom: '12px',
+                width: '100%', textAlign: 'left', fontFamily: 'inherit',
               }}
-              onClick={() => openAskModal('war-room-ask-panel')}
             >
-              <Search size={14} color="rgba(5,10,68,0.40)" />
-              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)' }}>
-                What changed for Ekterly this week?
+              <Search size={14} color="rgba(5,10,68,0.50)" aria-hidden="true" />
+              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.55)' }}>
+                What changed for {DEMO.assetName} this week?
               </span>
-            </div>
+            </button>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {ASK_PROMPTS.map((prompt) => (
                 <button
@@ -732,16 +738,19 @@ export default function WarRoom() {
           {/* Market weather */}
           <Card>
             <CardHeader
-              title="Market weather · Ekterly"
+              title={`Market weather · ${DEMO.assetName}`}
               right={
-                <span style={{
-                  padding: '2px 9px', borderRadius: '9999px',
-                  background: 'rgba(5,10,68,0.06)',
-                  fontSize: '10px', fontWeight: 700,
-                  color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
-                }}>
-                  30D
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    padding: '2px 9px', borderRadius: '9999px',
+                    background: 'rgba(5,10,68,0.06)',
+                    fontSize: '10px', fontWeight: 700,
+                    color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
+                  }}>
+                    30D
+                  </span>
+                  <ExportButton label="Export" />
+                </div>
               }
             />
 
@@ -766,7 +775,7 @@ export default function WarRoom() {
               <p style={{
                 margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.10em',
-                color: 'rgba(5,10,68,0.45)',
+                color: 'rgba(5,10,68,0.65)',
               }}>
                 What moved this week
               </p>
@@ -775,7 +784,7 @@ export default function WarRoom() {
                   const cName = competitorById(item.competitorId)?.name ?? item.competitorId
                   return (
                     <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.40)', flexShrink: 0 }} />
+                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
                       <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
                         <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
                         {' — '}{item.text}
@@ -791,14 +800,14 @@ export default function WarRoom() {
               <p style={{
                 margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.10em',
-                color: 'rgba(5,10,68,0.45)',
+                color: 'rgba(5,10,68,0.65)',
               }}>
                 Implications · last 7 days
               </p>
               <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {IMPLICATION_ITEMS.map((text, i) => (
                   <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                    <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.40)', flexShrink: 0 }} />
+                    <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
                     <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
                       {text}
                     </span>
@@ -861,7 +870,7 @@ export default function WarRoom() {
             <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {DIGEST_ITEMS.map((text, i) => (
                 <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                  <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.40)', flexShrink: 0 }} />
+                  <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
                   <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
                     {text}
                   </span>

@@ -608,7 +608,7 @@ export default function Competitors() {
                 return (
                   <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
                     padding: '4px 10px', borderRadius: '9999px',
-                    fontSize: '12px', fontWeight: isActive ? 700 : 400,
+                    fontSize: '14px', fontWeight: isActive ? 700 : 400,
                     background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
                     color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
                     border: 'none', cursor: 'pointer',
@@ -628,7 +628,7 @@ export default function Competitors() {
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               background: 'none', border: 'none', padding: '0',
               cursor: 'pointer', flexShrink: 0,
-              fontSize: '13px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
+              fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
               color: '#10224A',
             }}
           >

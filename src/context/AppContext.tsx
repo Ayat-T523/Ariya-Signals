@@ -96,6 +96,9 @@ export function AppProvider({ children }) {
     try { localStorage.setItem('onboardingComplete', 'true') } catch { /* noop */ }
   }
 
+  // ── Mobile nav overlay ───────────────────────────────────────────────────
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
   // ── AI modal state ────────────────────────────────────────────────────────
   const [askModal, setAskModal] = useState({ open: false, source: null })
 
@@ -177,6 +180,9 @@ export function AppProvider({ children }) {
         tourActive,
         startTour,
         endTour,
+        mobileNavOpen,
+        openMobileNav: () => setMobileNavOpen(true),
+        closeMobileNav: () => setMobileNavOpen(false),
         askModal,
         openAskModal,
         closeAskModal,

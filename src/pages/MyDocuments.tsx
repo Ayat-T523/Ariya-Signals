@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Upload, FileText, ChevronLeft, File, SlidersHorizontal } from 'lucide-react'
+import { DEMO } from '../config/demo-config'
 
-const CAPABILITY_REQUEST_URL = 'mailto:ariya@phamax.com?subject=Request%3A%20My%20Documents%20capability&body=I%20would%20like%20to%20use%20the%20My%20Documents%20capability%20in%20Ariya%20Signals.'
+const CAPABILITY_REQUEST_URL = DEMO.capabilityRequestUrl
 
 const MOCK_DOCUMENTS = [
   {
@@ -13,7 +14,7 @@ const MOCK_DOCUMENTS = [
     icon: File,
   },
   {
-    name: 'Internal Ekterly launch readiness brief.docx',
+    name: `Internal ${DEMO.assetName} launch readiness brief.docx`,
     type: 'Word',
     date: 'Mar 28, 2026',
     size: '1.1 MB',

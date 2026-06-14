@@ -16,6 +16,8 @@ import { Component, type ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
+  /** Optional slim fallback rendered inside the content area (route-level use). */
+  fallback?: ReactNode
 }
 
 interface State {
@@ -34,8 +36,14 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload()
   }
 
+  handleReset = () => {
+    this.setState({ hasError: false, message: '' })
+  }
+
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback
+
       return (
         <div
           role="alert"
@@ -81,4 +89,44 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children
   }
+}
+
+// ── Slim in-page fallback rendered when a route-level boundary catches ────────
+export function PageErrorFallback() {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '80px 24px', gap: '10px',
+        fontFamily: 'Satoshi, sans-serif',
+      }}
+    >
+      <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'rgba(5,10,68,0.75)' }}>
+        This page couldn't load.
+      </p>
+      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.45)', maxWidth: '340px', textAlign: 'center' }}>
+        Use the navigation on the left to go to another page, or reload to try again.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="ariya-focus"
+        style={{
+          marginTop: '8px',
+          padding: '7px 20px',
+          borderRadius: '6px',
+          background: '#2A76F4',
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '13px',
+          fontWeight: 600,
+          fontFamily: 'inherit',
+        }}
+      >
+        Reload
+      </button>
+    </div>
+  )
 }

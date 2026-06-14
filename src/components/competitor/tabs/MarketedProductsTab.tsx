@@ -3,6 +3,7 @@ import {
 } from 'recharts'
 import EmptyState from '../../ui/EmptyState'
 import { formatDateAbs } from '../../../utils/formatDate'
+import { DEMO } from '../../../config/demo-config'
 
 // ── Revenue chart (per D-003) ─────────────────────────────────────────────────
 function RevenueChart({ data }) {
@@ -156,7 +157,7 @@ export default function MarketedProductsTab({ competitor }) {
 
   if (!products.length) {
     return (
-      <EmptyState message={`No marketed HAE products. Lead asset in late-stage development — see Pipeline tab.`} />
+      <EmptyState message={`No marketed ${DEMO.therapeuticArea} products. Lead asset in late-stage development — see Pipeline tab.`} />
     )
   }
 

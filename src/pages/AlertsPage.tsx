@@ -44,7 +44,7 @@ const SEVERITY_BORDER = {
 const SEVERITY_LABEL = {
   high:   { text: '#C01041', bg: 'rgba(225,29,72,0.10)' },
   medium: { text: '#92500A', bg: 'rgba(245,158,11,0.10)' },
-  low:    { text: 'rgba(5,10,68,0.45)', bg: 'rgba(5,10,68,0.06)' },
+  low:    { text: 'rgba(5,10,68,0.70)', bg: 'rgba(5,10,68,0.06)' },
 }
 
 // Severity rank used by the "Importance" sort mode
@@ -74,11 +74,12 @@ function Chip({ label, active, onClick, count }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '5px',
         padding: '5px 13px',
         borderRadius: '9999px',
-        fontSize: '13px', fontWeight: active ? 700 : 500,
+        fontSize: '14px', fontWeight: active ? 700 : 500,
         background: active ? '#050A44' : 'transparent',
         color: active ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
         border: `1.5px solid ${active ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
@@ -122,18 +123,20 @@ function ViewToggle({ value, onChange }) {
           <button
             key={id}
             onClick={() => onChange(id)}
+            aria-pressed={active}
+            aria-label={label}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               padding: '4px 11px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: active ? 700 : 500,
+              fontSize: '14px', fontWeight: active ? 700 : 500,
               background: active ? '#050A44' : 'transparent',
-              color: active ? '#FFFFFF' : 'rgba(5,10,68,0.50)',
+              color: active ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
               border: 'none', cursor: 'pointer',
               transition: 'all 120ms ease',
               whiteSpace: 'nowrap',
             }}
           >
-            <Icon size={12} />
+            <Icon size={12} aria-hidden="true" />
             {label}
           </button>
         )
@@ -200,7 +203,7 @@ function AlertCard({ alert }) {
               {alert.severity}
             </span>
 
-            <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'rgba(5,10,68,0.38)', whiteSpace: 'nowrap' }}>
+            <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'rgba(5,10,68,0.60)', whiteSpace: 'nowrap' }}>
               {formatDate(alert.timestamp)}
             </span>
           </div>
@@ -213,11 +216,14 @@ function AlertCard({ alert }) {
             lineHeight: '1.4',
           }}>
             {!isRead && (
-              <span style={{
-                display: 'inline-block', width: '7px', height: '7px',
-                borderRadius: '50%', background: '#E11D48',
-                marginRight: '8px', marginBottom: '1px', verticalAlign: 'middle',
-              }} />
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block', width: '7px', height: '7px',
+                  borderRadius: '50%', background: '#E11D48',
+                  marginRight: '8px', marginBottom: '1px', verticalAlign: 'middle',
+                }}
+              />
             )}
             {alert.headline}
           </p>
@@ -258,10 +264,12 @@ function AlertCard({ alert }) {
         <div style={{ marginLeft: '44px', marginBottom: '12px' }}>
           <button
             onClick={() => setWhatChangedOpen((v) => !v)}
+            aria-expanded={whatChangedOpen}
+            aria-controls={`diff-${alert.id}`}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               padding: '5px 12px', borderRadius: '9999px',
-              fontSize: '12px', fontWeight: 600,
+              fontSize: '14px', fontWeight: 600,
               background: 'transparent', color: 'rgba(5,10,68,0.65)',
               border: '1.5px solid rgba(5,10,68,0.12)',
               cursor: 'pointer', transition: 'all 120ms ease',
@@ -271,7 +279,7 @@ function AlertCard({ alert }) {
             What changed
           </button>
           {whatChangedOpen && (
-            <div style={{
+            <div id={`diff-${alert.id}`} style={{
               marginTop: '10px',
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -313,7 +321,7 @@ function AlertCard({ alert }) {
         display: 'flex', alignItems: 'center',
         paddingLeft: '44px', gap: '12px', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.60)', whiteSpace: 'nowrap' }}>
           {formatDateAbs(alert.timestamp)}
         </span>
         {alert.source && (
@@ -334,21 +342,22 @@ function AlertCard({ alert }) {
         )}
         <button
           onClick={toggleRead}
+          aria-label={isRead ? `Mark unread: ${alert.headline}` : `Mark read: ${alert.headline}`}
           style={{
             marginLeft: 'auto',
             display: 'inline-flex', alignItems: 'center', gap: '5px',
             padding: '4px 11px', borderRadius: '9999px',
-            fontSize: '12px', fontWeight: 600,
+            fontSize: '14px', fontWeight: 600,
             background: 'transparent',
-            color: isRead ? 'rgba(5,10,68,0.40)' : 'rgba(5,10,68,0.55)',
+            color: isRead ? 'rgba(5,10,68,0.55)' : 'rgba(5,10,68,0.65)',
             border: '1.5px solid rgba(5,10,68,0.12)',
             cursor: 'pointer',
             transition: 'all 120ms ease',
           }}
         >
           {isRead
-            ? <><Circle size={11} /> Mark unread</>
-            : <><CheckCheck size={11} /> Mark read</>
+            ? <><Circle size={11} aria-hidden="true" /> Mark unread</>
+            : <><CheckCheck size={11} aria-hidden="true" /> Mark read</>
           }
         </button>
       </div>
@@ -465,7 +474,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 padding: '8px 18px', borderRadius: '9999px',
-                fontSize: '13px', fontWeight: 600,
+                fontSize: '14px', fontWeight: 600,
                 background: '#050A44', color: '#FFFFFF',
                 border: 'none', cursor: 'pointer',
                 transition: 'transform 120ms ease, box-shadow 120ms ease',
@@ -675,7 +684,7 @@ export default function AlertsPage() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               padding: '5px 13px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: 500,
+              fontSize: '14px', fontWeight: 500,
               background: 'transparent',
               color: unreadCount > 0 ? 'rgba(5,10,68,0.55)' : 'rgba(5,10,68,0.25)',
               border: `1.5px solid ${unreadCount > 0 ? 'rgba(5,10,68,0.15)' : 'rgba(5,10,68,0.08)'}`,
@@ -740,7 +749,7 @@ export default function AlertsPage() {
                   onClick={() => setSortMode(opt.value)}
                   style={{
                     padding: '4px 12px', borderRadius: '9999px',
-                    fontSize: '12px', fontWeight: 600,
+                    fontSize: '14px', fontWeight: 600,
                     border: `1.5px solid ${isActive ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
                     background: isActive ? '#050A44' : 'transparent',
                     color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',

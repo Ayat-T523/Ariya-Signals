@@ -2,6 +2,7 @@ import { HelpCircle, Zap } from 'lucide-react'
 import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import PipelineTab from './PipelineTab'
+import { DEMO } from '../../../config/demo-config'
 
 // ── Overlap relationship badge config ─────────────────────────────────────────
 const RELATIONSHIP_CONFIG = {
@@ -321,7 +322,7 @@ export default function WhatItMeansTab({ competitor }) {
       {/* Portfolio overlap */}
       {data.overlap?.length > 0 && (
         <div>
-          <SectionHeader label="Portfolio overlap with Pharma Inc" />
+          <SectionHeader label={`Portfolio overlap with ${DEMO.companyLabel}`} />
           <OverlapMatrix overlap={data.overlap} />
         </div>
       )}

@@ -18,9 +18,10 @@ import reportsData from '../data/reports.json'
 import marketData from '../data/market-developments.json'
 import competitorsData from '../data/competitors.json'
 import { formatDateAbs } from '../utils/formatDate'
+import { DEMO } from '../config/demo-config'
 
 // ── Reference date ────────────────────────────────────────────────────────────
-const TODAY = new Date('2026-04-21')
+const TODAY = new Date(DEMO.snapshotDate)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function competitorName(id) {
@@ -243,13 +244,13 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
   const N        = MONTHS_LABELS.length
 
   return (
-    <div style={{ flex: 1, minWidth: 0, background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+    <div style={{ background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
         <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
         <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
       </div>
 
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: '100%', minWidth: `${FIRST_W + COL_W * N}px` }}>
           <colgroup>
             <col style={{ width: FIRST_W }} />
@@ -855,9 +856,7 @@ function EventsTab() {
 
       {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
       {showCatalysts && (
-        <div style={{ height: '400px', borderRadius: '12px', overflow: 'hidden' }}>
-          <KeyCatalystsCalendar count={eventsData.length} />
-        </div>
+        <KeyCatalystsCalendar count={eventsData.length} />
       )}
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
@@ -1034,11 +1033,11 @@ function ReportListCard({ report }) {
         </p>
       </div>
 
-      {/* Row 3: HAE extract */}
+      {/* Row 3: TA extract */}
       {report.haeExtract && (
         <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-            HAE extract:
+            {DEMO.therapeuticArea} extract:
           </p>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
             {report.haeExtract}
@@ -1142,7 +1141,7 @@ function ReportDetailPanel({ report }) {
       {report.signal && (
         <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '10px', padding: '14px 16px' }}>
           <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(42,118,244,0.85)' }}>
-            Relevance to Ekterly:
+            Relevance to {DEMO.assetName}:
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6' }}>
             {report.signal.text}
@@ -1162,11 +1161,11 @@ function ReportDetailPanel({ report }) {
         </div>
       )}
 
-      {/* Section 5 — HAE extract fallback (only if no kpis) */}
+      {/* Section 5 — TA extract fallback (only if no kpis) */}
       {!report.kpis && report.haeExtract && (
         <div>
           <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            HAE Extract
+            {DEMO.therapeuticArea} Extract
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.7' }}>
             {report.haeExtract}
@@ -1825,6 +1824,7 @@ function MarketDevCard({ item }) {
 
 function MarketTab() {
   const [activeFilter, setActiveFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
 
   const sorted = [...marketData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -1837,41 +1837,70 @@ function MarketTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      {/* Filter pill row */}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
-          Filter by:
-        </span>
-        <div style={{ display: 'inline-flex', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px' }}>
-          {MARKET_FILTER_TABS.map(tab => {
-            const isActive = activeFilter === tab.value
+      {/* Filter row + view toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+            Filter by:
+          </span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px' }}>
+            {MARKET_FILTER_TABS.map(tab => {
+              const isActive = activeFilter === tab.value
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveFilter(tab.value)}
+                  style={{
+                    padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
+                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
+                    background: isActive ? '#10224A' : 'transparent',
+                    color: isActive ? '#FFFFFF' : '#434c5b',
+                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                    transition: 'all 120ms ease',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Feed / Landscape toggle */}
+        <div style={{ display: 'inline-flex', padding: '3px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', gap: '2px' }}>
+          {(['feed', 'landscape'] as const).map(mode => {
+            const isActive = viewMode === mode
             return (
               <button
-                key={tab.value}
-                onClick={() => setActiveFilter(tab.value)}
+                key={mode}
+                onClick={() => setViewMode(mode)}
                 style={{
-                  padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
-                  fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
+                  padding: '4px 12px', borderRadius: '16px',
+                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
                   background: isActive ? '#10224A' : 'transparent',
                   color: isActive ? '#FFFFFF' : '#434c5b',
                   border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                   transition: 'all 120ms ease',
+                  textTransform: 'capitalize',
                 }}
               >
-                {tab.label}
+                {mode}
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Flat card list */}
+      {/* Card list — Feed (1 col) or Landscape (2-col grid) */}
       {filtered.length === 0 ? (
         <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
           No market developments match the current filter.
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={viewMode === 'landscape'
+          ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }
+          : { display: 'flex', flexDirection: 'column', gap: '12px' }
+        }>
           {filtered.map(item => (
             <MarketDevCard key={item.id} item={item} />
           ))}

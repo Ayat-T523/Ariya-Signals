@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { analytics } from '../../lib/analytics'
+import { DEMO } from '../../config/demo-config'
 
 type Stage = 'closed' | 'open' | 'submitting' | 'success'
 
@@ -43,8 +44,8 @@ export default function FeedbackWidget() {
         body: JSON.stringify({
           rating,
           comment: comment.trim(),
-          userEmail: 'david@pharmainc.com',
-          organisation: 'Pharma Inc',
+          userEmail: DEMO.personaEmail,
+          organisation: DEMO.companyLabel,
           route: location.pathname,
           timestamp: new Date().toISOString(),
         }),

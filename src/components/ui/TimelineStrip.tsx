@@ -84,10 +84,13 @@ export default function TimelineStrip({
   return (
     <div
       ref={scrollRef}
+      tabIndex={0}
+      aria-label="Pipeline timeline — scroll horizontally to see all milestones"
       style={{
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
         scrollbarWidth: 'thin',
+        outline: 'none',
       }}
     >
       <div style={{ display: 'flex', minWidth: 'min-content', height }}>

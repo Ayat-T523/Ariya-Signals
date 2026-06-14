@@ -1,15 +1,21 @@
+import { ExportButton } from '../components/ui/ExportButton'
+import { DEMO } from '../config/demo-config'
+
 export default function MarketPerformance() {
   return (
     <div style={{ padding: '20px 36px 36px' }}>
 
       {/* ── Page description ─────────────────────────────────────────────────── */}
-      <p style={{
-        margin: '0 0 28px',
-        fontSize: '14px', fontFamily: 'Inter, sans-serif',
-        color: '#434c5b', lineHeight: '1.5',
-      }}>
-        Ekterly vs HAE class · Sources: IQVIA DE/UK/US · Veeva CRM · Movianto logistics
-      </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '28px' }}>
+        <p style={{
+          margin: 0,
+          fontSize: '14px', fontFamily: 'Inter, sans-serif',
+          color: '#434c5b', lineHeight: '1.5',
+        }}>
+          {DEMO.assetName} vs {DEMO.therapeuticArea} class · Sources: {DEMO.dataSources}
+        </p>
+        <ExportButton label="Export report" />
+      </div>
 
       {/* ── Section label ────────────────────────────────────────────────────── */}
       <p style={{

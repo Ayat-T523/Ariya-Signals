@@ -12,16 +12,12 @@
  *   - Never log data to console
  */
 
-import { useState, useEffect, Component, type ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import Lottie from 'lottie-react'
-import {
-  alertsData,
-  competitorsData,
-  eventsData,
-  reportsData,
-  marketDevelopments,
-} from '../../data/kalvista'
+import { Menu } from 'lucide-react'
+import { useApp } from '../../context/AppContext'
+import { DEMO } from '../../config/demo-config'
+
 // ── Route → page title map ────────────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
   '/':                    'War Room',
@@ -43,27 +39,23 @@ function getPageTitle(pathname: string): string {
   return 'Ariya Signals'
 }
 
-// ── Per-page subtitle stats ────────────────────────────────────────────────────
-const TODAY_TS = new Date('2026-04-21').getTime()
-
-const TRACKED_COMPETITOR_COUNT = new Set(alertsData.map((a) => a.competitorId)).size
-const SIGNAL_COUNT             = alertsData.length
-const UPCOMING_EVENT_COUNT     = eventsData.filter(
-  (e) => new Date(e.date).getTime() >= TODAY_TS
-).length
-const REPORT_COUNT             = (reportsData as unknown[]).length
-const MARKET_DEV_COUNT         = (marketDevelopments as unknown[]).length
-const COMPETITOR_COUNT         = competitorsData.length
+// ── Per-page subtitle stats (hard-coded from demo snapshot 2026-04-21) ────────
+const TRACKED_COMPETITOR_COUNT = 8
+const SIGNAL_COUNT             = 17
+const UPCOMING_EVENT_COUNT     = 11
+const REPORT_COUNT             = 13
+const MARKET_DEV_COUNT         = 23
+const COMPETITOR_COUNT         = 8
 
 function getPageSubtitle(pathname: string): string | null {
   if (pathname === '/') {
-    return `Ekterly · HAE · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
+    return `${DEMO.assetName} · ${DEMO.therapeuticArea} · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
   }
   if (pathname === '/intelligence') {
     return `${UPCOMING_EVENT_COUNT} upcoming events · ${REPORT_COUNT} reports · ${MARKET_DEV_COUNT} market developments`
   }
   if (pathname === '/competitors') {
-    return `${COMPETITOR_COUNT} competitors tracked · HAE therapeutic area`
+    return `${COMPETITOR_COUNT} competitors tracked · ${DEMO.therapeuticArea} therapeutic area`
   }
   return null
 }
@@ -91,76 +83,25 @@ function StaticAskButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-// ── Error boundary — catches any lottie-react render errors ───────────────────
-class LottieBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false }
-  static getDerivedStateFromError() { return { failed: true } }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children
-  }
-}
-
-// ── AskAriyaButton ────────────────────────────────────────────────────────────
-// Lazy-loads the Scene.json Lottie so a parse error never crashes the app.
-// Clips 1600×1200 scene at 0.2125× scale → 340×255; pill lives at centre (170, 127.5).
 function AskAriyaButton({ onClick }: { onClick: () => void }) {
-  const [animData, setAnimData] = useState<object | null>(null)
-  const [hovered, setHovered] = useState(false)
-
-  useEffect(() => {
-    import('../../assets/ask-ariya-anim.json')
-      .then((mod) => setAnimData(mod.default as object))
-      .catch(() => { /* leave animData null → static fallback stays */ })
-  }, [])
-
-  if (!animData) return <StaticAskButton onClick={onClick} />
-
-  return (
-    <LottieBoundary fallback={<StaticAskButton onClick={onClick} />}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => { if (e.key === 'Enter') onClick() }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: '170px',
-          height: '54px',
-          overflow: 'hidden',
-          position: 'relative',
-          borderRadius: '40px',
-          cursor: 'pointer',
-          flexShrink: 0,
-          transition: 'transform 160ms ease',
-          transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        }}
-      >
-        <Lottie
-          animationData={animData}
-          loop
-          style={{
-            width: '340px',
-            height: '255px',
-            position: 'absolute',
-            left: '-85px',
-            top: '-100px',
-            pointerEvents: 'none',
-          }}
-        />
-      </div>
-    </LottieBoundary>
-  )
+  return <StaticAskButton onClick={onClick} />
 }
 
 // ── TopBar ────────────────────────────────────────────────────────────────────
 export default function TopBar() {
   const location  = useLocation()
   const navigate  = useNavigate()
+  const { openMobileNav } = useApp()
   const pageTitle = getPageTitle(location.pathname)
+
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 767)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryList | MediaQueryListEvent) => setIsMobile(e.matches)
+    handler(mq)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // Competitor profile pages have their own sticky header — suppress the global title row
   const isCompetitorProfile = location.pathname.startsWith('/competitors/') &&
@@ -179,6 +120,36 @@ export default function TopBar() {
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>
 
+      {/* ── Illustrative data ribbon ───────────────────────────────────────── */}
+      <div
+        role="note"
+        style={{ padding: '6px 24px', background: '#d2e2ff', display: 'flex', alignItems: 'center', gap: '10px' }}
+      >
+        {/* Hamburger — mobile only */}
+        {isMobile && (
+          <button
+            onClick={openMobileNav}
+            aria-label="Open navigation"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(5,10,68,0.65)', padding: '2px', borderRadius: '4px', flexShrink: 0,
+            }}
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
+        )}
+        <p style={{
+          margin: 0,
+          fontSize: '12px', fontWeight: 400,
+          color: 'var(--font-primary)',
+          fontFamily: 'Inter, sans-serif',
+          flex: 1,
+        }}>
+          {DEMO.demoBadgeLabel}
+        </p>
+      </div>
+
       {/* ── Header row (hidden on competitor profile pages and War Room) ───── */}
       {!isCompetitorProfile && !isWarRoom && (
         <div style={{
@@ -189,7 +160,7 @@ export default function TopBar() {
 
           {/* Left — title + optional subtitle */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <h1 style={{
+            <h1 data-topbar-title style={{
               margin: 0,
               fontSize: '32px', fontWeight: 500,
               fontFamily: 'Satoshi, sans-serif',
@@ -201,9 +172,9 @@ export default function TopBar() {
             </h1>
 
             {pageSubtitle && (
-              <p style={{
+              <p data-topbar-subtitle style={{
                 margin: 0,
-                fontSize: '13px', fontWeight: 400,
+                fontSize: '14px', fontWeight: 400,
                 fontFamily: 'Inter, sans-serif',
                 color: 'rgba(5,10,68,0.50)',
                 lineHeight: '18px',
@@ -220,21 +191,6 @@ export default function TopBar() {
           )}
         </div>
       )}
-
-      {/* ── Illustrative data ribbon ───────────────────────────────────────── */}
-      <div
-        role="note"
-        style={{ padding: '6px 24px', background: '#d2e2ff' }}
-      >
-        <p style={{
-          margin: 0,
-          fontSize: '12px', fontWeight: 400,
-          color: 'var(--font-primary)',
-          fontFamily: 'Inter, sans-serif',
-        }}>
-          Illustrative data - not for clinical or commercial decisions
-        </p>
-      </div>
 
     </div>
   )

@@ -5,10 +5,12 @@
  *
  * Per §8: "all dates displayed relative when recent, absolute when older."
  */
+import { DEMO } from '../config/demo-config'
+
 export function formatDate(dateStr) {
   if (!dateStr) return '—'
   const date = new Date(dateStr)
-  const now = new Date('2026-04-21') // prototype reference date (today per context)
+  const now = new Date(DEMO.snapshotDate)
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Filter, Mic, Send } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { analytics } from '../lib/analytics'
+import { DEMO } from '../config/demo-config'
 
 // ── 4 categories, 3 questions each ────────────────────────────────────────────
 const QUESTION_CATEGORIES = [
@@ -25,7 +26,7 @@ const QUESTION_CATEGORIES = [
     category: 'Strategy & planning',
     questions: [
       'What should we prepare for ahead of the RAPIDe-3 readout?',
-      'Which market access signals should Pharma Inc act on now?',
+      `Which market access signals should ${DEMO.companyLabel} act on now?`,
       'How should we frame sebetralstat vs. deucrictibant for KOLs?',
     ],
   },
@@ -34,7 +35,7 @@ const QUESTION_CATEGORIES = [
     questions: [
       'Summarize this week\'s signals across all competitors.',
       'What do recent Pharvaris hiring signals suggest about launch timing?',
-      'Which earnings calls this quarter contain HAE-relevant commentary?',
+      `Which earnings calls this quarter contain ${DEMO.therapeuticArea}-relevant commentary?`,
     ],
   },
 ]

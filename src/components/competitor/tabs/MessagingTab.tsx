@@ -4,6 +4,7 @@ import {
 import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import ConfidenceIndicator from '../../ui/ConfidenceIndicator'
+import { DEMO } from '../../../config/demo-config'
 
 // ── Source type config ────────────────────────────────────────────────────────
 const SOURCE_TYPE_CONFIG = {
@@ -175,7 +176,7 @@ function TimelineCard({ entry }) {
   )
 }
 
-// ── vs Pharma Inc comparison table ──────────────────────────────────────────────
+// ── vs client comparison table ───────────────────────────────────────────────────
 function ComparisonTable({ rows, competitorName, competitorId }) {
   return (
     <div style={{
@@ -203,7 +204,7 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
             margin: 0, fontSize: '13px', fontWeight: 600,
             color: '#434c5b',
           }}>
-            Pharma Inc's position
+            {DEMO.companyLabel}'s position
           </p>
         </div>
       </div>
@@ -231,7 +232,7 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
             </p>
           </div>
 
-          {/* Pharma Inc position */}
+          {/* Client position */}
           <div style={{
             padding: '14px 16px',
             background: i % 2 === 0 ? 'rgba(0,85,187,0.02)' : 'rgba(0,85,187,0.03)',
@@ -291,10 +292,10 @@ export default function MessagingTab({ competitor }) {
         </div>
       )}
 
-      {/* vs Pharma Inc comparison */}
+      {/* vs client comparison */}
       {data.vsPharmaInc?.length > 0 && (
         <div>
-          <SectionHeader label={`${competitor.name} vs Pharma Inc — claim by claim`} />
+          <SectionHeader label={`${competitor.name} vs ${DEMO.companyLabel} — claim by claim`} />
           <ComparisonTable
             rows={data.vsPharmaInc}
             competitorName={competitor.name}

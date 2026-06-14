@@ -1,6 +1,7 @@
 import { Building2, Handshake, Users, MessageSquareQuote, TrendingUp, AlertCircle } from 'lucide-react'
 import ConfidenceIndicator from '../../ui/ConfidenceIndicator'
 import { formatDateAbs } from '../../../utils/formatDate'
+import { DEMO } from '../../../config/demo-config'
 
 // ── Phase steps (for pipeline summary) ───────────────────────────────────────
 const PHASE_STEPS = ['Preclinical', 'Phase I', 'Phase II', 'Phase III', 'Filed', 'Approved']
@@ -92,9 +93,9 @@ function PipelineSummary({ pipeline }: { pipeline: any[] }) {
 
   return (
     <div>
-      <SectionHeader label="HAE Pipeline" />
+      <SectionHeader label={`${DEMO.therapeuticArea} Pipeline`} />
       <p style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.70)' }}>
-        {total} asset{total !== 1 ? 's' : ''} in active HAE development
+        {total} asset{total !== 1 ? 's' : ''} in active {DEMO.therapeuticArea} development
       </p>
       <div style={{
         background: '#FFFFFF',

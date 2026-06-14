@@ -3,6 +3,7 @@ import { X, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SkeletonAskResponse } from './Skeleton'
 import { REDUCED_MOTION } from '../../lib/motion'
+import { DEMO } from '../../config/demo-config'
 
 /**
  * Shared AI placeholder modal (§5).
@@ -16,6 +17,7 @@ import { REDUCED_MOTION } from '../../lib/motion'
  */
 export default function AskModal({ onClose, source }) {
   const modalRef = useRef(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [responding, setResponding] = useState(REDUCED_MOTION)
 
   useEffect(() => {
@@ -23,6 +25,28 @@ export default function AskModal({ onClose, source }) {
     if (REDUCED_MOTION) return
     const timer = setTimeout(() => setResponding(true), 1400)
     return () => clearTimeout(timer)
+  }, [])
+
+  // Focus trap — keep Tab inside the modal (WCAG 2.1.2)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Tab') return
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last  = focusable[focusable.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first.focus() }
+      }
+    }
+    el.addEventListener('keydown', onKeyDown)
+    return () => el.removeEventListener('keydown', onKeyDown)
   }, [])
 
   function handleBackdropClick(e) {
@@ -39,6 +63,7 @@ export default function AskModal({ onClose, source }) {
       aria-labelledby="ask-modal-title"
     >
       <div
+        ref={containerRef}
         className="relative flex flex-col"
         style={{
           background: '#FFFFFF',
@@ -108,19 +133,9 @@ export default function AskModal({ onClose, source }) {
             }}
           >
             This response is generated from your curated competitive intelligence
-            data, validated sources, and Pharma Inc portfolio context. All content
+            data, validated sources, and {DEMO.companyLabel} portfolio context. All content
             shown here is illustrative.
           </motion.p>
-        )}
-
-        {/* Muted source label — only shown once response appears */}
-        {responding && source && (
-          <p
-            className="m-0 mb-5"
-            style={{ fontSize: '11px', color: 'rgba(5,10,68,0.30)' }}
-          >
-            Triggered from: {source}
-          </p>
         )}
 
         {/* CTA */}
