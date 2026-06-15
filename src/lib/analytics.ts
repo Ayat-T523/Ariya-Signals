@@ -12,10 +12,11 @@ const enabled = () => _ph !== null
 export const analytics = {
 
   // ── Identity ────────────────────────────────────────────────────────────────
-  // TODO: replace 'ariya-internal' with clerk.user.id once Clerk is integrated.
+  // Uses register() instead of identify() so each device keeps its own anonymous
+  // PostHog distinct_id. identify() with a shared ID merges all visitors into one person.
   identify(role?: string | null) {
     if (!enabled()) return
-    _ph.identify('ariya-internal', {
+    _ph.register({
       role: role ?? 'unknown',
       product: 'ariya-signals',
       is_internal: import.meta.env.VITE_IS_INTERNAL === 'true',
