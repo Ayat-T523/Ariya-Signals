@@ -17,6 +17,33 @@ const ROLES = [
 const selectableCompetitors = (competitorsData as Array<{ id: string; name: string; status?: string }>)
   .filter(c => c.status !== 'acquired')
 
+// Product pills for a competitor chip.
+// Marketed first (by approvalYear desc); pipeline only when marketed count < 2.
+// Dedup: if the product name already contains the INN, omit the redundant "(INN)" suffix.
+function competitorPills(id: string): { label: string; title: string }[] {
+  const c = (competitorsData as any[]).find(x => x.id === id)
+  if (!c) return []
+
+  const marketed = ((c.marketedProducts ?? []) as Array<{ name: string; molecule?: string; approvalYear?: number }>)
+    .slice()
+    .sort((a, b) => (b.approvalYear ?? 0) - (a.approvalYear ?? 0))
+    .map(p => {
+      const mol = p.molecule ?? ''
+      const isDup = mol !== '' && p.name.toLowerCase().includes(mol.toLowerCase())
+      return { label: p.name, title: isDup ? p.name : (mol ? `${p.name} (${mol})` : p.name) }
+    })
+
+  const pipeline = ((c.pipeline ?? []) as Array<{ name: string; assetInn?: string }>)
+    .map(p => {
+      const inn = p.assetInn ?? ''
+      const isDup = inn !== '' && p.name.toLowerCase().includes(inn.toLowerCase())
+      return { label: p.name, title: isDup ? p.name : (inn ? `${p.name} (${inn})` : p.name) }
+    })
+
+  // Only include pipeline products when there are fewer than 2 marketed products
+  return marketed.length >= 2 ? marketed : [...marketed, ...pipeline]
+}
+
 export default function OnboardingModal() {
   const {
     userRole, setUserRole,
@@ -251,41 +278,59 @@ export default function OnboardingModal() {
                   No assets match your search.
                 </p>
               )}
-              {filteredAssets.map((asset) => {
-                const isSelected = selectedAssetId === asset.id
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => setSelectedAssetId(asset.id)}
-                    style={{
-                      textAlign: 'left',
-                      border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms ease, background 150ms ease',
-                      width: '100%',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-                        {asset.brandName}
-                      </p>
-                      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.50)', fontStyle: 'italic' }}>
-                        {asset.innName}
-                      </p>
-                    </div>
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
-                      {asset.indicationFull}
+              {(['HAE', 'PNH', 'PBC'] as const)
+                .map(ind => ({
+                  indication: ind,
+                  assets: filteredAssets.filter(a => a.indication === ind),
+                }))
+                .filter(g => g.assets.length > 0)
+                .map(group => (
+                  <div key={group.indication} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <p style={{
+                      margin: '4px 0 0',
+                      fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
+                      letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)',
+                    }}>
+                      {group.indication} — {group.assets[0].indicationFull}
                     </p>
-                  </button>
-                )
-              })}
+                    {group.assets.map((asset) => {
+                      const isSelected = selectedAssetId === asset.id
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => setSelectedAssetId(asset.id)}
+                          style={{
+                            textAlign: 'left',
+                            border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
+                            cursor: 'pointer',
+                            transition: 'border-color 150ms ease, background 150ms ease',
+                            width: '100%',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                            <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+                              {asset.brandName}
+                            </p>
+                            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.50)', fontStyle: 'italic' }}>
+                              {asset.innName}
+                            </p>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
+                            {asset.indicationFull}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))
+              }
             </div>
 
             {/* Indication confirmation — collapses the old TA step */}
@@ -313,6 +358,9 @@ export default function OnboardingModal() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {selectableCompetitors.map((competitor) => {
                 const isSelected = selectedCompetitorIds.includes(competitor.id)
+                const allPills = competitorPills(competitor.id)
+                const visiblePills = allPills.slice(0, 2)
+                const overflowCount = allPills.length - visiblePills.length
                 return (
                   <button
                     key={competitor.id}
@@ -320,20 +368,66 @@ export default function OnboardingModal() {
                     aria-pressed={isSelected}
                     onClick={() => toggleCompetitor(competitor.id)}
                     style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px',
+                      textAlign: 'left',
                       border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.15)',
-                      borderRadius: '20px',
-                      padding: '8px 16px',
+                      borderRadius: '14px',
+                      padding: '9px 12px 10px',
                       background: isSelected ? '#050A44' : '#FFFFFF',
                       color: isSelected ? '#FFFFFF' : 'rgba(5,10,68,0.70)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: isSelected ? 600 : 400,
                       fontFamily: 'inherit',
+                      minHeight: '68px',
+                      boxSizing: 'border-box',
                       transition: 'background 150ms ease, color 150ms ease, border-color 150ms ease',
-                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {competitor.name}
+                    <span style={{ lineHeight: '1.4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                      {competitor.name}
+                    </span>
+                    <div style={{
+                      display: 'flex', flexWrap: 'nowrap', gap: '4px',
+                      overflow: 'hidden', height: '20px', alignItems: 'center',
+                      maxWidth: '100%',
+                    }}>
+                      {visiblePills.map((pill, i) => (
+                        <span
+                          key={i}
+                          title={pill.title}
+                          style={{
+                            display: 'inline-block',
+                            fontSize: '10px', fontWeight: 400,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: isSelected ? 'rgba(255,255,255,0.15)' : 'rgba(5,10,68,0.07)',
+                            color: isSelected ? 'rgba(255,255,255,0.80)' : 'rgba(5,10,68,0.55)',
+                            maxWidth: '90px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {pill.label}
+                        </span>
+                      ))}
+                      {overflowCount > 0 && (
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: '10px', fontWeight: 400,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(5,10,68,0.04)',
+                          color: isSelected ? 'rgba(255,255,255,0.50)' : 'rgba(5,10,68,0.35)',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}>
+                          +{overflowCount}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 )
               })}
