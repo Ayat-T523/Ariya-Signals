@@ -17,7 +17,7 @@ function createSupabaseAdmin() {
 function padCik(cik: string) { return cik.replace(/^0+/, '').padStart(10, '0') }
 function unpadCik(cik: string) { return String(parseInt(cik, 10)) }
 
-async function fetchJson(url: string) {
+async function fetchJson(url: string): Promise<any> {
   const r = await fetch(url, {
     headers: { 'User-Agent': SEC_USER_AGENT, Accept: 'application/json' },
     signal: AbortSignal.timeout(TIMEOUT_MS),
