@@ -348,8 +348,8 @@ for (const competitor of withCik) {
       // Resolve final signal type: item-based for 8-K, text-based for everything else
       const signalType = itemSignalType ?? classifyByText(bodyExcerpt ?? headline ?? '')
 
-      // Phase 2: generate why_it_matters at ingest time (deterministic + LLM)
-      const whyItMatters = await buildWhyItMatters(
+      // Phase 2: generate why_it_matters at ingest time (deterministic — no external API)
+      const whyItMatters = buildWhyItMatters(
         { headline, body_excerpt: bodyExcerpt, signal_type: signalType },
         name,
       )

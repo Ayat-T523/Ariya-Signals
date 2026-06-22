@@ -2,15 +2,13 @@
  * Name: backfill-why
  * Description: One-time backfill — populates why_it_matters for all existing
  *   company_signals rows where the column is NULL.
+ *   Deterministic only — no external API calls, no cost.
  *
  *   Run AFTER adding the why_it_matters column to Supabase:
  *     ALTER TABLE company_signals ADD COLUMN IF NOT EXISTS why_it_matters TEXT;
  *
  *   Then run:
  *     node --env-file=.env.local scripts/backfill-why.mjs
- *
- *   Reads: ANTHROPIC_API_KEY (optional) — without it uses deterministic + template only.
- *   Reads: VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
  *   Safe to re-run: only processes rows WHERE why_it_matters IS NULL.
  */
@@ -44,8 +42,7 @@ const nameById = Object.fromEntries(competitors.map(c => [c.id, c.name]))
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const LLM_ENABLED = !!process.env.ANTHROPIC_API_KEY
-console.log(`\n🔄  Backfilling why_it_matters${LLM_ENABLED ? ' (LLM enabled)' : ' (deterministic only — no ANTHROPIC_API_KEY)'}...\n`)
+console.log(`\n🔄  Backfilling why_it_matters (deterministic — no external API)...\n`)
 
 const { data: rows, error: fetchErr } = await supabase
   .from('company_signals')
@@ -67,7 +64,7 @@ for (const row of rows) {
   process.stdout.write(`  ${competitorName.padEnd(28)} [${row.signal_type}]  `)
 
   try {
-    const why = await buildWhyItMatters(
+    const why = buildWhyItMatters(
       { headline: row.headline, body_excerpt: row.body_excerpt, signal_type: row.signal_type },
       competitorName,
     )
@@ -86,8 +83,6 @@ for (const row of rows) {
     skipped++
   }
 
-  // Brief pause to respect Anthropic rate limits when LLM is enabled
-  if (LLM_ENABLED) await new Promise(r => setTimeout(r, 200))
 }
 
 console.log(`
