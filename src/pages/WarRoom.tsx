@@ -1,5 +1,5 @@
 /**
- * WarRoom.tsx — iteration-3.
+ * WarRoom.tsx — iteration-4.
  *
  * UI matched to the reference image (ariya-signals-main prototype, WarRoom.jsx):
  *   greeting header, 3 KPI tiles with deltas/captions/links, Ask Ariya panel,
@@ -10,32 +10,300 @@
  */
 
 import { useState, type ReactNode, type CSSProperties } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Calendar, Search,
-  TrendingDown, TrendingUp, Pencil, Plus,
+  ArrowRight, ArrowUpRight, Sparkles, Search,
+  TrendingDown, TrendingUp, Pencil, Plus, ExternalLink,
 } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
-import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
-import { ExportButton } from '../components/ui/ExportButton'
+import ProvenanceChip from '../components/ui/ProvenanceChip'
+import PaidGate from '../components/ui/PaidGate'
 import {
-  alertsData,
   competitorsData,
   eventsData,
   userData,
-  DEMO_SNAPSHOT_DATE,
 } from '../data/kalvista'
 import { DEMO } from '../config/demo-config'
+import {
+  getAllSignalsSummary,
+  getRegulatoryCalendar,
+  getRecentSignals,
+  getMarketImplications,
+  getAllAssets,
+  type DbAsset,
+  type DbSignalSummary,
+  type DbRegulatoryCalendarEvent,
+  type DbRecentSignal,
+  type DbMarketImplication,
+} from '../lib/db'
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-type Alert      = (typeof alertsData)[0]
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function decodeEntities(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
+}
+
+function cleanNeedleText(headline: string | null, excerpt: string | null): string {
+  const raw  = headline?.trim() ?? ''
+  const body = excerpt?.trim() ?? ''
+  // Use body_excerpt when headline has no complete sentence (capital â†’ content â†’ terminal punctuation)
+  // A bare period like "ts." does not count — we need a proper sentence boundary
+  const rawHasCompleteSentence = /[A-Z][^.!?]{15,}[.!?]/.test(raw)
+  const source = rawHasCompleteSentence ? raw : (body || raw)
+  const decoded = decodeEntities(source)
+  const match = decoded.match(/([A-Z][^.!?]{15,400}[.!?])/)
+  if (match) return match[1].trim()
+  const MAX = 200
+  if (decoded.length <= MAX) return decoded || '(no headline)'
+  const cut = decoded.lastIndexOf(' ', MAX)
+  return decoded.slice(0, cut > 0 ? cut : MAX).trim() + '…'
+}
+
+// â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
+const COMMERCIAL_KW  = /revenue|commercial|launch|market share|patient|prescription|growth/i
+
+function isCLevelChange(text: string): boolean {
+  return /chief executive|ceo|chief medical|cmo|chief commercial|cco|chief financial|cfo|board chair|president/.test(text)
+}
+
+// Body-text CRITICAL classification requires co-occurrence with a HAE lexicon term in
+// the same sentence — prevents Phase 3 safety trials (testing adverse events) from
+// matching /phase 3.*result/ and being rated CRITICAL when they shouldn't be.
+function criticalCoOccursWithHAE(text: string, lexicon: typeof HAE_LEXICON): boolean {
+  // Match forward ("Phase 3 results") AND reverse ("results from the Phase 3 trial")
+  const CRITICAL_BODY_RE = /phase\s*[23].*result|result.*phase\s*[23]|pivotal.*result|topline.*result|primary endpoint|phase\s*[23].*data/i
+  const sentences = text.split(/(?<=[.!?])\s+/)
+  return sentences.some(sentence => {
+    const s = sentence.toLowerCase()
+    if (!CRITICAL_BODY_RE.test(s)) return false
+    return (
+      lexicon.inns.some(t => s.includes(t)) ||
+      lexicon.ta_terms.some(t => s.includes(t))
+    )
+  })
+}
+
+// â”€â”€ XBRL / form-code boilerplate detector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Filters Takeda 20-F XBRL instance docs, Form 6-K reference codes, and
+// SEC accession-number-style headlines that carry no competitive intelligence.
+const XBRL_RE      = /xbrli?:|iso4217:|xbrl:pure|xbrl:shares|:cash-generating/i
+const ACCESSION_RE = /^[a-z]{2,6}-\d{8}\s+\d{10}/i
+const DECIMAL_RE   = /(\d+\.\d+\s+){4}/
+const FORM_CODE_RE = /form\d*k[_\-]/i  // "form6k_060926", "form20f_", etc.
+const DUAL_CIK_RE  = /\d{10}\s+\d{10}/
+const EXHIBIT_RE   = /exhibit\d+[_\-.]/i
+// SEC filing cover-page preamble — never contains competitive intelligence
+const SEC_PREAMBLE_RE = /SECURITIES AND EXCHANGE COMMISSION|WASHINGTON,?\s+D\.C\.\s+205/i
+const METADATA_SKIP = /^(true|false|null|with|that|this|from|have|been|into|onto|over|also|only|both|each)$/i
+
+function isSignalReadable(s: DbRecentSignal): boolean {
+  const h    = s.headline?.trim() ?? ''
+  const body = s.body_excerpt?.trim() ?? ''
+  const text = h.length >= body.length ? h : body
+  if (!text || text.length < 20) return false
+  if (XBRL_RE.test(text) || DECIMAL_RE.test(text) || DUAL_CIK_RE.test(text)) return false
+  if (SEC_PREAMBLE_RE.test(text)) return false
+  if (ACCESSION_RE.test(h) || FORM_CODE_RE.test(h) || EXHIBIT_RE.test(h)) return false
+  // Also check body for filing cover-page boilerplate not caught by headline patterns
+  if (FORM_CODE_RE.test(body) || EXHIBIT_RE.test(body)) return false
+  // Positive prose gate: must contain >=3 purely alphabetic words of 4+ chars
+  const proseWords = (text.match(/\b[A-Za-z]{4,}\b/g) ?? []).filter(w => !METADATA_SKIP.test(w))
+  if (proseWords.length < 3) return false
+  return true
+}
+
+// ── HAE relevance gate ────────────────────────────────────────────────────────
+// Signals that mention none of these terms are not HAE-related and are
+// filtered at display time only — never deleted from the DB.
+const HAE_LEXICON = {
+  inns: [
+    'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
+    'lonvoguran', 'ziclumeran', 'donidalorsen', 'deucrictibant',
+    'lanadelumab', 'icatibant', 'mezagitamab', 'sebetralstat',
+    'orladeyo', 'takhzyro', 'firazyr', 'dawnzera', 'andembry',
+  ],
+  ta_terms: [
+    'hae', 'hereditary angioedema', 'angioedema', 'bradykinin',
+    'kallikrein', 'c1 inhibitor', 'c1-inh', 'plasma kallikrein',
+    'factor xii', 'contact pathway', 'haelo',
+  ],
+}
+
+// Tags that indicate an asset is in HAE development (matches indication_tags column)
+const HAE_TAG_TERMS = ['hereditary angioedema', 'hae']
+
+// ── EMA calendar event gates ──────────────────────────────────────────────────
+// Gate 1 — event_type allowlist (COMP/HMPC/PDCO are irrelevant to HAE products)
+const ALLOWED_EMA_EVENT_TYPES = new Set(['CHMP', 'PRAC', 'OTHER'])
+
+// Gate 2 — HAE entity match for OTHER events; CHMP/PRAC plenary sessions always
+// pass as scheduling signals (their titles never name individual drugs).
+function isRelevantEMAEvent(e: DbRegulatoryCalendarEvent): boolean {
+  if (!ALLOWED_EMA_EVENT_TYPES.has(e.event_type)) return false
+  if (e.event_type === 'CHMP' || e.event_type === 'PRAC') return true
+  const title = (e.title ?? '').toLowerCase()
+  return (
+    HAE_LEXICON.inns.some(term => title.includes(term.toLowerCase())) ||
+    HAE_LEXICON.ta_terms.some(term => title.includes(term.toLowerCase()))
+  )
+}
+
+function countHAEAssets(assets: DbAsset[], competitorId: string): number {
+  return assets.filter(a =>
+    a.competitor_id === competitorId &&
+    a.indication_tags?.some(tag =>
+      HAE_TAG_TERMS.some(term => tag.toLowerCase().includes(term))
+    )
+  ).length
+}
+
+function isRelevant(s: DbRecentSignal, lexicon: typeof HAE_LEXICON): boolean {
+  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
+  return (
+    lexicon.inns.some(term => text.includes(term.toLowerCase())) ||
+    lexicon.ta_terms.some(term => text.includes(term.toLowerCase()))
+  )
+}
+
+function computeSeverity(s: DbRecentSignal, lexicon: typeof HAE_LEXICON, today: Date): 'high' | 'medium' | 'low' {
+  // Step 1: Non-relevant signals cap at 'low'
+  if (!isRelevant(s, lexicon)) return 'low'
+
+  const items = (s.items ?? '').split(',').map(i => i.trim())
+  const text  = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
+  const rawText = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
+
+  let band: 'critical' | 'high' | 'moderate' | 'low' = 'low'
+
+  // CRITICAL: M&A via items code OR hard regulatory setbacks OR body-text readout
+  // co-occurring with a HAE term (guards against safety-trial false positives)
+  const isCritical = (
+    (items.includes('2.01') && (text.includes('acqui') || text.includes('merger'))) ||
+    /complete response letter|crl|market withdrawal|black.?box warning/i.test(text) ||
+    criticalCoOccursWithHAE(rawText, lexicon)
+  )
+  if (isCritical) band = 'critical'
+
+  // HIGH: material agreements, NDA/MAA filings, PDUFA, AdCom, Phase 2 results, HTA decisions
+  else if (
+    items.includes('1.01') ||
+    /nda|bla|maa|submitted|filing accepted|pdufa|adcom|advisory committee/i.test(text) ||
+    /phase\s*2.*result|hta decision|nice.*recomm|label.*expan|indication.*expan/i.test(text)
+  ) band = 'high'
+
+  // MODERATE: early-phase activity, earnings, guidelines, C-suite changes
+  else if (
+    /phase\s*(1|2).*start|enrollment.*complet|trial.*initiat/i.test(text) ||
+    items.includes('2.02') ||
+    /guideline.*update|congress.*presentation/i.test(text) ||
+    (items.includes('5.02') && isCLevelChange(text))
+  ) band = 'moderate'
+
+  // Step 3: Proximity bump — imminent catalyst (≤60 days out) raises MODERATE → HIGH
+  if (band === 'moderate') {
+    const daysOut = (new Date(s.date ?? '').getTime() - today.getTime()) / 86_400_000
+    if (daysOut > 0 && daysOut <= 60) band = 'high'
+  }
+
+  // Step 4: Collapse to UI tiers (critical and high both render as 'high')
+  return band === 'critical' || band === 'high' ? 'high'
+       : band === 'moderate'                    ? 'medium'
+       : 'low'
+}
+
+function buildWhyItMatters(s: DbRecentSignal, competitorName: string, assetName: string, indication: string): string {
+  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
+  switch (s.signal_type) {
+    case 'deal':
+      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
+    case 'exec_change':
+      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
+    case 'press_release':
+      if (CLINICAL_KW.test(text))
+        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
+      if (COMMERCIAL_KW.test(text))
+        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
+      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
+    default:
+      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
+  }
+}
+
+function buildSourceLabel(url: string | null, signalType: string): string {
+  if (!url) return 'SEC EDGAR'
+  if (url.includes('sec.gov')) {
+    if (signalType === 'exec_change' || signalType === 'deal') return 'SEC 8-K'
+    return 'SEC Filing'
+  }
+  return 'Source'
+}
+
+function buildNeedleText(s: DbRecentSignal): string {
+  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
+  if (s.signal_type === 'exec_change') {
+    return 'had a leadership change — monitor for commercial or strategic follow-through'
+  }
+  const cleaned = cleanNeedleText(s.headline, s.body_excerpt)
+  const cleanedIsReadable = (cleaned.match(/\b[A-Za-z]{4,}\b/g) ?? [])
+    .filter(w => !METADATA_SKIP.test(w)).length >= 3
+  const detail = cleanedIsReadable ? `: ${cleaned}` : ''
+  if (s.signal_type === 'deal') return `made a strategic move${detail || ' — see source for details'}`
+  if (CLINICAL_KW.test(text))   return `released clinical data${detail || ' — see source for details'}`
+  if (COMMERCIAL_KW.test(text)) return `signalled commercial progress${detail || ' — see source for details'}`
+  return cleanedIsReadable ? `disclosed new information: ${cleaned}` : 'filed a public disclosure — see source for details'
+}
+
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+type Alert = {
+  id: string
+  timestamp: string
+  competitorId: string
+  type: string
+  severity: string
+  headline: string
+  whyItMatters?: string
+  source?: string
+  sourceUrl?: string | null
+}
 type Competitor = (typeof competitorsData)[0]
 type EventItem  = (typeof eventsData)[0]
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const TODAY = new Date(DEMO_SNAPSHOT_DATE)
+// Live signal mapped to the fields CompactAlertCard actually reads
+type LiveSignalDisplayItem = {
+  id: string
+  timestamp: string
+  competitorId: string
+  type: string
+  severity: 'high' | 'medium' | 'low'
+  headline: string
+  whyItMatters: string
+  source: string
+  sourceUrl: string | null
+  _isLive: true
+}
 
+// Merged static + live event (EventRow only reads id/date/title/expectedTopics/note)
+type MergedEventItem = {
+  id: string
+  date: string
+  title: string
+  expectedTopics?: string[]
+  note?: string
+  location?: string
+  attendingCompetitors?: string[]
+  endDate?: string
+  type?: string
+  sourceType?: string
+  sourceUrl?: string | null
+  _source: 'static' | 'ema'
+}
+
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SEVERITY_BORDER: Record<string, string> = {
   high:   '#E11D48',
   medium: '#F59E0B',
@@ -76,41 +344,83 @@ const POSTURE_STYLE: Record<string, { bg: string; text: string }> = {
   'Emerging oral competitor':        { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
 }
 
-// ── Market weather: competitive-pressure trend ──────────────────────────────
+// â”€â”€ Market weather: competitive-pressure trend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WINDOW_STATUS_CONFIG = {
   'Pressure building': { bg: 'rgba(225,29,72,0.12)',  text: '#C01041', icon: TrendingDown },
   'Pressure stable':   { bg: 'rgba(245,158,11,0.12)', text: '#92500A', icon: ArrowRight    },
   'Pressure easing':   { bg: 'rgba(16,185,129,0.10)', text: '#065F46', icon: TrendingUp    },
 } as const
-const CURRENT_WINDOW_STATUS = 'Pressure building'
+const SEC_8K_ITEM_RE = /Departure of Directors|Appointment of Certain Officers|Election of Directors|Compensatory Arrangements/i
 
-const NEEDLE_ITEMS: { competitorId: string; text: string }[] = [
-  { competitorId: 'pharvaris',   text: 'RAPIDe-3 primary completion moved Q3 → Q2 2026' },
-  { competitorId: 'pharvaris',   text: 'Head of Commercial, US hired' },
-  { competitorId: 'takeda',      text: 'Takhzyro label extended to adolescents 12+ in EU' },
-  { competitorId: 'biocryst',    text: 'Q1 HAE net revenue $89M, up 12% YoY' },
-  { competitorId: 'csl-behring', text: 'Andembry formulary access (DE) ahead of schedule' },
-]
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  'official-congress':    'Official Congress',
+  'company-ir':           'Company IR',
+  'company-ir-aggregate': 'Company IR',
+  'sec-edgar':            'SEC EDGAR',
+}
 
-const IMPLICATION_ITEMS = [
-  "Sebetralstat's first-mover window is compressing — plausibly 18 months ahead of Pharvaris rather than 24. Commercial readiness and KOL anchoring should accelerate.",
-  `Pediatric expansion across Takhzyro and Andembry creates pressure to clarify ${DEMO.assetName}'s pediatric narrative within Q3 to avoid ceding ground in this segment.`,
-  "Incumbents' defensive posture is softening on tone (BioCryst, CSL) but tightening on access — double down on real-world time-to-relief evidence to support switching conversations.",
-]
+function buildSignalHeadline(s: DbRecentSignal): string {
+  // SEC 8-K Item 5.02 titles are structural headings, not news — replace with readable version
+  if (s.signal_type === 'exec_change' && SEC_8K_ITEM_RE.test(s.headline ?? '')) {
+    const competitor = competitorById(s.competitor_id)
+    const name = competitor?.name ?? 'This company'
+    return `${name} filed an executive or board change with the SEC.`
+  }
+  return cleanNeedleText(s.headline, s.body_excerpt)
+}
 
-const ASK_PROMPTS = [
-  `Compare Pharvaris vs ${DEMO.assetName} timeline`,
-  "Summarise Takeda's pediatric narrative",
-  'Draft IR talking points',
-]
+// â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea): LiveSignalDisplayItem {
+  const TYPE_MAP: Record<string, string> = {
+    deal:          'deal',
+    press_release: 'publication',
+    exec_change:   'exec-move',
+  }
+  const competitor = competitorById(s.competitor_id)
+  const competitorName = competitor?.name ?? s.competitor_id
+  return {
+    id:           `live-${s.id}`,
+    timestamp:    s.date ? `${s.date}T00:00:00Z` : new Date().toISOString(),
+    competitorId: s.competitor_id,
+    type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
+    severity:     computeSeverity(s, HAE_LEXICON, new Date()),
+    headline:     buildSignalHeadline(s),
+    whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
+    source:       buildSourceLabel(s.source_url, s.signal_type),
+    sourceUrl:    s.source_url,
+    _isLive:      true,
+  }
+}
 
-const DIGEST_ITEMS = [
-  'Pharvaris RAPIDe-3 completion date tightened by 6 weeks — oral on-demand window narrows.',
-  'BioCryst Q1 earnings: HAE net revenue $89M, up 12% YoY. Management tone on prophylaxis switching remains cautious.',
-  'CSL Behring confirms Andembry formulary access in Germany ahead of schedule.',
-]
+function mapCalendarEventToItem(e: DbRegulatoryCalendarEvent): MergedEventItem {
+  // Factual annotation derived from gate result — no blanket "may shape the timeline" text
+  let note: string
+  if (e.event_type === 'CHMP') {
+    note = 'CHMP plenary · EU committee decisions on medicines'
+  } else if (e.event_type === 'PRAC') {
+    note = 'PRAC meeting · EU pharmacovigilance review'
+  } else {
+    // OTHER — passed Gate 2, so title contains an HAE term; cite the first match
+    const title = (e.title ?? '').toLowerCase()
+    const matchedTerm =
+      HAE_LEXICON.inns.find(t => title.includes(t.toLowerCase())) ??
+      HAE_LEXICON.ta_terms.find(t => title.includes(t.toLowerCase())) ??
+      'HAE-related'
+    note = `${matchedTerm} · EMA · ${e.start_date ?? ''}`
+  }
+  return {
+    id:                   e.id,
+    date:                 e.start_date ?? '',
+    title:                e.title ?? `${e.event_type} Meeting`,
+    expectedTopics:       [],
+    note,
+    attendingCompetitors: [],
+    sourceUrl:            e.source_url,
+    _source:              'ema',
+  }
+}
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
@@ -118,22 +428,26 @@ function greeting() {
   return 'Good evening'
 }
 
-function headerTimestamp() {
-  const dow   = TODAY.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase()
-  const month = TODAY.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
-  const day   = TODAY.getUTCDate()
-  return `${dow} · ${month} ${day} · 18:42 · LAST REFRESH 2 MIN AGO`
+function headerTimestamp(lastRefreshedAt: Date) {
+  const now   = new Date()
+  const dow   = now.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
+  const month = now.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+  const day   = now.getDate()
+  const time  = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const diffMin = Math.round((now.getTime() - lastRefreshedAt.getTime()) / 60000)
+  const refreshLabel = diffMin < 1 ? 'JUST NOW' : `${diffMin} MIN AGO`
+  return `${dow} · ${month} ${day} · ${time} · LAST REFRESH ${refreshLabel}`
 }
 
-function relTimeShort(ts: string) {
-  const diffMs = TODAY.getTime() - new Date(ts).getTime()
+function relTimeShort(ts: string, now: Date = new Date()) {
+  const diffMs = now.getTime() - new Date(ts).getTime()
   const diffH  = Math.round(diffMs / (1000 * 60 * 60))
   if (diffH < 24) return `${Math.max(0, diffH)}h`
   return `${Math.round(diffH / 24)}d`
 }
 
 function daysUntilLabel(date: string) {
-  const diff = Math.round((new Date(date).getTime() - TODAY.getTime()) / (1000 * 60 * 60 * 24))
+  const diff = Math.round((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   if (diff < 0) return `${Math.abs(diff)}d ago`
   if (diff === 0) return 'today'
   if (diff === 1) return 'tomorrow'
@@ -152,7 +466,7 @@ function competitorById(id: string): Competitor | undefined {
   return competitorsData.find((c) => c.id === id)
 }
 
-// ── Section card wrapper ─────────────────────────────────────────────────────
+// â”€â”€ Section card wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Card({ children, padding = '20px 22px', style }: {
   children: ReactNode
   padding?: string
@@ -173,7 +487,7 @@ function Card({ children, padding = '20px 22px', style }: {
 }
 
 function CardHeader({ title, subtitle, right }: {
-  title: string
+  title: ReactNode
   subtitle?: string
   right?: ReactNode
 }) {
@@ -211,7 +525,7 @@ function HeaderLink({ to, children }: { to: string; children: ReactNode }) {
   )
 }
 
-// ── KPI tile (compact, 3-up row) ─────────────────────────────────────────────
+// â”€â”€ KPI tile (compact, 3-up row) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo, linkLabel }: {
   label: string
   value: number | string
@@ -277,7 +591,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
   )
 }
 
-// ── Compact alert card ───────────────────────────────────────────────────────
+// â”€â”€ Compact alert card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CompactAlertCard({ alert }: { alert: Alert }) {
   const sevBorder = SEVERITY_BORDER[alert.severity] || SEVERITY_BORDER.low
   const sevLabel  = SEVERITY_LABEL[alert.severity]  || SEVERITY_LABEL.low
@@ -314,22 +628,23 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
         }}>
           {sevLabel.label}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
-          {relTimeShort(alert.timestamp)}
-        </span>
       </div>
 
-      {/* Headline + source */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '4px' }}>
-        <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.92)', lineHeight: 1.35, flex: 1 }}>
-          {alert.headline}
-        </p>
-        {alert.source && (
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
-            {alert.source}
-          </span>
-        )}
-      </div>
+      {/* Headline */}
+      <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.92)', lineHeight: 1.35 }}>
+        {decodeEntities(alert.headline)}
+      </p>
+
+      {/* Provenance chip — source + age, co-located with the claim */}
+      {alert.source && (
+        <div style={{ marginBottom: '4px' }}>
+          <ProvenanceChip
+            sourceLabel={alert.source}
+            sourceUrl={alert.sourceUrl}
+            date={alert.timestamp}
+          />
+        </div>
+      )}
 
       {/* WHY */}
       {alert.whyItMatters && (
@@ -347,14 +662,57 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
   )
 }
 
-// ── Compact competitor card ──────────────────────────────────────────────────
-function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
+// â”€â”€ Compact competitor card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function CompactCompetitorCard({
+  competitor,
+  liveSignals,
+  recentSignals,
+  haeAssetCount,
+}: {
+  competitor: Competitor
+  liveSignals: DbSignalSummary | null
+  recentSignals: DbRecentSignal[]
+  haeAssetCount: number
+}) {
   const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
-  const recent = [...alertsData]
-    .filter((a) => a.competitorId === competitor.id)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-  const lastSignal = recent ? relTimeShort(recent.timestamp) + ' ago' : '—'
-  const pipelineCount = (competitor.pipeline || []).length
+  const pipelineCount = haeAssetCount
+
+  let lastSignal: string
+  let isLive = false
+  if (liveSignals?.latestDate) {
+    lastSignal = relTimeShort(`${liveSignals.latestDate}T00:00:00Z`) + ' ago'
+    isLive = true
+  } else {
+    lastSignal = '—'
+  }
+
+  // Build a signal-type summary for this competitor (readable signals only)
+  const today = new Date()
+  const compSignals = recentSignals.filter((s) => s.competitor_id === competitor.id)
+  const highSignals = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'high')
+  const medSignals  = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'medium')
+
+  let activityLabel: string
+  let activityText: string
+  let activityIsLive: boolean
+
+  if (compSignals.length > 0) {
+    activityIsLive = true
+    const parts: string[] = []
+    if (highSignals.length > 0) parts.push(`${highSignals.length} high`)
+    if (medSignals.length > 0)  parts.push(`${medSignals.length} medium`)
+    const low = compSignals.length - highSignals.length - medSignals.length
+    if (low > 0 && parts.length === 0) parts.push(`${low} low`)
+    activityLabel = parts.join(' · ') + ' signal' + (compSignals.length > 1 ? 's' : '')
+
+    // Lead with the top-priority signal's action text
+    const topSignal = highSignals[0] ?? medSignals[0] ?? compSignals[0]
+    activityText = buildNeedleText(topSignal)
+  } else {
+    activityIsLive = false
+    activityLabel = ''
+    activityText = (competitor as unknown as { executiveSummary?: string }).executiveSummary ?? ''
+  }
 
   return (
     <Link
@@ -388,13 +746,18 @@ function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
         {competitor.strategicPosture}
       </span>
 
-      {/* Description */}
+      {/* Signal summary */}
+      {activityIsLive && activityLabel && (
+        <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#10B981' }}>
+          {activityLabel}
+        </p>
+      )}
       <p style={({
-        margin: 0, fontSize: '12.5px', color: 'rgba(5,10,68,0.60)',
+        margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.60)',
         lineHeight: 1.5,
-        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '12px',
+        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
       } as CSSProperties)}>
-        {competitor.executiveSummary}
+        {activityText}
       </p>
 
       {/* Footer stats */}
@@ -415,7 +778,10 @@ function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
           <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
             Last signal
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.65)' }}>
+          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.65)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {isLive && (
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0, display: 'inline-block' }} />
+            )}
             {lastSignal}
           </p>
         </div>
@@ -424,8 +790,8 @@ function CompactCompetitorCard({ competitor }: { competitor: Competitor }) {
   )
 }
 
-// ── Upcoming event row ───────────────────────────────────────────────────────
-function EventRow({ event, last }: { event: EventItem; last: boolean }) {
+// â”€â”€ Upcoming event row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
   const { day, month } = dayMonthParts(event.date)
   const subtitle = event.expectedTopics?.[0] || event.note || ''
   return (
@@ -448,7 +814,7 @@ function EventRow({ event, last }: { event: EventItem; last: boolean }) {
         </p>
       </div>
 
-      {/* Title + subtitle */}
+      {/* Title + EMA chip + subtitle */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
           margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.88)',
@@ -457,6 +823,26 @@ function EventRow({ event, last }: { event: EventItem; last: boolean }) {
         }}>
           {event.title}
         </p>
+        {event._source === 'ema' && (
+          <span style={{
+            display: 'inline-block', marginTop: '2px',
+            padding: '1px 7px', borderRadius: '9999px',
+            fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em',
+            background: 'rgba(0,52,114,0.10)', color: '#003472',
+          }}>
+            EMA
+          </span>
+        )}
+        {event._source !== 'ema' && event.sourceType && SOURCE_TYPE_LABEL[event.sourceType] && (
+          <span style={{
+            display: 'inline-block', marginTop: '2px',
+            padding: '1px 7px', borderRadius: '9999px',
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.03em',
+            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.55)',
+          }}>
+            {SOURCE_TYPE_LABEL[event.sourceType]}
+          </span>
+        )}
         {subtitle && (
           <p style={{
             margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.50)',
@@ -467,25 +853,93 @@ function EventRow({ event, last }: { event: EventItem; last: boolean }) {
         )}
       </div>
 
-      {/* Countdown */}
-      <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
-        {daysUntilLabel(event.date)}
-      </span>
+      {/* Countdown + source link */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
+          {daysUntilLabel(event.date)}
+        </span>
+        {event.sourceUrl && (
+          <button
+            type="button"
+            title="View source"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(event.sourceUrl!, '_blank', 'noreferrer') }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(5,10,68,0.35)', display: 'inline-flex', alignItems: 'center' }}
+          >
+            <ExternalLink size={10} />
+          </button>
+        )}
+      </div>
     </Link>
   )
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function WarRoom() {
-  const { unreadCount, readAlerts, openAskModal } = useApp()
+  const { unreadCount, readAlerts, openAskModal, watchedCompetitors } = useApp()
+  const { assetName, indication } = useConfig()
   const navigate = useNavigate()
-
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
 
-  // ── Derived data ───────────────────────────────────────────────────────────
+  // â”€â”€ Live data via React Query (stale-while-revalidate, 5-min background refresh) â”€â”€
+  // Sorted for stable key comparison — refetches automatically when watchlist changes
+  const watchedIds = Array.from(watchedCompetitors).sort()
+  const filterIds  = watchedIds.length > 0 ? watchedIds : undefined
 
-  // Top 5 alerts — Importance default, Recency alternative
-  const topAlerts = [...alertsData]
+  const { data: liveData, isSuccess: liveDataLoaded, dataUpdatedAt } = useQuery({
+    queryKey: ['war-room-live', watchedIds],
+    queryFn: () => Promise.all([
+      getAllSignalsSummary(filterIds),  // KPI tiles: watchlist-filtered
+      getRecentSignals(90),            // Signal feed: all competitors — ensures the feed is always populated
+      getRegulatoryCalendar(),
+      getMarketImplications(),
+      getAllAssets(),                   // indication_tags for HAE asset count per competitor
+    ]).then(([summary, recent, calendar, implications, assets]) => ({
+      summary, recent, calendar, implications, assets,
+    })),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60 * 1000,
+  })
+
+  // CSL Behring files with ASX (Australian Securities Exchange), not SEC.
+  // No automated live ingest covers ASX — their company_signals rows are manually seeded data.
+  // Exclude at the display layer so re-enabling is a one-line change once live ingest is available.
+  const EXCLUDED_COMPETITOR_IDS = new Set(['csl-behring'])
+
+  const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
+  const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
+    .filter(s => !EXCLUDED_COMPETITOR_IDS.has(s.competitor_id ?? ''))
+  const calendarEvents     = liveData?.calendar      ?? ([] as DbRegulatoryCalendarEvent[])
+  const marketImplications = liveData?.implications  ?? ([] as DbMarketImplication[])
+  const allAssets          = liveData?.assets        ?? ([] as DbAsset[])
+  const lastRefreshedAt    = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date()
+
+  // HAE asset count per competitor — indication_tags filtered, not total asset count
+  const haeAssetCountMap = new Map<string, number>(
+    competitorsData.map(c => [c.id, countHAEAssets(allAssets, c.id)])
+  )
+
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const cutoff7d = sevenDaysAgo.toISOString().slice(0, 10)
+  const newSignalCount7d = recentLiveSignals.filter((s) => s.date !== null && s.date >= cutoff7d).length
+
+  // â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // Strip XBRL/accession-prefix boilerplate before anything else touches the feed
+  const readableSignals = recentLiveSignals.filter(isSignalReadable)
+  // Relevance gate: watched competitor signals always surface (their excerpts may not mention HAE terms
+  // due to 500-char truncation); non-watched competitors must pass the HAE lexicon check so signals
+  // like Ionis/olezarsen FCS or bepirovirsen CHB never reach the UI.
+  // readableSignals is kept for KPI counts (total signal volume).
+  const relevantSignals = readableSignals.filter(
+    s => watchedCompetitors.has(s.competitor_id ?? '') || isRelevant(s, HAE_LEXICON)
+  )
+
+  // Top 5 alerts — relevant live signals only
+  const liveDisplayItems = relevantSignals.map(s => mapDbSignalToDisplay(s, assetName, indication))
+
+  const topAlerts = (liveDisplayItems as unknown as Alert[])
     .sort((a, b) => {
       if (sortMode === 'importance') {
         const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
@@ -499,31 +953,93 @@ export default function WarRoom() {
     })
     .slice(0, 5)
 
-  // KPI metrics
-  const highUnread = alertsData.filter((a) => a.severity === 'high' && !readAlerts.has(a.id)).length
-  const newSinceLastVisit = 3 // illustrative — sessions not actually tracked
-  const pharvarisUnread = alertsData.filter((a) => a.competitorId === 'pharvaris' && !readAlerts.has(a.id)).length
-  const trackedCompetitorCount = new Set(alertsData.map((a) => a.competitorId)).size
-  const trialAlerts      = alertsData.filter((a) => a.type === 'trial-update').length
-  const commercialAlerts = alertsData.filter((a) => ['exec-move', 'deal', 'earnings'].includes(a.type)).length
+  // KPI metrics — derived from live signals only
+  const highUnread         = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high' && !readAlerts.has((a as unknown as Alert).id)).length
+  const newThisWeek        = newSignalCount7d
+  const pharvarisUnread    = liveDisplayItems.filter((a) => (a as unknown as Alert).competitorId === 'pharvaris' && !readAlerts.has((a as unknown as Alert).id)).length
+  const trackedCompetitorCount = watchedCompetitors.size
+  // Signals that mention clinical trial keywords (press releases with clinical content)
+  const trialAlerts        = liveDisplayItems.filter((a) => CLINICAL_KW.test((a as unknown as Alert).headline ?? '')).length
+  const commercialAlerts   = liveDisplayItems.filter((a) => ['exec-move', 'deal', 'earnings'].includes((a as unknown as Alert).type ?? '')).length
+  // High-severity breakdown for KPI tile caption
+  const highAlerts = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high')
+  const dealHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'deal').length
+  const execHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'exec-move').length
+  const highCaptionParts = [
+    dealHighCount > 0   ? `${dealHighCount} deal`      : '',
+    execHighCount > 0   ? `${execHighCount} exec`      : '',
+  ].filter(Boolean)
+  const highCaption = highCaptionParts.length > 0 ? highCaptionParts.join(' · ') + ' · review recommended' : 'No high-priority signals'
 
-  // Tracked competitors — first 4
-  const trackedCompetitorsFour = competitorsData.slice(0, 4)
+  // Tracked competitors — watched set, sorted by most recent signal (no cap)
+  const trackedCompetitors = competitorsData
+    .filter((c) => watchedCompetitors.has(c.id))
+    .sort((a, b) => {
+      const aDate = signalsSummary.get(a.id)?.latestDate ?? ''
+      const bDate = signalsSummary.get(b.id)?.latestDate ?? ''
+      return bDate.localeCompare(aDate)
+    })
 
-  // Upcoming events — next 4 (any type)
-  const upcomingEvents = [...eventsData]
-    .filter((e) => new Date(e.date) >= TODAY)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 4)
+  // Upcoming events — merge live regulatory_calendar + static eventsData
+  const nowStr = new Date().toISOString().slice(0, 10)
+  const liveEventItems: MergedEventItem[] = calendarEvents
+    .filter((e) => e.start_date !== null && (e.start_date as string) >= nowStr)
+    .filter(isRelevantEMAEvent)
+    .map(mapCalendarEventToItem)
+    .filter((e) => !/^\d{1,2}:\d{2}$/.test(e.title ?? ''))
+  const liveTitles = new Set(liveEventItems.map((e) => e.title.toLowerCase()))
+  const staticEventItems: MergedEventItem[] = (eventsData as unknown as MergedEventItem[])
+    .filter((e) => new Date(e.date) >= new Date())
+    .map((e) => ({ ...e, sourceType: (e as unknown as { sourceType?: string }).sourceType, _source: 'static' as const }))
+    .filter((e) => !liveTitles.has((e.title ?? '').toLowerCase()))
+  const upcomingEvents: MergedEventItem[] = [...liveEventItems, ...staticEventItems]
+    .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+    .slice(0, 5)
+
+  // Market weather — "What moved this week": one signal per competitor, limited to the last 7 days
+  const weeklyRelevantSignals = relevantSignals.filter(s => s.date !== null && s.date >= cutoff7d)
+  const signalsByCompetitor = new Map<string, DbRecentSignal>()
+  for (const s of weeklyRelevantSignals) {
+    if (!signalsByCompetitor.has(s.competitor_id)) signalsByCompetitor.set(s.competitor_id, s)
+  }
+  const liveNeedleItems = [...signalsByCompetitor.values()]
+    .filter((s) => {
+      const h = s.headline ?? ''
+      return h.length > 20 && !/^[a-z]{2,6}-\d{8}/i.test(h) && /[A-Z].*[a-z]{4,}/.test(h)
+    })
+    .slice(0, 5)
+    .map((s) => ({
+      competitorId: s.competitor_id,
+      text: buildNeedleText(s),
+      _isLive: true as const,
+    }))
+  const needleItems = liveNeedleItems
+
+  // Market weather — pressure status weighted by signal severity
+  const weatherToday = new Date()
+  const highSigCount = recentLiveSignals.filter((s) => computeSeverity(s, HAE_LEXICON, weatherToday) === 'high').length
+  const medSigCount  = recentLiveSignals.filter((s) => computeSeverity(s, HAE_LEXICON, weatherToday) === 'medium').length
+  const pressureStatus: keyof typeof WINDOW_STATUS_CONFIG =
+    highSigCount >= 2                            ? 'Pressure building'
+    : (highSigCount >= 1 || medSigCount >= 3)    ? 'Pressure stable'
+    : 'Pressure easing'
+
+  // Market weather — implication bullets (live from DB only)
+  const displayedImplications = marketImplications.map((i) => i.content)
+
+  // Weekly digest — top 3 relevant signals from the live feed
+  const digestItems = relevantSignals
+    .slice(0, 3)
+    .map((s) => ({ competitorId: s.competitor_id, text: cleanNeedleText(s.headline, s.body_excerpt) }))
 
   // Market weather status config
-  const statusCfg = WINDOW_STATUS_CONFIG[CURRENT_WINDOW_STATUS] ?? WINDOW_STATUS_CONFIG['Pressure stable']
+  const statusCfg = WINDOW_STATUS_CONFIG[pressureStatus] ?? WINDOW_STATUS_CONFIG['Pressure stable']
   const StatusIcon = statusCfg.icon
 
   return (
     <div data-page-pad style={{ padding: '20px 32px' }}>
 
-      {/* ── Top header: timestamp + greeting + actions ──────────────────── */}
+      {/* â”€â”€ Top header: timestamp + greeting + actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div style={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         gap: '16px', marginBottom: '20px',
@@ -533,7 +1049,7 @@ export default function WarRoom() {
             margin: '0 0 4px', fontSize: '11px', fontWeight: 700,
             letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)',
           }}>
-            {headerTimestamp()}
+            {headerTimestamp(lastRefreshedAt)}
           </p>
           <h1 style={{
             margin: 0, fontSize: '24px', fontWeight: 700,
@@ -541,11 +1057,18 @@ export default function WarRoom() {
           }}>
             {greeting()}, {userData.user.name}.{' '}
             <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
-              Here's the state of {DEMO.therapeuticArea}.
+              Here's the state of {indication}.
             </span>
           </h1>
           <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
-            {DEMO.assetName} · {DEMO.therapeuticArea} · {trackedCompetitorCount} tracked competitors · {alertsData.length} signals on file
+            {assetName} · {indication}
+            {trackedCompetitors.length > 0 && (
+              <>
+                {' · '}
+                {trackedCompetitors.slice(0, 4).map((c) => c.name).join(' · ')}
+                {trackedCompetitors.length > 4 && ` · +${trackedCompetitors.length - 4} more`}
+              </>
+            )}
           </p>
         </div>
 
@@ -584,17 +1107,21 @@ export default function WarRoom() {
         </div>
       </div>
 
-      {/* ── 3 KPI tiles ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ 3 KPI tiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div data-tour="war-room" data-kpi-grid style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
         gap: '14px', marginBottom: '20px',
       }}>
         <KpiTile
-          label="New since last visit"
-          value={newSinceLastVisit}
-          delta="vs yesterday"
-          deltaTone="positive"
-          caption="Last visit yesterday, 09:14 · 3 unread arrivals"
+          label="New this week"
+          value={newThisWeek ?? 0}
+          delta="last 7 days"
+          deltaTone="neutral"
+          caption={
+            liveDataLoaded
+              ? `${newThisWeek} new signals in the last 7 days`
+              : 'Loading signal count…'
+          }
           linkTo="/alerts"
           linkLabel="Open new arrivals"
         />
@@ -603,35 +1130,44 @@ export default function WarRoom() {
           value={unreadCount}
           delta={`${pharvarisUnread} from Pharvaris`}
           deltaTone="neutral"
-          caption={`Across ${trackedCompetitorCount} competitors · ${trialAlerts} trial · ${commercialAlerts} commercial`}
+          caption={`Across ${trackedCompetitorCount} competitors · ${trialAlerts} clinical · ${commercialAlerts} commercial`}
           linkTo="/alerts"
           linkLabel="Open inbox"
         />
         <KpiTile
           label="High importance"
           value={highUnread}
-          delta="+2 vs last week"
-          deltaTone="positive"
-          caption="3 demand response · IR follow-up, KOL prep"
+          caption={highCaption}
           linkTo="/alerts"
           linkLabel="Triage now"
         />
       </div>
 
-      {/* ── 2-column main grid ──────────────────────────────────────────── */}
+      {/* â”€â”€ 2-column main grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div data-war-room-grid style={{
         display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px',
         gap: '20px', alignItems: 'flex-start',
       }}>
 
-        {/* ── LEFT COLUMN ─────────────────────────────────────────────── */}
+        {/* â”€â”€ LEFT COLUMN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
           {/* Top signals to triage */}
           <Card>
             <CardHeader
-              title="Top signals to triage"
-              subtitle={`5 shown · ${unreadCount} unread`}
+              title={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  Top signals to triage
+                  {liveDataLoaded && (
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', flexShrink: 0, display: 'inline-block' }} />
+                  )}
+                </span>
+              }
+              subtitle={
+                liveDataLoaded
+                  ? `${readableSignals.length} live · ${topAlerts.length} shown · ${unreadCount} unread`
+                  : `${topAlerts.length} shown · ${unreadCount} unread`
+              }
               right={
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {([
@@ -662,9 +1198,19 @@ export default function WarRoom() {
               }
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {topAlerts.map((alert) => (
-                <CompactAlertCard key={alert.id} alert={alert} />
-              ))}
+              {topAlerts.length > 0 ? (
+                topAlerts.map((alert) => (
+                  <CompactAlertCard key={alert.id} alert={alert} />
+                ))
+              ) : (
+                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                  {!liveDataLoaded
+                    ? 'Loading signals…'
+                    : watchedCompetitors.size === 0
+                      ? 'Add competitors to your watchlist to see their signals here.'
+                      : 'No signals from your tracked competitors in the last 30 days.'}
+                </p>
+              )}
             </div>
           </Card>
 
@@ -675,14 +1221,22 @@ export default function WarRoom() {
               subtitle="last 7 days · signal volume"
               right={<HeaderLink to="/competitors">All competitors</HeaderLink>}
             />
-            <div data-two-col-grid style={{
-              display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '12px',
-            }}>
-              {trackedCompetitorsFour.map((c) => (
-                <CompactCompetitorCard key={c.id} competitor={c} />
-              ))}
-            </div>
+            {trackedCompetitors.length > 0 ? (
+              <div data-two-col-grid style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '12px',
+              }}>
+                {trackedCompetitors.map((c) => (
+                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} />
+                ))}
+              </div>
+            ) : (
+              <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                You're not tracking any competitors yet.{' '}
+                <a href="/competitors" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
+                {' '}to add some to your watchlist.
+              </p>
+            )}
           </Card>
 
           {/* Ask Ariya panel */}
@@ -696,7 +1250,7 @@ export default function WarRoom() {
             <button
               type="button"
               onClick={() => openAskModal('war-room-ask-panel')}
-              aria-label={`Ask Ariya: What changed for ${DEMO.assetName} this week?`}
+              aria-label={`Ask Ariya: What changed for ${assetName} this week?`}
               style={{
                 display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '10px 14px', borderRadius: '10px',
@@ -708,11 +1262,15 @@ export default function WarRoom() {
             >
               <Search size={14} color="rgba(5,10,68,0.50)" aria-hidden="true" />
               <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.55)' }}>
-                What changed for {DEMO.assetName} this week?
+                What changed for {assetName} this week?
               </span>
             </button>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {ASK_PROMPTS.map((prompt) => (
+              {[
+                `Compare Pharvaris vs ${assetName} timeline`,
+                "Summarise Takeda's pediatric narrative",
+                'Draft IR talking points',
+              ].map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => openAskModal(`war-room-prompt-${prompt}`)}
@@ -732,13 +1290,20 @@ export default function WarRoom() {
           </Card>
         </div>
 
-        {/* ── RIGHT COLUMN ────────────────────────────────────────────── */}
+        {/* â”€â”€ RIGHT COLUMN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
           {/* Market weather */}
           <Card>
             <CardHeader
-              title={`Market weather · ${DEMO.assetName}`}
+              title={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  {`Market weather · ${assetName}`}
+                  {liveDataLoaded && liveNeedleItems.length > 0 && (
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10B981', flexShrink: 0, display: 'inline-block' }} />
+                  )}
+                </span>
+              }
               right={
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
@@ -749,7 +1314,6 @@ export default function WarRoom() {
                   }}>
                     30D
                   </span>
-                  <ExportButton label="Export" />
                 </div>
               }
             />
@@ -763,7 +1327,7 @@ export default function WarRoom() {
                 fontSize: '14px', fontWeight: 700,
               }}>
                 <StatusIcon size={14} strokeWidth={2.5} />
-                {CURRENT_WINDOW_STATUS}
+                {pressureStatus}
               </span>
               <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
                 over the last 30 days
@@ -779,41 +1343,33 @@ export default function WarRoom() {
               }}>
                 What moved this week
               </p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {NEEDLE_ITEMS.map((item, i) => {
-                  const cName = competitorById(item.competitorId)?.name ?? item.competitorId
-                  return (
-                    <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                        <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
-                        {' — '}{item.text}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
+              {needleItems.length > 0 ? (
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {needleItems.map((item, i) => {
+                    const cName = competitorById(item.competitorId)?.name ?? item.competitorId
+                    return (
+                      <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+                        <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
+                          <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                          {' — '}{decodeEntities(item.text)}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                  {watchedCompetitors.size === 0
+                    ? 'Track competitors to see their weekly moves here.'
+                    : 'No notable moves from your tracked competitors this week.'}
+                </p>
+              )}
             </div>
 
             {/* Implications */}
             <div>
-              <p style={{
-                margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
-                textTransform: 'uppercase', letterSpacing: '0.10em',
-                color: 'rgba(5,10,68,0.65)',
-              }}>
-                Implications · last 7 days
-              </p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {IMPLICATION_ITEMS.map((text, i) => (
-                  <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                    <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                    <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                      {text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <PaidGate label="Market Implications" description="Strategic interpretation of signals · Available in the full platform" />
             </div>
 
             {/* Footer */}
@@ -832,7 +1388,6 @@ export default function WarRoom() {
               >
                 Read full assessment <ArrowRight size={11} />
               </Link>
-              <ConfidenceIndicator sourceCoverage="high" dataFreshness="high" inferenceDepth="high" />
             </div>
           </Card>
 
@@ -840,12 +1395,25 @@ export default function WarRoom() {
           <Card padding="20px 22px 12px">
             <CardHeader
               title="Upcoming events"
+              subtitle={
+                liveDataLoaded && liveEventItems.length > 0
+                  ? `${liveEventItems.length} from EMA`
+                  : undefined
+              }
               right={<HeaderLink to="/intelligence?tab=events">All</HeaderLink>}
             />
             <div>
-              {upcomingEvents.map((e, i) => (
-                <EventRow key={e.id} event={e} last={i === upcomingEvents.length - 1} />
-              ))}
+              {upcomingEvents.length > 0 ? (
+                upcomingEvents.map((e, i) => (
+                  <EventRow key={e.id} event={e} last={i === upcomingEvents.length - 1} />
+                ))
+              ) : (
+                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                  No upcoming events found.{' '}
+                  <a href="/intelligence?tab=events" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
+                  {' '}for the full calendar.
+                </p>
+              )}
             </div>
           </Card>
 
@@ -855,28 +1423,26 @@ export default function WarRoom() {
               title="Your weekly digest"
               right={<HeaderLink to="/myspace/alerts">Configure</HeaderLink>}
             />
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '8px 12px', borderRadius: '8px',
-              background: '#FAFBFE',
-              border: '1px solid rgba(5,10,68,0.06)',
-              marginBottom: '12px',
-            }}>
-              <Calendar size={12} color="#0055BB" />
-              <span style={{ fontSize: '11.5px', color: 'rgba(5,10,68,0.65)' }}>
-                Next delivery <strong style={{ color: 'rgba(5,10,68,0.85)' }}>Monday 07:00</strong> via email
-              </span>
-            </div>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {DIGEST_ITEMS.map((text, i) => (
-                <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                  <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                  <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                    {text}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {digestItems.length > 0 ? (
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {digestItems.map((item, i) => {
+                  const cName = competitorById(item.competitorId)?.name ?? item.competitorId
+                  return (
+                    <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
+                        <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                        {' — '}{item.text}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                No recent signals to summarise
+              </p>
+            )}
           </Card>
 
         </div>

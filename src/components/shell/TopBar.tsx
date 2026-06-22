@@ -15,8 +15,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Menu } from 'lucide-react'
-import { useApp } from '../../context/AppContext'
-import { DEMO } from '../../config/demo-config'
+import { useApp, useConfig } from '../../context/AppContext'
 
 // ── Route → page title map ────────────────────────────────────────────────────
 const PAGE_TITLES: Record<string, string> = {
@@ -47,15 +46,15 @@ const REPORT_COUNT             = 13
 const MARKET_DEV_COUNT         = 23
 const COMPETITOR_COUNT         = 8
 
-function getPageSubtitle(pathname: string): string | null {
+function getPageSubtitle(pathname: string, assetName: string, indication: string): string | null {
   if (pathname === '/') {
-    return `${DEMO.assetName} · ${DEMO.therapeuticArea} · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
+    return `${assetName} · ${indication} · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
   }
   if (pathname === '/intelligence') {
     return `${UPCOMING_EVENT_COUNT} upcoming events · ${REPORT_COUNT} reports · ${MARKET_DEV_COUNT} market developments`
   }
   if (pathname === '/competitors') {
-    return `${COMPETITOR_COUNT} competitors tracked · ${DEMO.therapeuticArea} therapeutic area`
+    return `${COMPETITOR_COUNT} competitors tracked · ${indication} therapeutic area`
   }
   return null
 }
@@ -92,6 +91,7 @@ export default function TopBar() {
   const location  = useLocation()
   const navigate  = useNavigate()
   const { openMobileNav } = useApp()
+  const { assetName, indication } = useConfig()
   const pageTitle = getPageTitle(location.pathname)
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 767)
@@ -115,18 +115,14 @@ export default function TopBar() {
   // My Space is a settings/config screen — Ask Ariya not needed there
   const isMySpacePage = location.pathname === '/myspace'
 
-  const pageSubtitle = getPageSubtitle(location.pathname)
+  const pageSubtitle = getPageSubtitle(location.pathname, assetName, indication)
 
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>
 
-      {/* ── Illustrative data ribbon ───────────────────────────────────────── */}
-      <div
-        role="note"
-        style={{ padding: '6px 24px', background: '#d2e2ff', display: 'flex', alignItems: 'center', gap: '10px' }}
-      >
-        {/* Hamburger — mobile only */}
-        {isMobile && (
+      {/* Hamburger — mobile only */}
+      {isMobile && (
+        <div style={{ padding: '6px 24px', display: 'flex', alignItems: 'center' }}>
           <button
             onClick={openMobileNav}
             aria-label="Open navigation"
@@ -138,17 +134,8 @@ export default function TopBar() {
           >
             <Menu size={18} strokeWidth={1.75} />
           </button>
-        )}
-        <p style={{
-          margin: 0,
-          fontSize: '12px', fontWeight: 400,
-          color: 'var(--font-primary)',
-          fontFamily: 'Inter, sans-serif',
-          flex: 1,
-        }}>
-          {DEMO.demoBadgeLabel}
-        </p>
-      </div>
+        </div>
+      )}
 
       {/* ── Header row (hidden on competitor profile pages and War Room) ───── */}
       {!isCompetitorProfile && !isWarRoom && (

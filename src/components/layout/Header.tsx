@@ -2,22 +2,25 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Bell, Sparkles, HelpCircle, X } from 'lucide-react'
-import { useApp } from '../../context/AppContext'
+import { useApp, useConfig } from '../../context/AppContext'
 import user from '../../data/user.json'
 import { DEMO } from '../../config/demo-config'
 
-// ── Help modal content (Task 6c) ──────────────────────────────────────────────
-const HELP_SECTIONS = [
-  { name: 'War Room',            description: 'Your personalised landing page with the signals that matter most to you this week.' },
-  { name: 'Competitors',         description: 'Pipeline, company, and messaging profiles for all 8 tracked competitors.' },
-  { name: 'Market Performance',  description: `${DEMO.assetName} uptake vs the ${DEMO.therapeuticArea} class across DE, UK, and US.` },
-  { name: 'Intelligence Feed',   description: 'Events calendar, earnings digests, deal landscape, and HTA tracker.' },
-  { name: 'Pricing and Access',  description: 'Multi-region pricing benchmark across 7 markets.' },
-  { name: 'Alerts',              description: 'Full signal feed, filterable by type and competitor.' },
-  { name: 'My Space',            description: 'Configure your delivery preferences and personal uploads.' },
-]
+function buildHeaderHelpSections(assetName: string, indication: string) {
+  return [
+    { name: 'War Room',            description: 'Your personalised landing page with the signals that matter most to you this week.' },
+    { name: 'Competitors',         description: 'Pipeline, company, and messaging profiles for all 8 tracked competitors.' },
+    { name: 'Market Performance',  description: `${assetName} uptake vs the ${indication} class across DE, UK, and US.` },
+    { name: 'Intelligence Feed',   description: 'Events calendar, earnings digests, deal landscape, and HTA tracker.' },
+    { name: 'Pricing and Access',  description: 'Multi-region pricing benchmark across 7 markets.' },
+    { name: 'Alerts',              description: 'Full signal feed, filterable by type and competitor.' },
+    { name: 'My Space',            description: 'Configure your delivery preferences and personal uploads.' },
+  ]
+}
 
 function HelpModal({ onClose, onTakeTour }) {
+  const { assetName, indication } = useConfig()
+  const HELP_SECTIONS = buildHeaderHelpSections(assetName, indication)
   return createPortal(
     <div
       onClick={onClose}
@@ -56,7 +59,7 @@ function HelpModal({ onClose, onTakeTour }) {
           What is Ariya Signals?
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'rgba(5,10,68,0.62)', lineHeight: '1.65' }}>
-          A competitive intelligence hub for {DEMO.companyLabel}'s {DEMO.therapeuticArea} franchise. It monitors {DEMO.assetName}'s competitive
+          A competitive intelligence hub for {DEMO.companyLabel}'s {indication} franchise. It monitors {assetName}'s competitive
           environment, tracks competitor pipeline and commercial moves, and delivers role-tailored insights
           so you spend less time gathering and more time deciding.
         </p>
@@ -226,22 +229,8 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ── Illustrative data ribbon (§1.4, §7.9) ───────────────────────── */}
-      <div
-        className="px-6"
-        style={{
-          background: '#E8EAF6',
-          borderBottom: '1px solid rgba(5,10,68,0.06)',
-          padding: '5px 24px',
-          fontSize: '11.5px',
-          color: 'rgba(5,10,68,0.50)',
-          letterSpacing: '0.01em',
-        }}
-      >
-        Illustrative data — not for clinical or commercial decisions.
-      </div>
 
-      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} onTakeTour={handleTakeTour} />}
+{helpOpen && <HelpModal onClose={() => setHelpOpen(false)} onTakeTour={handleTakeTour} />}
     </div>
   )
 }

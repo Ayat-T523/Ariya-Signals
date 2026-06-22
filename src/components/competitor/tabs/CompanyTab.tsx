@@ -1,7 +1,8 @@
-import { Building2, Handshake, Users, MessageSquareQuote, TrendingUp, AlertCircle } from 'lucide-react'
-import ConfidenceIndicator from '../../ui/ConfidenceIndicator'
+import { Building2, Handshake, Users, MessageSquareQuote, TrendingUp, AlertCircle, ExternalLink } from 'lucide-react'
+import PaidGate from '../../ui/PaidGate'
 import { formatDateAbs } from '../../../utils/formatDate'
 import { DEMO } from '../../../config/demo-config'
+import { useConfig } from '../../../context/AppContext'
 
 // ── Phase steps (for pipeline summary) ───────────────────────────────────────
 const PHASE_STEPS = ['Preclinical', 'Phase I', 'Phase II', 'Phase III', 'Filed', 'Approved']
@@ -59,27 +60,54 @@ function KpiCard({ label, value, delta }: { label: string; value: string; delta?
   )
 }
 
+// ── Source badge ───────────────────────────────────────────────────────────────
+function SourceBadge({ live, label }: { live?: boolean; label?: string }) {
+  return (
+    <span style={{
+      fontSize: '10px', fontWeight: 600,
+      padding: '2px 7px', borderRadius: '9999px',
+      background: live ? 'rgba(22,163,74,0.10)' : 'rgba(217,119,6,0.10)',
+      color:      live ? '#15803d'               : '#b45309',
+    }}>
+      {label ?? (live ? 'Live · SEC EDGAR' : 'Illustrative')}
+    </span>
+  )
+}
+
 // ── Financials section ─────────────────────────────────────────────────────────
 function FinancialsSection({ financials }: { financials: any }) {
   if (!financials) return null
+  const isLive = financials._financialsSource === 'sec_edgar'
   return (
     <div>
-      <SectionHeader label="Financials & R&D" />
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-        <KpiCard label="Total Revenue (Last FY)"    value={financials.totalRevenue}    delta={financials.totalRevenueDelta} />
-        <KpiCard label="HAE Franchise Revenue"       value={financials.haeRevenue}      delta={financials.haeRevenueDelta}   />
-        <KpiCard label="R&D Spending (Last FY)"      value={financials.rdSpend}         delta={financials.rdSpendDelta}      />
-        <KpiCard label="HAE R&D Allocation"          value={financials.haeRdAllocation}                                      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)' }}>
+          Financials & R&D
+        </p>
+        <SourceBadge
+          live={isLive}
+          label={isLive
+            ? `Live · SEC EDGAR · FY${financials._financialsFiscalYear}`
+            : 'Illustrative · GlobalData required'}
+        />
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
-        Illustrative · requires GlobalData / Companies data
-      </p>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <KpiCard label="Total Revenue (Last FY)" value={financials.totalRevenue} delta={financials.totalRevenueDelta} />
+<KpiCard label="R&D Spending (Last FY)" value={financials.rdSpend} delta={financials.rdSpendDelta} />
+        {!isLive && <KpiCard label="HAE R&D Allocation" value={financials.haeRdAllocation} />}
+      </div>
+      {isLive && financials._financialsCurrency && financials._financialsCurrency !== 'USD' && (
+        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
+          Reported in {financials._financialsCurrency}; converted to USD at annual average exchange rate.
+        </p>
+      )}
     </div>
   )
 }
 
 // ── Pipeline summary ───────────────────────────────────────────────────────────
 function PipelineSummary({ pipeline }: { pipeline: any[] }) {
+  const { indication } = useConfig()
   if (!pipeline?.length) return null
 
   // Count assets per phase step
@@ -93,9 +121,9 @@ function PipelineSummary({ pipeline }: { pipeline: any[] }) {
 
   return (
     <div>
-      <SectionHeader label={`${DEMO.therapeuticArea} Pipeline`} />
+      <SectionHeader label={`${indication} Pipeline`} />
       <p style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.70)' }}>
-        {total} asset{total !== 1 ? 's' : ''} in active {DEMO.therapeuticArea} development
+        {total} asset{total !== 1 ? 's' : ''} in active {indication} development
       </p>
       <div style={{
         background: '#FFFFFF',
@@ -144,53 +172,64 @@ function PipelineSummary({ pipeline }: { pipeline: any[] }) {
 }
 
 // ── Key personnel table ────────────────────────────────────────────────────────
-function PersonnelTable({ personnel }: { personnel: any[] }) {
-  if (!personnel?.length) return null
+function PersonnelTable({ personnel, recentChanges }: { personnel: any[]; recentChanges?: any[] }) {
+  const hasRoster  = personnel?.length > 0
+  const hasChanges = recentChanges?.length > 0
+  if (!hasRoster && !hasChanges) return null
+
   return (
-    <div>
-      <SectionHeader label="Key Personnel" />
-      <div style={{
-        background: '#FFFFFF',
-        border: '1px solid rgba(210,226,255,1)',
-        borderRadius: '12px',
-        overflow: 'hidden',
-      }}>
-        {/* Header row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 100px 1fr',
-          padding: '8px 16px',
-          background: 'rgba(5,10,68,0.03)',
-          borderBottom: '1px solid rgba(5,10,68,0.08)',
-        }}>
-          {['Name', 'Title', 'Tenure', 'Notable Background'].map(h => (
-            <span key={h} style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
-              {h}
-            </span>
-          ))}
-        </div>
-        {personnel.map((p, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 100px 1fr',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '12px 16px',
-              borderBottom: i < personnel.length - 1 ? '1px solid rgba(5,10,68,0.05)' : 'none',
-            }}
-          >
-            <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.88)', fontFamily: 'Satoshi, sans-serif' }}>{p.name}</span>
-            <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.65)' }}>{p.title}</span>
-            <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.50)' }}>{p.tenure}</span>
-            <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.55)', fontStyle: 'italic' }}>{p.background}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {hasRoster && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)' }}>
+              Key Personnel
+            </p>
+            <SourceBadge label="Illustrative · manual curation" />
           </div>
-        ))}
-      </div>
-      <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
-        Illustrative · requires GlobalData / Companies data
-      </p>
+          <div style={{ background: '#FFFFFF', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px 1fr', padding: '8px 16px', background: 'rgba(5,10,68,0.03)', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
+              {['Name', 'Title', 'Tenure', 'Notable Background'].map(h => (
+                <span key={h} style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>{h}</span>
+              ))}
+            </div>
+            {personnel.map((p, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px 1fr', gap: '8px', alignItems: 'center', padding: '12px 16px', borderBottom: i < personnel.length - 1 ? '1px solid rgba(5,10,68,0.05)' : 'none' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.88)', fontFamily: 'Satoshi, sans-serif' }}>{p.name}</span>
+                <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.65)' }}>{p.title}</span>
+                <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.50)' }}>{p.tenure}</span>
+                <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.55)', fontStyle: 'italic' }}>{p.background}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasChanges && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)' }}>
+              Recent Leadership Changes
+            </p>
+            <SourceBadge live label="Live · SEC EDGAR" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {recentChanges!.map((c, i) => (
+              <div key={i} style={{ background: '#FFFFFF', border: '1px solid rgba(210,226,255,1)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4', flex: 1 }}>{c.headline}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {c.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{formatDateAbs(c.date)}</span>}
+                  {c.sourceUrl && (
+                    <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -230,41 +269,39 @@ function SwotGrid({ swot }: { swot: any }) {
           )
         })}
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
-        Illustrative · analyst-reviewed quarterly
-      </p>
+      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <SourceBadge label="Analyst-reviewed · Quarterly update" />
+      </div>
     </div>
   )
 }
 
 // ── Signal card (recent signals) ───────────────────────────────────────────────
-const CONFIDENCE = {
-  deal:   { sourceCoverage: 'high',   dataFreshness: 'high',   inferenceDepth: 'low'  },
-  hiring: { sourceCoverage: 'medium', dataFreshness: 'high',   inferenceDepth: 'low'  },
-  quote:  { sourceCoverage: 'high',   dataFreshness: 'high',   inferenceDepth: 'low'  },
-  shift:  { sourceCoverage: 'medium', dataFreshness: 'medium', inferenceDepth: 'high' },
-}
-
-function SignalCard({ date, headline, whyItMatters, note, confidence }: any) {
+function SignalCard({ date, headline, whyItMatters, note, _live, sourceUrl }: any) {
   return (
     <div style={{
       background: '#FFFFFF', borderRadius: '12px', border: '1px solid rgba(210,226,255,1)',
       padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.88)', lineHeight: '1.4', flex: 1 }}>{headline}</p>
-        {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap', marginTop: '2px' }}>{formatDateAbs(date)}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.88)', lineHeight: '1.4' }}>{headline}</p>
+          {_live && <SourceBadge live label="Live · SEC EDGAR" />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap', marginTop: '2px' }}>{formatDateAbs(date)}</span>}
+          {_live && sourceUrl && (
+            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)', marginTop: '2px' }}>
+              <ExternalLink size={12} />
+            </a>
+          )}
+        </div>
       </div>
       {whyItMatters && (
         <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '8px', padding: '10px 12px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: '#434c5b', lineHeight: '1.55' }}>
             <strong style={{ fontWeight: 600 }}>Why it matters — </strong>{whyItMatters}
           </p>
-          {confidence && (
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <ConfidenceIndicator {...confidence} />
-            </div>
-          )}
         </div>
       )}
       {note && (
@@ -277,7 +314,7 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }: any) {
   )
 }
 
-function QuoteCard({ date, source, quote, whyItMatters, confidence }: any) {
+function QuoteCard({ date, source, quote, whyItMatters }: any) {
   return (
     <div style={{ background: '#FFFFFF', borderRadius: '12px', border: '1px solid rgba(210,226,255,1)', padding: '16px' }}>
       <p style={{ margin: '0 0 8px', fontSize: '14px', fontStyle: 'italic', lineHeight: '1.55', color: 'rgba(5,10,68,0.80)', borderLeft: '3px solid rgba(210,226,255,1)', paddingLeft: '12px' }}>
@@ -292,11 +329,6 @@ function QuoteCard({ date, source, quote, whyItMatters, confidence }: any) {
           <p style={{ margin: 0, fontSize: '13px', color: '#434c5b', lineHeight: '1.55' }}>
             <strong style={{ fontWeight: 600 }}>Why it matters — </strong>{whyItMatters}
           </p>
-          {confidence && (
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <ConfidenceIndicator {...confidence} />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -340,8 +372,8 @@ export default function CompanyTab({ competitor }: { competitor: any }) {
 
         <FinancialsSection financials={(competitor as any).financials} />
         <PipelineSummary pipeline={competitor.pipeline || []} />
-        <PersonnelTable personnel={competitor.keyPersonnel || []} />
-        <SwotGrid swot={(competitor as any).swot} />
+        <PersonnelTable personnel={competitor.keyPersonnel || []} recentChanges={(competitor as any).recentPersonnelChanges} />
+        <PaidGate label="SWOT Analysis" />
       </div>
 
       {/* ── Recent signals ────────────────────────────────────────────────── */}
@@ -352,25 +384,25 @@ export default function CompanyTab({ competitor }: { competitor: any }) {
 
         <SignalSection icon={Handshake} label="Deals & Partnerships" empty={!deals.length}>
           {deals.map((d: any, i: number) => (
-            <SignalCard key={i} date={d.date} headline={d.headline} whyItMatters={d.whyItMatters} confidence={CONFIDENCE.deal} />
+            <SignalCard key={i} date={d.date} headline={d.headline} whyItMatters={d.whyItMatters} _live={d._live} sourceUrl={d.sourceUrl} />
           ))}
         </SignalSection>
 
-        <SignalSection icon={Users} label="Hiring Signals" empty={!hiring.length}>
+        <SignalSection icon={Users} label="Executive Changes" empty={!hiring.length}>
           {hiring.map((h: any, i: number) => (
-            <SignalCard key={i} date={h.date} headline={h.headline} whyItMatters={h.whyItMatters} note={h.dataSourceNote} confidence={CONFIDENCE.hiring} />
+            <SignalCard key={i} date={h.date} headline={h.headline} whyItMatters={h.whyItMatters} note={h.dataSourceNote} />
           ))}
         </SignalSection>
 
         <SignalSection icon={MessageSquareQuote} label="Public Statements" empty={!publicStatements.length}>
           {publicStatements.map((q: any, i: number) => (
-            <QuoteCard key={i} date={q.date} source={q.source} quote={q.quote} whyItMatters={q.whyItMatters} confidence={CONFIDENCE.quote} />
+            <QuoteCard key={i} date={q.date} source={q.source} quote={q.quote} whyItMatters={q.whyItMatters} />
           ))}
         </SignalSection>
 
         <SignalSection icon={TrendingUp} label="Observed Strategy Shifts" empty={!strategyShifts.length}>
           {strategyShifts.map((s: any, i: number) => (
-            <SignalCard key={i} date={s.date} headline={s.headline} whyItMatters={s.whyItMatters} confidence={CONFIDENCE.shift} />
+            <SignalCard key={i} date={s.date} headline={s.headline ?? s.observation} whyItMatters={s.whyItMatters} _live={s._live} sourceUrl={s.sourceUrl} />
           ))}
         </SignalSection>
       </div>

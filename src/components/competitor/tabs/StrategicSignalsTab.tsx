@@ -2,16 +2,8 @@ import {
   Handshake, Users, MessageSquareQuote, TrendingUp, AlertCircle,
 } from 'lucide-react'
 import EmptyState from '../../ui/EmptyState'
-import ConfidenceIndicator from '../../ui/ConfidenceIndicator'
+import ProvenanceChip from '../../ui/ProvenanceChip'
 import { formatDateAbs } from '../../../utils/formatDate'
-
-// ── Static confidence profiles per section type ───────────────────────────────
-const CONFIDENCE = {
-  deal:   { sourceCoverage: 'high',   dataFreshness: 'high',   inferenceDepth: 'low'  },
-  hiring: { sourceCoverage: 'medium', dataFreshness: 'high',   inferenceDepth: 'low'  },
-  quote:  { sourceCoverage: 'high',   dataFreshness: 'high',   inferenceDepth: 'low'  },
-  shift:  { sourceCoverage: 'medium', dataFreshness: 'medium', inferenceDepth: 'high' },
-}
 
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ icon: Icon, label }) {
@@ -30,7 +22,10 @@ function SectionHeader({ icon: Icon, label }) {
 }
 
 // ── Signal card ───────────────────────────────────────────────────────────────
-function SignalCard({ date, headline, whyItMatters, note, confidence }) {
+function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sourceLabel = null }: {
+  date?: string; headline?: string; whyItMatters?: string; note?: string
+  sourceUrl?: string | null; sourceLabel?: string | null
+}) {
   return (
     <div style={{
       background: '#FFFFFF',
@@ -49,6 +44,16 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }) {
           </span>
         )}
       </div>
+      {/* Provenance chip — co-located with the claim */}
+      {sourceUrl && (
+        <div>
+          <ProvenanceChip
+            sourceLabel={sourceLabel ?? 'Source'}
+            sourceUrl={sourceUrl}
+            date={date}
+          />
+        </div>
+      )}
       {whyItMatters && (
         <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: '#434c5b', lineHeight: '1.55' }}>
@@ -57,11 +62,6 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }) {
             </strong>
             {whyItMatters}
           </p>
-          {confidence && (
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <ConfidenceIndicator {...confidence} />
-            </div>
-          )}
         </div>
       )}
       {note && (
@@ -75,7 +75,7 @@ function SignalCard({ date, headline, whyItMatters, note, confidence }) {
 }
 
 // ── Quote card ────────────────────────────────────────────────────────────────
-function QuoteCard({ date, source, quote, whyItMatters, confidence }) {
+function QuoteCard({ date, source, quote, whyItMatters }) {
   return (
     <div style={{
       background: '#FFFFFF',
@@ -101,11 +101,6 @@ function QuoteCard({ date, source, quote, whyItMatters, confidence }) {
             </strong>
             {whyItMatters}
           </p>
-          {confidence && (
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <ConfidenceIndicator {...confidence} />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -146,15 +141,17 @@ export default function StrategicSignalsTab({ competitor }) {
           <Section icon={Handshake} label="Deals & Partnerships" empty={!deals.length}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {deals.map((d, i) => (
-                <SignalCard key={i} date={d.date} headline={d.headline} whyItMatters={d.whyItMatters} confidence={CONFIDENCE.deal} />
+                <SignalCard key={i} date={d.date} headline={d.headline} whyItMatters={d.whyItMatters}
+                  sourceUrl={d.sourceUrl ?? null} sourceLabel={d.sourceLabel ?? 'SEC EDGAR'} />
               ))}
             </div>
           </Section>
 
-          <Section icon={Users} label="Hiring Signals" empty={!hiring.length}>
+          <Section icon={Users} label="Executive Changes" empty={!hiring.length}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {hiring.map((h, i) => (
-                <SignalCard key={i} date={h.date} headline={h.headline} whyItMatters={h.whyItMatters} note={h.dataSourceNote} confidence={CONFIDENCE.hiring} />
+                <SignalCard key={i} date={h.date} headline={h.headline} whyItMatters={h.whyItMatters}
+                  note={h.dataSourceNote} sourceUrl={h.sourceUrl ?? null} />
               ))}
             </div>
           </Section>
@@ -162,7 +159,7 @@ export default function StrategicSignalsTab({ competitor }) {
           <Section icon={MessageSquareQuote} label="Public Statements" empty={!publicStatements.length}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {publicStatements.map((s, i) => (
-                <QuoteCard key={i} date={s.date} source={s.source} quote={s.quote} whyItMatters={s.whyItMatters} confidence={CONFIDENCE.quote} />
+                <QuoteCard key={i} date={s.date} source={s.source} quote={s.quote} whyItMatters={s.whyItMatters} />
               ))}
             </div>
           </Section>
@@ -170,7 +167,7 @@ export default function StrategicSignalsTab({ competitor }) {
           <Section icon={TrendingUp} label="Observed Strategy Shifts" empty={!strategyShifts.length}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {strategyShifts.map((s, i) => (
-                <SignalCard key={i} date={s.date} headline={s.observation} whyItMatters={s.whyItMatters} confidence={CONFIDENCE.shift} />
+                <SignalCard key={i} date={s.date} headline={s.observation} whyItMatters={s.whyItMatters} />
               ))}
             </div>
           </Section>
