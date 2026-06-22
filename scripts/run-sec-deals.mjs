@@ -14,6 +14,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { buildWhyItMatters } from './lib/extractWhy.mjs'
+import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -397,12 +398,47 @@ if (withIrScrape.length > 0) {
   }
 }
 
+// ── Phase 2C: per-competitor narration summaries ─────────────────────────────
+// Runs after all signals are upserted so every competitor's full window is current.
+
+console.log(`\n🔄  Generating competitor narration summaries...\n`)
+
+const narrationCutoff = new Date(Date.now() - NARRATION_DAYS * 86_400_000).toISOString().slice(0, 10)
+let narrationsWritten = 0
+
+for (const { id, name } of withCik) {
+  const { data: recentSigs } = await supabase
+    .from('company_signals')
+    .select('signal_type, why_it_matters, date')
+    .eq('competitor_id', id)
+    .gte('date', narrationCutoff)
+    .order('date', { ascending: false })
+
+  const narration = buildNarration(recentSigs ?? [], name)
+
+  const { error: narErr } = await supabase
+    .from('company_summaries')
+    .upsert(
+      {
+        competitor_id:      id,
+        competitor_summary: narration,
+        summary_source:     'deterministic',
+        summary_updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'competitor_id', ignoreDuplicates: false }
+    )
+
+  if (!narErr) narrationsWritten++
+  else errors.push(`narration ${name}: ${narErr.message}`)
+}
+
 console.log(`
 ─────────────────────────────────────────
   SEC filers processed:  ${withCik.length}
   IR-scrape deferred:    ${withIrScrape.length}
   Signals inserted:      ${inserted}
   Non-signal 8-Ks skipped: ${skipped}
+  Narrations written:    ${narrationsWritten}
 ${errors.length ? `\n  Errors:\n${errors.map(e => `    • ${e}`).join('\n')}` : '  No errors ✅'}
 ─────────────────────────────────────────
 `)

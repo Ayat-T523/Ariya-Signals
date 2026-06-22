@@ -231,6 +231,25 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   return data ?? []
 }
 
+export interface DbCompetitorSummary {
+  competitor_id: string
+  competitor_summary: string | null
+  summary_updated_at: string
+}
+
+/** Returns a map of competitor_id → narration text (null when no recent signals). */
+export async function getCompetitorSummaries(): Promise<Map<string, string | null>> {
+  if (!supabase) return new Map()
+  const { data } = await supabase
+    .from('company_summaries')
+    .select('competitor_id, competitor_summary, summary_updated_at')
+  const map = new Map<string, string | null>()
+  for (const row of (data ?? []) as DbCompetitorSummary[]) {
+    map.set(row.competitor_id, row.competitor_summary)
+  }
+  return map
+}
+
 export interface DbMarketImplication {
   id: string
   type: string

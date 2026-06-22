@@ -32,6 +32,7 @@ import {
   getRecentSignals,
   getMarketImplications,
   getAllAssets,
+  getCompetitorSummaries,
   type DbAsset,
   type DbSignalSummary,
   type DbRegulatoryCalendarEvent,
@@ -48,6 +49,9 @@ function decodeEntities(str: string): string {
     .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
 }
 
+
+/** Days window used for narration summaries — must match NARRATION_DAYS in buildNarration.mjs */
+const NARRATION_DAYS = 90
 
 // â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
@@ -629,11 +633,13 @@ function CompactCompetitorCard({
   liveSignals,
   recentSignals,
   haeAssetCount,
+  narration,
 }: {
   competitor: Competitor
   liveSignals: DbSignalSummary | null
   recentSignals: DbRecentSignal[]
   haeAssetCount: number
+  narration: string | null
 }) {
   const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
   const pipelineCount = haeAssetCount
@@ -647,14 +653,13 @@ function CompactCompetitorCard({
     lastSignal = '—'
   }
 
-  // Build a signal-type summary for this competitor (readable signals only)
+  // Build signal-type severity label (readable signals for this competitor only)
   const today = new Date()
   const compSignals = recentSignals.filter((s) => s.competitor_id === competitor.id)
   const highSignals = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'high')
   const medSignals  = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'medium')
 
   let activityLabel: string
-  let activityText: string
   let activityIsLive: boolean
 
   if (compSignals.length > 0) {
@@ -665,15 +670,14 @@ function CompactCompetitorCard({
     const low = compSignals.length - highSignals.length - medSignals.length
     if (low > 0 && parts.length === 0) parts.push(`${low} low`)
     activityLabel = parts.join(' · ') + ' signal' + (compSignals.length > 1 ? 's' : '')
-
-    // Lead with the top-priority signal's action text
-    const topSignal = highSignals[0] ?? medSignals[0] ?? compSignals[0]
-    activityText = buildNeedleText(topSignal)
   } else {
     activityIsLive = false
     activityLabel = ''
-    activityText = (competitor as unknown as { executiveSummary?: string }).executiveSummary ?? ''
   }
+
+  // Phase 2C: body text — prefer stored narration; honest empty state when no signals
+  const hasSignals = compSignals.length > 0
+  const activityText: string | null = narration ?? (hasSignals ? buildNeedleText(compSignals[0]) : null)
 
   return (
     <Link
@@ -713,13 +717,19 @@ function CompactCompetitorCard({
           {activityLabel}
         </p>
       )}
-      <p style={({
-        margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.60)',
-        lineHeight: 1.5,
-        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-      } as CSSProperties)}>
-        {activityText}
-      </p>
+      {activityText ? (
+        <p style={({
+          margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.60)',
+          lineHeight: 1.5,
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        } as CSSProperties)}>
+          {activityText}
+        </p>
+      ) : (
+        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.35)', lineHeight: 1.5, fontStyle: 'italic' }}>
+          No recent signals in the last {NARRATION_DAYS} days
+        </p>
+      )}
 
       {/* Footer stats */}
       <div style={{
@@ -850,12 +860,13 @@ export default function WarRoom() {
     queryKey: ['war-room-live', watchedIds],
     queryFn: () => Promise.all([
       getAllSignalsSummary(filterIds),  // KPI tiles: watchlist-filtered
-      getRecentSignals(90),            // Signal feed: all competitors — ensures the feed is always populated
+      getRecentSignals(NARRATION_DAYS), // Signal feed: all competitors — ensures the feed is always populated
       getRegulatoryCalendar(),
       getMarketImplications(),
       getAllAssets(),                   // indication_tags for HAE asset count per competitor
-    ]).then(([summary, recent, calendar, implications, assets]) => ({
-      summary, recent, calendar, implications, assets,
+      getCompetitorSummaries(),        // Phase 2C: per-competitor rolling narrations
+    ]).then(([summary, recent, calendar, implications, assets, narrations]) => ({
+      summary, recent, calendar, implications, assets, narrations,
     })),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -868,6 +879,7 @@ export default function WarRoom() {
   const EXCLUDED_COMPETITOR_IDS = new Set(['csl-behring'])
 
   const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
+  const competitorNarrations = liveData?.narrations  ?? new Map<string, string | null>()
   const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
     .filter(s => !EXCLUDED_COMPETITOR_IDS.has(s.competitor_id ?? ''))
   const calendarEvents     = liveData?.calendar      ?? ([] as DbRegulatoryCalendarEvent[])
@@ -1188,7 +1200,7 @@ export default function WarRoom() {
                 gap: '12px',
               }}>
                 {trackedCompetitors.map((c) => (
-                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} />
+                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} narration={competitorNarrations.get(c.id) ?? null} />
                 ))}
               </div>
             ) : (
