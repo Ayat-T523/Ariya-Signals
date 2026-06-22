@@ -371,7 +371,7 @@ export function useCompetitorSupabase(competitor: any) {
         .map((s: any) => ({
           date:         s.date,
           headline:     cleanSignalText(s),
-          whyItMatters: null,
+          whyItMatters: s.why_it_matters ?? null,
           _live:        true,
           sourceUrl:    s.source_url,
         }))

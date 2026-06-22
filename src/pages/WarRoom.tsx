@@ -178,6 +178,7 @@ function computeSeverity(s: DbRecentSignal, lexicon: typeof HAE_LEXICON, today: 
 }
 
 function buildWhyItMatters(s: DbRecentSignal, competitorName: string, assetName: string, indication: string): string {
+  if (s.why_it_matters) return s.why_it_matters
   const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
   switch (s.signal_type) {
     case 'deal':

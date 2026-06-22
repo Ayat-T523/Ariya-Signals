@@ -149,6 +149,7 @@ export interface DbCompanySignal {
   items: string | null
   source_url: string | null
   accession_number: string
+  why_it_matters: string | null
 }
 
 export async function getFinancialsByCompetitorId(competitorId: string): Promise<DbFinancialSnapshot[]> {
@@ -166,7 +167,7 @@ export async function getSignalsByCompetitorId(competitorId: string): Promise<Db
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
     .eq('competitor_id', competitorId)
     .order('date', { ascending: false })
     .limit(20)
@@ -210,6 +211,7 @@ export interface DbRecentSignal {
   items: string | null
   source_url: string | null
   accession_number: string
+  why_it_matters: string | null
 }
 
 export async function getRecentSignals(limitDays: number, competitorIds?: string[]): Promise<DbRecentSignal[]> {
@@ -219,7 +221,7 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   let query = supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
     .gte('date', cutoffStr)
     .order('date', { ascending: false })
   if (competitorIds && competitorIds.length > 0) {

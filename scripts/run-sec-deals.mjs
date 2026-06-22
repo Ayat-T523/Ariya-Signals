@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { buildWhyItMatters } from './lib/extractWhy.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -347,6 +348,12 @@ for (const competitor of withCik) {
       // Resolve final signal type: item-based for 8-K, text-based for everything else
       const signalType = itemSignalType ?? classifyByText(bodyExcerpt ?? headline ?? '')
 
+      // Phase 2: generate why_it_matters at ingest time (deterministic + LLM)
+      const whyItMatters = await buildWhyItMatters(
+        { headline, body_excerpt: bodyExcerpt, signal_type: signalType },
+        name,
+      )
+
       const { error } = await supabase
         .from('company_signals')
         .upsert(
@@ -359,6 +366,7 @@ for (const competitor of withCik) {
             items:            filing.itemsStr || null,
             source_url:       `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${filing.doc}`,
             accession_number: filing.accession,
+            why_it_matters:   whyItMatters,
           },
           { onConflict: 'competitor_id,accession_number', ignoreDuplicates: false }
         )

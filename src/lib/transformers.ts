@@ -81,6 +81,7 @@ function buildWhyItMatters(
   assetName: string,
   indication: string,
 ): string {
+  if (s.why_it_matters) return s.why_it_matters
   const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
   switch (s.signal_type) {
     case 'deal':
