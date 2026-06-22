@@ -5,14 +5,22 @@ import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import { REDUCED_MOTION } from '../../../lib/motion'
 import { DEMO } from '../../../config/demo-config'
+import { useConfig } from '../../../context/AppContext'
+import { competitorsData } from '../../../data/kalvista'
 
 // ── Mini Gantt column definitions ─────────────────────────────────────────────
-// Compressed view: Q3 2025 → Q4 2027 quarterly, then 2028 / 2029 annual
+// Compressed view: Q3 2025 → Q4 2029 quarterly
+// isCurrent is computed at load time from the real date so the "today" highlight
+// stays accurate as quarters roll over without a code change.
+const _NOW = new Date()
+const _NOW_YEAR = _NOW.getFullYear()
+const _NOW_Q = Math.ceil((_NOW.getMonth() + 1) / 3)
+
 const MINI_COLS = [
   { label: 'Q3 25', year: 2025, q: 3 },
   { label: 'Q4 25', year: 2025, q: 4 },
   { label: 'Q1 26', year: 2026, q: 1 },
-  { label: 'Q2 26', year: 2026, q: 2, isCurrent: true },
+  { label: 'Q2 26', year: 2026, q: 2 },
   { label: 'Q3 26', year: 2026, q: 3 },
   { label: 'Q4 26', year: 2026, q: 4 },
   { label: 'Q1 27', year: 2027, q: 1 },
@@ -27,7 +35,7 @@ const MINI_COLS = [
   { label: 'Q2 29', year: 2029, q: 2 },
   { label: 'Q3 29', year: 2029, q: 3 },
   { label: 'Q4 29', year: 2029, q: 4 },
-]
+].map(col => ({ ...col, isCurrent: col.year === _NOW_YEAR && col.q === _NOW_Q }))
 
 const MINI_COL_W    = 52   // px per column
 const MINI_LABEL_W  = 118  // competitor + drug label column
@@ -124,105 +132,15 @@ const INDICATION_SECTION_LABEL = {
 const COMP_ROWS_BY_TYPE = {
   'on-demand': [
     {
-      competitorId: 'pharma-inc', name: DEMO.companyLabel, drugLabel: `${DEMO.assetName} (${DEMO.assetGenericName})`,
+      competitorId: 'pharma-inc', name: DEMO.companyLabel, drugLabel: `${DEMO.assetName} (${DEMO.assetGenericName})`, _labelIsDefault: true,
       threat: null, isOwn: true,
       bars: [{ sy: 2025, sq: 4, ey: 2026, eq: 2, phase: 'own' }],
       milestones: [{ y: 2026, q: 3, type: 'approval', label: 'US' }],
     },
-    {
-      competitorId: 'pharvaris', name: 'Pharvaris', drugLabel: 'Deucrictibant (on-demand)',
-      threat: 'High',
-      bars: [{ sy: 2025, sq: 3, ey: 2026, eq: 3, phase: 'phase3' }],
-      milestones: [
-        { y: 2026, q: 3, type: 'readout',  label: 'Topline' },
-        { y: 2027, q: 1, type: 'filing',   label: 'NDA'     },
-        { y: 2027, q: 3, type: 'approval', label: 'US'      },
-      ],
-    },
   ],
-  'prophylaxis': [
-    {
-      competitorId: 'takeda', name: 'Takeda', drugLabel: 'TAK-079',
-      threat: 'High',
-      bars: [
-        { sy: 2025, sq: 3, ey: 2026, eq: 4, phase: 'phase2' },
-        { sy: 2027, sq: 1, ey: 2028, eq: 4, phase: 'phase3' },
-      ],
-      milestones: [
-        { y: 2026, q: 4, type: 'readout', label: 'Interim' },
-        { y: 2028, q: 4, type: 'filing',  label: 'NDA'     },
-        { y: 2029, q: 3, type: 'approval',label: 'US'      },
-      ],
-    },
-    {
-      competitorId: 'takeda', name: 'Takeda', drugLabel: 'Lanadelumab (label and formulation LCM)',
-      threat: 'High',
-      bars: [{ sy: 2025, sq: 3, ey: 2026, eq: 2, phase: 'filed' }],
-      milestones: [{ y: 2026, q: 2, type: 'readout', label: 'LCM data' }],
-    },
-    {
-      competitorId: 'pharvaris', name: 'Pharvaris', drugLabel: 'Deucrictibant (prophylaxis)',
-      threat: 'High',
-      bars: [{ sy: 2026, sq: 3, ey: 2028, eq: 2, phase: 'phase3' }],
-      milestones: [],
-    },
-    {
-      competitorId: 'biocryst', name: 'BioCryst', drugLabel: 'BCX17725 extended-release',
-      threat: 'Medium',
-      bars: [
-        { sy: 2025, sq: 4, ey: 2026, eq: 3, phase: 'phase1' },
-        { sy: 2026, sq: 4, ey: 2028, eq: 3, phase: 'phase3' },
-      ],
-      milestones: [{ y: 2028, q: 4, type: 'filing', label: 'NDA' }],
-    },
-    {
-      competitorId: 'astria', name: 'Astria', drugLabel: 'STAR-0215',
-      threat: 'High',
-      bars: [
-        { sy: 2025, sq: 3, ey: 2026, eq: 2, phase: 'phase2' },
-        { sy: 2026, sq: 4, ey: 2028, eq: 3, phase: 'phase3' },
-      ],
-      milestones: [{ y: 2028, q: 4, type: 'filing', label: 'NDA' }],
-    },
-    {
-      competitorId: 'ionis', name: 'Ionis', drugLabel: 'Donidalorsen lifecycle',
-      threat: 'Low',
-      bars: [
-        { sy: 2026, sq: 1, ey: 2026, eq: 4, phase: 'phase2' },
-        { sy: 2027, sq: 2, ey: 2028, eq: 4, phase: 'phase3' },
-      ],
-      milestones: [],
-    },
-  ],
-  'prophylaxis-pediatric': [
-    {
-      competitorId: 'takeda', name: 'Takeda', drugLabel: 'Takhzyro pediatric (LCM)',
-      threat: 'High',
-      bars: [{ sy: 2025, sq: 3, ey: 2026, eq: 4, phase: 'phase3' }],
-      milestones: [
-        { y: 2026, q: 4, type: 'readout',  label: 'PCD' },
-        { y: 2027, q: 2, type: 'approval', label: 'US'  },
-      ],
-    },
-    {
-      competitorId: 'biocryst', name: 'BioCryst', drugLabel: 'Orladeyo pediatric (APeX-P)',
-      threat: 'Medium',
-      bars: [{ sy: 2025, sq: 3, ey: 2026, eq: 4, phase: 'phase3' }],
-      milestones: [
-        { y: 2026, q: 4, type: 'readout',  label: 'PCD'  },
-        { y: 2027, q: 3, type: 'approval', label: 'US'   },
-      ],
-    },
-    {
-      competitorId: 'csl-behring', name: 'CSL Behring', drugLabel: 'Andembry pediatric (HAELO)',
-      threat: 'Medium',
-      bars: [{ sy: 2025, sq: 3, ey: 2027, eq: 1, phase: 'phase3' }],
-      milestones: [
-        { y: 2027, q: 1, type: 'readout',  label: 'PCD'  },
-        { y: 2028, q: 2, type: 'approval', label: 'US'   },
-      ],
-    },
-  ],
+  // Competitor rows removed — only live ClinicalTrials.gov data (asset._ganttBars) is used
+  'prophylaxis':          [],
+  'prophylaxis-pediatric': [],
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -284,9 +202,34 @@ function indicationTagCfg(indicationSubtype) {
 }
 
 // ── Mini competitive Gantt ────────────────────────────────────────────────────
-function MiniGantt({ indicationSubtype, currentCompetitorId }) {
+function MiniGantt({ asset, indicationSubtype, currentCompetitorId }) {
+  const { assetName, assetGenericName } = useConfig()
   const type = getIndicationType(indicationSubtype)
-  const rows = (COMP_ROWS_BY_TYPE[type] || []).filter(r => r.isOwn || r.competitorId === currentCompetitorId)
+
+  // Own-product row is always hardcoded (it represents the user's own demo asset)
+  const rawOwnRow = (COMP_ROWS_BY_TYPE[type] || []).find((r: any) => r.isOwn)
+  const ownRow = rawOwnRow ? { ...rawOwnRow, drugLabel: `${assetName} (${assetGenericName})` } : undefined
+
+  // Competitor row: use live ClinicalTrials.gov data when available, else fall back to hardcoded
+  const hasLiveBars = (asset?._ganttBars?.length ?? 0) > 0
+  const competitorName = competitorsData.find((c: any) => c.id === currentCompetitorId)?.name ?? currentCompetitorId
+
+  const liveCompetitorRow = hasLiveBars ? {
+    competitorId: currentCompetitorId,
+    name:         competitorName,
+    drugLabel:    asset.name,
+    threat:       null,
+    bars:         asset._ganttBars,
+    milestones:   asset._ganttMilestones ?? [],
+  } : null
+
+  const competitorRows = liveCompetitorRow ? [liveCompetitorRow] : []
+  const rows = [...(ownRow ? [ownRow] : []), ...competitorRows]
+
+  // Source badge: only shown when live ClinicalTrials.gov data is present
+  const ganttSourceLabel = 'Live · ClinicalTrials.gov'
+  const ganttSourceStyle = { bg: 'rgba(22,163,74,0.10)', text: '#15803d' }
+
   if (!rows?.length) return null
 
   const sectionLabel = INDICATION_SECTION_LABEL[type] || type
@@ -296,6 +239,18 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
     <div tabIndex={0} aria-label="Pipeline comparison chart — scroll horizontally to see all assets" style={{ overflowX: 'auto', outline: 'none' }}>
       <div style={{ minWidth: totalW }}>
 
+        {/* Source badge — only when live data is present */}
+        {hasLiveBars && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+            <span style={{
+              fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '9999px',
+              background: ganttSourceStyle.bg, color: ganttSourceStyle.text,
+            }}>
+              {ganttSourceLabel}
+            </span>
+          </div>
+        )}
+
         {/* Legend */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '0 0 8px', flexWrap: 'wrap' }}>
           {[
@@ -303,7 +258,7 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
             { marker: <FileText size={13} color="#0055BB" />,                                                                                                     label: 'Filing'            },
             { marker: <Check size={13} color="#059669" strokeWidth={2.5} />,                                                                                      label: 'Approval'          },
             { marker: <span style={{ fontSize: 14, color: 'rgba(5,10,68,0.45)', lineHeight: 1 }}>○</span>,                                                        label: 'Phase start'       },
-            { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: MINI_PHASE_CFG.own.bg, border: `1px solid ${MINI_PHASE_CFG.own.border}` }} />, label: `${DEMO.assetName} (own product)` },
+            { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: MINI_PHASE_CFG.own.bg, border: `1px solid ${MINI_PHASE_CFG.own.border}` }} />, label: `${assetName} (own product)` },
             { marker: <span style={{ display: 'inline-block', width: 18, height: 8, borderRadius: 2, background: 'rgba(245,158,11,0.18)' }} />,                  label: 'Today'             },
           ].map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -462,6 +417,15 @@ function MiniGantt({ indicationSubtype, currentCompetitorId }) {
             </div>
           )
         })}
+
+        {/* Note when no live competitor trial data is available */}
+        {!liveCompetitorRow && (
+          <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(5,10,68,0.06)' }}>
+            <span style={{ fontSize: 12, color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>
+              No clinical trial data matched in ClinicalTrials.gov for this asset.
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -553,6 +517,15 @@ function TrialDesignSection({ asset }) {
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <span>Trial design</span>
+        <span style={{
+          marginLeft: 'auto',
+          fontSize: '10px', fontWeight: 600,
+          padding: '2px 7px', borderRadius: '9999px',
+          background: asset._trialSource === 'ctgov' ? 'rgba(22,163,74,0.10)' : 'rgba(217,119,6,0.10)',
+          color:      asset._trialSource === 'ctgov' ? '#15803d'               : '#b45309',
+        }}>
+          {asset._trialSource === 'ctgov' ? 'Live · ClinicalTrials.gov' : 'Illustrative'}
+        </span>
       </button>
       {open && (
         <div style={{ padding: '4px 14px 14px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
@@ -645,7 +618,7 @@ function AssetCard({ asset, competitorId }) {
       </p>
 
       {/* Mini competitive Gantt */}
-      <MiniGantt indicationSubtype={asset.indicationSubtype} currentCompetitorId={competitorId} />
+      <MiniGantt asset={asset} indicationSubtype={asset.indicationSubtype} currentCompetitorId={competitorId} />
 
       {/* Expected timeline */}
       <ExpectedTimelineSection asset={asset} />
@@ -665,10 +638,11 @@ function AssetCard({ asset, competitorId }) {
 
 // ── Main tab ──────────────────────────────────────────────────────────────────
 export default function PipelineTab({ competitor }) {
+  const { indication } = useConfig()
   const assets = competitor.pipeline || []
 
   if (!assets.length) {
-    return <EmptyState message={`No pipeline assets recorded in ${DEMO.therapeuticArea}.`} />
+    return <EmptyState message={`No pipeline assets recorded in ${indication}.`} />
   }
 
   return (

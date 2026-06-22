@@ -1,0 +1,74 @@
+[
+  {
+    "id": "kola-001",
+    "date": "March 2025",
+    "kolId": "hilary-longhurst",
+    "activityType": "Congress presentation",
+    "headline": "Longhurst frames oral therapies as 'complement, not replacement' for injectable prophylaxis",
+    "summary": "At HAEi 2025, Longhurst presented a treatment algorithm placing oral agents in a second-line prophylaxis role for patients who decline injections, rather than as a first-line switch. This framing, if adopted by European guidelines, would limit the addressable market for all oral entrants.",
+    "whyItMatters": "Pharma Inc should monitor whether this 'complement not replacement' framing gains traction with EAACI guideline committee — it directly constrains the commercial narrative for Sebetralstat in Europe."
+  },
+  {
+    "id": "kola-002",
+    "date": "February 2025",
+    "kolId": "timothy-craig",
+    "activityType": "Publication",
+    "headline": "Craig publishes 24-month berotralstat real-world data — positions oral prophylaxis as durable standard",
+    "summary": "A new real-world registry paper co-authored by Craig shows sustained attack reduction with berotralstat over 24 months. The framing emphasises durability and adherence, implicitly raising the evidentiary bar that any new oral agent will need to clear.",
+    "whyItMatters": "Durable real-world data from a BioCryst-affiliated KOL will be cited by payers. Pharma Inc's on-demand mechanism sidesteps this comparison but should have a clear response to durability questions ready."
+  },
+  {
+    "id": "kola-003",
+    "date": "January 2025",
+    "kolId": "marc-riedl",
+    "activityType": "Interview or commentary",
+    "headline": "Riedl quoted in Healio: 'We need head-to-head data before switching patients from proven prophylactics'",
+    "summary": "In a Healio interview on the evolving HAE landscape, Riedl stated that he would require head-to-head comparative data before recommending a switch from established prophylactics to newer oral agents. He specifically cited lack of comparative data as his primary barrier to adoption.",
+    "whyItMatters": "Riedl's position on head-to-head data is significant given his reach with US allergists. This is a known adoption barrier Pharma Inc's medical affairs team should have a proactive response strategy for."
+  },
+  {
+    "id": "kola-004",
+    "date": "January 2025",
+    "kolId": "hilary-longhurst",
+    "activityType": "Publication",
+    "headline": "Longhurst co-authors Pharvaris mechanism review — first named collaboration in print",
+    "summary": "A review article in Clinical & Experimental Allergy co-authored by Longhurst covers the mechanism of bradykinin B2 receptor antagonism, with deucrictibant as the illustrative compound. This is the first time her Pharvaris advisory board relationship has translated into a named publication.",
+    "whyItMatters": "KOL-authored mechanistic reviews tend to be cited in later guideline discussions. This piece could shape how European physicians frame the B2 receptor class vs. the kallikrein inhibitor class that Sebetralstat belongs to."
+  },
+  {
+    "id": "kola-005",
+    "date": "November 2024",
+    "kolId": "timothy-craig",
+    "activityType": "Congress presentation",
+    "headline": "Craig presents adherence data at ACAAI — frames convenience as primary driver of prophylaxis choice",
+    "summary": "Craig's ACAAI presentation focused on patient-reported convenience as the single strongest predictor of prophylaxis adherence in a US real-world dataset. Oral once-daily administration was the most cited convenience factor.",
+    "whyItMatters": "Convenience messaging reinforces the oral class broadly — Pharma Inc benefits from this framing even though BioCryst funded the research."
+  },
+  {
+    "id": "kola-006",
+    "date": "October 2024",
+    "kolId": "anette-bygum",
+    "activityType": "Publication",
+    "headline": "Bygum publishes Nordic QoL registry data — highlights attack unpredictability as primary unmet need",
+    "summary": "A Scandinavian registry study led by Bygum found that attack unpredictability, rather than attack frequency, is the primary driver of impaired quality of life in HAE patients. This positions on-demand therapies that reduce attack severity and duration as potentially more relevant to QoL than prophylaxis.",
+    "whyItMatters": "Bygum's independent data inadvertently supports Pharma Inc's on-demand positioning — attack unpredictability is exactly the use case Sebetralstat addresses. Worth referencing in medical affairs materials."
+  },
+  {
+    "id": "kola-007",
+    "date": "September 2024",
+    "kolId": "konrad-bork",
+    "activityType": "Congress presentation",
+    "headline": "Bork updates German HAE natural history data — laryngeal attack rates higher than previously reported",
+    "summary": "At the DGAKI annual meeting, Bork presented updated 30-year follow-up data showing laryngeal attack rates in severe HAE are higher than reported in earlier cohorts. This has implications for prophylaxis threshold discussions in German clinical practice.",
+    "whyItMatters": "Higher laryngeal attack frequency increases the clinical urgency argument for reliable on-demand treatment — directly relevant to Sebetralstat's value proposition in severe HAE patients."
+  },
+  {
+    "id": "kola-008",
+    "date": "June 2024",
+    "kolId": "hilary-longhurst",
+    "activityType": "Congress presentation",
+    "headline": "Longhurst chairs EAACI oral therapy session — invites Pharvaris investigator as co-presenter",
+    "summary": "Longhurst chaired a dedicated oral therapy session at EAACI 2024 and selected a Pharvaris principal investigator as the featured clinical data presenter. This is the first time she has used a chairing role to platform Pharvaris data.",
+    "whyItMatters": "Chairing choices signal where a KOL's attention is focused. This is the clearest public signal yet of Longhurst's alignment with the Pharvaris program at a high-profile European congress."
+  }
+]

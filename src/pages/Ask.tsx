@@ -1,44 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Sparkles, Filter, Mic, Send } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { useApp, useConfig } from '../context/AppContext'
 import { analytics } from '../lib/analytics'
 import { DEMO } from '../config/demo-config'
-
-// ── 4 categories, 3 questions each ────────────────────────────────────────────
-const QUESTION_CATEGORIES = [
-  {
-    category: 'Competitive landscape',
-    questions: [
-      'How does Pharvaris deucrictibant compare to sebetralstat on mechanism?',
-      'Which competitor is most active in Europe this quarter?',
-      'What are Takeda\'s key defensive moves against oral entrants?',
-    ],
-  },
-  {
-    category: 'Pipeline & trials',
-    questions: [
-      'Summarize the RAPIDe-3 trial design and key endpoints.',
-      'What does the Pharvaris Phase III interim timeline mean for us?',
-      'How does the BioCryst extended-release program affect our positioning?',
-    ],
-  },
-  {
-    category: 'Strategy & planning',
-    questions: [
-      'What should we prepare for ahead of the RAPIDe-3 readout?',
-      `Which market access signals should ${DEMO.companyLabel} act on now?`,
-      'How should we frame sebetralstat vs. deucrictibant for KOLs?',
-    ],
-  },
-  {
-    category: 'Signals & intelligence',
-    questions: [
-      'Summarize this week\'s signals across all competitors.',
-      'What do recent Pharvaris hiring signals suggest about launch timing?',
-      `Which earnings calls this quarter contain ${DEMO.therapeuticArea}-relevant commentary?`,
-    ],
-  },
-]
 
 // ── Individual question card — Figma 1575-40289 ───────────────────────────────
 function QuestionCard({ question, category, onOpen, index }) {
@@ -183,6 +147,42 @@ function ChatInput({ onOpen }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Ask() {
   const { openAskModal } = useApp()
+  const { indication } = useConfig()
+
+  const QUESTION_CATEGORIES = useMemo(() => [
+    {
+      category: 'Competitive landscape',
+      questions: [
+        'How does Pharvaris deucrictibant compare to sebetralstat on mechanism?',
+        'Which competitor is most active in Europe this quarter?',
+        'What are Takeda\'s key defensive moves against oral entrants?',
+      ],
+    },
+    {
+      category: 'Pipeline & trials',
+      questions: [
+        'Summarize the RAPIDe-3 trial design and key endpoints.',
+        'What does the Pharvaris Phase III interim timeline mean for us?',
+        'How does the BioCryst extended-release program affect our positioning?',
+      ],
+    },
+    {
+      category: 'Strategy & planning',
+      questions: [
+        'What should we prepare for ahead of the RAPIDe-3 readout?',
+        `Which market access signals should ${DEMO.companyLabel} act on now?`,
+        'How should we frame sebetralstat vs. deucrictibant for KOLs?',
+      ],
+    },
+    {
+      category: 'Signals & intelligence',
+      questions: [
+        'Summarize this week\'s signals across all competitors.',
+        'What do recent Pharvaris hiring signals suggest about launch timing?',
+        `Which earnings calls this quarter contain ${indication}-relevant commentary?`,
+      ],
+    },
+  ], [indication])
 
   return (
     <div style={{ padding: '20px 36px 36px' }}>

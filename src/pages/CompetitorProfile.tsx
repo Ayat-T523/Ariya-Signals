@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useCompetitorSupabase } from '../hooks/useCompetitorSupabase'
 
-import { ChevronLeft, ChevronDown, Eye } from 'lucide-react'
+import { ChevronLeft, Eye } from 'lucide-react'
 import { ExportButton } from '../components/ui/ExportButton'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import AIButton from '../components/ui/AIButton'
-import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import PipelineTab from '../components/competitor/tabs/PipelineTab'
 import CompanyTab from '../components/competitor/tabs/CompanyTab'
 import MessagingTab from '../components/competitor/tabs/MessagingTab'
@@ -20,56 +20,6 @@ const TABS = [
   { label: 'Company',   id: 'tab-company',   panelId: 'panel-company'   },
   { label: 'Messaging', id: 'tab-messaging', panelId: 'panel-messaging' },
 ]
-
-// ── Executive summary card — matches Figma 104:777 ───────────────────────────
-function ExecutiveSummaryCard({ summary }) {
-  return (
-    <div style={{
-      background: 'rgba(42,118,244,0.15)',
-      borderRadius: '8px',
-      padding: '8px',
-      display: 'flex', flexDirection: 'column', gap: '10px',
-    }}>
-      {/* Text block */}
-      <div>
-        <p style={{
-          margin: '0 0 2px', fontSize: '12px', fontWeight: 500,
-          fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px',
-        }}>
-          AI Summary (Illustrative)
-        </p>
-        <p style={{
-          margin: 0, fontSize: '14px', fontWeight: 400,
-          fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px',
-        }}>
-          {summary}
-        </p>
-      </div>
-
-      {/* Divider */}
-      <div style={{ height: '1px', background: 'rgba(5,10,68,0.10)', width: '100%' }} />
-
-      {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
-            Summary tailored to:
-          </span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            borderBottom: '1px dashed #434343', paddingBottom: '2px',
-          }}>
-            <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434343' }}>
-              Commercial
-            </span>
-            <ChevronDown size={8} color="#434343" />
-          </span>
-        </div>
-        <ConfidenceIndicator sourceCoverage="high" dataFreshness="high" inferenceDepth="high" />
-      </div>
-    </div>
-  )
-}
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 function TabBar({ activeTab, onChange, competitorId }) {
@@ -132,9 +82,10 @@ export default function CompetitorProfile() {
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState(0)
 
-  const competitor = competitors.find((c) => c.id === id)
-  useDocumentTitle(competitor?.name ?? 'Competitor Profile')
-  if (!competitor) {
+  const stubCompetitor = competitors.find((c) => c.id === id)
+  const competitor = useCompetitorSupabase(stubCompetitor ?? {})
+  useDocumentTitle(stubCompetitor?.name ?? 'Competitor Profile')
+  if (!stubCompetitor) {
     return (
       <NotFoundState
         heading="Competitor not found"
@@ -181,22 +132,6 @@ export default function CompetitorProfile() {
               <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 500, lineHeight: '1.2', color: '#434c5b', fontFamily: 'Satoshi, sans-serif' }}>
                 {competitor.name}
               </h1>
-              {(competitor as any).strategicPosture && (
-                <span style={{
-                  display: 'inline-block', alignSelf: 'flex-start',
-                  padding: '2px 10px', borderRadius: '9999px',
-                  fontSize: '11px', fontWeight: 600,
-                  background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.65)',
-                  fontFamily: 'Satoshi, sans-serif',
-                }}>
-                  {(competitor as any).strategicPosture}
-                </span>
-              )}
-              {(competitor as any).oneLineDescription && (
-                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.5', fontFamily: 'Satoshi, sans-serif', maxWidth: '480px' }}>
-                  {(competitor as any).oneLineDescription}
-                </p>
-              )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -217,11 +152,6 @@ export default function CompetitorProfile() {
               Summarise for me
             </AIButton>
           </div>
-        </div>
-
-        {/* AI summary card */}
-        <div style={{ padding: '0 36px 10px' }}>
-          <ExecutiveSummaryCard summary={competitor.executiveSummary} />
         </div>
 
         {/* Tab bar — no overflow scroll */}

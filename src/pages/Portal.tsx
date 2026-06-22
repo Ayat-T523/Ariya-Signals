@@ -4,29 +4,43 @@ import { motion } from 'framer-motion'
 import {
   CalendarDays, FileText, TrendingUp,
   MapPin, Users, ChevronRight, ChevronDown,
-  Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair, Copy,
-  FileSearch, ArrowRight, Link2,
+  Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair,
+  FileSearch, ArrowRight, Link2, ExternalLink,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
+import ProvenanceChip from '../components/ui/ProvenanceChip'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonPortalList } from '../components/ui/Skeleton'
-import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
-import eventsData from '../data/events.json'
-import reportsData from '../data/reports.json'
-import marketData from '../data/market-developments.json'
-import competitorsData from '../data/competitors.json'
+import { competitorsData, eventsData, marketDevelopments as marketData, reportsData } from '../data/kalvista'
+import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
+import { useConfig } from '../context/AppContext'
+import { getRegulatoryCalendar, getRecentSignals, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
 
 // ── Reference date ────────────────────────────────────────────────────────────
-const TODAY = new Date(DEMO.snapshotDate)
+const TODAY = new Date()
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function competitorName(id) {
   return competitorsData.find((c) => c.id === id)?.name ?? id
 }
+
+function isQualityHeadline(h: string | null): boolean {
+  if (!h || h.length <= 20) return false
+  if (/^[a-z]{2,6}-\d{8}/i.test(h)) return false
+  return /[A-Z].*[a-z]{4,}/.test(h)
+}
+
+function decodeEntities(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
+}
+
 
 function isPast(dateStr) {
   const d = new Date(dateStr)
@@ -47,6 +61,53 @@ function findDigestForEvent(event) {
       return diff >= 0 && diff <= SEVEN_DAYS_MS
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null
+}
+
+// Generates a CI-focused one-liner for events that have no manually authored note.
+// Derived purely from existing fields — no invented facts.
+// `indication` comes from the user's onboarding preference (e.g. "HAE"); falls back to "your indication".
+function buildCISignificance(event: any, indication: string): string | null {
+  if (event.note) return null  // note already provides specific context
+  const comp = event.attendingCompetitors?.[0]
+  const name = comp ? competitorName(comp) : null
+  const n: number = event.attendingCompetitors?.length ?? 0
+  const ind = indication || 'your indication'
+  switch (event.type) {
+    case 'conference':
+      return n > 0
+        ? `${n} tracked competitor${n > 1 ? 's' : ''} presenting. Monitor for ${ind} positioning shifts, new efficacy data, and messaging changes.`
+        : `Monitor for ${ind} competitive landscape updates and positioning signals across the field.`
+    case 'earnings':
+      return name
+        ? `${name} reports quarterly results. Watch for ${ind} franchise revenue trends, guidance changes, and pipeline updates.`
+        : `Multiple competitors report quarterly results. Watch for ${ind} franchise revenue trends and pipeline updates.`
+    case 'regulatory':
+      // No generic placeholder — regulatory events with known competitors have ciContext notes
+      return null
+    case 'investor':
+      return name
+        ? `${name} R&D day — typically the highest-value event for forward-looking pipeline and commercial strategy signals.`
+        : 'Investor R&D day — monitor for pipeline prioritisation and commercial strategy signals.'
+    case 'milestone': {
+      const isAcq   = /acqui/i.test(event.title)
+      const isPhase = /phase [23]|phase iii/i.test(event.title)
+      const isNDA   = /nda|submission/i.test(event.title)
+      if (isAcq)   return `${name ?? 'This competitor'} corporate transaction — monitor follow-up messaging for portfolio and commercial implications.`
+      if (isPhase) return `Phase 3 data readout for ${name ?? 'this competitor'}. A positive result reshapes the competitive landscape for ${ind}.`
+      if (isNDA)   return `Regulatory filing milestone for ${name ?? 'this competitor'}. Marks the start of the formal approval clock.`
+      return `${name ?? 'This competitor'} milestone — monitor for commercial or pipeline implications in ${ind}.`
+    }
+    default:
+      return null
+  }
+}
+
+function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFollowUp: string } | null {
+  if (event.type !== 'regulatory') return null
+  if ((event as any)._isLive) return null
+  const ctx = (event as any).ciContext
+  if (!ctx?.whyRelevant || !ctx?.actionableFollowUp) return null
+  return { whyRelevant: ctx.whyRelevant, actionableFollowUp: ctx.actionableFollowUp }
 }
 
 // ── Event type config ─────────────────────────────────────────────────────────
@@ -115,8 +176,8 @@ const SIGNAL_FILTER_TABS = [
 
 const SIGNAL_ITEM_TYPES = new Set(['guideline', 'epidemiology', 'advocacy', 'launch-performance'])
 
-// ── Leadership-priority annotations (Task 5b) ────────────────────────────────
-const LEADERSHIP_TYPES = new Set(['conference', 'earnings', 'regulatory'])
+// ── Leadership-priority annotations ──────────────────────────────────────────
+const LEADERSHIP_TYPES = new Set(['conference', 'earnings', 'regulatory', 'investor', 'milestone'])
 
 const LEADERSHIP_ANNOTATIONS = {
   conference: {
@@ -124,12 +185,20 @@ const LEADERSHIP_ANNOTATIONS = {
     surprise: 'Unanticipated head-to-head efficacy data, new MoA claims, or unexpected competitor-led positioning.',
   },
   earnings: {
-    expect:   'HAE revenue commentary consistent with prior guidance; routine pipeline updates.',
+    expect:   'Franchise revenue commentary consistent with prior guidance; routine pipeline updates.',
     surprise: 'Material guidance changes, pipeline reprioritization, or deal announcements.',
   },
   regulatory: {
     expect:   'Decision aligned with prior CHMP/FDA signals; standard label scope.',
     surprise: 'Broader-than-expected indication, accelerated pathway, or restrictive label conditions.',
+  },
+  investor: {
+    expect:   'Pipeline prioritisation updates, revised trial timelines, and pre-launch commercial strategy framing.',
+    surprise: 'Unannounced partnership, licensing deal, M&A signal, or indication expansion beyond current programme.',
+  },
+  milestone: {
+    expect:   'Data readout or regulatory filing consistent with prior signal; analyst reaction expected within 24 hours.',
+    surprise: 'Statistically unexpected result, safety signal, or strategic redirect on the development path.',
   },
 }
 
@@ -140,63 +209,91 @@ const MONTHS_LABELS = [
   'Jul 26','Aug 26','Sep 26','Oct 26','Nov 26','Dec 26',
 ]
 
-const CONF_DATA: Record<number, string[]> = {
-  3: ['EAACI','Apr 15–18','Madrid'],
-  8: ['HAEi Global','Sep 24–27','Berlin'],
-  9: ['ACAAI','Oct 10–14','Anaheim, CA'],
+// ── Calendar helpers — derived from events.json; no hardcoded dates ──────────
+
+const _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const _mi = (iso: string) => new Date(iso).getMonth()
+
+function _dateRange(s: string, e?: string | null): string {
+  const d = new Date(s); const mo = d.getMonth(); const sd = d.getDate()
+  return e ? `${_MO[mo]} ${sd}–${new Date(e).getDate()}` : `${_MO[mo]} ${sd}`
 }
 
-const IR_DATA: Record<number, string[]> = {
-  4: ['BioCryst Q1','Takeda Q4 FY25','Pharvaris Q1'],
-  6: ['Pharvaris','Investor Day'],
-  10: ['Q3 Earnings','(All 3 cos.)'],
+function _confShortName(title: string): string {
+  const parts = title.split(' ')
+  return (parts[1] === 'Global' || parts[1] === 'Americas') ? `${parts[0]} ${parts[1]}` : parts[0]
 }
+
+function _earningsLabels(title: string): string[] {
+  if (/all three/i.test(title)) return ['Q3 Earnings', '(All 3 cos.)']
+  const m = title.match(/^(\w+)\s+(Q\d)\s+(FY)?(\d{4})?/)
+  if (!m) return [title.split(' ').slice(0, 2).join(' ')]
+  const fy = (m[3] && m[4]) ? ` FY${String(m[4]).slice(2)}` : ''
+  return [`${m[1]} ${m[2]}${fy}`]
+}
+
+const CONF_DATA: Record<number, string[]> = {}
+;(eventsData as any[])
+  .filter(e => e.type === 'conference' && String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
+  .forEach(e => {
+    const mi = _mi(e.date)
+    CONF_DATA[mi] = [_confShortName(e.title), _dateRange(e.date, e.endDate), (e.location as string)?.split(',')[0] ?? '']
+  })
+
+const IR_DATA: Record<number, string[]> = {}
+;(eventsData as any[])
+  .filter(e => (e.type === 'earnings' || e.type === 'investor') && String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
+  .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  .forEach(e => {
+    const mi = _mi(e.date)
+    const labels = e.type === 'investor' ? ['Pharvaris', 'Inv. R&D Day'] : _earningsLabels(e.title)
+    IR_DATA[mi] = [...(IR_DATA[mi] ?? []), ...labels]
+  })
 
 type CalCellVariant = 'default' | 'yellow' | 'blue' | 'purple'
 interface CalCell { lines: string[]; v: CalCellVariant }
 
-const CAL_CELLS: Record<string, Record<number, CalCell>> = {
-  takeda: {
-    3:  { lines: ['EAACI','Apr 15–18'],   v: 'default' },
-    4:  { lines: ['Q4 FY25','Earnings'],  v: 'default' },
-    8:  { lines: ['HAEi Global','Sep 24–27'], v: 'default' },
-    9:  { lines: ['ACAAI','Oct 10–14'],   v: 'default' },
-    10: { lines: ['Q3 2026','Earnings'],  v: 'default' },
-  },
-  biocryst: {
-    3:  { lines: ['EAACI','Apr 15–18'],   v: 'default' },
-    4:  { lines: ['Q1 2026','Earnings'],  v: 'default' },
-    8:  { lines: ['HAEi Global','Sep 24–27'], v: 'default' },
-    9:  { lines: ['ACAAI','Oct 10–14'],   v: 'default' },
-    10: { lines: ['Q3 2026','Earnings'],  v: 'default' },
-  },
-  pharvaris: {
-    3:  { lines: ['EAACI','Apr 15–18'],   v: 'default' },
-    4:  { lines: ['Q1 2026','Earnings'],  v: 'default' },
-    6:  { lines: ['Investor','R&D Day'],  v: 'default' },
-    7:  { lines: ['RAPIDe-3','Topline'],  v: 'blue'    },
-    8:  { lines: ['HAEi Global','Sep 24–27'], v: 'default' },
-    9:  { lines: ['ACAAI','Oct 10–14'],   v: 'default' },
-    10: { lines: ['Q3 2026','Earnings'],  v: 'default' },
-    11: { lines: ['Rolling NDA','US Filing'], v: 'yellow' },
-  },
-  'csl-behring': {
-    8:  { lines: ['HAEi Global','Sep 24–27'], v: 'default' },
-    9:  { lines: ['ACAAI','Oct 10–14'],   v: 'default' },
-  },
-  ionis: {
-    8:  { lines: ['HAEi Global','Sep 24–27'], v: 'default' },
-    9:  { lines: ['ACAAI','Oct 10–14'],   v: 'default' },
-  },
+const _CELL_PRI: Record<CalCellVariant, number> = { purple: 4, blue: 3, yellow: 2, default: 1 }
+
+function _calCell(e: any): CalCell | null {
+  if (e.type === 'conference')
+    return { lines: [_confShortName(e.title), _dateRange(e.date, e.endDate)], v: 'default' }
+  if (e.type === 'earnings')
+    return { lines: _earningsLabels(e.title), v: 'default' }
+  if (e.type === 'investor')
+    return { lines: ['Investor', 'R&D Day'], v: 'default' }
+  if (e.type === 'milestone' && e.sourceType !== 'illustrative') {
+    const t = e.title as string
+    const lines = /CHAPTER-3/i.test(t) ? ['CHAPTER-3', 'Topline']
+      : /acquisition/i.test(t) ? ['Acquisition', 'Closed']
+      : [t.split(' ').slice(0, 2).join(' ')]
+    return { lines, v: 'blue' }
+  }
+  if (e.type === 'regulatory' && e.sourceType !== 'illustrative')
+    return { lines: ['NDA', 'Filing'], v: 'yellow' }
+  return null
 }
 
-const CAL_ASSET: Record<string, string> = {
-  takeda:      'Takhzyro',
-  biocryst:    'Orladeyo',
-  pharvaris:   'Deucrictibant',
-  'csl-behring': 'Andembry',
-  ionis:       'Dawnzera',
-}
+const CAL_CELLS: Record<string, Record<number, CalCell>> = {}
+;(eventsData as any[])
+  .filter(e => String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
+  .forEach(e => {
+    const mi = _mi(e.date)
+    const cell = _calCell(e)
+    if (!cell) return
+    for (const id of (e.attendingCompetitors as string[]) ?? []) {
+      if (!CAL_CELLS[id]) CAL_CELLS[id] = {}
+      const cur = CAL_CELLS[id][mi]
+      if (!cur || _CELL_PRI[cell.v] > _CELL_PRI[cur.v]) CAL_CELLS[id][mi] = cell
+    }
+  })
+
+const CAL_ASSET: Record<string, string> = Object.fromEntries(
+  (competitorsData as any[]).map(c => [
+    c.id,
+    (c.marketedProducts?.[0]?.name ?? c.pipeline?.[0]?.name ?? '').split(' (')[0],
+  ])
+)
 
 const CELL_STYLE: Record<CalCellVariant, { bg: string; color: string }> = {
   default: { bg: 'rgba(5,10,68,0.07)',  color: 'rgba(5,10,68,0.78)' },
@@ -245,9 +342,14 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
 
   return (
     <div style={{ background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
+      <div style={{ marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
+          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
+        </div>
+        <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
+          Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov
+        </p>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -418,7 +520,7 @@ function KpiDealCard({ deal }) {
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
 const TABS = [
   { label: 'Events',              icon: CalendarDays },
-  { label: 'Reports & Earnings',  icon: FileText     },
+  { label: 'Earnings Filings',     icon: FileText     },
   { label: 'Market Developments', icon: TrendingUp   },
 ]
 
@@ -477,16 +579,20 @@ function TabBar({ active, onChange }) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ── Week calendar strip ───────────────────────────────────────────────────────
-function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null; onDateSelect: (d: string | null) => void }) {
+function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
+  selectedDate: string | null
+  onDateSelect: (d: string | null) => void
+  allEvents: Array<{ date: string; type: string }>
+}) {
   const MS       = 86400000
   const start    = new Date(TODAY.getTime() - 3 * MS)
   const DAY_LTRS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
   const todayStr = TODAY.toISOString().substring(0, 10)
   const stripRef = useRef<HTMLDivElement>(null)
 
-  // date → first event type on that day
+  // date → first event type on that day (includes live calendar events)
   const eventMap = new Map<string, string>()
-  eventsData.forEach((e: any) => {
+  allEvents.forEach((e) => {
     const key = e.date.substring(0, 10)
     if (!eventMap.has(key)) eventMap.set(key, e.type)
   })
@@ -620,6 +726,7 @@ function WeekStrip({ selectedDate, onDateSelect }: { selectedDate: string | null
 }
 
 function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
+  const { indication } = useConfig()
   const past = Boolean(pastVariant)
   const isMultiDay = Boolean(event.endDate)
   const dateLabel = isMultiDay
@@ -633,6 +740,14 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
   const annotations = showAnnotations ? (LEADERSHIP_ANNOTATIONS[event.type] ?? null) : null
+  const ciSignificance = buildCISignificance(event, indication)
+  const regulatoryCtx = buildRegulatoryContext(event)
+  const durationDays = isMultiDay
+    ? Math.round((new Date(event.endDate).getTime() - new Date(event.date).getTime()) / 86400000) + 1
+    : null
+  const isVirtualLoc = /^(Virtual|Online|Broadcast)$/i.test(((event as any).location ?? '').trim())
+  const sourceUrl    = (event as any).sourceUrl ?? null
+  const showSource   = Boolean(sourceUrl && (event as any).sourceType !== 'illustrative')
 
   return (
     <div
@@ -646,21 +761,75 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         scrollMarginTop: '80px',
       }}
     >
-      {/* Row 1: type pill (left) + date/location (right) */}
+      {/* Row 1: type pill (left) + live/illustrative badge + date/location (right) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          padding: '2px 9px', borderRadius: '9999px',
-          fontSize: '11px', fontWeight: 700,
-          background: typeCfg.bg, color: typeCfg.text,
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}>
-          {TypeIcon && <TypeIcon size={10} />}
-          {typeCfg.label}
-        </span>
-        <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
-          {dateLabel}{locationStr}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            padding: '2px 9px', borderRadius: '9999px',
+            fontSize: '11px', fontWeight: 700,
+            background: typeCfg.bg, color: typeCfg.text,
+            whiteSpace: 'nowrap',
+          }}>
+            {TypeIcon && <TypeIcon size={10} />}
+            {typeCfg.label}
+          </span>
+          {(event as any)._isLive && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '10px', fontWeight: 700,
+              background: 'rgba(16,185,129,0.12)', color: '#065F46',
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block', flexShrink: 0 }} />
+              EMA
+            </span>
+          )}
+          {(event as any).sourceType === 'illustrative' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '10px', fontWeight: 700,
+              background: 'rgba(245,158,11,0.12)', color: '#92400E',
+              whiteSpace: 'nowrap',
+            }}>
+              Illustrative
+            </span>
+          )}
+          {durationDays && durationDays > 1 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '10px', fontWeight: 600,
+              background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.50)',
+              whiteSpace: 'nowrap',
+            }}>
+              {durationDays}-day event
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
+            {dateLabel}{isVirtualLoc ? '' : locationStr}
+          </span>
+          {showSource && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)',
+                textDecoration: 'none', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#0055BB')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(5,10,68,0.45)')}
+            >
+              Source <ExternalLink size={10} />
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Row 2: title */}
@@ -668,6 +837,13 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         {event.title}
         {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
       </p>
+
+      {/* Row 2b: CI significance — only when no note is present */}
+      {ciSignificance && (
+        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.58)', lineHeight: '1.55' }}>
+          {ciSignificance}
+        </p>
+      )}
 
       {/* Row 3: Attending badges */}
       {event.attendingCompetitors?.length > 0 && (
@@ -690,6 +866,28 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>{topic}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Row 4b: Regulatory context — why relevant + actionable follow up */}
+      {regulatoryCtx && (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+              Why this is relevant
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              {regulatoryCtx.whyRelevant}
+            </p>
+          </div>
+          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+              Actionable follow up
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              {regulatoryCtx.actionableFollowUp}
+            </p>
+          </div>
         </div>
       )}
 
@@ -730,6 +928,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           Read digest →
         </Link>
       )}
+
     </div>
   )
 }
@@ -742,7 +941,7 @@ const EVENT_LEFT_BORDER: Record<string, string> = {
   milestone:  '#EF4444',
 }
 
-function EventsTab() {
+function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCalendarEvent[] }) {
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
   const [viewFilter, setViewFilter]         = useState('all')
@@ -756,22 +955,39 @@ function EventsTab() {
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
   const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
 
-  const filtered = eventsData.filter((e) => {
-    if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has((e as any).type)) return false
-    if (selectedDate && (e as any).date.substring(0, 10) !== selectedDate) return false
+  // Map live EMA calendar events to local event shape
+  const mappedCalendarEvents = liveCalendarEvents.map((row) => ({
+    id: `reg-${row.id}`,
+    date: row.start_date ?? '',
+    endDate: row.end_date ?? undefined,
+    type: 'regulatory',
+    title: row.title ?? 'EMA Committee Meeting',
+    location: 'Amsterdam, Netherlands (EMA)',
+    attendingCompetitors: [] as string[],
+    expectedTopics: [] as string[],
+    _isLive: true as const,
+  }))
+
+  const allEvents = [...(eventsData as any[]), ...mappedCalendarEvents]
+    .filter((e) => e.date)
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const filtered = allEvents.filter((e) => {
+    if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has(e.type)) return false
+    if (selectedDate && e.date.substring(0, 10) !== selectedDate) return false
     return true
   })
 
   const upcoming = filtered
-    .filter((e) => new Date((e as any).date) >= TODAY)
-    .sort((a, b) => new Date((a as any).date).getTime() - new Date((b as any).date).getTime())
+    .filter((e) => new Date(e.date) >= TODAY)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const past = filtered
     .filter((e) => {
-      const ts = new Date((e as any).date).getTime()
+      const ts = new Date(e.date).getTime()
       return ts < TODAY.getTime() && ts >= pastCutoffTs
     })
-    .sort((a, b) => new Date((b as any).date).getTime() - new Date((a as any).date).getTime())
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   function jumpToEvent(eventId) {
     const node = cardRefs.current.get(eventId)
@@ -845,7 +1061,7 @@ function EventsTab() {
       </div>
 
       {/* ── Calendar strip ──────────────────────────────────────────────────── */}
-      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} allEvents={allEvents} />
 
       {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
@@ -856,7 +1072,7 @@ function EventsTab() {
 
       {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
       {showCatalysts && (
-        <KeyCatalystsCalendar count={eventsData.length} />
+        <KeyCatalystsCalendar count={allEvents.length} />
       )}
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
@@ -996,6 +1212,7 @@ function EventsTab() {
 const ALL_REPORT_TYPES = [...new Set(reportsData.map((r) => r.type))]
 
 function ReportListCard({ report }) {
+  const { indication } = useConfig()
   const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(42,118,244,0.15)', text: '#2A76F4', icon: null }
   const cName = competitorName(report.competitorId)
 
@@ -1007,17 +1224,30 @@ function ReportListCard({ report }) {
       padding: '8px 16px',
       display: 'flex', flexDirection: 'column', gap: '12px',
     }}>
-      {/* Row 1: type pill + date */}
+      {/* Row 1: type pill + illustrative badge + date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          padding: '4px 8px', borderRadius: '8px',
-          fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
-          background: typeCfg.bg, color: typeCfg.text,
-          whiteSpace: 'nowrap',
-        }}>
-          {typeCfg.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '4px 8px', borderRadius: '8px',
+            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
+            background: typeCfg.bg, color: typeCfg.text,
+            whiteSpace: 'nowrap',
+          }}>
+            {typeCfg.label}
+          </span>
+          {(report as any).isIllustrative && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '10px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif',
+              background: 'rgba(245,158,11,0.12)', color: '#92500A',
+              whiteSpace: 'nowrap',
+            }}>
+              Illustrative
+            </span>
+          )}
+        </div>
         <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
           {formatDateAbs(report.date)}
         </span>
@@ -1037,7 +1267,7 @@ function ReportListCard({ report }) {
       {report.haeExtract && (
         <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-            {DEMO.therapeuticArea} extract:
+            {indication} extract:
           </p>
           <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
             {report.haeExtract}
@@ -1070,6 +1300,7 @@ function ReportListCard({ report }) {
 }
 
 function ReportDetailPanel({ report }) {
+  const { assetName, indication } = useConfig()
   if (!report) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1100,6 +1331,17 @@ function ReportDetailPanel({ report }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
             <Link2 size={12} strokeWidth={1.8} /> {report.source}
           </span>
+          {(report as any).isIllustrative && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '10px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif',
+              background: 'rgba(245,158,11,0.12)', color: '#92500A',
+              whiteSpace: 'nowrap',
+            }}>
+              Illustrative
+            </span>
+          )}
         </div>
       </div>
 
@@ -1137,35 +1379,11 @@ function ReportDetailPanel({ report }) {
         </div>
       )}
 
-      {/* Section 3 — Signal box */}
-      {report.signal && (
-        <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '10px', padding: '14px 16px' }}>
-          <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(42,118,244,0.85)' }}>
-            Relevance to {DEMO.assetName}:
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.6' }}>
-            {report.signal.text}
-          </p>
-        </div>
-      )}
-
-      {/* Section 4 — Implications */}
-      {report.implications && (
-        <div>
-          <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            {report.implications.label}
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.7' }}>
-            {report.implications.text}
-          </p>
-        </div>
-      )}
-
       {/* Section 5 — TA extract fallback (only if no kpis) */}
       {!report.kpis && report.haeExtract && (
         <div>
           <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            {DEMO.therapeuticArea} Extract
+            {indication} Extract
           </p>
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.7' }}>
             {report.haeExtract}
@@ -1173,47 +1391,6 @@ function ReportDetailPanel({ report }) {
         </div>
       )}
 
-      {/* Section 6 — Quotes */}
-      {report.quotes && (
-        <div>
-          <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            Key Management Quotes
-          </p>
-          {report.quotes.map((q, i) => (
-            <div key={i} style={{
-              padding: '8px', borderRadius: '8px',
-              border: '1.8px solid rgba(210,226,255,1)',
-              display: 'flex', flexDirection: 'column', gap: '4px',
-              marginBottom: '8px',
-            }}>
-              {/* Quote text */}
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
-                "{q.text}"
-              </p>
-              {/* Footer: attribution + copy */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'space-between' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px' }}>
-                  {q.attribution}
-                </span>
-                <button
-                  onClick={() => navigator.clipboard?.writeText(q.text)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', padding: '0 0 4px',
-                    borderBottom: '1px dashed #434343',
-                    cursor: 'pointer', fontSize: '12px', fontWeight: 500,
-                    fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)',
-                    flexShrink: 0, lineHeight: '18px',
-                  }}
-                >
-                  <Copy size={13} strokeWidth={1.8} />
-                  Copy
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -1690,6 +1867,7 @@ const MARKET_FILTER_TABS = [
   { value: 'hta',  label: 'HTA decisions' },
 ]
 
+
 function MarketDevCard({ item }) {
   const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'rgba(5,10,68,0.07)', text: '#10224A' }
 
@@ -1702,6 +1880,12 @@ function MarketDevCard({ item }) {
 
   const hasMetadata = item.type === 'deal' || item.type === 'hta' || item.type === 'payer'
 
+  // Unified provenance: live entries carry _sourceLabel/_sourceUrl; JSON entries derive label from URL
+  const isLive:   boolean       = (item as any)._isLive === true
+  const srcLabel: string | null = (item as any)._sourceLabel ?? null
+  const srcUrl:   string | null = (item as any)._sourceUrl ?? (item as any).sourceUrl ?? null
+  const resolvedLabel: string   = srcLabel ?? buildSourceLabel(srcUrl, item.type ?? '')
+
   return (
     <div style={{
       background: '#ffffff',
@@ -1711,16 +1895,26 @@ function MarketDevCard({ item }) {
       display: 'flex', flexDirection: 'column', gap: '12px',
     }}>
 
-      {/* Row 1: type pill + date */}
+      {/* Row 1: type pill + provenance chip + date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          padding: '4px 8px', borderRadius: '8px',
-          fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
-          background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
-        }}>
-          {typeCfg.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '4px 8px', borderRadius: '8px',
+            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
+            background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
+          }}>
+            {typeCfg.label}
+          </span>
+          {(srcUrl || srcLabel) && (
+            <ProvenanceChip
+              sourceLabel={resolvedLabel}
+              sourceUrl={srcUrl}
+              date={item.date}
+              isLive={isLive}
+            />
+          )}
+        </div>
         <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
           {formatDateAbs(item.date)}
         </span>
@@ -1822,17 +2016,32 @@ function MarketDevCard({ item }) {
   )
 }
 
-function MarketTab() {
+function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
 
-  const sorted = [...marketData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // Map live company_signals deals to market-dev card format
+  const liveDealItems = liveDeals.map((row) => ({
+    id: `sig-${row.id}`,
+    date: row.date ?? '',
+    type: 'deal' as const,
+    headline: row.headline ?? '(no headline)',
+    summary: row.body_excerpt ? decodeEntities(row.body_excerpt) : '',
+    parties: [competitorName(row.competitor_id)],
+    dealType: 'Press Release',
+    _isLive: true as const,
+    _sourceLabel: 'SEC EDGAR',
+    _sourceUrl: row.source_url ?? null,
+  }))
+
+  const sorted = [...(marketData as any[]), ...liveDealItems]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const filtered = activeFilter === 'all'
     ? sorted
     : activeFilter === 'deal'
-    ? sorted.filter(m => m.type === 'deal')
-    : sorted.filter(m => m.type === 'hta' || m.type === 'payer')
+    ? sorted.filter((m: any) => m.type === 'deal')
+    : sorted.filter((m: any) => m.type === 'hta' || m.type === 'payer')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1919,6 +2128,8 @@ export default function Portal() {
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? 0)
   const loaded = usePageLoad('portal')
+  const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
+  const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1926,6 +2137,15 @@ export default function Portal() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl])
+
+  useEffect(() => {
+    Promise.all([getRegulatoryCalendar(), getRecentSignals(365)])
+      .then(([calendar, signals]) => {
+        setLiveCalendarEvents(calendar)
+        setLiveDeals(signals.filter((s) => s.signal_type === 'deal' && isQualityHeadline(s.headline)))
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1944,9 +2164,9 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab /></div>
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} /></div>
             <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
-            <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab /></div>
+            <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
           </motion.div>
         )}
       </div>

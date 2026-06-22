@@ -1,0 +1,47 @@
+[
+  {
+    "id": "kolapp-001",
+    "date": "May 2025",
+    "congress": "AAAAI Annual Meeting 2025",
+    "kolId": "marc-riedl",
+    "sessionTitle": "The evolving standard of care in HAE prophylaxis: 2025 update",
+    "affiliatedWith": ["takeda", "biocryst"],
+    "notes": "Keynote session — expected to address positioning of oral agents vs. injectables"
+  },
+  {
+    "id": "kolapp-002",
+    "date": "May 2025",
+    "congress": "AAAAI Annual Meeting 2025",
+    "kolId": "timothy-craig",
+    "sessionTitle": "Patient preference and adherence in oral HAE prophylaxis",
+    "affiliatedWith": ["biocryst"],
+    "notes": "Presenting updated 36-month berotralstat real-world data"
+  },
+  {
+    "id": "kolapp-003",
+    "date": "June 2025",
+    "congress": "EAACI Congress 2025",
+    "kolId": "hilary-longhurst",
+    "sessionTitle": "Oral therapies in HAE — a European treatment algorithm update",
+    "affiliatedWith": ["pharvaris", "takeda"],
+    "notes": "Chairing session — likely to include Pharvaris Phase III sub-analysis presentation"
+  },
+  {
+    "id": "kolapp-004",
+    "date": "June 2025",
+    "congress": "EAACI Congress 2025",
+    "kolId": "anette-bygum",
+    "sessionTitle": "Health-related quality of life in HAE: what the registries tell us",
+    "affiliatedWith": [],
+    "notes": "Independent presenter — no competitor affiliation. Presenting Nordic registry update."
+  },
+  {
+    "id": "kolapp-005",
+    "date": "September 2025",
+    "congress": "DGAKI Annual Meeting 2025",
+    "kolId": "konrad-bork",
+    "sessionTitle": "HAE management in Germany: guideline review and practical considerations",
+    "affiliatedWith": ["takeda"],
+    "notes": "Expected to address prophylaxis thresholds relevant to G-BA reimbursement context"
+  }
+]

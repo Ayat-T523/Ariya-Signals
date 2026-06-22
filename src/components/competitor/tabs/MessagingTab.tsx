@@ -1,10 +1,11 @@
 import {
-  Megaphone, TrendingUp, Globe, Mic, DollarSign, FileText, AlertTriangle,
+  Megaphone, TrendingUp, Globe, Mic, DollarSign, FileText, AlertTriangle, ExternalLink,
 } from 'lucide-react'
 import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
-import ConfidenceIndicator from '../../ui/ConfidenceIndicator'
+import ProvenanceChip from '../../ui/ProvenanceChip'
 import { DEMO } from '../../../config/demo-config'
+import { formatDateAbs } from '../../../utils/formatDate'
 
 // ── Source type config ────────────────────────────────────────────────────────
 const SOURCE_TYPE_CONFIG = {
@@ -162,14 +163,6 @@ function TimelineCard({ entry }) {
             </strong>
             {entry.whyItMatters}
           </p>
-          {/* Confidence — higher inference depth when a shift is detected (AI judgement) */}
-          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-            <ConfidenceIndicator
-              sourceCoverage="medium"
-              dataFreshness="high"
-              inferenceDepth={entry.shiftDetected ? 'high' : 'medium'}
-            />
-          </div>
         </div>
       )}
     </div>
@@ -262,10 +255,123 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
   )
 }
 
+// ── Document type display config ──────────────────────────────────────────────
+const DOC_TYPE_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  '10-K':      { label: '10-K',       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
+  '20-F':      { label: '20-F',       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
+  'FDA-label': { label: 'FDA Label',  bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
+  'NICE-TA':   { label: 'NICE TA',    bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
+  'EMA-EPAR':  { label: 'EMA EPAR',   bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
+}
+
+function docTypeCfg(type: string) {
+  return DOC_TYPE_CONFIG[type] ?? { label: type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
+}
+
+// ── Source documents section ──────────────────────────────────────────────────
+function SourceDocsSection({ docs }: { docs: any[] }) {
+  // Only show regulatory / annual report document types — 8-K signals are in Announcements
+  const relevant = docs.filter((d: any) =>
+    ['10-K', '20-F', 'FDA-label', 'NICE-TA', 'EMA-EPAR'].includes(d.document_type)
+  )
+  if (!relevant.length) return null
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+          Ingested Source Documents
+        </p>
+        <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d' }}>
+          Live · Primary sources
+        </span>
+      </div>
+      <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>
+        These documents have been downloaded and indexed. Messaging analysis will be extracted from them by an analyst — review pending.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {relevant.map((doc: any) => {
+          const cfg = docTypeCfg(doc.document_type)
+          const wordLabel = doc.word_count ? `${Math.round(doc.word_count / 1000)}k words` : null
+          return (
+            <div key={doc.id} style={{
+              background: '#FFFFFF', borderRadius: '10px',
+              border: '1px solid rgba(210,226,255,1)',
+              padding: '10px 14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                <span style={{
+                  flexShrink: 0, padding: '2px 9px', borderRadius: '9999px',
+                  fontSize: '11px', fontWeight: 700,
+                  background: cfg.bg, color: cfg.text,
+                }}>
+                  {cfg.label}
+                </span>
+                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doc.source_label ?? doc.document_type}
+                </p>
+                {doc.date_published && (
+                  <span style={{ flexShrink: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+                    {formatDateAbs(doc.date_published)}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {wordLabel && (
+                  <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+                    {wordLabel}
+                  </span>
+                )}
+                <a href={doc.source_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Recent company announcements (from SEC 8-K press releases) ───────────────
+function AnnouncementsSection({ items }: { items: any[] }) {
+  if (!items?.length) return null
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+          Recent Company Announcements
+        </p>
+      </div>
+      <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>
+        Direct company press releases (8-K item 8.01) — interpret for messaging relevance.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {items.map((item, i) => (
+          <div key={i} style={{ background: '#FFFFFF', borderRadius: '10px', border: '1px solid rgba(210,226,255,1)', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4', flex: 1 }}>{item.headline}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              {item.accession_number
+                ? <ProvenanceChip sourceLabel="SEC EDGAR" sourceUrl={item.sourceUrl} date={item.date} />
+                : item.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap' }}>{formatDateAbs(item.date)}</span>
+              }
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Main tab ──────────────────────────────────────────────────────────────────
 export default function MessagingTab({ competitor }) {
-  const data = competitor.messaging
-  if (!data) {
+  const data        = competitor.messaging
+  const pressItems  = competitor.recentPressReleases ?? []
+  const sourceDocs  = competitor.sourceDocs ?? []
+
+  if (!data && !pressItems.length && !sourceDocs.length) {
     return (
       <EmptyState message="No messaging data tracked yet. Add sources to begin monitoring this competitor's positioning." />
     )
@@ -274,34 +380,38 @@ export default function MessagingTab({ competitor }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
-      {/* Current core message */}
-      <div>
-        <SectionHeader label="Current positioning" />
-        <CurrentMessageCard data={data} />
-      </div>
+      {/* Live announcements — shown first as raw signals */}
+      <AnnouncementsSection items={pressItems} />
 
-      {/* Messaging timeline */}
-      {data.timeline?.length > 0 && (
-        <div>
-          <SectionHeader label="Messaging timeline" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {data.timeline.map((entry, i) => (
-              <TimelineCard key={i} entry={entry} />
-            ))}
+      {/* Ingested primary source documents */}
+      <SourceDocsSection docs={sourceDocs} />
+
+      {data && (
+        <>
+          {/* Illustrative banner */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.30)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', background: 'rgba(245,158,11,0.18)', color: '#92500A', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
+              Illustrative
+            </span>
+            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#92500A', lineHeight: '1.5' }}>
+              Competitor positioning below is illustrative. Real messaging analysis requires systematic review of congress presentations, earnings transcripts, and press releases — none of which has been ingested yet.
+            </p>
           </div>
-        </div>
-      )}
 
-      {/* vs client comparison */}
-      {data.vsPharmaInc?.length > 0 && (
-        <div>
-          <SectionHeader label={`${competitor.name} vs ${DEMO.companyLabel} — claim by claim`} />
-          <ComparisonTable
-            rows={data.vsPharmaInc}
-            competitorName={competitor.name}
-            competitorId={competitor.id}
-          />
-        </div>
+          {/* Current core message */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+                Current positioning
+              </p>
+              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(245,158,11,0.12)', color: '#92500A' }}>
+                Illustrative
+              </span>
+            </div>
+            <CurrentMessageCard data={data} />
+          </div>
+
+        </>
       )}
 
     </div>

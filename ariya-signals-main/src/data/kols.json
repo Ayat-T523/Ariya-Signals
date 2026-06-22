@@ -1,0 +1,145 @@
+[
+  {
+    "id": "marc-riedl",
+    "name": "Marc Riedl",
+    "initials": "MR",
+    "institution": "UC San Diego — Division of Rheumatology, Allergy & Immunology",
+    "affiliations": ["takeda", "biocryst"],
+    "affiliationLabels": {
+      "takeda": "Speaker bureau",
+      "biocryst": "Advisory board"
+    },
+    "influence": "high",
+    "haePublicationCount": 38,
+    "lastActive": "HAEi World Congress, March 2025",
+    "bio": "One of the most prolific HAE researchers in the US, Dr. Riedl has led or co-authored landmark studies on prophylactic therapy and patient-reported outcomes in HAE. He is frequently cited in guideline development and is a sought-after speaker at international HAE congresses.",
+    "publicationHighlights": [
+      { "year": 2024, "journal": "J Allergy Clin Immunol", "title": "Long-term outcomes of subcutaneous lanadelumab in HAE type I and II: 5-year registry data" },
+      { "year": 2023, "journal": "Ann Allergy Asthma Immunol", "title": "Patient preference for route of administration in HAE prophylaxis: a multinational survey" },
+      { "year": 2022, "journal": "Allergy", "title": "Comparative efficacy of approved HAE prophylactics: a systematic review and network meta-analysis" }
+    ],
+    "congressAppearances": [
+      { "congress": "HAEi World Congress 2025", "date": "March 2025", "topic": "Long-term real-world data for subcutaneous prophylaxis" },
+      { "congress": "ACAAI Annual Meeting 2024", "date": "November 2024", "topic": "Guideline update: prophylaxis decision-making in HAE" },
+      { "congress": "AAAAI 2024", "date": "February 2024", "topic": "Patient-centric endpoints in HAE clinical trials" }
+    ],
+    "disclosedRelationships": [
+      "Advisory board: BioCryst Pharmaceuticals (disclosed in JACI 2024)",
+      "Speaker bureau: Takeda Pharmaceuticals (disclosed in Ann Allergy 2023)",
+      "Research grant: Pharma Inc (disclosed in Allergy 2022)"
+    ],
+    "whatItMeansForPharmaInc": "Riedl is one of the few KOLs with a disclosed relationship with Pharma Inc — this is a significant asset. His dual affiliation with Takeda and BioCryst means his public statements need careful monitoring for shifts in how he frames the oral vs. injectable debate."
+  },
+  {
+    "id": "hilary-longhurst",
+    "name": "Hilary Longhurst",
+    "initials": "HL",
+    "institution": "King's College Hospital, London",
+    "affiliations": ["pharvaris", "takeda"],
+    "affiliationLabels": {
+      "pharvaris": "Advisory board",
+      "takeda": "Speaker bureau"
+    },
+    "influence": "high",
+    "haePublicationCount": 27,
+    "lastActive": "EAACI Congress, June 2024",
+    "bio": "A leading European HAE specialist and former chair of the UK HAE Association medical advisory board, Dr. Longhurst is one of the most influential voices in European HAE guideline development. Her endorsement of emerging therapies carries significant weight with European payers and physicians.",
+    "publicationHighlights": [
+      { "year": 2025, "journal": "Clin Exp Allergy", "title": "Oral bradykinin receptor antagonism in HAE: mechanism, evidence and clinical implications" },
+      { "year": 2024, "journal": "Orphanet J Rare Dis", "title": "European HAE patient journey: barriers to optimal prophylaxis uptake" },
+      { "year": 2023, "journal": "J Allergy Clin Immunol Pract", "title": "Positioning of new oral agents in the HAE treatment algorithm: a European perspective" }
+    ],
+    "congressAppearances": [
+      { "congress": "EAACI Congress 2024", "date": "June 2024", "topic": "Oral therapies for HAE: where do they fit in the treatment algorithm?" },
+      { "congress": "HAEi World Congress 2025", "date": "March 2025", "topic": "European guideline update — prophylaxis thresholds and shared decision-making" },
+      { "congress": "BSACI Annual Meeting 2024", "date": "September 2024", "topic": "Emerging oral agents in HAE: clinical trial interpretation" }
+    ],
+    "disclosedRelationships": [
+      "Advisory board: Pharvaris BV (disclosed in Clin Exp Allergy 2025)",
+      "Speaker honorarium: Takeda Pharmaceuticals (disclosed in Orphanet J 2024)",
+      "Advisory board: CSL Behring (disclosed in JACI Pract 2023)"
+    ],
+    "whatItMeansForPharmaInc": "Longhurst is a critical voice for European market access — her framing of 'where oral agents fit in the treatment algorithm' will influence UK NICE and EMA assessments. Her Pharvaris advisory board role means she may publicly frame deucrictibant favourably ahead of Pharma Inc's own European launch."
+  },
+  {
+    "id": "timothy-craig",
+    "name": "Timothy Craig",
+    "initials": "TC",
+    "institution": "Penn State University — Division of Pulmonary, Allergy & Critical Care Medicine",
+    "affiliations": ["biocryst"],
+    "affiliationLabels": {
+      "biocryst": "Advisory board"
+    },
+    "influence": "medium",
+    "haePublicationCount": 19,
+    "lastActive": "ACAAI Annual Meeting, November 2024",
+    "bio": "A prolific contributor to HAE clinical research with a focus on berotralstat and oral on-demand therapies, Dr. Craig has been closely associated with BioCryst's clinical program. He is a frequent presenter at US-focused allergy congresses and contributes regularly to US HAE treatment guidelines.",
+    "publicationHighlights": [
+      { "year": 2024, "journal": "Ann Allergy Asthma Immunol", "title": "24-month outcomes with berotralstat in a real-world US HAE registry" },
+      { "year": 2023, "journal": "J Allergy Clin Immunol", "title": "Patient-reported convenience and adherence with once-daily oral prophylaxis for HAE" },
+      { "year": 2022, "journal": "Allergy Asthma Proc", "title": "Optimising prophylaxis selection in HAE: a US physician survey" }
+    ],
+    "congressAppearances": [
+      { "congress": "ACAAI Annual Meeting 2024", "date": "November 2024", "topic": "Real-world adherence and outcomes with oral HAE prophylaxis" },
+      { "congress": "AAAAI 2025", "date": "February 2025", "topic": "Convenience metrics in HAE prophylaxis: what patients actually want" },
+      { "congress": "HAEi World Congress 2025", "date": "March 2025", "topic": "US perspective on prophylaxis access and reimbursement" }
+    ],
+    "disclosedRelationships": [
+      "Advisory board: BioCryst Pharmaceuticals (disclosed in Ann Allergy 2024)",
+      "Research grant: BioCryst Pharmaceuticals (disclosed in JACI 2023)"
+    ],
+    "whatItMeansForPharmaInc": "Craig's deep ties to BioCryst and focus on convenience messaging make him a likely voice for oral prophylaxis as the default standard — a framing that may inadvertently benefit Sebetralstat's oral on-demand positioning if Pharma Inc can engage him early."
+  },
+  {
+    "id": "anette-bygum",
+    "name": "Anette Bygum",
+    "initials": "AB",
+    "institution": "Odense University Hospital, Denmark",
+    "affiliations": [],
+    "affiliationLabels": {},
+    "influence": "medium",
+    "haePublicationCount": 22,
+    "lastActive": "HAEi World Congress, March 2025",
+    "bio": "A leading Scandinavian HAE specialist and principal investigator in multiple HAE trials across European sites, Dr. Bygum is considered an independent voice in the field with no current commercial advisory relationships. Her research focuses on epidemiology, genetics, and health-related quality of life in HAE.",
+    "publicationHighlights": [
+      { "year": 2024, "journal": "Orphanet J Rare Dis", "title": "Health-related quality of life in HAE: a Nordic registry study" },
+      { "year": 2023, "journal": "Allergy", "title": "Epidemiology of hereditary angioedema in Scandinavia: updated estimates" },
+      { "year": 2022, "journal": "J Allergy Clin Immunol", "title": "Unmet needs in HAE management: patient and physician perspectives across Europe" }
+    ],
+    "congressAppearances": [
+      { "congress": "HAEi World Congress 2025", "date": "March 2025", "topic": "Nordic registry data: treatment patterns and outcomes in HAE" },
+      { "congress": "EAACI Congress 2024", "date": "June 2024", "topic": "Unmet needs in HAE — what the data tell us" }
+    ],
+    "disclosedRelationships": [
+      "No commercial relationships disclosed in recent publications"
+    ],
+    "whatItMeansForPharmaInc": "Bygum's independence makes her a credible third-party voice. Her quality-of-life and unmet needs research aligns well with Pharma Inc's positioning — she would be a high-value target for early engagement and investigator-initiated research collaboration."
+  },
+  {
+    "id": "konrad-bork",
+    "name": "Konrad Bork",
+    "initials": "KB",
+    "institution": "University Medical Centre, Mainz, Germany",
+    "affiliations": ["takeda"],
+    "affiliationLabels": {
+      "takeda": "Speaker bureau"
+    },
+    "influence": "medium",
+    "haePublicationCount": 31,
+    "lastActive": "HAEi World Congress, March 2025",
+    "bio": "One of Europe's most experienced HAE clinicians with over three decades of clinical and research experience, Dr. Bork is a foundational figure in HAE natural history research. His work on attack triggers, laryngeal attacks, and long-term prognosis is widely cited in treatment guidelines across Europe.",
+    "publicationHighlights": [
+      { "year": 2024, "journal": "Allergy", "title": "Triggers of HAE attacks and implications for prophylaxis selection: 30-year follow-up" },
+      { "year": 2023, "journal": "J Allergy Clin Immunol", "title": "Laryngeal HAE attacks: frequency, risk factors and fatality — updated European data" },
+      { "year": 2021, "journal": "Orphanet J Rare Dis", "title": "Natural history of HAE with C1-INH deficiency: a longitudinal cohort study" }
+    ],
+    "congressAppearances": [
+      { "congress": "HAEi World Congress 2025", "date": "March 2025", "topic": "30 years of HAE natural history: what we have learned" },
+      { "congress": "DGAKI Annual Meeting 2024", "date": "September 2024", "topic": "Prophylaxis thresholds in severe HAE — German guideline perspective" }
+    ],
+    "disclosedRelationships": [
+      "Speaker bureau: Takeda Pharmaceuticals (disclosed in Allergy 2024)"
+    ],
+    "whatItMeansForPharmaInc": "Bork's focus on attack severity and laryngeal risk is relevant to Pharma Inc's on-demand indication — severe attack patients are a core target segment. His Takeda relationship is limited to speaker bureau, making him more approachable than advisory board-level affiliations."
+  }
+]

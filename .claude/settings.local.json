@@ -51,7 +51,9 @@
       "Bash(dir)",
       "Bash(Start-Process -NoNewWindow powershell -ArgumentList '-Command', 'npm run preview -- --port 4173')",
       "Bash(Start-Sleep -Seconds 3)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4173/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4173/)",
+      "Bash(git switch *)",
+      "Bash(ls \"C:\\\\Users\\\\AyatTayebulla\\\\OneDrive - PHAMAX BUSINESS SOLUTIONS PRIVATE LIMITED\\\\Desktop\\\\Ariya\\\\Projects\")"
     ]
   }
 }

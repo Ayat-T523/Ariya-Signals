@@ -26,7 +26,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useApp } from '../../context/AppContext'
+import { useApp, useConfig } from '../../context/AppContext'
 import { userData } from '../../data/kalvista'
 import { REDUCED_MOTION } from '../../lib/motion'
 import { DEMO, APP_VERSION } from '../../config/demo-config'
@@ -72,17 +72,21 @@ const DECIDE: NavItemDef[] = [
 ]
 
 // ── Help modal ────────────────────────────────────────────────────────────────
-const HELP_SECTIONS = [
-  { name: 'War Room',          description: 'Your personalised landing page: the highest-priority signals and recent alerts in one view.' },
-  { name: 'Intelligence Feed', description: 'Events calendar, earnings digests, deal landscape, and HTA tracker — all in one feed.' },
-  { name: 'Competitors',       description: 'Pipeline, company, and messaging profiles for all tracked competitors with timeline view.' },
-  { name: 'Market Performance',description: `${DEMO.assetName} uptake vs the ${DEMO.therapeuticArea} class across DE, UK, US, and other key markets.` },
-  { name: 'Pricing and Access',description: 'Multi-region pricing benchmark and reimbursement status across tracked markets.' },
-  { name: 'Alerts',            description: 'Full signal feed, filterable by type and competitor. Mark alerts read and archive.' },
-  { name: 'My Space',          description: 'Configure your delivery preferences, personal saved alerts, and uploaded documents.' },
-]
+function buildHelpSections(assetName: string, indication: string) {
+  return [
+    { name: 'War Room',          description: 'Your personalised landing page: the highest-priority signals and recent alerts in one view.' },
+    { name: 'Intelligence Feed', description: 'Events calendar, earnings digests, deal landscape, and HTA tracker — all in one feed.' },
+    { name: 'Competitors',       description: 'Pipeline, company, and messaging profiles for all tracked competitors with timeline view.' },
+    { name: 'Market Performance',description: `${assetName} uptake vs the ${indication} class across DE, UK, US, and other key markets.` },
+    { name: 'Pricing and Access',description: 'Multi-region pricing benchmark and reimbursement status across tracked markets.' },
+    { name: 'Alerts',            description: 'Full signal feed, filterable by type and competitor. Mark alerts read and archive.' },
+    { name: 'My Space',          description: 'Configure your delivery preferences, personal saved alerts, and uploaded documents.' },
+  ]
+}
 
 function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: () => void }) {
+  const { assetName, indication } = useConfig()
+  const helpSections = buildHelpSections(assetName, indication)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // Auto-focus dialog on open; ESC closes (WCAG 2.1.2)
@@ -154,7 +158,7 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           What is Ariya Signals?
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>
-          A competitive intelligence hub for {DEMO.companyLabel}'s {DEMO.therapeuticArea} franchise. It monitors the competitive
+          A competitive intelligence hub for {DEMO.companyLabel}'s {indication} franchise. It monitors the competitive
           environment, tracks competitor pipeline and commercial moves, and delivers role-tailored
           insights so you spend less time gathering and more time deciding.
         </p>
@@ -163,7 +167,7 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           Sections
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {HELP_SECTIONS.map(s => (
+          {helpSections.map(s => (
             <div key={s.name}>
               <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--font-bold)' }}>{s.name}</p>
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>{s.description}</p>

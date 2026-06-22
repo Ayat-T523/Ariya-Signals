@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { analytics } from './lib/analytics'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -10,6 +11,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
 import { useAuth } from '@clerk/clerk-react'
 
+const BYPASS_AUTH        = import.meta.env.VITE_BYPASS_AUTH === 'true'
 const CLERK_CONFIGURED  = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()
 const DEMO_PASSWORD_MODE = !!import.meta.env.VITE_DEMO_PASSWORD_HASH?.trim()
 
@@ -76,6 +78,7 @@ function DemoPasswordGuard() {
 }
 
 function AuthGuard() {
+  if (BYPASS_AUTH) return <Outlet />
   if (DEMO_PASSWORD_MODE) return <DemoPasswordGuard />
   if (!CLERK_CONFIGURED) return <Outlet />
   return <ClerkAuthGuard />
@@ -102,10 +105,20 @@ function ClerkOnboardingSync() {
   return <ClerkOnboardingSyncInner />
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: true,
+    },
+  },
+})
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
       <PostHogPageTracker />
       <AppProvider>
         <ClerkOnboardingSync />
@@ -139,6 +152,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </AppProvider>
+      </QueryClientProvider>
     </BrowserRouter>
   )
 }

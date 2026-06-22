@@ -13,7 +13,6 @@ import { staggerContainer, listItem } from '../lib/motion'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonAlertList } from '../components/ui/Skeleton'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
-import ConfidenceIndicator from '../components/ui/ConfidenceIndicator'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import alertsData from '../data/alerts.json'
 import competitorsData from '../data/competitors.json'
@@ -336,9 +335,6 @@ function AlertCard({ alert }) {
             <Database size={10} strokeWidth={1.8} />
             {alert.source}
           </span>
-        )}
-        {alert.confidence && (
-          <ConfidenceIndicator {...alert.confidence} />
         )}
         <button
           onClick={toggleRead}

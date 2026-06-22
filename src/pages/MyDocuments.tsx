@@ -1,35 +1,9 @@
 import { Link } from 'react-router-dom'
 import { Upload, FileText, ChevronLeft, File, SlidersHorizontal } from 'lucide-react'
 import { DEMO } from '../config/demo-config'
+import { useConfig } from '../context/AppContext'
 
 const CAPABILITY_REQUEST_URL = DEMO.capabilityRequestUrl
-
-const MOCK_DOCUMENTS = [
-  {
-    name: 'Pharvaris EAACI 2026 symposium deck.pdf',
-    type: 'PDF',
-    date: 'Apr 15, 2026',
-    size: '4.2 MB',
-    status: 'Indexed',
-    icon: File,
-  },
-  {
-    name: `Internal ${DEMO.assetName} launch readiness brief.docx`,
-    type: 'Word',
-    date: 'Mar 28, 2026',
-    size: '1.1 MB',
-    status: 'Indexed',
-    icon: FileText,
-  },
-  {
-    name: 'BioCryst investor day slides - annotated.pptx',
-    type: 'PowerPoint',
-    date: 'Mar 12, 2026',
-    size: '8.7 MB',
-    status: 'Indexed',
-    icon: SlidersHorizontal,
-  },
-]
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   PDF:        { bg: 'rgba(225,29,72,0.08)',   text: '#C01041' },
@@ -39,6 +13,12 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 export default function MyDocuments() {
+  const { assetName } = useConfig()
+  const MOCK_DOCUMENTS = [
+    { name: 'Pharvaris EAACI 2026 symposium deck.pdf',              type: 'PDF',        date: 'Apr 15, 2026', size: '4.2 MB', status: 'Indexed', icon: File },
+    { name: `Internal ${assetName} launch readiness brief.docx`,   type: 'Word',       date: 'Mar 28, 2026', size: '1.1 MB', status: 'Indexed', icon: FileText },
+    { name: 'BioCryst investor day slides - annotated.pptx',        type: 'PowerPoint', date: 'Mar 12, 2026', size: '8.7 MB', status: 'Indexed', icon: SlidersHorizontal },
+  ]
   return (
     <div style={{ padding: '28px 32px', maxWidth: '880px' }}>
 

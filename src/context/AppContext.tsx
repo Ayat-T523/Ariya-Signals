@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import alertsData from '../data/alerts.json'
+import { DEMO } from '../config/demo-config'
 
 const AppContext = createContext(null)
 
@@ -43,7 +44,7 @@ export function AppProvider({ children }) {
     return localStorage.getItem('onboardingComplete') !== 'true'
   })
 
-  // ── User role (Task 6a) ──────────────────────────────────────────────────
+  // ── User role ────────────────────────────────────────────────────────────
   const [userRole, setUserRoleState] = useState(() => {
     return localStorage.getItem('ariya-user-role') || null
   })
@@ -55,6 +56,27 @@ export function AppProvider({ children }) {
     } else {
       localStorage.removeItem('ariya-user-role')
     }
+  }
+
+  // ── User preferences: indication + asset name ─────────────────────────
+  const [userIndication, setUserIndicationState] = useState(() => {
+    return localStorage.getItem('ariya-user-indication') || null
+  })
+
+  const [userAssetName, setUserAssetNameState] = useState(() => {
+    return localStorage.getItem('ariya-user-asset') || null
+  })
+
+  function setUserIndication(val: string | null) {
+    setUserIndicationState(val)
+    if (val) localStorage.setItem('ariya-user-indication', val)
+    else localStorage.removeItem('ariya-user-indication')
+  }
+
+  function setUserAssetName(val: string | null) {
+    setUserAssetNameState(val)
+    if (val) localStorage.setItem('ariya-user-asset', val)
+    else localStorage.removeItem('ariya-user-asset')
   }
 
   useEffect(() => { analytics.identify(userRole) }, [userRole])
@@ -187,6 +209,10 @@ export function AppProvider({ children }) {
         openAskModal,
         closeAskModal,
         aiClickLog,
+        userIndication,
+        setUserIndication,
+        userAssetName,
+        setUserAssetName,
       }}
     >
       {children}
@@ -198,4 +224,15 @@ export function useApp() {
   const ctx = useContext(AppContext)
   if (!ctx) throw new Error('useApp must be used within AppProvider')
   return ctx
+}
+
+/** Returns the user's saved preferences, falling back to DEMO defaults. */
+export function useConfig() {
+  const { userIndication, userAssetName } = useApp()
+  return {
+    assetName:        userAssetName  || DEMO.assetName,
+    indication:       userIndication || DEMO.therapeuticArea,
+    indicationFull:   userIndication || DEMO.therapeuticAreaFull,
+    assetGenericName: DEMO.assetGenericName,
+  }
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
-import { DEMO } from '../config/demo-config'
+import { useApp, useConfig } from '../context/AppContext'
 
 interface TourStep {
   route: string
@@ -14,43 +13,47 @@ function computeDuration(text: string): number {
   return Math.max(6000, Math.round((words / 180) * 60_000 + 3000))
 }
 
-const STEPS: TourStep[] = [
-  {
-    route: '/',
-    text: `This is the page that shows the signals that moved the needle this week. Your ${DEMO.assetName} momentum status, and your weekly digest — all tailored to your role.`,
-  },
-  {
-    route: '/competitors',
-    text: 'All 8 tracked competitors in one view. Each card shows their strategic posture, latest signal, and pipeline activity. Click any card to go deeper.',
-  },
-  {
-    route: '/competitors/pharvaris',
-    text: 'This is the full profile for Pharvaris — your highest-priority monitoring target. Pipeline, company watch, and messaging drift are all here. The timeline feeds your per-asset lag-expected milestones for each asset.',
-  },
-  {
-    route: '/intelligence',
-    text: `A rolling calendar of regulatory, clinical, and commercial events across the ${DEMO.therapeuticArea} landscape. Switch to Leadership priority to see only the events that require your attention.`,
-  },
-  {
-    route: '/intelligence?tab=reports',
-    text: 'Post-earnings digests for each tracked competitor, available within 24 hours of a call. Filter by competitor or digest type.',
-  },
-  {
-    route: '/intelligence?tab=market',
-    text: `${DEMO.therapeuticArea} deal activity and HTA decisions in one place. Use the Deals and HTA filters to focus on what matters for your role.`,
-  },
-  {
-    route: '/alerts',
-    text: 'The full signal feed. Filter by competitor, signal type, or severity. Every alert shows why it matters and how confident Ariya is in the underlying data.',
-  },
-  {
-    route: '/myspace',
-    text: 'Configure how and when Ariya reaches you — channel, cadence, and format. You can also upload personal documents that only you can see.',
-  },
-]
+function buildSteps(assetName: string, indication: string): TourStep[] {
+  return [
+    {
+      route: '/',
+      text: `This is the page that shows the signals that moved the needle this week. Your ${assetName} momentum status, and your weekly digest — all tailored to your role.`,
+    },
+    {
+      route: '/competitors',
+      text: 'All 8 tracked competitors in one view. Each card shows their strategic posture, latest signal, and pipeline activity. Click any card to go deeper.',
+    },
+    {
+      route: '/competitors/pharvaris',
+      text: 'This is the full profile for Pharvaris — your highest-priority monitoring target. Pipeline, company watch, and messaging drift are all here. The timeline feeds your per-asset lag-expected milestones for each asset.',
+    },
+    {
+      route: '/intelligence',
+      text: `A rolling calendar of regulatory, clinical, and commercial events across the ${indication} landscape. Switch to Leadership priority to see only the events that require your attention.`,
+    },
+    {
+      route: '/intelligence?tab=reports',
+      text: 'Post-earnings digests for each tracked competitor, available within 24 hours of a call. Filter by competitor or digest type.',
+    },
+    {
+      route: '/intelligence?tab=market',
+      text: `${indication} deal activity and HTA decisions in one place. Use the Deals and HTA filters to focus on what matters for your role.`,
+    },
+    {
+      route: '/alerts',
+      text: 'The full signal feed. Filter by competitor, signal type, or severity. Every alert shows why it matters and how confident Ariya is in the underlying data.',
+    },
+    {
+      route: '/myspace',
+      text: 'Configure how and when Ariya reaches you — channel, cadence, and format. You can also upload personal documents that only you can see.',
+    },
+  ]
+}
 
 export default function TourBanner() {
   const { tourActive, endTour } = useApp()
+  const { assetName, indication } = useConfig()
+  const STEPS = useMemo(() => buildSteps(assetName, indication), [assetName, indication])
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [elapsed, setElapsed] = useState(0)

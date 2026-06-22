@@ -1,0 +1,58 @@
+[
+  {
+    "id": "mkt-001",
+    "date": "2026-04-05",
+    "type": "guideline",
+    "headline": "HAEi issues updated patient guidance on oral-modality options",
+    "summary": "Patient advocacy organization published updated guidance acknowledging emerging oral on-demand options. Neutral tone; frames all modalities as valid under physician guidance (illustrative)."
+  },
+  {
+    "id": "mkt-002",
+    "date": "2026-03-18",
+    "type": "epidemiology",
+    "headline": "Updated EU HAE prevalence estimate: 1 in 50,000 to 1 in 67,000",
+    "summary": "European HAE registry published refined prevalence estimates based on diagnostic data improvements. Suggests the addressable population has been modestly under-counted (illustrative)."
+  },
+  {
+    "id": "mkt-003",
+    "date": "2026-02-28",
+    "type": "advocacy",
+    "headline": "US Hereditary Angioedema Association launches patient-choice initiative",
+    "summary": "Campaign emphasizes patient autonomy in modality selection. Aligns with positioning of emerging oral on-demand options as choice-expansion rather than substitution (illustrative)."
+  },
+  {
+    "id": "mkt-004",
+    "date": "2026-02-05",
+    "type": "guideline",
+    "headline": "World Allergy Organization HAE treatment update (2026 revision)",
+    "summary": "Revised guidance includes new section on oral on-demand considerations. Notes evidence base is still emerging at time of publication; explicit call for real-world evidence generation (illustrative)."
+  },
+  {
+    "id": "mkt-005",
+    "date": "2026-01-20",
+    "type": "payer",
+    "headline": "UK NICE initiates review of HAE treatment landscape",
+    "summary": "NICE announced a horizon-scanning assessment of emerging HAE therapies, including oral on-demand options. Signals potential for formal evaluation cycles in 2026 to 2027 (illustrative)."
+  },
+  {
+    "id": "mkt-006",
+    "date": "2025-12-12",
+    "type": "epidemiology",
+    "headline": "US HAE registry reports rising adolescent diagnosis rate",
+    "summary": "Annual registry update noted a 12% year-over-year increase in adolescent HAE diagnoses, attributed to broader screening rather than actual incidence change (illustrative). Increases near-term pediatric addressable population."
+  },
+  {
+    "id": "mkt-007",
+    "date": "2025-11-08",
+    "type": "advocacy",
+    "headline": "HAEi global patient survey 2025 results published",
+    "summary": "Patient-reported pain points prioritize treatment convenience, speed of relief, and needle avoidance. Directly supports oral on-demand positioning. Will be referenced frequently through launch cycles (illustrative)."
+  },
+  {
+    "id": "mkt-008",
+    "date": "2025-10-15",
+    "type": "payer",
+    "headline": "German G-BA issues benefit assessment framework update for rare diseases",
+    "summary": "Procedural update clarifying evidence requirements for novel-mechanism rare disease therapies. Relevant for oral on-demand assessment pathways (illustrative)."
+  }
+]

@@ -1,7 +1,9 @@
 import { ExportButton } from '../components/ui/ExportButton'
 import { DEMO } from '../config/demo-config'
+import { useConfig } from '../context/AppContext'
 
 export default function MarketPerformance() {
+  const { assetName, indication } = useConfig()
   return (
     <div style={{ padding: '20px 36px 36px' }}>
 
@@ -12,7 +14,7 @@ export default function MarketPerformance() {
           fontSize: '14px', fontFamily: 'Inter, sans-serif',
           color: '#434c5b', lineHeight: '1.5',
         }}>
-          {DEMO.assetName} vs {DEMO.therapeuticArea} class · Sources: {DEMO.dataSources}
+          {assetName} vs {indication} class · Sources: {DEMO.dataSources}
         </p>
         <ExportButton label="Export report" />
       </div>

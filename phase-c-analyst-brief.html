@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phase C — Analyst Review Brief</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; color: #1a1f36; background: #f7f8fc; padding: 32px 28px 48px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #6b7280; margin: 28px 0 10px; }
+  .task-pills { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+  .pill-c1 { background: rgba(37,99,235,0.10); color: #1d4ed8; }
+  .pill-c2 { background: rgba(5,150,105,0.10); color: #047857; }
+  .pill-c3 { background: rgba(124,58,237,0.10); color: #6d28d9; }
+  .pill-gap { background: rgba(220,38,38,0.10); color: #b91c1c; }
+  .competitor-block { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+  .comp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .comp-name { font-size: 16px; font-weight: 600; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .badge-complete { background: rgba(5,150,105,0.10); color: #047857; }
+  .badge-gap { background: rgba(220,38,38,0.10); color: #b91c1c; }
+  .badge-partial { background: rgba(245,158,11,0.12); color: #92400e; }
+  .doc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .doc-table th { text-align: left; font-weight: 600; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
+  .doc-table td { padding: 7px 8px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+  .doc-table tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 3px; }
+  .tag-c1 { background: rgba(37,99,235,0.08); color: #1d4ed8; }
+  .tag-c2 { background: rgba(5,150,105,0.08); color: #047857; }
+  .tag-c3 { background: rgba(124,58,237,0.08); color: #6d28d9; }
+  .tag-warn { background: rgba(245,158,11,0.12); color: #92400e; }
+  .gap-row { background: #fff8f8; }
+  .gap-row td { color: #b91c1c; font-style: italic; }
+  .gap-icon { color: #b91c1c; margin-right: 4px; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wc { color: #6b7280; white-space: nowrap; }
+  .flag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(239,68,68,0.10); color: #b91c1c; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .summary-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
+  .summary-card-label { font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .summary-card-value { font-size: 22px; font-weight: 600; }
+  .note-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.30); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #92400e; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<h1>Phase C — Analyst review brief</h1>
+<p class="subtitle">Source documents available in Supabase for competitor messaging, war room bullets, and company descriptions. Generated 2026-06-19.</p>
+
+<div class="task-pills">
+  <span class="pill pill-c1">C1 — Messaging tab</span>
+  <span class="pill pill-c2">C2 — War Room bullets</span>
+  <span class="pill pill-c3">C3 — Company descriptions</span>
+  <span class="pill pill-gap">Gap — document missing</span>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="summary-card-label">Total documents ingested</div>
+    <div class="summary-card-value">200+</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-card-label">Priority C1/C3 documents</div>
+    <div class="summary-card-value">14</div>
+    <div style="font-size:12px;color:#6b7280;margin-top:4px;">Annual reports + FDA labels + EPARs</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-card-label">Known gaps</div>
+    <div class="summary-card-value" style="color:#b91c1c;">5</div>
+    <div style="font-size:12px;color:#6b7280;margin-top:4px;">Missing documents requiring manual action</div>
+  </div>
+</div>
+
+<div class="note-box">
+  <strong>How to use this brief:</strong> For each competitor, start with the annual report (10-K / 20-F) for C1 (Messaging) and C3 (Company description). Then review FDA labels and EPARs for approved indication language. Flag any ⚠ items before writing copy. 8-Ks / 6-Ks are for C2 (War Room bullets) only — prioritise those with >1,000 words.
+</div>
+
+<!-- ── TAKEDA ── -->
+<p class="section-title">Takeda</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Takeda Pharmaceutical</span>
+    <span class="badge badge-partial">Partial — EMA EPAR missing</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://www.sec.gov/Archives/edgar/data/1395064/000139506426000177/tak-20260331.htm" target="_blank">Takeda 20-F FY2026 (most recent)</a></td>
+        <td>20-F</td><td>Jun 2026</td><td class="wc">29,247</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=ed6657ca-ab68-477a-9968-e12dc928b540" target="_blank">Takhzyro (lanadelumab) FDA label</a></td>
+        <td>FDA-label</td><td>Jul 2020</td><td class="wc">6,354</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=15f99d8c-efe7-4f7d-aa20-0d0f1e30c6e8" target="_blank">Firazyr (icatibant) FDA label</a></td>
+        <td>FDA-label</td><td>Mar 2020</td><td class="wc">10,144</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td>Takhzyro quarterly earnings 6-Ks (55 docs, best: 16k, 15k, 13k, 9k words)</td>
+        <td>6-K</td><td>2024–2026</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>EMA EPAR — Takhzyro not ingested</td>
+        <td>EMA-EPAR</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Gap</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Action: EMA EPAR for Takhzyro is at <a href="https://www.ema.europa.eu/en/medicines/human/EPAR/takhzyro" target="_blank">ema.europa.eu/en/medicines/human/EPAR/takhzyro</a> — run the ingest-regulatory-docs script to add it.</p>
+</div>
+
+<!-- ── BIOCRYST ── -->
+<p class="section-title">BioCryst Pharmaceuticals</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">BioCryst Pharmaceuticals</span>
+    <span class="badge badge-complete">Complete</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://www.sec.gov/Archives/edgar/data/882796/000162828026012240/bcrx-20251231.htm" target="_blank">BioCryst 10-K FY2025</a></td>
+        <td>10-K</td><td>Feb 2026</td><td class="wc">20,232</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=3527ece1-e7e0-40b1-b0c5-6baeb0deabeb" target="_blank">Orladeyo (berotralstat) FDA label</a></td>
+        <td>FDA-label</td><td>Feb 2020</td><td class="wc">7,312</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://www.ema.europa.eu/en/medicines/human/EPAR/orladeyo" target="_blank">Orladeyo EMA EPAR</a></td>
+        <td>EMA-EPAR</td><td>—</td><td class="wc">1,909</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td>8-Ks: STAR-0215 data (4,853w), deal filing (2,329w), Q3 2025 results (4,853w), and 19 more</td>
+        <td>8-K</td><td>2024–2026</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── PHARVARIS ── -->
+<p class="section-title">Pharvaris</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Pharvaris</span>
+    <span class="badge badge-partial">Partial — no product approved yet</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://www.sec.gov/Archives/edgar/data/1830487/000183048726000013/phvs-20251231.htm" target="_blank">Pharvaris 20-F FY2025 (most recent)</a></td>
+        <td>20-F</td><td>Apr 2026</td><td class="wc">30,120</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>No FDA label — deucrictibant not yet approved</td>
+        <td>FDA-label</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Not applicable</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>No 8-K / 6-K signals in database</td>
+        <td>8-K</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Gap — C2 thin</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Note: Pharvaris is pre-approval. The 20-F is the only primary source. C1 messaging must be sourced exclusively from the clinical pipeline narrative in Item 1 of the 20-F. C2 (War Room bullets) will remain sparse until Pharvaris SEC signals are ingested.</p>
+</div>
+
+<!-- ── IONIS ── -->
+<p class="section-title">Ionis Pharmaceuticals</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Ionis Pharmaceuticals</span>
+    <span class="badge badge-partial">Partial — EMA EPAR missing, FDA label date suspicious</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://www.sec.gov/Archives/edgar/data/874015/000087401526000115/form10k.htm" target="_blank">Ionis 10-K FY2025</a></td>
+        <td>10-K</td><td>Feb 2026</td><td class="wc">19,519</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr>
+        <td>
+          <a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=3ff501e0-f75f-07da-e063-6294a90a0cb7" target="_blank">Dawnzera (donidalorsen) FDA label</a>
+          <span class="flag">⚠ date shows 2020-10-01 — verify</span>
+        </td>
+        <td>FDA-label</td><td>Oct 2020 (?)</td><td class="wc">6,677</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td>8-Ks: Dawnzera FDA approval (1,185w), SEC deal filing (2,859w), Q3 2025 results (1,553w), and 13 more</td>
+        <td>8-K</td><td>2024–2026</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>EMA EPAR — Dawnzera (Jan 2026 EC approval) not ingested. URL was broken in prior run.</td>
+        <td>EMA-EPAR</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Gap</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Actions: (1) Verify FDA label setid — Dawnzera was approved Aug 2025, date 2020-10-01 may indicate a different Ionis drug was matched. (2) Find correct EMA EPAR URL for Dawnzera at ema.europa.eu and re-run ingest-regulatory-docs.</p>
+</div>
+
+<!-- ── CSL BEHRING ── -->
+<p class="section-title">CSL Behring</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">CSL Behring</span>
+    <span class="badge badge-gap">Critical gap — no annual report</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=07b0b671-db81-49f0-a402-0c0219db7fa2" target="_blank">Andembry (garadacimab) FDA label</a>
+          <span class="flag">⚠ date shows 2020-07-10 — verify</span>
+        </td>
+        <td>FDA-label</td><td>Jul 2020 (?)</td><td class="wc">5,637</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://www.ema.europa.eu/en/medicines/human/EPAR/andembry" target="_blank">Andembry EMA EPAR</a></td>
+        <td>EMA-EPAR</td><td>Feb 2025</td><td class="wc">1,732</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr>
+        <td><a href="https://www.nice.org.uk/guidance/ta1101" target="_blank">NICE TA1101 — Andembry</a></td>
+        <td>NICE-TA</td><td>Oct 2025</td><td class="wc">356</td>
+        <td><span class="tag tag-c1">C1</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>5 × 8-K rows in DB are seeded illustrative data (cslbehring.com URLs) — NOT real ingested documents</td>
+        <td>8-K</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Discard</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>Annual report — CSL is an ASX filer, not SEC. Must be manually downloaded from <a href="https://www.csl.com/investors" target="_blank">csl.com/investors</a></td>
+        <td>Annual report</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Manual download required</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Actions: (1) Download CSL FY2025 annual report PDF from csl.com/investors. (2) Verify FDA label setid — Andembry (garadacimab) was approved ~2022–2025; 2020-07-10 date likely points to a different CSL drug. (3) Delete the 5 fake 8-K rows from the documents table.</p>
+</div>
+
+<!-- ── INTELLIA ── -->
+<p class="section-title">Intellia Therapeutics</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Intellia Therapeutics</span>
+    <span class="badge badge-complete">Complete (pre-approval)</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://www.sec.gov/Archives/edgar/data/1652130/000119312526076550/ntla-20251231.htm" target="_blank">Intellia 10-K FY2025</a></td>
+        <td>10-K</td><td>Feb 2026</td><td class="wc">22,978</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr>
+        <td>8-Ks: NTLA-2002 Phase III (2,503w), data readout (1,809w), deal announcement (2,869w), and 13 more</td>
+        <td>8-K</td><td>2024–2026</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>No FDA label / EMA EPAR — NTLA-2002 not yet approved</td>
+        <td>FDA-label</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Not applicable</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Note: C1 messaging must be sourced from the 10-K pipeline narrative and NTLA-2002 trial design language only. No approved indication text exists yet.</p>
+</div>
+
+<!-- ── ADVERUM ── -->
+<p class="section-title">Adverum Biotechnologies</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Adverum Biotechnologies</span>
+    <span class="badge badge-partial">Thin — 10-K very sparse</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <a href="https://www.sec.gov/Archives/edgar/data/1501756/000162828025017767/advm-20241231.htm" target="_blank">Adverum 10-K FY2024</a>
+          <span class="flag">⚠ only 1,858 words — Item 1 text may be too sparse</span>
+        </td>
+        <td>10-K</td><td>Apr 2025</td><td class="wc">1,858</td>
+        <td><span class="tag tag-c1">C1</span><span class="tag tag-c3">C3</span></td>
+      </tr>
+      <tr>
+        <td>8-Ks: clinical update (5,339w), gene therapy results (2,573w), and 8 more</td>
+        <td>8-K</td><td>2024–2025</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Note: 1,858 words suggests only a partial Item 1 was extracted. If the company description in the 10-K is too thin, fall back to the most recent 8-K with a full clinical update narrative (Oct 2025, 5,339 words).</p>
+</div>
+
+<!-- ── ASTRIA ── -->
+<p class="section-title">Astria Therapeutics</p>
+<div class="competitor-block">
+  <div class="comp-header">
+    <span class="comp-name">Astria Therapeutics</span>
+    <span class="badge badge-gap">Critical gap — no annual report ingested</span>
+  </div>
+  <table class="doc-table">
+    <thead><tr><th>Document</th><th>Type</th><th>Date</th><th>Words</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr class="gap-row">
+        <td><span class="gap-icon">⚑</span>10-K not ingested — Astria files with SEC (CIK 1454789) but was not included in the annual report ingest script</td>
+        <td>10-K</td><td>—</td><td class="wc">—</td>
+        <td><span class="tag tag-warn">Gap</span></td>
+      </tr>
+      <tr>
+        <td>8-Ks: STAR-0215 Phase IIb results (4,587w), pipeline update (1,783w), and 5 more</td>
+        <td>8-K</td><td>2024–2026</td><td class="wc">varies</td>
+        <td><span class="tag tag-c2">C2</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#6b7280;margin-top:10px;">Action: Add Astria to ingest-annual-reports.mjs (CIK 1454789, formType '10-K') and re-run. The STAR-0215 Phase IIb 8-K (Oct 2025, 4,587 words) is the best available document for C1 messaging until the 10-K is ingested.</p>
+</div>
+
+<!-- ── SUMMARY TABLE ── -->
+<p class="section-title">Summary — document status by task</p>
+<table class="doc-table" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;padding:0;">
+  <thead>
+    <tr style="background:#f7f8fc;">
+      <th style="padding:10px 12px;">Competitor</th>
+      <th style="padding:10px 12px;text-align:center;">C1 — Messaging</th>
+      <th style="padding:10px 12px;text-align:center;">C2 — War Room</th>
+      <th style="padding:10px 12px;text-align:center;">C3 — Description</th>
+      <th style="padding:10px 12px;">Priority action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:9px 12px;font-weight:500;">Takeda</td><td style="text-align:center;">🟡 EMA EPAR missing</td><td style="text-align:center;">✅ 55 6-Ks</td><td style="text-align:center;">✅ 20-F 29k words</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Ingest Takhzyro EPAR</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">BioCryst</td><td style="text-align:center;">✅ Full corpus</td><td style="text-align:center;">✅ 20 8-Ks</td><td style="text-align:center;">✅ 10-K 20k words</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">None — start here</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">Pharvaris</td><td style="text-align:center;">🟡 20-F only (pre-approval)</td><td style="text-align:center;">🔴 No signals</td><td style="text-align:center;">✅ 20-F 30k words</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Ingest 8-Ks for C2</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">Ionis</td><td style="text-align:center;">🟡 FDA label date suspect + no EPAR</td><td style="text-align:center;">✅ 16 8-Ks</td><td style="text-align:center;">✅ 10-K 19k words</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Verify FDA label + ingest EPAR</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">CSL Behring</td><td style="text-align:center;">🟡 EPAR + NICE only; no annual report</td><td style="text-align:center;">🔴 Fake 8-Ks (delete)</td><td style="text-align:center;">🔴 No annual report</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Download CSL annual report manually</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">Intellia</td><td style="text-align:center;">🟡 10-K only (pre-approval)</td><td style="text-align:center;">✅ 15 8-Ks</td><td style="text-align:center;">✅ 10-K 23k words</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">None</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">Adverum</td><td style="text-align:center;">🟡 10-K only 1.8k words (very sparse)</td><td style="text-align:center;">✅ 9 8-Ks</td><td style="text-align:center;">🟡 Sparse</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Use Oct 2025 8-K as fallback</td></tr>
+    <tr><td style="padding:9px 12px;font-weight:500;">Astria</td><td style="text-align:center;">🔴 No annual report ingested</td><td style="text-align:center;">✅ 7 8-Ks</td><td style="text-align:center;">🔴 No annual report</td><td style="padding:9px 12px;font-size:12px;color:#6b7280;">Add Astria to annual report script</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>

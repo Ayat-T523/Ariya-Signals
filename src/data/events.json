@@ -1,18 +1,20 @@
 [
   {
     "id": "event-001",
-    "date": "2026-04-15",
-    "endDate": "2026-04-18",
+    "date": "2026-06-12",
+    "endDate": "2026-06-15",
     "type": "conference",
     "title": "EAACI Annual Congress 2026",
-    "location": "Madrid, Spain",
+    "location": "Istanbul, Türkiye",
     "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
     "expectedTopics": [
-      "Pharvaris CHAPTER-1 pre-specified follow-up analyses",
+      "Pharvaris deucrictibant Phase 3 data presentations following positive RAPIDe-3 readout",
       "BioCryst pediatric Phase III safety update",
       "Takeda real-world outcomes panel"
     ],
-    "note": "High-signal event; all three tracked competitors presenting. Prepare daily summary for distribution."
+    "note": "High-signal event; all three tracked competitors presenting. Prepare daily summary for distribution.",
+    "sourceType": "official-congress",
+    "sourceUrl": "https://eaaci.org"
   },
   {
     "id": "event-002",
@@ -25,7 +27,9 @@
       "Orladeyo Q1 revenue and growth trajectory",
       "CCO transition commentary",
       "Pediatric Phase III update"
-    ]
+    ],
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.biocryst.com"
   },
   {
     "id": "event-003",
@@ -38,7 +42,9 @@
       "HAE franchise segment performance",
       "Pipeline update",
       "Commentary on oral-modality competitive landscape"
-    ]
+    ],
+    "sourceType": "company-ir",
+    "sourceUrl": "https://www.takeda.com/investors/"
   },
   {
     "id": "event-004",
@@ -51,21 +57,29 @@
       "RAPIDe-3 timeline reconfirmation",
       "Commercial readiness progress",
       "Cash runway"
-    ]
+    ],
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.pharvaris.com"
   },
   {
     "id": "event-005",
     "date": "2026-06-08",
     "endDate": "2026-06-11",
     "type": "regulatory",
-    "title": "FDA Advisory Committee: HAE therapeutic area (hypothetical)",
+    "title": "FDA Advisory Committee: HAE Therapeutic Area",
     "location": "Silver Spring, MD",
     "attendingCompetitors": [],
     "expectedTopics": [
       "General HAE therapeutic landscape",
       "Regulatory considerations for on-demand endpoints"
     ],
-    "note": "Not yet confirmed; flag for monitoring."
+    "note": "Hypothetical scenario — not yet scheduled. Flag for monitoring if FDA announces a HAE-specific advisory committee.",
+    "ciContext": {
+      "whyRelevant": "An FDA advisory committee for the HAE space signals active regulatory engagement with new entrants. AdCom votes are highly predictive of approval direction — a positive vote for any competitor compresses the window for sebetralstat to establish first-mover positioning before a rival secures a favourable label.",
+      "actionableFollowUp": "Monitor FDA.gov for a meeting notice (~30 days prior notice is typical). Pre-brief KOLs on the competitive landscape ahead of any scheduled meeting. Prepare scenario briefings for both positive and negative AdCom outcomes."
+    },
+    "sourceType": "illustrative",
+    "sourceUrl": null
   },
   {
     "id": "event-006",
@@ -79,48 +93,57 @@
       "Launch planning preview",
       "Commercial infrastructure update"
     ],
-    "note": "Expect launch messaging preview; high-value monitoring event."
+    "note": "Expect launch messaging preview; high-value monitoring event.",
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.pharvaris.com"
   },
   {
     "id": "event-007",
-    "date": "2026-08-20",
+    "date": "2025-12-03",
     "type": "milestone",
-    "title": "Expected RAPIDe-3 topline readout window opens (illustrative)",
+    "title": "Pharvaris announces positive RAPIDe-3 Phase 3 topline data",
     "location": "Virtual / press release",
     "attendingCompetitors": ["pharvaris"],
     "expectedTopics": [
-      "Primary endpoint: time to beginning of symptom relief",
-      "Secondary endpoints on complete resolution and rescue use"
+      "Primary endpoint: time to beginning of symptom relief — met",
+      "Secondary endpoints on complete resolution and rescue use",
+      "NDA submission to FDA confirmed on track for H1 2026"
     ],
-    "note": "Most critical single event on the HAE calendar for Pharma Inc. Pre-plan scenario responses."
+    "note": "Positive readout confirmed December 3, 2025. Deucrictibant met primary endpoint. NDA submission to FDA on track for H1 2026 per subsequent 6-K filings.",
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.pharvaris.com"
   },
   {
     "id": "event-008",
-    "date": "2026-09-24",
-    "endDate": "2026-09-27",
+    "date": "2026-03-26",
+    "endDate": "2026-03-29",
     "type": "conference",
-    "title": "HAEi Global Conference 2026",
-    "location": "Berlin, Germany",
+    "title": "HAEi Global Angioedema Leadership Conference 2026",
+    "location": "Madrid, Spain",
     "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
     "expectedTopics": [
       "Post-RAPIDe-3 competitive landscape discussion",
       "Patient community response to oral on-demand options",
       "Real-world evidence updates from incumbents"
     ],
-    "note": "Patient-community-anchored event. Advocacy narrative forms here."
+    "note": "Patient-community-anchored event. Advocacy narrative forms here.",
+    "sourceType": "official-congress",
+    "sourceUrl": "https://haei.org"
   },
   {
     "id": "event-009",
-    "date": "2026-10-10",
-    "endDate": "2026-10-14",
+    "date": "2026-11-12",
+    "endDate": "2026-11-16",
     "type": "conference",
     "title": "ACAAI Annual Scientific Meeting 2026",
-    "location": "Anaheim, CA",
+    "location": "Phoenix, AZ",
     "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
     "expectedTopics": [
       "US clinical practice panels on emerging oral options",
       "Late-breaker abstracts"
-    ]
+    ],
+    "sourceType": "official-congress",
+    "sourceUrl": "https://college.acaai.org"
   },
   {
     "id": "event-010",
@@ -133,32 +156,108 @@
       "Post-RAPIDe-3 positioning commentary",
       "Commercial readiness updates",
       "Q4 launch preparation signals (Pharvaris)"
-    ]
+    ],
+    "sourceType": "company-ir-aggregate",
+    "sourceUrl": "https://ir.biocryst.com"
   },
   {
     "id": "event-011",
-    "date": "2026-12-03",
+    "date": "2026-06-30",
     "type": "regulatory",
-    "title": "Expected Pharvaris rolling NDA module submission window (illustrative)",
+    "title": "Pharvaris NDA Filing: Deucrictibant",
     "location": "FDA submission",
     "attendingCompetitors": ["pharvaris"],
     "expectedTopics": [
+      "RAPIDe-3 + RAPIDe-2 data package submitted as NDA basis",
       "Commercial launch countdown formally begins",
       "Manufacturing and labeling readiness"
-    ]
+    ],
+    "note": "H1 2026 target per Pharvaris 6-K filings (SEC EDGAR). Exact filing date not yet publicly confirmed as of June 2026.",
+    "ciContext": {
+      "whyRelevant": "Pharvaris's NDA for deucrictibant (oral on-demand prophylaxis) places their PDUFA date in late 2026–early 2027 — directly overlapping sebetralstat's commercial launch planning window. If approved, deucrictibant enters the market as a direct on-demand alternative with an established clinical dossier.",
+      "actionableFollowUp": "Track FDA acknowledgement letter (~30 days post-filing). Flag PDUFA date when announced and update launch timeline assumptions. Initiate counter-launch narrative review with medical affairs and alert the commercial team to accelerate readiness milestones."
+    },
+    "sourceType": "sec-edgar",
+    "sourceUrl": "https://ir.pharvaris.com"
   },
   {
     "id": "event-012",
-    "date": "2027-02-27",
-    "endDate": "2027-03-02",
+    "date": "2027-02-19",
+    "endDate": "2027-02-22",
     "type": "conference",
     "title": "AAAAI 2027 Annual Meeting",
-    "location": "Orlando, FL",
+    "location": "New Orleans, LA",
     "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
     "expectedTopics": [
       "First post-launch data cycles for sebetralstat",
       "RAPIDe-3 post-readout analyses",
       "Competitive head-to-head narratives"
-    ]
+    ],
+    "sourceType": "official-congress",
+    "sourceUrl": "https://www.aaaai.org"
+  },
+  {
+    "id": "event-013",
+    "date": "2026-08-10",
+    "type": "earnings",
+    "title": "BioCryst Q2 2026 earnings call",
+    "location": "Virtual",
+    "attendingCompetitors": ["biocryst"],
+    "expectedTopics": [
+      "Orladeyo H1 2026 revenue vs full year guidance ($625–645M)",
+      "Navenibart Phase 3 update following Astria Therapeutics acquisition",
+      "Neopharmed Gentili EU navenibart licensing deal commentary"
+    ],
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.biocryst.com"
+  },
+  {
+    "id": "event-014",
+    "date": "2026-09-01",
+    "type": "milestone",
+    "title": "Pharvaris CHAPTER-3 Phase 3 topline data expected (deucrictibant extended-release prophylaxis)",
+    "location": "Virtual / press release",
+    "attendingCompetitors": ["pharvaris"],
+    "expectedTopics": [
+      "Primary endpoint: HAE attack rate reduction vs placebo",
+      "Deucrictibant extended-release safety profile",
+      "Positioning of prophylaxis indication relative to on-demand NDA"
+    ],
+    "note": "Q3 2026 anticipated per Pharvaris 6-K (SEC EDGAR); exact date not confirmed — date shown is approximate. Second pivotal readout for deucrictibant franchise.",
+    "sourceType": "sec-edgar",
+    "sourceUrl": "https://ir.pharvaris.com"
+  },
+  {
+    "id": "event-015",
+    "date": "2026-10-23",
+    "endDate": "2026-10-24",
+    "type": "conference",
+    "title": "HAEi Americas Regional Conference 2026",
+    "location": "Ottawa, Canada",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "North American HAE landscape update",
+      "Patient perspective on emerging oral on-demand options",
+      "Post-CHAPTER-3 landscape discussion (prophylaxis segment)"
+    ],
+    "note": "Separate from the spring Global Angioedema Leadership Conference (March, Madrid). Patient-community event — advocacy narrative forms here.",
+    "sourceType": "official-congress",
+    "sourceUrl": "https://haei.org"
+  },
+  {
+    "id": "event-016",
+    "date": "2026-01-23",
+    "type": "milestone",
+    "title": "BioCryst completes acquisition of Astria Therapeutics",
+    "location": "Press release",
+    "attendingCompetitors": ["biocryst"],
+    "expectedTopics": [
+      "Navenibart (formerly STAR-0215) Phase 3 long-acting plasma kallikrein inhibitor added to BioCryst portfolio",
+      "BioCryst now holds both on-demand (Orladeyo) and long-acting prophylaxis candidate",
+      "Integration roadmap for commercial and medical affairs teams"
+    ],
+    "note": "Transformational acquisition: BioCryst now has the broadest oral HAE portfolio. Monitor commercial messaging to see how they position two-modality coverage.",
+    "sourceType": "company-ir",
+    "sourceUrl": "https://ir.biocryst.com/news-releases/news-release-details/biocryst-completes-acquisition-astria-therapeutics-expanding"
   }
 ]

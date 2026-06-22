@@ -7,11 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ingest:fda": "node --env-file=.env.local scripts/run-ingest.mjs",
+    "ingest:trials": "node --env-file=.env.local scripts/run-trials.mjs"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.8",
+    "@supabase/supabase-js": "^2.108.2",
     "@tailwindcss/vite": "^4.2.4",
+    "@tanstack/react-query": "^5.101.0",
     "driver.js": "^1.4.0",
     "framer-motion": "^12.40.0",
     "lottie-react": "^2.4.1",
@@ -33,6 +37,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "pdf-parse": "^1.1.1",
     "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.9"

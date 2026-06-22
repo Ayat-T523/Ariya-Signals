@@ -1,0 +1,164 @@
+[
+  {
+    "id": "event-001",
+    "date": "2026-04-15",
+    "endDate": "2026-04-18",
+    "type": "conference",
+    "title": "EAACI Annual Congress 2026",
+    "location": "Madrid, Spain",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "Pharvaris CHAPTER-1 pre-specified follow-up analyses",
+      "BioCryst pediatric Phase III safety update",
+      "Takeda real-world outcomes panel"
+    ],
+    "note": "High-signal event; all three tracked competitors presenting. Prepare daily summary for distribution."
+  },
+  {
+    "id": "event-002",
+    "date": "2026-05-06",
+    "type": "earnings",
+    "title": "BioCryst Q1 2026 earnings call",
+    "location": "Virtual",
+    "attendingCompetitors": ["biocryst"],
+    "expectedTopics": [
+      "Orladeyo Q1 revenue and growth trajectory",
+      "CCO transition commentary",
+      "Pediatric Phase III update"
+    ]
+  },
+  {
+    "id": "event-003",
+    "date": "2026-05-12",
+    "type": "earnings",
+    "title": "Takeda Q4 FY2025 earnings call",
+    "location": "Virtual",
+    "attendingCompetitors": ["takeda"],
+    "expectedTopics": [
+      "HAE franchise segment performance",
+      "Pipeline update",
+      "Commentary on oral-modality competitive landscape"
+    ]
+  },
+  {
+    "id": "event-004",
+    "date": "2026-05-20",
+    "type": "earnings",
+    "title": "Pharvaris Q1 2026 earnings call",
+    "location": "Virtual",
+    "attendingCompetitors": ["pharvaris"],
+    "expectedTopics": [
+      "RAPIDe-3 timeline reconfirmation",
+      "Commercial readiness progress",
+      "Cash runway"
+    ]
+  },
+  {
+    "id": "event-005",
+    "date": "2026-06-08",
+    "endDate": "2026-06-11",
+    "type": "regulatory",
+    "title": "FDA Advisory Committee: HAE therapeutic area (hypothetical)",
+    "location": "Silver Spring, MD",
+    "attendingCompetitors": [],
+    "expectedTopics": [
+      "General HAE therapeutic landscape",
+      "Regulatory considerations for on-demand endpoints"
+    ],
+    "note": "Not yet confirmed; flag for monitoring."
+  },
+  {
+    "id": "event-006",
+    "date": "2026-07-15",
+    "type": "investor",
+    "title": "Pharvaris Investor R&D day",
+    "location": "New York, NY",
+    "attendingCompetitors": ["pharvaris"],
+    "expectedTopics": [
+      "Deucrictibant dual-indication strategic framing",
+      "Launch planning preview",
+      "Commercial infrastructure update"
+    ],
+    "note": "Expect launch messaging preview; high-value monitoring event."
+  },
+  {
+    "id": "event-007",
+    "date": "2026-08-20",
+    "type": "milestone",
+    "title": "Expected RAPIDe-3 topline readout window opens (illustrative)",
+    "location": "Virtual / press release",
+    "attendingCompetitors": ["pharvaris"],
+    "expectedTopics": [
+      "Primary endpoint: time to beginning of symptom relief",
+      "Secondary endpoints on complete resolution and rescue use"
+    ],
+    "note": "Most critical single event on the HAE calendar for Pharma Inc. Pre-plan scenario responses."
+  },
+  {
+    "id": "event-008",
+    "date": "2026-09-24",
+    "endDate": "2026-09-27",
+    "type": "conference",
+    "title": "HAEi Global Conference 2026",
+    "location": "Berlin, Germany",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "Post-RAPIDe-3 competitive landscape discussion",
+      "Patient community response to oral on-demand options",
+      "Real-world evidence updates from incumbents"
+    ],
+    "note": "Patient-community-anchored event. Advocacy narrative forms here."
+  },
+  {
+    "id": "event-009",
+    "date": "2026-10-10",
+    "endDate": "2026-10-14",
+    "type": "conference",
+    "title": "ACAAI Annual Scientific Meeting 2026",
+    "location": "Anaheim, CA",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "US clinical practice panels on emerging oral options",
+      "Late-breaker abstracts"
+    ]
+  },
+  {
+    "id": "event-010",
+    "date": "2026-11-05",
+    "type": "earnings",
+    "title": "Q3 2026 earnings cycle (all three competitors)",
+    "location": "Virtual",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "Post-RAPIDe-3 positioning commentary",
+      "Commercial readiness updates",
+      "Q4 launch preparation signals (Pharvaris)"
+    ]
+  },
+  {
+    "id": "event-011",
+    "date": "2026-12-03",
+    "type": "regulatory",
+    "title": "Expected Pharvaris rolling NDA module submission window (illustrative)",
+    "location": "FDA submission",
+    "attendingCompetitors": ["pharvaris"],
+    "expectedTopics": [
+      "Commercial launch countdown formally begins",
+      "Manufacturing and labeling readiness"
+    ]
+  },
+  {
+    "id": "event-012",
+    "date": "2027-02-27",
+    "endDate": "2027-03-02",
+    "type": "conference",
+    "title": "AAAAI 2027 Annual Meeting",
+    "location": "Orlando, FL",
+    "attendingCompetitors": ["takeda", "biocryst", "pharvaris"],
+    "expectedTopics": [
+      "First post-launch data cycles for sebetralstat",
+      "RAPIDe-3 post-readout analyses",
+      "Competitive head-to-head narratives"
+    ]
+  }
+]

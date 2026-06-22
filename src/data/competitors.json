@@ -1,6 +1,8 @@
 [
   {
     "id": "takeda",
+    "secCik": "0001395064",
+    "secFormTypes": ["6-K", "20-F"],
     "name": "Takeda",
     "logo": "takeda.svg",
     "strategicPosture": "Incumbent to displace",
@@ -29,6 +31,7 @@
       },
       {
         "assetId": "TAK-HAE-PED",
+        "assetInn": "lanadelumab",
         "name": "Takhzyro pediatric LCM program",
         "mechanism": "Lanadelumab (label and formulation lifecycle)",
         "indicationSubtype": "HAE prophylaxis, pediatric",
@@ -476,6 +479,9 @@
   },
   {
     "id": "biocryst",
+    "secCik": "0000882796",
+    "gnwKeyword": "biocryst full year financial results",
+    "gnwHaeProduct": "ORLADEYO",
     "name": "BioCryst",
     "logo": "biocryst.svg",
     "strategicPosture": "Adjacent oral competitor",
@@ -504,6 +510,7 @@
       },
       {
         "assetId": "BCX-PED",
+        "assetInn": "berotralstat",
         "name": "Orladeyo pediatric program",
         "mechanism": "Berotralstat (label extension)",
         "indicationSubtype": "HAE prophylaxis, pediatric",
@@ -879,20 +886,26 @@
   },
   {
     "id": "pharvaris",
+    "secCik": "0001830487",
+    "secFormTypes": ["20-F", "6-K"],
+    "isForeignPrivateIssuer": true,
+    "gnwKeyword": "pharvaris fourth quarter full year 2025 financial results",
+    "gnwCurrency": "EUR",
     "name": "Pharvaris",
     "logo": "pharvaris.svg",
     "strategicPosture": "Emerging direct threat",
     "oneLineDescription": "Clinical-stage company developing oral bradykinin B2 receptor antagonist deucrictibant for both HAE on-demand and prophylaxis.",
-    "executiveSummary": "Pharvaris is the most direct future competitor to sebetralstat. Deucrictibant is being developed in parallel for HAE on-demand and prophylaxis, with Phase III RAPIDe-3 (on-demand) readout anticipated in 2026. A positive readout and timely filing would bring a second oral on-demand therapy to market within 18 to 24 months of Pharma Inc, with a different mechanism (B2 receptor antagonism vs kallikrein inhibition) that could support head-to-head positioning debates. This is the competitor to track most closely.",
+    "executiveSummary": "Pharvaris is the most direct future competitor to sebetralstat. RAPIDe-3 (on-demand Phase III) read out positively in December 2025, meeting its primary and key secondary endpoints. NDA filing is expected H1 2026 under rolling Fast Track review, putting a second oral on-demand therapy in market as early as H2 2027 — 18 to 24 months behind Pharma Inc. Mechanism differentiation (B2 receptor antagonism vs kallikrein inhibition) will shape head-to-head positioning debates. CHAPTER-3 (prophylaxis Phase III) is ongoing with data expected Q3 2026. This remains the competitor to track most closely.",
     "pipeline": [
       {
         "assetId": "deucrictibant-OD",
+        "assetInn": "deucrictibant",
         "name": "Deucrictibant (on-demand program)",
         "mechanism": "Oral bradykinin B2 receptor antagonist",
         "indicationSubtype": "HAE on-demand",
         "phase": "Phase III",
-        "latestMilestone": "RAPIDe-3 pivotal Phase III fully enrolled Q4 2025 (illustrative)",
-        "nextMilestone": "Topline data expected Q3 2026 (illustrative)",
+        "latestMilestone": "RAPIDe-3 Phase III topline readout December 2025: met primary and key secondary endpoints",
+        "nextMilestone": "NDA filing expected H1 2026 under Fast Track rolling review",
         "trialIds": [
           "NCT0XXXXXX5"
         ],
@@ -907,6 +920,7 @@
       },
       {
         "assetId": "deucrictibant-PPX",
+        "assetInn": "deucrictibant",
         "name": "Deucrictibant (prophylaxis program, extended-release)",
         "mechanism": "Oral bradykinin B2 receptor antagonist, extended-release formulation",
         "indicationSubtype": "HAE prophylaxis",
@@ -932,7 +946,7 @@
         "country": "US",
         "products": [],
         "estimatedPatientShare": "N / A (pre-commercial)",
-        "recentActivity": "Established US medical affairs team in 2025. Site activation complete for RAPIDe-3.",
+        "recentActivity": "RAPIDe-3 topline data readout December 2025: met primary and key secondary endpoints. NDA filing preparation underway; US commercial team build-out accelerating.",
         "strength": "medium"
       },
       {
@@ -997,8 +1011,8 @@
         "date": "2026-03-20",
         "type": "corporate",
         "source": "Pharvaris corporate update",
-        "headline": "Pharvaris confirms RAPIDe-3 topline Q3 2026 timing",
-        "summary": "Management reaffirmed readout guidance on Q4 2025 earnings call. A positive readout plus a rolling filing could put deucrictibant on-demand in market H2 2027, roughly 18 to 24 months after sebetralstat."
+        "headline": "RAPIDe-3 Phase III meets primary endpoint (December 2025)",
+        "summary": "RAPIDe-3 met its primary endpoint (time to beginning of symptom relief) and key secondary endpoints. Pharvaris is preparing an NDA under rolling Fast Track review, targeting H1 2026 filing. US launch is plausible H2 2027, approximately 18 to 24 months after sebetralstat."
       },
       {
         "date": "2026-02-20",
@@ -1097,7 +1111,7 @@
       "keyQuestions": [
         {
           "question": "What is the realistic deucrictibant on-demand launch timing?",
-          "answer": "Assuming a positive RAPIDe-3 readout in Q3 2026 and rolling filing under Fast Track, US launch is plausible H2 2027. EU launch likely Q1 to Q2 2028. This gives Pharma Inc an 18 to 24 month first-mover window in on-demand."
+          "answer": "RAPIDe-3 met its primary endpoint in December 2025. With NDA filing under rolling Fast Track expected H1 2026, US launch is plausible H2 2027. EU launch likely Q1 to Q2 2028. This gives Pharma Inc an 18 to 24 month first-mover window in on-demand, but the clock is now running."
         },
         {
           "question": "How will mechanism differentiation play out commercially?",
@@ -1113,7 +1127,7 @@
         }
       ],
       "suggestedActions": [
-        "Treat RAPIDe-3 readout as a tier-1 monitoring priority; pre-plan scenario responses for positive, marginal, and failed outcomes.",
+        "RAPIDe-3 has read out positively (December 2025); shift monitoring to NDA filing milestones, FDA Advisory Committee scheduling, and PDUFA date. Pre-plan scenario responses for faster-than-expected US approval.",
         "Accelerate sebetralstat real-world evidence generation in first 12 months of launch to build switching resistance before deucrictibant entry.",
         "Map overlap of Pharvaris medical affairs and commercial hires with Pharma Inc priority KOLs and accounts; prepare defensive engagement plans.",
         "Model an acquisition scenario (Takeda or other) into competitive planning; identify early indicators such as unusual manufacturing or commercial partnership patterns."
@@ -1213,7 +1227,7 @@
         "Mechanism unfamiliarity may slow physician adoption"
       ],
       "opportunities": [
-        "Phase III RAPIDe-3 readout could trigger acquisition interest",
+        "Positive RAPIDe-3 readout (December 2025) raises acquisition attractiveness; NDA filing H1 2026 will intensify this",
         "Mechanism distinct from kallikrein class supports patient cycling",
         "First-mover potential in oral on-demand if Ekterly delays"
       ],
@@ -1226,6 +1240,10 @@
   },
   {
     "id": "csl-behring",
+    "secCik": null,
+    "secFormTypes": [],
+    "dataSource": "IR_SCRAPE",
+    "irScrapeUrl": "https://www.csl.com/investors/asx-announcements",
     "name": "CSL Behring",
     "logo": "csl-behring.svg",
     "strategicPosture": "Adjacent injectable prophylaxis",
@@ -1234,6 +1252,7 @@
     "pipeline": [
       {
         "assetId": "CSL-312-PED",
+        "assetInn": "garadacimab",
         "name": "Garadacimab pediatric program",
         "mechanism": "Anti-FXIIa monoclonal antibody",
         "indicationSubtype": "HAE prophylaxis, pediatric",
@@ -1268,11 +1287,37 @@
       "suggestedActions": []
     },
     "messaging": {
-      "currentCoreMessage": "",
-      "messagePillars": [],
-      "currentMessageSource": "",
-      "timeline": [],
-      "vsPharmaInc": []
+      "currentCoreMessage": "Andembry gives HAE patients a monthly injectable with a proven contact-pathway mechanism — reducing attack burden without daily pills.",
+      "messagePillars": ["Contact pathway differentiation", "Monthly convenience", "Established rare-disease expertise"],
+      "currentMessageSource": "Andembry launch materials / HAEGARDA successor narrative, 2025",
+      "timeline": [
+        {
+          "date": "2025-09",
+          "sourceType": "Congress presentation",
+          "headline": "Andembry positions as 'mechanistic complement' to kallikrein inhibitors",
+          "detail": "CSL Behring HAEi presentations framed Andembry as targeting a distinct pathway (contact activation / FXIIa) from plasma kallikrein inhibitors like Orladeyo and Takhzyro — avoiding direct head-to-head comparison and emphasising portfolio breadth for physicians.",
+          "shiftDetected": false,
+          "whyItMatters": "Avoids the prophylaxis share fight on efficacy. Positions Andembry as an add-on or switch option for patients uncontrolled on kallikrein class."
+        },
+        {
+          "date": "2025-06",
+          "sourceType": "Investor call",
+          "headline": "CSL Behring highlights monthly dosing as the primary convenience differentiator",
+          "detail": "On the CSL FY2025 half-year call, the HAE franchise lead cited monthly subcutaneous administration vs biweekly Takhzyro as the primary differentiation lever in EU markets where nursing visit frequency drives access decisions.",
+          "shiftDetected": false,
+          "whyItMatters": "Commercial message anchored on dosing, not mechanism — an operationally resonant argument with payers and hospital pharmacists in EU."
+        }
+      ],
+      "vsPharmaInc": [
+        {
+          "competitorClaim": "Monthly dosing reduces the treatment burden vs biweekly alternatives",
+          "pharmaIncPosition": "Sebetralstat offers on-demand oral treatment — no prophylaxis burden at all. Patients can treat attacks as they occur rather than committing to a monthly injection schedule."
+        },
+        {
+          "competitorClaim": "FXIIa inhibition addresses the root of the contact activation cascade",
+          "pharmaIncPosition": "Plasma kallikrein is the clinically validated target for HAE prophylaxis; contact-pathway breadth does not translate to superior attack prevention in head-to-head data."
+        }
+      ]
     },
     "financials": {
       "totalRevenue": "$13.3B",
@@ -1334,6 +1379,8 @@
   },
   {
     "id": "ionis",
+    "secCik": "0000874015",
+    "gnwKeyword": "ionis pharmaceuticals fourth quarter full year financial results",
     "name": "Ionis Pharmaceuticals",
     "logo": "ionis.svg",
     "strategicPosture": "Emerging RNA-based prophylaxis",
@@ -1442,6 +1489,8 @@
   },
   {
     "id": "adverum",
+    "secCik": "0001501756",
+    "gnwKeyword": "adverum biotechnologies fourth quarter full year financial results",
     "name": "Adverum Biotechnologies",
     "logo": "adverum.svg",
     "strategicPosture": "Emerging gene therapy",
@@ -1546,15 +1595,17 @@
   },
   {
     "id": "intellia",
+    "secCik": "0001652130",
+    "gnwKeyword": "intellia therapeutics fourth quarter full year financial results",
     "name": "Intellia Therapeutics",
     "logo": "intellia.svg",
     "strategicPosture": "Emerging gene therapy",
-    "oneLineDescription": "NTLA-2002 in Phase 2, CRISPR-based gene editing targeting KLKB1.",
-    "executiveSummary": "Intellia's NTLA-2002 is the most clinically advanced gene-editing program in HAE, using in vivo CRISPR to knock out the KLKB1 gene encoding prekallikrein. Phase II results have shown sustained attack rate reduction after a single infusion, generating high physician and investor interest. Commercial uptake will depend on long-term safety, infusion logistics, and payer acceptance of upfront cost models. Realistic commercial entry is mid-to-late decade. (illustrative)",
+    "oneLineDescription": "lonvo-z (NTLA-2002) in Phase 2, CRISPR-based gene editing targeting KLKB1.",
+    "executiveSummary": "Intellia's lonvo-z (NTLA-2002) is the most clinically advanced gene-editing program in HAE, using in vivo CRISPR to knock out the KLKB1 gene encoding prekallikrein. Phase II results have shown sustained attack rate reduction after a single infusion, generating high physician and investor interest. Commercial uptake will depend on long-term safety, infusion logistics, and payer acceptance of upfront cost models. Realistic commercial entry is mid-to-late decade. (illustrative)",
     "pipeline": [
       {
         "assetId": "NTLA-2002",
-        "name": "NTLA-2002",
+        "name": "lonvo-z (NTLA-2002)",
         "mechanism": "In vivo CRISPR/Cas9 knockout of KLKB1",
         "indicationSubtype": "HAE (long-term prophylaxis via single infusion)",
         "phase": "Phase II",
@@ -1653,6 +1704,9 @@
   },
   {
     "id": "astria",
+    "status": "acquired",
+    "acquiredBy": "biocryst",
+    "acquisitionDate": "2026-01-23",
     "name": "Astria Therapeutics",
     "logo": "astria.svg",
     "strategicPosture": "Emerging oral competitor",

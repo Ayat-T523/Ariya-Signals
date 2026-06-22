@@ -5,6 +5,7 @@
     "type": "earnings-call",
     "competitorId": "pharvaris",
     "source": "Pharvaris Q4 2025 earnings call transcript",
+    "isIllustrative": true,
     "title": "Q4 2025 earnings: RAPIDe-3 readout reaffirmed, commercial build underway",
     "haeExtract": "Management reaffirmed RAPIDe-3 topline guidance for Q3 2026. Cash position of approximately $280M reported as sufficient runway through launch preparation. Commentary positioned deucrictibant as a 'continuum-of-care' oral asset across on-demand and prophylaxis (illustrative). Analyst questions focused on launch timing and mechanism differentiation versus oral kallikrein inhibitors.",
     "confidence": {
@@ -19,6 +20,7 @@
     "type": "earnings-call",
     "competitorId": "takeda",
     "source": "Takeda Q4 2025 earnings call transcript",
+    "isIllustrative": true,
     "title": "Q4 2025 earnings: HAE cited as cornerstone rare disease franchise",
     "haeExtract": "HAE cited among top-5 growth contributors in the rare disease segment. No new pipeline announcements for HAE. Commentary focused on patient services, geographic expansion, and real-world evidence generation. Oral-modality threat framed as 'segment addition rather than substitution' (illustrative).",
     "confidence": {
@@ -33,6 +35,7 @@
     "type": "earnings-call",
     "competitorId": "biocryst",
     "source": "BioCryst Q4 2025 earnings call transcript",
+    "isIllustrative": true,
     "title": "Q4 2025 earnings: Orladeyo exceeds $440M; CCO transition announced",
     "haeExtract": "Orladeyo 2025 revenue of approximately $445M reported (illustrative), growth moderating as early-adopter conversion matures. CCO transition announced. Pediatric Phase III and extended-release Phase I advancing per plan. Management positioned oral modality as 'the future of HAE management across the continuum' (illustrative).",
     "confidence": {
@@ -47,6 +50,7 @@
     "type": "investor-day",
     "competitorId": "takeda",
     "source": "Takeda Investor Day 2025",
+    "isIllustrative": true,
     "title": "Investor Day: rare disease strategy emphasis",
     "haeExtract": "HAE franchise positioned as a durable growth contributor through lifecycle management. Executive commentary framed oral entrants as expanding the overall HAE market rather than taking share from Takhzyro. Commitment to continued investment in real-world evidence and patient services (illustrative).",
     "confidence": {
@@ -61,6 +65,7 @@
     "type": "analyst-report",
     "competitorId": "pharvaris",
     "source": "SVB Securities analyst initiation (illustrative)",
+    "isIllustrative": true,
     "title": "Pharvaris initiated at Outperform; $42 price target",
     "haeExtract": "Analyst highlights deucrictibant dual-indication value and estimates peak sales of approximately $900M across on-demand and prophylaxis programs (illustrative). Identifies RAPIDe-3 readout as the defining catalyst. Flags Pharvaris as a potential acquisition target for a larger rare disease franchise holder.",
     "confidence": {
@@ -75,6 +80,7 @@
     "type": "earnings-call",
     "competitorId": "pharvaris",
     "source": "Pharvaris Q3 2025 earnings call transcript",
+    "isIllustrative": true,
     "title": "Q3 2025 earnings: RAPIDe-3 enrollment completion, commercial hiring signals",
     "haeExtract": "Full enrollment of RAPIDe-3 confirmed. Commercial hiring activity disclosed in prepared remarks, including US medical affairs buildout. First mention of ex-US manufacturing partnership process underway (illustrative).",
     "confidence": {
@@ -89,6 +95,7 @@
     "type": "analyst-report",
     "competitorId": "biocryst",
     "source": "Goldman Sachs analyst note (illustrative)",
+    "isIllustrative": true,
     "title": "BioCryst: Orladeyo growth moderating; watch for next oral catalyst",
     "haeExtract": "Analyst notes deceleration in net-new patient adds for Orladeyo and flags the extended-release program and pediatric label as key upside drivers. Views BioCryst as less exposed to oral on-demand competitive pressure than incumbents with SC portfolios.",
     "confidence": {
@@ -103,6 +110,7 @@
     "type": "analyst-report",
     "competitorId": "takeda",
     "source": "Morgan Stanley analyst note (illustrative)",
+    "isIllustrative": true,
     "title": "Takeda rare disease: HAE defense scenarios",
     "haeExtract": "Analyst models three scenarios for Takhzyro post-sebetralstat launch: defensive hold (base case, 5 to 10% share loss over 3 years), moderate erosion (15 to 20%), and aggressive displacement (25%+). Highlights patient services investment as the most credible defensive lever.",
     "confidence": {
@@ -117,6 +125,7 @@
     "type": "earnings-call",
     "competitorId": "biocryst",
     "source": "BioCryst Q2 2025 earnings call transcript",
+    "isIllustrative": true,
     "title": "Q2 2025 earnings: extended-release program announced",
     "haeExtract": "Management announced next-generation oral plasma kallikrein inhibitor (extended-release formulation) with Phase I initiation targeted for Q4 2025. First explicit signal of lifecycle strategy to address single-daily-dose limitations of Orladeyo (illustrative).",
     "confidence": {
@@ -131,6 +140,7 @@
     "type": "investor-day",
     "competitorId": "biocryst",
     "source": "BioCryst R&D Day 2025",
+    "isIllustrative": true,
     "title": "R&D Day: pipeline focus on oral-modality leadership",
     "haeExtract": "Strategic framing centered on 'owning oral prophylaxis' in HAE. Pediatric, extended-release, and geographic expansion called out as three growth vectors. No announcement of on-demand program consideration (illustrative).",
     "confidence": {
@@ -145,6 +155,7 @@
     "type": "earnings-digest",
     "competitorId": "pharvaris",
     "source": "Ariya post-call digest — Pharvaris Q4 2025",
+    "isIllustrative": true,
     "title": "Pharvaris Q4 2025 digest: RAPIDe-3 timeline reaffirmed, commercial scale-up accelerates",
     "haeExtract": "RAPIDe-3 readout reaffirmed for Q3 2026, with rolling filing planned under Fast Track designation. Management framed deucrictibant as a 'continuum-of-care' asset across on-demand and prophylaxis. Commercial hiring pace suggests a US launch in H2 2027 if data are positive — the 18 to 24 month sebetralstat first-mover window remains intact but tightening (illustrative).",
     "confidence": {
@@ -182,6 +193,7 @@
     "type": "earnings-digest",
     "competitorId": "biocryst",
     "source": "Ariya post-call digest — BioCryst Q4 2025",
+    "isIllustrative": true,
     "title": "BioCryst Q4 2025 digest: Orladeyo growth moderates, pediatric and extended-release are next acts",
     "haeExtract": "Orladeyo annual revenue exceeded $440M with year-over-year growth moderating as early-adopter conversion matures. Management leaned into pediatric Phase III progress and the next-generation extended-release program as future growth vectors. Tone on oral on-demand entrants remained constructive — framed as market expansion, not substitution (illustrative).",
     "confidence": {
@@ -215,6 +227,7 @@
     "type": "earnings-digest",
     "competitorId": "takeda",
     "source": "Ariya post-call digest — Takeda Q4 2025",
+    "isIllustrative": true,
     "title": "Takeda Q4 2025 digest: HAE reaffirmed as core franchise, no oral-modality move signalled",
     "haeExtract": "Management cited HAE among top-5 growth contributors in rare disease and reaffirmed franchise commitment. No pipeline announcement of oral on-demand work. Defensive strategy continues to lean on Takhzyro real-world evidence and patient services, not new clinical mechanisms (illustrative). Q&A focused on competitive readiness rather than R&D pivots.",
     "confidence": {

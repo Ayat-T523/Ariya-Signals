@@ -7,13 +7,14 @@ export default function PricingAndAccess() {
     <div style={{ padding: '20px 36px 36px' }}>
 
       {/* ── Page description ─────────────────────────────────────────────────── */}
-      <p style={{
-        margin: '0 0 28px',
-        fontSize: '14px', fontFamily: 'Inter, sans-serif',
-        color: '#434c5b', lineHeight: '1.5',
-      }}>
-        Multi-region benchmark · Sources: MMIT (US) · Illustrative
-      </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', margin: '0 0 28px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.30)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', background: 'rgba(245,158,11,0.18)', color: '#92500A', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
+          Illustrative
+        </span>
+        <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#92500A', lineHeight: '1.5' }}>
+          These are illustrative list-price estimates. Actual net prices reflect confidential managed-entry agreements with national payers and are not publicly available from any free source.
+        </p>
+      </div>
 
       {/* ── Section label ────────────────────────────────────────────────────── */}
       <p style={{
@@ -59,7 +60,7 @@ export default function PricingAndAccess() {
                       background: isOurs ? 'rgba(42,118,244,0.06)' : 'transparent',
                     }}
                   >
-                    {/* Product name + badge — sticky first column */}
+                    {/* Product name + badges — sticky first column */}
                     <td style={{ ...bodyCellStyle('left', isOurs), position: 'sticky', left: 0, zIndex: 1, background: isOurs ? 'rgba(42,118,244,0.06)' : '#FFFFFF' }}>
                       <span style={{ fontFamily: 'Satoshi, sans-serif' }}>{row.name}</span>
                       {isOurs && (
@@ -71,6 +72,17 @@ export default function PricingAndAccess() {
                           fontFamily: 'Inter, sans-serif',
                         }}>
                           Our asset
+                        </span>
+                      )}
+                      {(row as any).isIllustrative && (
+                        <span style={{
+                          marginLeft: '6px',
+                          padding: '2px 6px', borderRadius: '6px',
+                          background: 'rgba(245,158,11,0.12)', color: '#92500A',
+                          fontSize: '10px', fontWeight: 700,
+                          fontFamily: 'Inter, sans-serif',
+                        }}>
+                          Illustrative
                         </span>
                       )}
                     </td>
@@ -115,7 +127,7 @@ export default function PricingAndAccess() {
         color: 'rgba(5,10,68,0.55)',
         fontStyle: 'italic', lineHeight: '1.55',
       }}>
-        {unit}. Prices shown are list prices. Net prices reflect confidential rebate agreements and are not shown.
+        {unit}
       </p>
 
     </div>

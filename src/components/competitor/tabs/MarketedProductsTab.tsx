@@ -4,6 +4,7 @@ import {
 import EmptyState from '../../ui/EmptyState'
 import { formatDateAbs } from '../../../utils/formatDate'
 import { DEMO } from '../../../config/demo-config'
+import { useConfig } from '../../../context/AppContext'
 
 // ── Revenue chart (per D-003) ─────────────────────────────────────────────────
 function RevenueChart({ data }) {
@@ -153,11 +154,12 @@ function ProductCard({ product }) {
 
 // ── Main tab ──────────────────────────────────────────────────────────────────
 export default function MarketedProductsTab({ competitor }) {
+  const { indication } = useConfig()
   const products = competitor.marketedProducts || []
 
   if (!products.length) {
     return (
-      <EmptyState message={`No marketed ${DEMO.therapeuticArea} products. Lead asset in late-stage development — see Pipeline tab.`} />
+      <EmptyState message={`No marketed ${indication} products. Lead asset in late-stage development — see Pipeline tab.`} />
     )
   }
 
