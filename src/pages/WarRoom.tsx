@@ -38,6 +38,7 @@ import {
   type DbRecentSignal,
   type DbMarketImplication,
 } from '../lib/db'
+import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK } from '../lib/signalText'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function decodeEntities(str: string): string {
@@ -47,21 +48,6 @@ function decodeEntities(str: string): string {
     .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
 }
 
-function cleanNeedleText(headline: string | null, excerpt: string | null): string {
-  const raw  = headline?.trim() ?? ''
-  const body = excerpt?.trim() ?? ''
-  // Use body_excerpt when headline has no complete sentence (capital â†’ content â†’ terminal punctuation)
-  // A bare period like "ts." does not count — we need a proper sentence boundary
-  const rawHasCompleteSentence = /[A-Z][^.!?]{15,}[.!?]/.test(raw)
-  const source = rawHasCompleteSentence ? raw : (body || raw)
-  const decoded = decodeEntities(source)
-  const match = decoded.match(/([A-Z][^.!?]{15,400}[.!?])/)
-  if (match) return match[1].trim()
-  const MAX = 200
-  if (decoded.length <= MAX) return decoded || '(no headline)'
-  const cut = decoded.lastIndexOf(' ', MAX)
-  return decoded.slice(0, cut > 0 ? cut : MAX).trim() + '…'
-}
 
 // â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
@@ -88,33 +74,8 @@ function criticalCoOccursWithHAE(text: string, lexicon: typeof HAE_LEXICON): boo
   })
 }
 
-// â”€â”€ XBRL / form-code boilerplate detector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Filters Takeda 20-F XBRL instance docs, Form 6-K reference codes, and
-// SEC accession-number-style headlines that carry no competitive intelligence.
-const XBRL_RE      = /xbrli?:|iso4217:|xbrl:pure|xbrl:shares|:cash-generating/i
-const ACCESSION_RE = /^[a-z]{2,6}-\d{8}\s+\d{10}/i
-const DECIMAL_RE   = /(\d+\.\d+\s+){4}/
-const FORM_CODE_RE = /form\d*k[_\-]/i  // "form6k_060926", "form20f_", etc.
-const DUAL_CIK_RE  = /\d{10}\s+\d{10}/
-const EXHIBIT_RE   = /exhibit\d+[_\-.]/i
-// SEC filing cover-page preamble — never contains competitive intelligence
-const SEC_PREAMBLE_RE = /SECURITIES AND EXCHANGE COMMISSION|WASHINGTON,?\s+D\.C\.\s+205/i
-const METADATA_SKIP = /^(true|false|null|with|that|this|from|have|been|into|onto|over|also|only|both|each)$/i
-
 function isSignalReadable(s: DbRecentSignal): boolean {
-  const h    = s.headline?.trim() ?? ''
-  const body = s.body_excerpt?.trim() ?? ''
-  const text = h.length >= body.length ? h : body
-  if (!text || text.length < 20) return false
-  if (XBRL_RE.test(text) || DECIMAL_RE.test(text) || DUAL_CIK_RE.test(text)) return false
-  if (SEC_PREAMBLE_RE.test(text)) return false
-  if (ACCESSION_RE.test(h) || FORM_CODE_RE.test(h) || EXHIBIT_RE.test(h)) return false
-  // Also check body for filing cover-page boilerplate not caught by headline patterns
-  if (FORM_CODE_RE.test(body) || EXHIBIT_RE.test(body)) return false
-  // Positive prose gate: must contain >=3 purely alphabetic words of 4+ chars
-  const proseWords = (text.match(/\b[A-Za-z]{4,}\b/g) ?? []).filter(w => !METADATA_SKIP.test(w))
-  if (proseWords.length < 3) return false
-  return true
+  return cleanSignalText(s) !== SIGNAL_FALLBACK
 }
 
 // ── HAE relevance gate ────────────────────────────────────────────────────────
@@ -248,9 +209,8 @@ function buildNeedleText(s: DbRecentSignal): string {
   if (s.signal_type === 'exec_change') {
     return 'had a leadership change — monitor for commercial or strategic follow-through'
   }
-  const cleaned = cleanNeedleText(s.headline, s.body_excerpt)
-  const cleanedIsReadable = (cleaned.match(/\b[A-Za-z]{4,}\b/g) ?? [])
-    .filter(w => !METADATA_SKIP.test(w)).length >= 3
+  const cleaned = cleanSignalText(s)
+  const cleanedIsReadable = cleaned !== SIGNAL_FALLBACK
   const detail = cleanedIsReadable ? `: ${cleaned}` : ''
   if (s.signal_type === 'deal') return `made a strategic move${detail || ' — see source for details'}`
   if (CLINICAL_KW.test(text))   return `released clinical data${detail || ' — see source for details'}`
@@ -366,7 +326,7 @@ function buildSignalHeadline(s: DbRecentSignal): string {
     const name = competitor?.name ?? 'This company'
     return `${name} filed an executive or board change with the SEC.`
   }
-  return cleanNeedleText(s.headline, s.body_excerpt)
+  return cleanSignalText(s)
 }
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1030,7 +990,7 @@ export default function WarRoom() {
   // Weekly digest — top 3 relevant signals from the live feed
   const digestItems = relevantSignals
     .slice(0, 3)
-    .map((s) => ({ competitorId: s.competitor_id, text: cleanNeedleText(s.headline, s.body_excerpt) }))
+    .map((s) => ({ competitorId: s.competitor_id, text: cleanSignalText(s) }))
 
   // Market weather status config
   const statusCfg = WINDOW_STATUS_CONFIG[pressureStatus] ?? WINDOW_STATUS_CONFIG['Pressure stable']

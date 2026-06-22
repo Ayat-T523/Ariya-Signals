@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getDocumentsByCompetitorId, findAssetByCode } from '../lib/db'
+import { cleanSignalText, isReadableProse } from '../lib/signalText'
 
 // HAE indication tags used to filter trials and assets to the user's TA.
 // Phase J3 note: will be replaced with AppContext.trackedTherapeuticArea once
@@ -365,42 +366,11 @@ export function useCompetitorSupabase(competitor: any) {
 
       // ── Strategic signals from 8-K ────────────────────────────────────────
 
-      // Strip SEC boilerplate from 8-K headlines and extract the first real sentence
-      function cleanSignalHeadline(signal: any): string {
-        const raw     = (signal.headline ?? '').trim()
-        const excerpt = (signal.body_excerpt ?? '').trim()
-        // Boilerplate patterns that appear at the start of SEC item text
-        const BOILERPLATE = [
-          /^[a-z\s,;]*material definitive agreement[.,\s]*/i,
-          /^[a-z\s,;]*directors or certain officers[^.]*\.\s*/i,
-          /^departure of directors[^.]*\.\s*/i,
-        ]
-        const isBoilerplate = BOILERPLATE.some(p => p.test(raw))
-        // Also fall back to excerpt when headline has no complete sentence (a bare "ts." fragment doesn't count)
-        const rawHasCompleteSentence = /[A-Z][^.!?]{15,}[.!?]/.test(raw)
-        let cleaned = (isBoilerplate || !rawHasCompleteSentence) ? (excerpt || raw) : raw
-        for (const p of BOILERPLATE) { cleaned = cleaned.replace(p, '') }
-        cleaned = cleaned
-          .replace(/&#8220;|&ldquo;/g, '"').replace(/&#8221;|&rdquo;/g, '"')
-          .replace(/&#8217;|&rsquo;/g, "'").replace(/&#183;|&middot;/g, '·')
-          .replace(/&amp;/g, '&').trim()
-        // Extract first complete sentence that starts with a capital letter (up to 400 chars)
-        const sentence = cleaned.match(/([A-Z][^.!?]{15,400}[.!?])/)
-        if (sentence) return sentence[1].trim()
-        if (cleaned.length > 20) {
-          const MAX = 200
-          if (cleaned.length <= MAX) return cleaned
-          const cut = cleaned.lastIndexOf(' ', MAX)
-          return cleaned.slice(0, cut > 0 ? cut : MAX).trim() + '…'
-        }
-        return raw.slice(0, 120) || 'SEC filing'
-      }
-
       const liveDeals = signals
         .filter((s: any) => s.signal_type === 'deal')
         .map((s: any) => ({
           date:         s.date,
-          headline:     cleanSignalHeadline(s),
+          headline:     cleanSignalText(s),
           whyItMatters: null,
           _live:        true,
           sourceUrl:    s.source_url,
@@ -411,28 +381,20 @@ export function useCompetitorSupabase(competitor: any) {
         .slice(0, 5)
         .map((s: any) => ({
           date:      s.date,
-          headline:  cleanSignalHeadline(s),
+          headline:  cleanSignalText(s),
           _live:     true,
           sourceUrl: s.source_url,
         }))
 
       const recentPersonnelChanges = liveHiring
 
-      // Detect SEC filing manifest/header text that leaked through the HTML stripper
-      function isSecMetadata(s: any): boolean {
-        const text = (s.headline ?? '') + ' ' + (s.body_excerpt ?? '')
-        return /\b(NASDAQ|NYSE|AMEX)\s+(true|false)/i.test(text) ||
-               /SECURITIES AND EXCHANGE COMMISSION/i.test(text) ||
-               /^[A-Z0-9\s]{0,5}(NASDAQ|NYSE)\b/.test((s.headline ?? '').trim())
-      }
-
       const recentPressReleases = signals
         .filter((s: any) => s.signal_type === 'press_release')
-        .filter((s: any) => !isSecMetadata(s))
+        .filter((s: any) => isReadableProse((s.headline ?? '').trim()) || isReadableProse((s.body_excerpt ?? '').trim()))
         .slice(0, 5)
         .map((s: any) => ({
           date:             s.date,
-          headline:         cleanSignalHeadline(s),
+          headline:         cleanSignalText(s),
           _live:            true,
           sourceUrl:        s.source_url,
           accession_number: s.accession_number ?? null,
