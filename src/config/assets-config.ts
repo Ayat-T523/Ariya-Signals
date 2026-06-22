@@ -33,8 +33,6 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
     suggestedCompetitors: ['takeda', 'biocryst', 'pharvaris'],
-    // Source: HAE_LEXICON in src/pages/WarRoom.tsx — the authoritative copy lives here.
-    // WarRoom.tsx keeps its own hardcoded copy until 1-WIRE (backbone Phase 5) replaces it.
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
       'lonvoguran', 'ziclumeran', 'donidalorsen', 'deucrictibant',
@@ -45,6 +43,42 @@ export const ASSETS_CONFIG: AssetConfig[] = [
       'hae', 'hereditary angioedema', 'angioedema', 'bradykinin',
       'kallikrein', 'c1 inhibitor', 'c1-inh', 'plasma kallikrein',
       'factor xii', 'contact pathway', 'haelo',
+    ],
+  },
+  {
+    id: 'zevaro',
+    brandName: 'Zevaro',
+    innName: 'iptacopan',
+    indication: 'PNH',
+    indicationFull: 'Paroxysmal Nocturnal Haemoglobinuria',
+    suggestedCompetitors: ['takeda', 'csl-behring', 'ionis'],
+    lexiconInns: [
+      'iptacopan', 'fabhalta', 'pegcetacoplan', 'empaveli',
+      'avacopan', 'tavneos', 'ravulizumab', 'ultomiris',
+      'eculizumab', 'soliris', 'crovalimab', 'danicopan',
+    ],
+    lexiconTaTerms: [
+      'pnh', 'paroxysmal nocturnal haemoglobinuria', 'complement',
+      'factor d', 'factor b', 'c3', 'c5', 'haemolysis', 'hemolysis',
+      'aplastic anemia', 'complement inhibitor',
+    ],
+  },
+  {
+    id: 'chelira',
+    brandName: 'Chelira',
+    innName: 'seladelpar',
+    indication: 'PBC',
+    indicationFull: 'Primary Biliary Cholangitis',
+    suggestedCompetitors: ['takeda', 'ionis', 'intellia'],
+    lexiconInns: [
+      'seladelpar', 'livdelzi', 'obeticholic acid', 'ocaliva',
+      'elafibranor', 'iqirvo', 'linerixibat', 'volixibat',
+      'tropifexor', 'cilofexor', 'bezafibrate',
+    ],
+    lexiconTaTerms: [
+      'pbc', 'primary biliary cholangitis', 'bile acid', 'bile salt',
+      'fxr', 'tgr5', 'ppar', 'alkaline phosphatase', 'alp',
+      'ursodeoxycholic acid', 'udca', 'biliary', 'autoimmune liver', 'cholestasis',
     ],
   },
 ]

@@ -238,6 +238,13 @@ export default function OnboardingModal() {
               }}
               autoFocus
             />
+            <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontFamily: 'inherit' }}>
+              {assetSearch === ''
+                ? `${filteredAssets.length} product${filteredAssets.length !== 1 ? 's' : ''} available`
+                : filteredAssets.length === 0
+                  ? 'No products match your search'
+                  : `${filteredAssets.length} of ${ASSETS_CONFIG.length} match`}
+            </p>
             <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {filteredAssets.length === 0 && (
                 <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)', textAlign: 'center', padding: '20px 0', margin: 0 }}>
