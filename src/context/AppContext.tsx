@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import alertsData from '../data/alerts.json'
 import { DEMO } from '../config/demo-config'
+import { getAssetById } from '../config/assets-config'
 
 const AppContext = createContext(null)
 
@@ -79,6 +80,16 @@ export function AppProvider({ children }) {
     else localStorage.removeItem('ariya-user-asset')
   }
 
+  const [userAssetId, setUserAssetIdState] = useState(() => {
+    return localStorage.getItem('ariya-user-asset-id') || null
+  })
+
+  function setUserAssetId(val: string | null) {
+    setUserAssetIdState(val)
+    if (val) localStorage.setItem('ariya-user-asset-id', val)
+    else localStorage.removeItem('ariya-user-asset-id')
+  }
+
   useEffect(() => { analytics.identify(userRole) }, [userRole])
 
   function openOnboarding() {
@@ -152,6 +163,10 @@ export function AppProvider({ children }) {
     })
   }
 
+  function resetWatchedCompetitors(ids: string[]) {
+    setWatchedCompetitors(new Set(ids))
+  }
+
   function markAlertRead(alertId) {
     setReadAlerts((prev) => new Set([...prev, alertId]))
   }
@@ -213,6 +228,9 @@ export function AppProvider({ children }) {
         setUserIndication,
         userAssetName,
         setUserAssetName,
+        userAssetId,
+        setUserAssetId,
+        resetWatchedCompetitors,
       }}
     >
       {children}
@@ -226,13 +244,24 @@ export function useApp() {
   return ctx
 }
 
-/** Returns the user's saved preferences, falling back to DEMO defaults. */
+/**
+ * Returns the user's saved preferences, falling back to DEMO defaults.
+ * When the user has selected an asset via onboarding, fields are resolved
+ * from the full AssetConfig record (assets-config.ts).
+ * Lexicon arrays are exposed here but not yet consumed by WarRoom — that
+ * wiring is deferred to 1-WIRE (backbone Phase 5).
+ */
 export function useConfig() {
-  const { userIndication, userAssetName } = useApp()
+  const { userIndication, userAssetName, userAssetId } = useApp()
+  const asset = userAssetId ? getAssetById(userAssetId) : undefined
   return {
-    assetName:        userAssetName  || DEMO.assetName,
-    indication:       userIndication || DEMO.therapeuticArea,
-    indicationFull:   userIndication || DEMO.therapeuticAreaFull,
-    assetGenericName: DEMO.assetGenericName,
+    assetName:            asset?.brandName         ?? userAssetName  ?? DEMO.assetName,
+    innName:              asset?.innName            ?? DEMO.assetGenericName,
+    indication:           asset?.indication         ?? userIndication ?? DEMO.therapeuticArea,
+    indicationFull:       asset?.indicationFull     ?? userIndication ?? DEMO.therapeuticAreaFull,
+    suggestedCompetitors: asset?.suggestedCompetitors ?? ['takeda', 'biocryst', 'pharvaris'],
+    lexiconInns:          asset?.lexiconInns        ?? [],
+    lexiconTaTerms:       asset?.lexiconTaTerms     ?? [],
+    assetGenericName:     asset?.innName            ?? DEMO.assetGenericName,
   }
 }

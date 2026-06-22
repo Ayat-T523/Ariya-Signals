@@ -17,7 +17,7 @@ import { competitorsData, eventsData, marketDevelopments as marketData, reportsD
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
-import { useConfig } from '../context/AppContext'
+import { useApp, useConfig } from '../context/AppContext'
 import { getRegulatoryCalendar, getRecentSignals, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
 
 // ── Reference date ────────────────────────────────────────────────────────────
@@ -942,6 +942,7 @@ const EVENT_LEFT_BORDER: Record<string, string> = {
 }
 
 function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCalendarEvent[] }) {
+  const { watchedCompetitors } = useApp()
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
   const [viewFilter, setViewFilter]         = useState('all')
@@ -975,6 +976,10 @@ function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCal
   const filtered = allEvents.filter((e) => {
     if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has(e.type)) return false
     if (selectedDate && e.date.substring(0, 10) !== selectedDate) return false
+    // EMA regulatory events have no attendingCompetitors — always show.
+    // Congress/conference events only show if a watched competitor is attending.
+    const comps = (e.attendingCompetitors as string[] | undefined) ?? []
+    if (comps.length > 0 && !comps.some((id: string) => watchedCompetitors.has(id))) return false
     return true
   })
 
@@ -1396,11 +1401,12 @@ function ReportDetailPanel({ report }) {
 }
 
 function ReportsTab() {
+  const { watchedCompetitors } = useApp()
   const [searchParams] = useSearchParams()
   const competitorFromUrl = searchParams.get('competitor')
 
   const [competitorFilter, setCompetitorFilter] = useState(
-    () => competitorFromUrl ? new Set([competitorFromUrl]) : new Set()
+    () => competitorFromUrl ? new Set([competitorFromUrl]) : new Set(watchedCompetitors)
   )
   const [typeFilter, setTypeFilter] = useState(() => new Set())
 
@@ -2017,11 +2023,12 @@ function MarketDevCard({ item }) {
 }
 
 function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
+  const { watchedCompetitors } = useApp()
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
 
-  // Map live company_signals deals to market-dev card format
-  const liveDealItems = liveDeals.map((row) => ({
+  // Map live company_signals deals to market-dev card format — scoped to watched competitors
+  const liveDealItems = liveDeals.filter(row => watchedCompetitors.has(row.competitor_id ?? '')).map((row) => ({
     id: `sig-${row.id}`,
     date: row.date ?? '',
     type: 'deal' as const,

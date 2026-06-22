@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { DEMO } from '../config/demo-config'
+import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
+import { competitorsData } from '../data/kalvista'
 
 const ROLES = [
   { id: 'commercial', label: 'Commercial / Brand',               description: 'Brand positioning, share-of-voice, competitive launch dynamics' },
@@ -12,17 +13,15 @@ const ROLES = [
   { id: 'executive',  label: 'Executive / Leadership',           description: 'Franchise-wide view, weekly digests, headline signals' },
 ]
 
-const INDICATIONS = [
-  { id: 'HAE',       label: 'Hereditary Angioedema (HAE)' },
-  { id: 'Oncology',  label: 'Oncology' },
-  { id: 'Immunology', label: 'Immunology' },
-  { id: 'Neurology', label: 'Neurology' },
-]
+// Acquired assets have no live signals; exclude from the watchlist selector.
+const selectableCompetitors = (competitorsData as Array<{ id: string; name: string; status?: string }>)
+  .filter(c => c.status !== 'acquired')
 
 export default function OnboardingModal() {
   const {
     userRole, setUserRole,
-    setUserIndication, setUserAssetName,
+    setUserIndication, setUserAssetName, setUserAssetId,
+    resetWatchedCompetitors,
     completeOnboarding, closeOnboarding, startTour,
   } = useApp()
   const navigate = useNavigate()
@@ -30,22 +29,42 @@ export default function OnboardingModal() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [selectedRole, setSelectedRole] = useState(userRole || null)
-  const [selectedIndication, setSelectedIndication] = useState<string | null>(null)
-  const [assetNameInput, setAssetNameInput] = useState(DEMO.assetName)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [assetSearch, setAssetSearch] = useState('')
+  const [selectedCompetitorIds, setSelectedCompetitorIds] = useState<string[]>([])
 
-  function resolvedIndication() {
-    return selectedIndication || DEMO.therapeuticArea
-  }
+  const filteredAssets = ASSETS_CONFIG.filter(a =>
+    assetSearch === '' ||
+    a.brandName.toLowerCase().includes(assetSearch.toLowerCase()) ||
+    a.innName.toLowerCase().includes(assetSearch.toLowerCase())
+  )
+
+  const selectedAsset = selectedAssetId ? getAssetById(selectedAssetId) : undefined
 
   function savePreferences() {
     if (selectedRole) setUserRole(selectedRole)
-    setUserIndication(resolvedIndication())
-    setUserAssetName(assetNameInput.trim() || DEMO.assetName)
+
+    if (selectedAsset) {
+      setUserIndication(selectedAsset.indication)
+      setUserAssetName(selectedAsset.brandName)
+      setUserAssetId(selectedAsset.id)
+      // If the user completed Step 3 use their explicit selection; otherwise
+      // fall back to the asset's suggested defaults so the War Room is never empty.
+      const toWrite = selectedCompetitorIds.length > 0
+        ? selectedCompetitorIds
+        : selectedAsset.suggestedCompetitors
+      resetWatchedCompetitors(toWrite)
+    }
   }
 
   function handleNext() {
-    if (step === 1 && selectedRole) setStep(2)
-    else if (step === 2) setStep(3)
+    if (step === 1 && selectedRole) {
+      setStep(2)
+    } else if (step === 2 && selectedAssetId) {
+      // Pre-populate competitor chips from the chosen asset's suggestions.
+      setSelectedCompetitorIds(selectedAsset?.suggestedCompetitors ?? ['takeda', 'biocryst', 'pharvaris'])
+      setStep(3)
+    }
   }
 
   function handleBack() {
@@ -65,6 +84,12 @@ export default function OnboardingModal() {
     navigate('/')
   }
 
+  function toggleCompetitor(id: string) {
+    setSelectedCompetitorIds(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    )
+  }
+
   useEffect(() => { dialogRef.current?.focus() }, [])
 
   useEffect(() => {
@@ -74,7 +99,7 @@ export default function OnboardingModal() {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, selectedRole, selectedIndication, assetNameInput])
+  }, [step, selectedRole, selectedAssetId, selectedCompetitorIds])
 
   useEffect(() => {
     const el = dialogRef.current
@@ -99,14 +124,23 @@ export default function OnboardingModal() {
 
   const stepTitles = [
     'Welcome to Ariya. What is your role?',
-    'What therapeutic area are you tracking?',
-    'What is your asset called?',
+    'Which asset are you tracking?',
+    'Confirm your competitor watchlist.',
   ]
   const stepSubtitles = [
-    'We\'ll tailor your War Room and summaries to match.',
-    'Your War Room will filter signals to this area.',
-    'Your product name will appear in signals and summaries.',
+    "We'll tailor your War Room and summaries to match.",
+    "We'll pre-configure your signals feed and relevance filter.",
+    'These are pre-selected based on your asset. Deselect or add others — you can change this any time.',
   ]
+
+  const nextDisabled =
+    (step === 1 && !selectedRole) ||
+    (step === 2 && !selectedAssetId)
+
+  const nextLabel =
+    step === 1 && !selectedRole ? 'Select a role to continue' :
+    step === 2 && !selectedAssetId ? 'Select an asset to continue' :
+    'Next →'
 
   return createPortal(
     <div style={{
@@ -151,7 +185,7 @@ export default function OnboardingModal() {
           {stepSubtitles[step - 1]}
         </p>
 
-        {/* ── Step 1: Role ── */}
+        {/* ── Step 1: Role (unchanged) ── */}
         {step === 1 && (
           <div role="radiogroup" aria-labelledby="onboarding-title" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
             {ROLES.map((role) => {
@@ -187,19 +221,38 @@ export default function OnboardingModal() {
           </div>
         )}
 
-        {/* ── Step 2: Indication ── */}
+        {/* ── Step 2: Asset selection ── */}
         {step === 2 && (
           <div style={{ marginBottom: '24px' }}>
-            <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {INDICATIONS.map((ind) => {
-                const isSelected = selectedIndication === ind.id
+            <input
+              type="search"
+              value={assetSearch}
+              onChange={(e) => setAssetSearch(e.target.value)}
+              placeholder="Search by brand name or INN…"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                border: '1.5px solid rgba(5,10,68,0.20)', borderRadius: '10px',
+                padding: '11px 14px', fontSize: '14px', fontFamily: 'inherit',
+                outline: 'none', color: 'rgba(5,10,68,0.92)',
+                marginBottom: '12px',
+              }}
+              autoFocus
+            />
+            <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filteredAssets.length === 0 && (
+                <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)', textAlign: 'center', padding: '20px 0', margin: 0 }}>
+                  No assets match your search.
+                </p>
+              )}
+              {filteredAssets.map((asset) => {
+                const isSelected = selectedAssetId === asset.id
                 return (
                   <button
-                    key={ind.id}
+                    key={asset.id}
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
-                    onClick={() => setSelectedIndication(ind.id)}
+                    onClick={() => setSelectedAssetId(asset.id)}
                     style={{
                       textAlign: 'left',
                       border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
@@ -212,69 +265,109 @@ export default function OnboardingModal() {
                       fontFamily: 'inherit',
                     }}
                   >
-                    <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'rgba(5,10,68,0.92)' }}>
-                      {ind.label}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+                        {asset.brandName}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.50)', fontStyle: 'italic' }}>
+                        {asset.innName}
+                      </p>
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
+                      {asset.indicationFull}
                     </p>
                   </button>
                 )
               })}
             </div>
+
+            {/* Indication confirmation — collapses the old TA step */}
+            {selectedAsset && (
+              <div style={{
+                marginTop: '14px',
+                padding: '10px 14px',
+                background: 'rgba(5,10,68,0.04)',
+                borderRadius: '8px',
+                border: '1px solid rgba(5,10,68,0.08)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+              }}>
+                <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.50)' }}>Indication</span>
+                <span style={{ fontSize: '13px', color: 'rgba(5,10,68,0.80)', fontWeight: 600 }}>
+                  {selectedAsset.indicationFull}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Step 3: Asset name ── */}
+        {/* ── Step 3: Competitor confirmation ── */}
         {step === 3 && (
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.65)', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Asset / brand name
-            </label>
-            <input
-              type="text"
-              value={assetNameInput}
-              onChange={(e) => setAssetNameInput(e.target.value)}
-              placeholder={DEMO.assetName}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                border: '1.5px solid rgba(5,10,68,0.20)', borderRadius: '10px',
-                padding: '13px 14px', fontSize: '16px', fontFamily: 'inherit',
-                outline: 'none', color: 'rgba(5,10,68,0.92)',
-              }}
-              autoFocus
-            />
-            <p style={{ margin: '10px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.50)' }}>
-              This will appear in your War Room and signal summaries.
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {selectableCompetitors.map((competitor) => {
+                const isSelected = selectedCompetitorIds.includes(competitor.id)
+                return (
+                  <button
+                    key={competitor.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => toggleCompetitor(competitor.id)}
+                    style={{
+                      border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.15)',
+                      borderRadius: '20px',
+                      padding: '8px 16px',
+                      background: isSelected ? '#050A44' : '#FFFFFF',
+                      color: isSelected ? '#FFFFFF' : 'rgba(5,10,68,0.70)',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: isSelected ? 600 : 400,
+                      fontFamily: 'inherit',
+                      transition: 'background 150ms ease, color 150ms ease, border-color 150ms ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {competitor.name}
+                  </button>
+                )
+              })}
+            </div>
+            <p style={{ margin: '14px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.50)', minHeight: '18px' }}>
+              {selectedCompetitorIds.length === 0
+                ? 'Select at least one competitor to populate your War Room.'
+                : `${selectedCompetitorIds.length} competitor${selectedCompetitorIds.length !== 1 ? 's' : ''} selected — you can adjust these any time.`}
             </p>
           </div>
         )}
 
-        {/* ── Navigation buttons ── */}
+        {/* ── Navigation ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {step < 3 ? (
             <button
               onClick={handleNext}
-              disabled={step === 1 && !selectedRole}
+              disabled={nextDisabled}
               style={{
                 width: '100%',
-                background: (step === 1 && !selectedRole) ? 'rgba(5,10,68,0.20)' : '#050A44',
+                background: nextDisabled ? 'rgba(5,10,68,0.20)' : '#050A44',
                 color: '#FFFFFF', border: 'none', borderRadius: '10px',
                 padding: '14px', fontSize: '15px', fontWeight: 600,
-                cursor: (step === 1 && !selectedRole) ? 'not-allowed' : 'pointer',
+                cursor: nextDisabled ? 'not-allowed' : 'pointer',
                 letterSpacing: '-0.01em', fontFamily: 'inherit',
                 transition: 'background 150ms ease',
               }}
             >
-              {step === 1
-                ? (selectedRole ? 'Next →' : 'Select a role to continue')
-                : 'Next →'}
+              {nextLabel}
             </button>
           ) : (
             <button
               onClick={handleStartTour}
+              disabled={selectedCompetitorIds.length === 0}
               style={{
-                width: '100%', background: '#050A44',
+                width: '100%',
+                background: selectedCompetitorIds.length === 0 ? 'rgba(5,10,68,0.20)' : '#050A44',
                 color: '#FFFFFF', border: 'none', borderRadius: '10px',
                 padding: '14px', fontSize: '15px', fontWeight: 600,
-                cursor: 'pointer', letterSpacing: '-0.01em', fontFamily: 'inherit',
+                cursor: selectedCompetitorIds.length === 0 ? 'not-allowed' : 'pointer',
+                letterSpacing: '-0.01em', fontFamily: 'inherit',
                 transition: 'background 150ms ease',
               }}
             >

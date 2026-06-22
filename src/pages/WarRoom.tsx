@@ -9,7 +9,7 @@
  * Data from src/data/kalvista.ts. lucide-react icons only.
  */
 
-import { useState, type ReactNode, type CSSProperties } from 'react'
+import { useState, useMemo, type ReactNode, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -64,7 +64,7 @@ function isCLevelChange(text: string): boolean {
 // Body-text CRITICAL classification requires co-occurrence with a HAE lexicon term in
 // the same sentence — prevents Phase 3 safety trials (testing adverse events) from
 // matching /phase 3.*result/ and being rated CRITICAL when they shouldn't be.
-function criticalCoOccursWithHAE(text: string, lexicon: typeof HAE_LEXICON): boolean {
+function criticalCoOccursWithHAE(text: string, lexicon: Lexicon): boolean {
   // Match forward ("Phase 3 results") AND reverse ("results from the Phase 3 trial")
   const CRITICAL_BODY_RE = /phase\s*[23].*result|result.*phase\s*[23]|pivotal.*result|topline.*result|primary endpoint|phase\s*[23].*data/i
   const sentences = text.split(/(?<=[.!?])\s+/)
@@ -82,22 +82,10 @@ function isSignalReadable(s: DbRecentSignal): boolean {
   return cleanSignalText(s) !== SIGNAL_FALLBACK
 }
 
-// ── HAE relevance gate ────────────────────────────────────────────────────────
-// Signals that mention none of these terms are not HAE-related and are
-// filtered at display time only — never deleted from the DB.
-const HAE_LEXICON = {
-  inns: [
-    'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
-    'lonvoguran', 'ziclumeran', 'donidalorsen', 'deucrictibant',
-    'lanadelumab', 'icatibant', 'mezagitamab', 'sebetralstat',
-    'orladeyo', 'takhzyro', 'firazyr', 'dawnzera', 'andembry',
-  ],
-  ta_terms: [
-    'hae', 'hereditary angioedema', 'angioedema', 'bradykinin',
-    'kallikrein', 'c1 inhibitor', 'c1-inh', 'plasma kallikrein',
-    'factor xii', 'contact pathway', 'haelo',
-  ],
-}
+// ── Relevance gate ────────────────────────────────────────────────────────────
+// Derived at runtime from the user's asset config via useConfig() / assets-config.ts.
+// Passed explicitly to all gate functions below — no module-level constant.
+type Lexicon = { inns: string[]; ta_terms: string[] }
 
 // Tags that indicate an asset is in HAE development (matches indication_tags column)
 const HAE_TAG_TERMS = ['hereditary angioedema', 'hae']
@@ -108,13 +96,13 @@ const ALLOWED_EMA_EVENT_TYPES = new Set(['CHMP', 'PRAC', 'OTHER'])
 
 // Gate 2 — HAE entity match for OTHER events; CHMP/PRAC plenary sessions always
 // pass as scheduling signals (their titles never name individual drugs).
-function isRelevantEMAEvent(e: DbRegulatoryCalendarEvent): boolean {
+function isRelevantEMAEvent(e: DbRegulatoryCalendarEvent, lexicon: Lexicon): boolean {
   if (!ALLOWED_EMA_EVENT_TYPES.has(e.event_type)) return false
   if (e.event_type === 'CHMP' || e.event_type === 'PRAC') return true
   const title = (e.title ?? '').toLowerCase()
   return (
-    HAE_LEXICON.inns.some(term => title.includes(term.toLowerCase())) ||
-    HAE_LEXICON.ta_terms.some(term => title.includes(term.toLowerCase()))
+    lexicon.inns.some(term => title.includes(term.toLowerCase())) ||
+    lexicon.ta_terms.some(term => title.includes(term.toLowerCase()))
   )
 }
 
@@ -127,7 +115,7 @@ function countHAEAssets(assets: DbAsset[], competitorId: string): number {
   ).length
 }
 
-function isRelevant(s: DbRecentSignal, lexicon: typeof HAE_LEXICON): boolean {
+function isRelevant(s: DbRecentSignal, lexicon: Lexicon): boolean {
   const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
   return (
     lexicon.inns.some(term => text.includes(term.toLowerCase())) ||
@@ -135,7 +123,7 @@ function isRelevant(s: DbRecentSignal, lexicon: typeof HAE_LEXICON): boolean {
   )
 }
 
-function computeSeverity(s: DbRecentSignal, lexicon: typeof HAE_LEXICON, today: Date): 'high' | 'medium' | 'low' {
+function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'high' | 'medium' | 'low' {
   // Step 1: Non-relevant signals cap at 'low'
   if (!isRelevant(s, lexicon)) return 'low'
 
@@ -335,7 +323,7 @@ function buildSignalHeadline(s: DbRecentSignal): string {
 }
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea): LiveSignalDisplayItem {
+function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
   const TYPE_MAP: Record<string, string> = {
     deal:          'deal',
     press_release: 'publication',
@@ -348,7 +336,7 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     timestamp:    s.date ? `${s.date}T00:00:00Z` : new Date().toISOString(),
     competitorId: s.competitor_id,
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
-    severity:     computeSeverity(s, HAE_LEXICON, new Date()),
+    severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildSignalHeadline(s),
     whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
     source:       buildSourceLabel(s.source_url, s.signal_type),
@@ -357,7 +345,7 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
   }
 }
 
-function mapCalendarEventToItem(e: DbRegulatoryCalendarEvent): MergedEventItem {
+function mapCalendarEventToItem(e: DbRegulatoryCalendarEvent, lexicon: Lexicon): MergedEventItem {
   // Factual annotation derived from gate result — no blanket "may shape the timeline" text
   let note: string
   if (e.event_type === 'CHMP') {
@@ -368,8 +356,8 @@ function mapCalendarEventToItem(e: DbRegulatoryCalendarEvent): MergedEventItem {
     // OTHER — passed Gate 2, so title contains an HAE term; cite the first match
     const title = (e.title ?? '').toLowerCase()
     const matchedTerm =
-      HAE_LEXICON.inns.find(t => title.includes(t.toLowerCase())) ??
-      HAE_LEXICON.ta_terms.find(t => title.includes(t.toLowerCase())) ??
+      lexicon.inns.find(t => title.includes(t.toLowerCase())) ??
+      lexicon.ta_terms.find(t => title.includes(t.toLowerCase())) ??
       'HAE-related'
     note = `${matchedTerm} · EMA · ${e.start_date ?? ''}`
   }
@@ -634,12 +622,14 @@ function CompactCompetitorCard({
   recentSignals,
   haeAssetCount,
   narration,
+  lexicon,
 }: {
   competitor: Competitor
   liveSignals: DbSignalSummary | null
   recentSignals: DbRecentSignal[]
   haeAssetCount: number
   narration: string | null
+  lexicon: Lexicon
 }) {
   const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
   const pipelineCount = haeAssetCount
@@ -656,8 +646,8 @@ function CompactCompetitorCard({
   // Build signal-type severity label (readable signals for this competitor only)
   const today = new Date()
   const compSignals = recentSignals.filter((s) => s.competitor_id === competitor.id)
-  const highSignals = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'high')
-  const medSignals  = compSignals.filter((s) => computeSeverity(s, HAE_LEXICON, today) === 'medium')
+  const highSignals = compSignals.filter((s) => computeSeverity(s, lexicon, today) === 'high')
+  const medSignals  = compSignals.filter((s) => computeSeverity(s, lexicon, today) === 'medium')
 
   let activityLabel: string
   let activityIsLive: boolean
@@ -847,7 +837,8 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
 // â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function WarRoom() {
   const { unreadCount, readAlerts, openAskModal, watchedCompetitors } = useApp()
-  const { assetName, indication } = useConfig()
+  const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
+  const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const navigate = useNavigate()
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
 
@@ -906,11 +897,11 @@ export default function WarRoom() {
   // like Ionis/olezarsen FCS or bepirovirsen CHB never reach the UI.
   // readableSignals is kept for KPI counts (total signal volume).
   const relevantSignals = readableSignals.filter(
-    s => watchedCompetitors.has(s.competitor_id ?? '') || isRelevant(s, HAE_LEXICON)
+    s => watchedCompetitors.has(s.competitor_id ?? '') || isRelevant(s, lexicon)
   )
 
   // Top 5 alerts — relevant live signals only
-  const liveDisplayItems = relevantSignals.map(s => mapDbSignalToDisplay(s, assetName, indication))
+  const liveDisplayItems = relevantSignals.map(s => mapDbSignalToDisplay(s, assetName, indication, lexicon))
 
   const topAlerts = (liveDisplayItems as unknown as Alert[])
     .sort((a, b) => {
@@ -957,8 +948,8 @@ export default function WarRoom() {
   const nowStr = new Date().toISOString().slice(0, 10)
   const liveEventItems: MergedEventItem[] = calendarEvents
     .filter((e) => e.start_date !== null && (e.start_date as string) >= nowStr)
-    .filter(isRelevantEMAEvent)
-    .map(mapCalendarEventToItem)
+    .filter(e => isRelevantEMAEvent(e, lexicon))
+    .map(e => mapCalendarEventToItem(e, lexicon))
     .filter((e) => !/^\d{1,2}:\d{2}$/.test(e.title ?? ''))
   const liveTitles = new Set(liveEventItems.map((e) => e.title.toLowerCase()))
   const staticEventItems: MergedEventItem[] = (eventsData as unknown as MergedEventItem[])
@@ -990,8 +981,8 @@ export default function WarRoom() {
 
   // Market weather — pressure status weighted by signal severity
   const weatherToday = new Date()
-  const highSigCount = recentLiveSignals.filter((s) => computeSeverity(s, HAE_LEXICON, weatherToday) === 'high').length
-  const medSigCount  = recentLiveSignals.filter((s) => computeSeverity(s, HAE_LEXICON, weatherToday) === 'medium').length
+  const highSigCount = recentLiveSignals.filter((s) => computeSeverity(s, lexicon, weatherToday) === 'high').length
+  const medSigCount  = recentLiveSignals.filter((s) => computeSeverity(s, lexicon, weatherToday) === 'medium').length
   const pressureStatus: keyof typeof WINDOW_STATUS_CONFIG =
     highSigCount >= 2                            ? 'Pressure building'
     : (highSigCount >= 1 || medSigCount >= 3)    ? 'Pressure stable'
@@ -1200,7 +1191,7 @@ export default function WarRoom() {
                 gap: '12px',
               }}>
                 {trackedCompetitors.map((c) => (
-                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} narration={competitorNarrations.get(c.id) ?? null} />
+                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} narration={competitorNarrations.get(c.id) ?? null} lexicon={lexicon} />
                 ))}
               </div>
             ) : (
