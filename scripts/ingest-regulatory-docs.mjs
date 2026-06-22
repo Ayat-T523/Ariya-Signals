@@ -53,30 +53,23 @@ const DOCUMENTS = [
   },
 
   // ── EMA European Public Assessment Reports ────────────────────────────────
-  {
-    url:           'https://www.ema.europa.eu/en/medicines/human/EPAR/andembry',
-    competitorId:  'csl-behring',
-    documentType:  'EMA-EPAR',
-    sourceLabel:   'EMA',
-    datePublished: '2025-02-10',
-    description:   'EMA EPAR: Andembry (garadacimab) — EC authorisation 10 February 2025',
-  },
-  {
-    url:           'https://www.ema.europa.eu/en/medicines/human/EPAR/takhzyro',
-    competitorId:  'takeda',
-    documentType:  'EMA-EPAR',
-    sourceLabel:   'EMA',
-    datePublished: null,
-    description:   'EMA EPAR: Takhzyro (lanadelumab) product information',
-  },
-  {
-    url:           'https://www.ema.europa.eu/en/medicines/human/EPAR/orladeyo',
-    competitorId:  'biocryst',
-    documentType:  'EMA-EPAR',
-    sourceLabel:   'EMA',
-    datePublished: null,
-    description:   'EMA EPAR: Orladeyo (berotralstat) product information',
-  },
+  //
+  // NOTE: The EMA website uses antibot (Drupal Antibot module) that returns HTTP
+  // 404 to headless fetch() clients. Entries that work from a real browser but
+  // fail from this script are noted below. For those drugs, download the EPAR
+  // product-information PDF manually and ingest via ingest-pdf-documents.mjs.
+  //
+  // Andembry: no HTML EPAR product page exists yet on the EMA website.
+  //   Use ingest-pdf-documents.mjs with the locally-downloaded PDF instead.
+  //   PDF: https://www.ema.europa.eu/en/documents/product-information/andembry-epar-product-information_en.pdf
+  //
+  // Takhzyro: HTML page exists (ema.europa.eu/en/medicines/human/EPAR/takhzyro)
+  //   but antibot blocks headless requests. Download the PDF and ingest via
+  //   ingest-pdf-documents.mjs.
+  //   PDF: https://www.ema.europa.eu/en/documents/product-information/takhzyro-epar-product-information_en.pdf
+  //
+  // Orladeyo: same antibot issue as Takhzyro.
+  //   PDF: https://www.ema.europa.eu/en/documents/product-information/orladeyo-epar-product-information_en.pdf
   {
     url:           'https://www.ema.europa.eu/en/medicines/human/EPAR/dawnzera',
     competitorId:  'ionis',

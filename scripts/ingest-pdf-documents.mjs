@@ -7,7 +7,13 @@
  *   1. CSL Limited FY2025 Annual Report (ASX filer — not on SEC EDGAR)
  *      Source: https://investors.csl.com/annualreport/2025/
  *   2. Andembry EMA EPAR Product Information PDF (full SmPC — richer than web page scrape)
- *      Source: https://www.ema.europa.eu/documents/product-information/andembry-epar-product-information_en.pdf
+ *      Source: https://www.ema.europa.eu/en/documents/product-information/andembry-epar-product-information_en.pdf
+ *   3. Takhzyro EMA EPAR Product Information PDF (EMA antibot blocks HTML scrape)
+ *      Download from browser: https://www.ema.europa.eu/en/documents/product-information/takhzyro-epar-product-information_en.pdf
+ *      Save to Downloads as: takhzyro-epar-product-information_en.pdf
+ *   4. Orladeyo EMA EPAR Product Information PDF (EMA antibot blocks HTML scrape)
+ *      Download from browser: https://www.ema.europa.eu/en/documents/product-information/orladeyo-epar-product-information_en.pdf
+ *      Save to Downloads as: orladeyo-epar-product-information_en.pdf
  *
  * Usage: node --env-file=.env.local scripts/ingest-pdf-documents.mjs
  *
@@ -48,11 +54,29 @@ const DOCUMENTS = [
   {
     localPath:    'C:\\Users\\AyatTayebulla\\Downloads\\andembry-epar-product-information_en.pdf',
     competitorId: 'csl-behring',
-    sourceUrl:    'https://www.ema.europa.eu/documents/product-information/andembry-epar-product-information_en.pdf',
+    sourceUrl:    'https://www.ema.europa.eu/en/documents/product-information/andembry-epar-product-information_en.pdf',
     documentType: 'EMA-EPAR',
     sourceLabel:  'EMA',
     datePublished: '2025-02-10',
     description:  'EMA EPAR: Andembry (garadacimab) — full SmPC product information PDF, EC authorisation 10 February 2025',
+  },
+  {
+    localPath:    'C:\\Users\\AyatTayebulla\\Downloads\\takhzyro-epar-product-information_en.pdf',
+    competitorId: 'takeda',
+    sourceUrl:    'https://www.ema.europa.eu/en/documents/product-information/takhzyro-epar-product-information_en.pdf',
+    documentType: 'EMA-EPAR',
+    sourceLabel:  'EMA',
+    datePublished: '2018-11-22',
+    description:  'EMA EPAR: Takhzyro (lanadelumab) — full SmPC product information PDF, EC authorisation 22 November 2018',
+  },
+  {
+    localPath:    'C:\\Users\\AyatTayebulla\\Downloads\\orladeyo-epar-product-information_en.pdf',
+    competitorId: 'biocryst',
+    sourceUrl:    'https://www.ema.europa.eu/en/documents/product-information/orladeyo-epar-product-information_en.pdf',
+    documentType: 'EMA-EPAR',
+    sourceLabel:  'EMA',
+    datePublished: '2021-04-30',
+    description:  'EMA EPAR: Orladeyo (berotralstat) — full SmPC product information PDF, EC authorisation 30 April 2021',
   },
 ]
 
