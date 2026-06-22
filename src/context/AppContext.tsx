@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import alertsData from '../data/alerts.json'
 import { DEMO } from '../config/demo-config'
-import { getAssetById } from '../config/assets-config'
+import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
 
 const AppContext = createContext(null)
 
@@ -38,12 +38,19 @@ export function AppProvider({ children }) {
   })
 
   // ── Onboarding state ─────────────────────────────────────────────────────
-  const [onboardingComplete, setOnboardingComplete] = useState(() => {
-    return localStorage.getItem('onboardingComplete') === 'true'
-  })
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    return localStorage.getItem('onboardingComplete') !== 'true'
-  })
+  // Version stamp: bump this string whenever onboarding content changes so
+  // returning visitors see the updated flow instead of being skipped over.
+  const ONBOARDING_VERSION = 'v4'
+  const onboardingDone = (() => {
+    try {
+      return (
+        localStorage.getItem('onboardingComplete') === 'true' &&
+        localStorage.getItem('onboardingVersion') === ONBOARDING_VERSION
+      )
+    } catch { return false }
+  })()
+  const [onboardingComplete, setOnboardingComplete] = useState(() => onboardingDone)
+  const [showOnboarding, setShowOnboarding] = useState(() => !onboardingDone)
 
   // ── User role ────────────────────────────────────────────────────────────
   const [userRole, setUserRoleState] = useState(() => {
@@ -102,6 +109,7 @@ export function AppProvider({ children }) {
 
   function completeOnboarding(selectedAssets) {
     localStorage.setItem('onboardingComplete', 'true')
+    localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
     localStorage.setItem('trackedAssets', JSON.stringify(selectedAssets))
     setOnboardingComplete(true)
     setShowOnboarding(false)
@@ -126,7 +134,10 @@ export function AppProvider({ children }) {
     setTourActive(false)
     setOnboardingComplete(true)
     setShowOnboarding(false)
-    try { localStorage.setItem('onboardingComplete', 'true') } catch { /* noop */ }
+    try {
+      localStorage.setItem('onboardingComplete', 'true')
+      localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
+    } catch { /* noop */ }
   }
 
   // ── Mobile nav overlay ───────────────────────────────────────────────────
@@ -260,8 +271,8 @@ export function useConfig() {
     indication:           asset?.indication         ?? userIndication ?? DEMO.therapeuticArea,
     indicationFull:       asset?.indicationFull     ?? userIndication ?? DEMO.therapeuticAreaFull,
     suggestedCompetitors: asset?.suggestedCompetitors ?? ['takeda', 'biocryst', 'pharvaris'],
-    lexiconInns:          asset?.lexiconInns        ?? [],
-    lexiconTaTerms:       asset?.lexiconTaTerms     ?? [],
+    lexiconInns:          asset?.lexiconInns        ?? ASSETS_CONFIG[0].lexiconInns,
+    lexiconTaTerms:       asset?.lexiconTaTerms     ?? ASSETS_CONFIG[0].lexiconTaTerms,
     assetGenericName:     asset?.innName            ?? DEMO.assetGenericName,
   }
 }
