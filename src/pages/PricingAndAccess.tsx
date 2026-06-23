@@ -1,7 +1,19 @@
 import pricingData from '../data/pricing.json'
+import { useApp } from '../context/AppContext'
+import { competitorsData } from '../data/kalvista'
 
 export default function PricingAndAccess() {
-  const { markets, rows, unit } = pricingData
+  const { watchedCompetitors } = useApp()
+  const { markets, rows: allRows, unit } = pricingData
+
+  // Strict config scoping: show our asset always; competitor rows only when watched.
+  // Rows key on a company-name string, so map name → competitor id via competitorsData.
+  const companyToId = new Map(
+    (competitorsData as Array<{ id: string; name: string }>).map(c => [c.name, c.id])
+  )
+  const rows = allRows.filter(r =>
+    Boolean((r as any).isOurs) || watchedCompetitors.has(companyToId.get(r.company) ?? '')
+  )
 
   return (
     <div style={{ padding: '20px 36px 36px' }}>

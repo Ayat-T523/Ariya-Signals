@@ -39,7 +39,7 @@ import {
   type DbRecentSignal,
   type DbMarketImplication,
 } from '../lib/db'
-import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK } from '../lib/signalText'
+import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function decodeEntities(str: string): string {
@@ -124,8 +124,10 @@ function isRelevant(s: DbRecentSignal, lexicon: Lexicon): boolean {
 }
 
 function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'high' | 'medium' | 'low' {
-  // Step 1: Non-relevant signals cap at 'low'
-  if (!isRelevant(s, lexicon)) return 'low'
+  if (!isRelevant(s, lexicon)) {
+    // exec_change and deal are strategically important regardless of TA lexicon match
+    return (s.signal_type === 'exec_change' || s.signal_type === 'deal') ? 'medium' : 'low'
+  }
 
   const items = (s.items ?? '').split(',').map(i => i.trim())
   const text  = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
@@ -303,8 +305,6 @@ const WINDOW_STATUS_CONFIG = {
   'Pressure stable':   { bg: 'rgba(245,158,11,0.12)', text: '#92500A', icon: ArrowRight    },
   'Pressure easing':   { bg: 'rgba(16,185,129,0.10)', text: '#065F46', icon: TrendingUp    },
 } as const
-const SEC_8K_ITEM_RE = /Departure of Directors|Appointment of Certain Officers|Election of Directors|Compensatory Arrangements/i
-
 const SOURCE_TYPE_LABEL: Record<string, string> = {
   'official-congress':    'Official Congress',
   'company-ir':           'Company IR',
@@ -312,15 +312,6 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
   'sec-edgar':            'SEC EDGAR',
 }
 
-function buildSignalHeadline(s: DbRecentSignal): string {
-  // SEC 8-K Item 5.02 titles are structural headings, not news — replace with readable version
-  if (s.signal_type === 'exec_change' && SEC_8K_ITEM_RE.test(s.headline ?? '')) {
-    const competitor = competitorById(s.competitor_id)
-    const name = competitor?.name ?? 'This company'
-    return `${name} filed an executive or board change with the SEC.`
-  }
-  return cleanSignalText(s)
-}
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
@@ -337,7 +328,7 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     competitorId: s.competitor_id,
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
-    headline:     buildSignalHeadline(s),
+    headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
     whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
     source:       buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
@@ -665,9 +656,11 @@ function CompactCompetitorCard({
     activityLabel = ''
   }
 
-  // Phase 2C: body text — prefer stored narration; honest empty state when no signals
+  // Phase 2C: body text — prefer stored narration (only when it reads as clean prose);
+  // fall back to a built needle, then an honest empty state when no signals exist.
   const hasSignals = compSignals.length > 0
-  const activityText: string | null = narration ?? (hasSignals ? buildNeedleText(compSignals[0]) : null)
+  const cleanNarration = narration && isReadableProse(narration) ? narration : null
+  const activityText: string | null = cleanNarration ?? (hasSignals ? buildNeedleText(compSignals[0]) : null)
 
   return (
     <Link
@@ -692,14 +685,27 @@ function CompactCompetitorCard({
       </div>
 
       {/* Posture chip */}
-      <span style={{
-        display: 'inline-block', alignSelf: 'flex-start',
-        padding: '2px 10px', borderRadius: '9999px',
-        fontSize: '11px', fontWeight: 600,
-        background: posture.bg, color: posture.text,
-      }}>
-        {competitor.strategicPosture}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{
+          display: 'inline-block',
+          padding: '2px 10px', borderRadius: '9999px',
+          fontSize: '11px', fontWeight: 600,
+          background: posture.bg, color: posture.text,
+        }}>
+          {competitor.strategicPosture}
+        </span>
+        <span
+          title="Hand-authored editorial label — not computed from data"
+          style={{
+            padding: '1px 7px', borderRadius: '9999px',
+            fontSize: '10px', fontWeight: 500,
+            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.40)',
+            cursor: 'help', whiteSpace: 'nowrap',
+          }}
+        >
+          Editorial
+        </span>
+      </div>
 
       {/* Signal summary */}
       {activityIsLive && activityLabel && (
@@ -851,7 +857,7 @@ export default function WarRoom() {
     queryKey: ['war-room-live', watchedIds],
     queryFn: () => Promise.all([
       getAllSignalsSummary(filterIds),  // KPI tiles: watchlist-filtered
-      getRecentSignals(NARRATION_DAYS), // Signal feed: all competitors — ensures the feed is always populated
+      getRecentSignals(NARRATION_DAYS, filterIds), // Signal feed: scoped to watched competitors (strict config scoping)
       getRegulatoryCalendar(),
       getMarketImplications(),
       getAllAssets(),                   // indication_tags for HAE asset count per competitor
@@ -892,12 +898,12 @@ export default function WarRoom() {
 
   // Strip XBRL/accession-prefix boilerplate before anything else touches the feed
   const readableSignals = recentLiveSignals.filter(isSignalReadable)
-  // Relevance gate: watched competitor signals always surface (their excerpts may not mention HAE terms
-  // due to 500-char truncation); non-watched competitors must pass the HAE lexicon check so signals
-  // like Ionis/olezarsen FCS or bepirovirsen CHB never reach the UI.
-  // readableSignals is kept for KPI counts (total signal volume).
+  // Strict config scoping: the feed is fetched watched-only (filterIds), so every signal here
+  // already belongs to a watched competitor. The watched guard is kept as a belt-and-suspenders
+  // boundary; the prior `|| isRelevant(lexicon)` expander is removed because it admitted
+  // non-watched competitors (e.g. Intellia's HAELO signals) that the user never selected.
   const relevantSignals = readableSignals.filter(
-    s => watchedCompetitors.has(s.competitor_id ?? '') || isRelevant(s, lexicon)
+    s => watchedCompetitors.has(s.competitor_id ?? '')
   )
 
   // Top 5 alerts — relevant live signals only
@@ -910,9 +916,7 @@ export default function WarRoom() {
         if (sevDiff !== 0) return sevDiff
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       }
-      const aRead = readAlerts.has(a.id) ? 1 : 0
-      const bRead = readAlerts.has(b.id) ? 1 : 0
-      if (aRead !== bRead) return aRead - bRead
+      // recency: pure most-recent-first
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     })
     .slice(0, 5)
@@ -967,10 +971,7 @@ export default function WarRoom() {
     if (!signalsByCompetitor.has(s.competitor_id)) signalsByCompetitor.set(s.competitor_id, s)
   }
   const liveNeedleItems = [...signalsByCompetitor.values()]
-    .filter((s) => {
-      const h = s.headline ?? ''
-      return h.length > 20 && !/^[a-z]{2,6}-\d{8}/i.test(h) && /[A-Z].*[a-z]{4,}/.test(h)
-    })
+    .filter(isSignalReadable)
     .slice(0, 5)
     .map((s) => ({
       competitorId: s.competitor_id,
@@ -994,7 +995,11 @@ export default function WarRoom() {
   // Weekly digest — top 3 relevant signals from the live feed
   const digestItems = relevantSignals
     .slice(0, 3)
-    .map((s) => ({ competitorId: s.competitor_id, text: cleanSignalText(s) }))
+    .map((s) => ({
+      competitorId: s.competitor_id,
+      text: buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
+    }))
+    .filter(item => item.text !== SIGNAL_FALLBACK)
 
   // Market weather status config
   const statusCfg = WINDOW_STATUS_CONFIG[pressureStatus] ?? WINDOW_STATUS_CONFIG['Pressure stable']

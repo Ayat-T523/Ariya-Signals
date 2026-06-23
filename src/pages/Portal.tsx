@@ -5,7 +5,7 @@ import {
   CalendarDays, FileText, TrendingUp,
   MapPin, Users, ChevronRight, ChevronDown,
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair,
-  FileSearch, ArrowRight, Link2, ExternalLink,
+  FileSearch, ArrowRight, Link2, ExternalLink, Clock,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
@@ -18,7 +18,8 @@ import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
 import { useApp, useConfig } from '../context/AppContext'
-import { getRegulatoryCalendar, getRecentSignals, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
+import { getRegulatoryCalendar, getRecentSignals, getTrialsForCalendarYear, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
+import { trialsToCalendarCells } from '../lib/trialsToGantt'
 
 // ── Reference date ────────────────────────────────────────────────────────────
 const TODAY = new Date()
@@ -104,10 +105,28 @@ function buildCISignificance(event: any, indication: string): string | null {
 
 function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFollowUp: string } | null {
   if (event.type !== 'regulatory') return null
-  if ((event as any)._isLive) return null
+  // Authored ciContext takes priority — fail-safe: only use when both fields present
   const ctx = (event as any).ciContext
-  if (!ctx?.whyRelevant || !ctx?.actionableFollowUp) return null
-  return { whyRelevant: ctx.whyRelevant, actionableFollowUp: ctx.actionableFollowUp }
+  if (ctx?.whyRelevant && ctx?.actionableFollowUp) {
+    return { whyRelevant: ctx.whyRelevant, actionableFollowUp: ctx.actionableFollowUp }
+  }
+  // Live EMA calendar events: template from committee subtype
+  if ((event as any)._isLive) {
+    const sub: string = (event as any)._emaSubtype ?? ''
+    if (sub === 'CHMP') return {
+      whyRelevant: 'CHMP plenaries set the EU regulatory calendar. Decisions here affect HAE competitor approvals, label changes, and opinion renewals.',
+      actionableFollowUp: 'Check EMA post-meeting outcomes for any HAE or angioedema INN mentions. Update competitor regulatory timelines if a new opinion is adopted.',
+    }
+    if (sub === 'PRAC') return {
+      whyRelevant: 'PRAC meetings review post-market safety signals. A safety concern for an HAE competitor could shift prescribing behaviour or trigger label changes.',
+      actionableFollowUp: 'Review PRAC meeting highlights for any HAE-class safety referrals. Flag to medical affairs if a competitor product is under review.',
+    }
+    return {
+      whyRelevant: 'This EMA agenda item references an HAE-relevant term, indicating it may affect competitor products or the treatment landscape.',
+      actionableFollowUp: 'Review the published EMA meeting agenda for full context. Escalate to medical affairs if this relates to a direct competitor product.',
+    }
+  }
+  return null
 }
 
 // ── Event type config ─────────────────────────────────────────────────────────
@@ -262,15 +281,6 @@ function _calCell(e: any): CalCell | null {
     return { lines: _earningsLabels(e.title), v: 'default' }
   if (e.type === 'investor')
     return { lines: ['Investor', 'R&D Day'], v: 'default' }
-  if (e.type === 'milestone' && e.sourceType !== 'illustrative') {
-    const t = e.title as string
-    const lines = /CHAPTER-3/i.test(t) ? ['CHAPTER-3', 'Topline']
-      : /acquisition/i.test(t) ? ['Acquisition', 'Closed']
-      : [t.split(' ').slice(0, 2).join(' ')]
-    return { lines, v: 'blue' }
-  }
-  if (e.type === 'regulatory' && e.sourceType !== 'illustrative')
-    return { lines: ['NDA', 'Filing'], v: 'yellow' }
   return null
 }
 
@@ -332,7 +342,7 @@ function CCell({ cell }: { cell: CalCell | undefined }) {
   )
 }
 
-function KeyCatalystsCalendar({ count }: { count: number }) {
+function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTrialCells: Record<string, Record<number, CalCell>> }) {
   const BG       = 'var(--bg-1)'
   const DIV_H    = '1px solid rgba(5,10,68,0.07)'
   const DIV_V    = '1px solid rgba(5,10,68,0.05)'
@@ -348,7 +358,7 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
           <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
         </div>
         <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
-          Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov
+          Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov (live)
         </p>
       </div>
 
@@ -410,7 +420,7 @@ function KeyCatalystsCalendar({ count }: { count: number }) {
             {CAL_COMPS.map((id, ri) => {
               const comp = competitorsData.find((c) => c.id === id)
               if (!comp) return null
-              const cells = CAL_CELLS[id] || {}
+              const cells: Record<number, CalCell> = { ...(CAL_CELLS[id] || {}), ...(liveTrialCells[id] || {}) }
               const isLast = ri === CAL_COMPS.length - 1
               return (
                 <tr key={id}>
@@ -518,9 +528,9 @@ function KpiDealCard({ deal }) {
 }
 
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
-const TABS = [
+const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: number }) => JSX.Element; disabled?: boolean; disabledLabel?: string }> = [
   { label: 'Events',              icon: CalendarDays },
-  { label: 'Earnings Filings',     icon: FileText     },
+  { label: 'Earnings Filings',    icon: FileText,     disabled: true, disabledLabel: 'Coming soon' },
   { label: 'Market Developments', icon: TrendingUp   },
 ]
 
@@ -533,40 +543,55 @@ function TabBar({ active, onChange }) {
       padding: '0 36px',
       borderBottom: '1px solid #708090',
     }}>
-      {TABS.map(({ label, icon: TabIcon }, i) => {
+      {TABS.map(({ label, icon: TabIcon, disabled, disabledLabel }, i) => {
         const isActive = active === i
         return (
           <button
             key={label}
-            onClick={() => onChange(i)}
+            onClick={disabled ? undefined : () => onChange(i)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               padding: '6px 12px',
               fontSize: '14px', fontWeight: isActive ? 500 : 400,
               fontFamily: 'Satoshi, sans-serif',
-              color: isActive ? '#10224a' : '#434c5b',
+              color: disabled ? 'rgba(112,128,144,0.55)' : isActive ? '#10224a' : '#434c5b',
               background: 'transparent',
               border: 'none',
               borderBottom: isActive ? '4px solid #10224a' : '3px solid transparent',
               marginBottom: '-1px',
-              cursor: 'pointer', whiteSpace: 'nowrap',
+              cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
               transition: 'color 150ms ease, border-color 150ms ease',
+              opacity: disabled ? 0.7 : 1,
             }}
           >
             {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} />}
             {label}
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minWidth: '22px', height: '18px', padding: '0 4px',
-              borderRadius: '4px',
-              background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
-              color: isActive ? '#10224a' : '#434c5b',
-              fontSize: '12px', fontWeight: 500,
-              fontFamily: 'Satoshi, sans-serif',
-              lineHeight: 1,
-            }}>
-              {String(TAB_COUNTS[i]).padStart(2, '0')}
-            </span>
+            {disabledLabel ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                padding: '1px 7px', borderRadius: '9999px',
+                background: 'rgba(112,128,144,0.15)',
+                color: 'rgba(112,128,144,0.70)',
+                fontSize: '10px', fontWeight: 600,
+                fontFamily: 'Satoshi, sans-serif', lineHeight: 1,
+              }}>
+                <Clock size={9} />
+                {disabledLabel}
+              </span>
+            ) : (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: '22px', height: '18px', padding: '0 4px',
+                borderRadius: '4px',
+                background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
+                color: isActive ? '#10224a' : '#434c5b',
+                fontSize: '12px', fontWeight: 500,
+                fontFamily: 'Satoshi, sans-serif',
+                lineHeight: 1,
+              }}>
+                {String(TAB_COUNTS[i]).padStart(2, '0')}
+              </span>
+            )}
           </button>
         )
       })}
@@ -941,7 +966,7 @@ const EVENT_LEFT_BORDER: Record<string, string> = {
   milestone:  '#EF4444',
 }
 
-function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCalendarEvent[] }) {
+function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
   const { watchedCompetitors } = useApp()
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
@@ -967,6 +992,7 @@ function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCal
     attendingCompetitors: [] as string[],
     expectedTopics: [] as string[],
     _isLive: true as const,
+    _emaSubtype: row.event_type,
   }))
 
   const allEvents = [...(eventsData as any[]), ...mappedCalendarEvents]
@@ -1077,7 +1103,7 @@ function EventsTab({ liveCalendarEvents }: { liveCalendarEvents: DbRegulatoryCal
 
       {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
       {showCatalysts && (
-        <KeyCatalystsCalendar count={allEvents.length} />
+        <KeyCatalystsCalendar count={allEvents.length} liveTrialCells={liveTrialCells} />
       )}
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
@@ -1400,69 +1426,68 @@ function ReportDetailPanel({ report }) {
   )
 }
 
-function ReportsTab() {
+function ReportsTab({ liveEarnings }: { liveEarnings: DbRecentSignal[] }) {
   const { watchedCompetitors } = useApp()
-  const [searchParams] = useSearchParams()
-  const competitorFromUrl = searchParams.get('competitor')
-
-  const [competitorFilter, setCompetitorFilter] = useState(
-    () => competitorFromUrl ? new Set([competitorFromUrl]) : new Set(watchedCompetitors)
-  )
-  const [typeFilter, setTypeFilter] = useState(() => new Set())
-
-  useEffect(() => {
-    if (competitorFromUrl) {
-      setCompetitorFilter(new Set([competitorFromUrl]))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [competitorFromUrl])
-
-  const byLabel = (a, b) => a.label.localeCompare(b.label)
-  const competitorOptions = competitorsData.map((c) => ({
-    value: c.id,
-    label: c.name,
-    count: reportsData.filter((r) => r.competitorId === c.id).length,
-  })).sort(byLabel)
-  const typeOptions = ALL_REPORT_TYPES.map((t) => ({
-    value: t,
-    label: REPORT_TYPE[t]?.label ?? (t.charAt(0).toUpperCase() + t.slice(1)),
-    count: reportsData.filter((r) => r.type === t).length,
-  })).sort(byLabel)
-
-  const filtered = reportsData
-    .filter((r) => competitorFilter.size === 0 || competitorFilter.has(r.competitorId))
-    .filter((r) => typeFilter.size === 0 || typeFilter.has(r.type))
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-
+  // Strict config scoping: only watched competitors' earnings signals
+  const earnings = liveEarnings.filter(s => watchedCompetitors.has(s.competitor_id ?? ''))
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* Filter row */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <FilterDropdown
-          label="Competitor"
-          options={competitorOptions}
-          applied={competitorFilter}
-          onApply={setCompetitorFilter}
-        />
-        <FilterDropdown
-          label="Type"
-          options={typeOptions}
-          applied={typeFilter}
-          onApply={setTypeFilter}
-        />
+      {/* Not yet available notice */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '12px',
+        padding: '16px 20px', borderRadius: '12px',
+        background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
+      }}>
+        <Clock size={18} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '1px' }} />
+        <div>
+          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)', fontFamily: 'Satoshi, sans-serif' }}>
+            Synthesized analysis not yet available
+          </p>
+          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.55' }}>
+            Earnings call summaries, investor day notes, and analyst report digests will appear here once they have been reviewed and structured. Raw source documents are linked below where available.
+          </p>
+        </div>
       </div>
 
-      {/* Full-width card list */}
-      {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
-          No reports match the current filters.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {filtered.map((r) => (
-            <ReportListCard key={r.id} report={r} />
-          ))}
+      {/* Live earnings signals — shown if present */}
+      {earnings.length > 0 && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+              Live Earnings Signals
+            </p>
+            <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d' }}>
+              Live
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {earnings.map((s) => (
+              <div key={s.id} style={{
+                background: '#FFFFFF', borderRadius: '10px',
+                border: '1px solid rgba(210,226,255,1)',
+                padding: '12px 14px',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px',
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {s.date && (
+                    <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, color: 'rgba(5,10,68,0.45)' }}>
+                      {formatDateAbs(s.date)}
+                    </p>
+                  )}
+                  <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4' }}>
+                    {decodeEntities(s.headline ?? '')}
+                  </p>
+                </div>
+                {s.source_url && (
+                  <a href={s.source_url} target="_blank" rel="noopener noreferrer"
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                    <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -2137,6 +2162,8 @@ export default function Portal() {
   const loaded = usePageLoad('portal')
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
   const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
+  const [liveEarnings, setLiveEarnings] = useState<DbRecentSignal[]>([])
+  const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -2146,10 +2173,12 @@ export default function Portal() {
   }, [tabFromUrl])
 
   useEffect(() => {
-    Promise.all([getRegulatoryCalendar(), getRecentSignals(365)])
-      .then(([calendar, signals]) => {
+    Promise.all([getRegulatoryCalendar(), getRecentSignals(365), getTrialsForCalendarYear(CAL_COMPS, 2026)])
+      .then(([calendar, signals, calTrials]) => {
         setLiveCalendarEvents(calendar)
         setLiveDeals(signals.filter((s) => s.signal_type === 'deal' && isQualityHeadline(s.headline)))
+        setLiveEarnings(signals.filter((s) => s.signal_type === 'earnings' && isQualityHeadline(s.headline)))
+        setLiveTrialCells(trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>)
       })
       .catch(() => {})
   }, [])
@@ -2171,8 +2200,8 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab /></div>
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab liveEarnings={liveEarnings} /></div>
             <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
           </motion.div>
         )}

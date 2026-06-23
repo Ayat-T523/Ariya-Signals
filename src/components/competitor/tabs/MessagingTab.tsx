@@ -386,33 +386,25 @@ export default function MessagingTab({ competitor }) {
       {/* Ingested primary source documents */}
       <SourceDocsSection docs={sourceDocs} />
 
-      {data && (
-        <>
-          {/* Illustrative banner */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.30)' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: '9999px', fontSize: '11px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', background: 'rgba(245,158,11,0.18)', color: '#92500A', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
-              Illustrative
-            </span>
-            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#92500A', lineHeight: '1.5' }}>
-              Competitor positioning below is illustrative. Real messaging analysis requires systematic review of congress presentations, earnings transcripts, and press releases — none of which has been ingested yet.
-            </p>
-          </div>
-
-          {/* Current core message */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
-                Current positioning
-              </p>
-              <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(245,158,11,0.12)', color: '#92500A' }}>
-                Illustrative
-              </span>
-            </div>
-            <CurrentMessageCard data={data} />
-          </div>
-
-        </>
-      )}
+      {/* Messaging analysis not yet available */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '10px',
+        padding: '14px 16px', borderRadius: '10px',
+        background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
+      }}>
+        <AlertTriangle size={16} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '2px' }} />
+        <div>
+          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)' }}>
+            Messaging data not yet available
+          </p>
+          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.55' }}>
+            Structured messaging analysis requires systematic review of congress presentations, earnings transcripts, and press releases.
+            {sourceDocs.length > 0
+              ? ' Ingested source documents are listed below — review pending.'
+              : ' No source documents have been ingested for this competitor yet.'}
+          </p>
+        </div>
+      </div>
 
     </div>
   )

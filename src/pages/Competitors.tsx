@@ -11,6 +11,7 @@ import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
+import { useApp } from '../context/AppContext'
 
 // ── Threat classification (for KPI count) ────────────────────────────────────
 const HIGH_THREAT_POSTURES = new Set([
@@ -329,8 +330,12 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor
 
 // ── KeyCompetitorTimeline ─────────────────────────────────────────────────────
 function KeyCompetitorTimeline() {
+  const { watchedCompetitors } = useApp()
   const [qw, setQw]              = useState(52)
   const [hiddenComps, setHidden] = useState(new Set<string>())
+
+  // Strict config scoping: only show timeline rows for watched competitors
+  const watchedTimelineRows = TIMELINE_ROWS.filter(r => watchedCompetitors.has(r.competitorId))
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Bump counter on viewport resize so re-render reads the current clientWidth
@@ -341,7 +346,7 @@ function KeyCompetitorTimeline() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  const { rows: liveRows, hasAnyLive } = useEnrichedTimelineRows(TIMELINE_ROWS)
+  const { rows: liveRows, hasAnyLive } = useEnrichedTimelineRows(watchedTimelineRows)
 
   // Read clientWidth directly from ref (populated after first mount)
   // At Y zoom expand to fill container; Q/M keep their fixed values
@@ -357,7 +362,7 @@ function KeyCompetitorTimeline() {
     ? liveRows
     : liveRows.filter(r => !hiddenComps.has(r.competitorId))
 
-  const uniqueCompIds = [...new Set(TIMELINE_ROWS.map(r => r.competitorId))]
+  const uniqueCompIds = [...new Set(watchedTimelineRows.map(r => r.competitorId))]
 
   function toggleComp(id: string) {
     setHidden(prev => {
@@ -384,7 +389,7 @@ function KeyCompetitorTimeline() {
           fontSize: '11px', fontWeight: 600, padding: '2px 8px',
           borderRadius: '9999px', background: 'rgba(42,118,244,0.10)', color: '#0055BB',
         }}>
-          {visibleRows.length} of {TIMELINE_ROWS.length} programs
+          {visibleRows.length} of {watchedTimelineRows.length} programs
         </span>
         {hasAnyLive && (
           <span style={{
@@ -687,6 +692,7 @@ function KeyCompetitorTimeline() {
 const HAE_TAG_TERMS_COMP = ['hereditary angioedema', 'hae']
 
 export default function Competitors() {
+  const { watchedCompetitors } = useApp()
   const [filter, setFilter]           = useState('all')
   const [showTimeline, setShowTimeline] = useState(false)
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
@@ -709,6 +715,7 @@ export default function Competitors() {
   }, [])
 
   const filtered = competitors.filter(c => {
+    if (!watchedCompetitors.has(c.id)) return false
     if (filter === 'hae-acute')       return isHaeAcute(c)
     if (filter === 'hae-prophylaxis') return isHaeProphylaxis(c)
     return true

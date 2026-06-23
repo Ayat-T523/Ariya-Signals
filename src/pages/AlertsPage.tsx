@@ -554,7 +554,7 @@ function GroupedView({ filteredAlerts }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AlertsPage() {
-  const { readAlerts, markAllRead } = useApp()
+  const { readAlerts, markAllRead, watchedCompetitors } = useApp()
   const loaded = usePageLoad('alerts')
 
   // Filter state — multi-select Sets backing the dropdowns
@@ -581,8 +581,13 @@ export default function AlertsPage() {
     try { localStorage.setItem('alertsView', mode) } catch { /* noop */ }
   }
 
+  // Pre-filter by watchlist (graceful: show all if not yet configured)
+  const baseAlerts = watchedCompetitors.size > 0
+    ? alertsData.filter((a) => watchedCompetitors.has(a.competitorId))
+    : alertsData
+
   // Sort: Importance = severity desc then recency; Recency = unread first then recency
-  const sorted = [...alertsData].sort((a, b) => {
+  const sorted = [...baseAlerts].sort((a, b) => {
     if (sortMode === 'importance') {
       const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
       if (sevDiff !== 0) return sevDiff
@@ -604,24 +609,24 @@ export default function AlertsPage() {
     return true
   })
 
-  const unreadCount = alertsData.filter((a) => !readAlerts.has(a.id)).length
+  const unreadCount = baseAlerts.filter((a) => !readAlerts.has(a.id)).length
 
-  // Option lists for each dropdown (with per-option signal counts, alphabetically sorted)
+  // Option lists for each dropdown (counts reflect watchlist-scoped base)
   const byLabel = (a, b) => a.label.localeCompare(b.label)
   const competitorOptions = competitorsData.map((c) => ({
     value: c.id,
     label: c.name,
-    count: alertsData.filter((a) => a.competitorId === c.id).length,
+    count: baseAlerts.filter((a) => a.competitorId === c.id).length,
   })).sort(byLabel)
   const typeOptions = ALL_TYPES.map((t) => ({
     value: t,
     label: TYPE_CONFIG[t]?.label ?? (t.charAt(0).toUpperCase() + t.slice(1)),
-    count: alertsData.filter((a) => a.type === t).length,
+    count: baseAlerts.filter((a) => a.type === t).length,
   })).sort(byLabel)
   const sourceOptions = ALL_SOURCES.map((s) => ({
     value: s,
     label: s,
-    count: alertsData.filter((a) => a.source === s).length,
+    count: baseAlerts.filter((a) => a.source === s).length,
   })).sort(byLabel)
 
   function resetFilters() {
@@ -642,7 +647,7 @@ export default function AlertsPage() {
 
       {/* Description */}
       <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
-        {alertsData.length} signals tracked · {unreadCount} unread
+        {baseAlerts.length} signals tracked · {unreadCount} unread
       </p>
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
@@ -661,7 +666,7 @@ export default function AlertsPage() {
             label="All signals"
             active={!hasActiveFilter}
             onClick={resetFilters}
-            count={alertsData.length}
+            count={baseAlerts.length}
           />
           <Chip
             label="Unread"
@@ -724,7 +729,7 @@ export default function AlertsPage() {
       </div>
 
       {/* ── Loading skeleton ────────────────────────────────────────────────── */}
-      {!loaded && <SkeletonAlertList count={alertsData.length} />}
+      {!loaded && <SkeletonAlertList count={baseAlerts.length} />}
 
       {/* ── List view ───────────────────────────────────────────────────────── */}
       {loaded && viewMode === 'list' && (

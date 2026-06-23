@@ -46,7 +46,7 @@ const REPORT_COUNT             = 13
 const MARKET_DEV_COUNT         = 23
 const COMPETITOR_COUNT         = 8
 
-function getPageSubtitle(pathname: string, assetName: string, indication: string): string | null {
+function getPageSubtitle(pathname: string, assetName: string, indication: string, watchedCount: number): string | null {
   if (pathname === '/') {
     return `${assetName} · ${indication} · ${TRACKED_COMPETITOR_COUNT} tracked competitors · ${SIGNAL_COUNT} signals on file`
   }
@@ -54,7 +54,7 @@ function getPageSubtitle(pathname: string, assetName: string, indication: string
     return `${UPCOMING_EVENT_COUNT} upcoming events · ${REPORT_COUNT} reports · ${MARKET_DEV_COUNT} market developments`
   }
   if (pathname === '/competitors') {
-    return `${COMPETITOR_COUNT} competitors tracked · ${indication} therapeutic area`
+    return `${watchedCount} competitor${watchedCount !== 1 ? 's' : ''} tracked · ${indication} therapeutic area`
   }
   return null
 }
@@ -90,7 +90,7 @@ function AskAriyaButton({ onClick }: { onClick: () => void }) {
 export default function TopBar() {
   const location  = useLocation()
   const navigate  = useNavigate()
-  const { openMobileNav } = useApp()
+  const { openMobileNav, watchedCompetitors } = useApp()
   const { assetName, indication } = useConfig()
   const pageTitle = getPageTitle(location.pathname)
 
@@ -115,7 +115,7 @@ export default function TopBar() {
   // My Space is a settings/config screen — Ask Ariya not needed there
   const isMySpacePage = location.pathname === '/myspace'
 
-  const pageSubtitle = getPageSubtitle(location.pathname, assetName, indication)
+  const pageSubtitle = getPageSubtitle(location.pathname, assetName, indication, watchedCompetitors.size)
 
   return (
     <div style={{ background: 'var(--bg-1)', flexShrink: 0 }}>

@@ -1,40 +1,10 @@
 import { useEffect, useState } from 'react'
 import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getDocumentsByCompetitorId, findAssetByCode } from '../lib/db'
-import { cleanSignalText, isReadableProse } from '../lib/signalText'
+import { cleanSignalText, buildReadableHeadline, SIGNAL_FALLBACK } from '../lib/signalText'
+import { isoToYQ, trialPhaseToKey, GANTT_SKIP_STATUSES } from '../lib/trialsToGantt'
 
 // HAE indication tags used to filter trials and assets to the user's TA.
-// Phase J3 note: will be replaced with AppContext.trackedTherapeuticArea once
-// indication-agnostic onboarding is wired in.
 const INDICATION_TAGS = ['hereditary angioedema', 'HAE']
-
-// ── Gantt helpers (A7) ───────────────────────────────────────────────────────
-
-// Convert an ISO date string (YYYY-MM-DD or YYYY-MM) to { y, q }
-function isoToYQ(iso: string | null | undefined): { y: number; q: number } | null {
-  if (!iso) return null
-  const normalized = iso.length === 7 ? iso + '-01' : iso
-  const d = new Date(normalized)
-  if (isNaN(d.getTime())) return null
-  return { y: d.getFullYear(), q: Math.ceil((d.getMonth() + 1) / 3) }
-}
-
-// Map a ClinicalTrials.gov phase string to a Gantt phase key.
-// CT.gov encodes phase as a single string: "PHASE1", "PHASE2", "PHASE3", or
-// "PHASE1_PHASE2" / "PHASE2_PHASE3" for combined-phase trials.
-// This is LOSSY: a PHASE1_PHASE2 trial maps to 'phase2' (highest phase wins).
-// Rationale: the Gantt bar colour represents competitive maturity — showing the
-// highest phase a trial has reached is more conservative than showing the lowest.
-// Anyone reading "Phase 2" for a Phase 1/2 trial is seeing the correct ceiling.
-function trialPhaseToKey(phase: string | null): 'phase1' | 'phase2' | 'phase3' {
-  const p = (phase ?? '').replace(/\s/g, '').toUpperCase()
-  if (p.includes('3') || p.includes('III')) return 'phase3'
-  if (p.includes('2') || p.includes('II'))  return 'phase2'
-  return 'phase1'
-}
-
-const GANTT_SKIP_STATUSES = new Set([
-  'WITHDRAWN', 'TERMINATED', 'UNKNOWN_STATUS', 'WITHHELD',
-])
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -378,20 +348,19 @@ export function useCompetitorSupabase(competitor: any) {
 
       const liveHiring = signals
         .filter((s: any) => s.signal_type === 'exec_change')
-        .slice(0, 5)
         .map((s: any) => ({
           date:      s.date,
-          headline:  cleanSignalText(s),
+          headline:  buildReadableHeadline(s, competitor.name),
           _live:     true,
           sourceUrl: s.source_url,
         }))
+        .filter((h: any) => h.headline !== SIGNAL_FALLBACK)
+        .slice(0, 5)
 
       const recentPersonnelChanges = liveHiring
 
       const recentPressReleases = signals
         .filter((s: any) => s.signal_type === 'press_release')
-        .filter((s: any) => isReadableProse((s.headline ?? '').trim()) || isReadableProse((s.body_excerpt ?? '').trim()))
-        .slice(0, 5)
         .map((s: any) => ({
           date:             s.date,
           headline:         cleanSignalText(s),
@@ -399,6 +368,8 @@ export function useCompetitorSupabase(competitor: any) {
           sourceUrl:        s.source_url,
           accession_number: s.accession_number ?? null,
         }))
+        .filter((p: any) => p.headline !== SIGNAL_FALLBACK)
+        .slice(0, 5)
 
       // Merge live signals with stub data (live first)
       const mergedDeals   = [...liveDeals,   ...(competitor.strategicSignals?.deals  ?? [])]

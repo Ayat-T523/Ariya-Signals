@@ -4,6 +4,7 @@ import { analytics } from '../lib/analytics'
 import alertsData from '../data/alerts.json'
 import { DEMO } from '../config/demo-config'
 import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
+import { getLexiconByInn } from '../lib/db'
 
 const AppContext = createContext(null)
 
@@ -96,6 +97,41 @@ export function AppProvider({ children }) {
     if (val) localStorage.setItem('ariya-user-asset-id', val)
     else localStorage.removeItem('ariya-user-asset-id')
   }
+
+  // ── Live lexiconInns from asset_lexicon ───────────────────────────────────
+  // Initialised from localStorage so the value survives page refresh without a
+  // Supabase round-trip. Re-fetched whenever the tracked asset changes.
+  const [liveLexiconInns, setLiveLexiconInns] = useState<string[] | null>(() => {
+    try {
+      const stored = localStorage.getItem('trackedAssets')
+      if (!stored) return null
+      const parsed = JSON.parse(stored)
+      return Array.isArray(parsed.lexiconInns) ? parsed.lexiconInns : null
+    } catch { return null }
+  })
+
+  useEffect(() => {
+    if (!userAssetId) return
+    const asset = getAssetById(userAssetId)
+    if (!asset) return
+
+    getLexiconByInn(asset.innName)
+      .then(synonyms => {
+        if (!synonyms || synonyms.length === 0) {
+          console.warn(`[AppContext] asset_lexicon: no row for "${asset.innName}" — using hardcoded lexiconInns`)
+          return
+        }
+        setLiveLexiconInns(synonyms)
+        try {
+          const stored = localStorage.getItem('trackedAssets')
+          const parsed = stored ? JSON.parse(stored) : {}
+          localStorage.setItem('trackedAssets', JSON.stringify({ ...parsed, lexiconInns: synonyms }))
+        } catch { /* noop */ }
+      })
+      .catch(err => {
+        console.warn('[AppContext] asset_lexicon fetch failed:', err)
+      })
+  }, [userAssetId])
 
   useEffect(() => { analytics.identify(userRole) }, [userRole])
 
@@ -241,6 +277,7 @@ export function AppProvider({ children }) {
         setUserAssetName,
         userAssetId,
         setUserAssetId,
+        liveLexiconInns,
         resetWatchedCompetitors,
       }}
     >
@@ -263,16 +300,16 @@ export function useApp() {
  * wiring is deferred to 1-WIRE (backbone Phase 5).
  */
 export function useConfig() {
-  const { userIndication, userAssetName, userAssetId } = useApp()
+  const { userIndication, userAssetName, userAssetId, liveLexiconInns } = useApp()
   const asset = userAssetId ? getAssetById(userAssetId) : undefined
   return {
-    assetName:            asset?.brandName         ?? userAssetName  ?? DEMO.assetName,
-    innName:              asset?.innName            ?? DEMO.assetGenericName,
-    indication:           asset?.indication         ?? userIndication ?? DEMO.therapeuticArea,
-    indicationFull:       asset?.indicationFull     ?? userIndication ?? DEMO.therapeuticAreaFull,
-    suggestedCompetitors: asset?.suggestedCompetitors ?? ['takeda', 'biocryst', 'pharvaris'],
-    lexiconInns:          asset?.lexiconInns        ?? ASSETS_CONFIG[0].lexiconInns,
-    lexiconTaTerms:       asset?.lexiconTaTerms     ?? ASSETS_CONFIG[0].lexiconTaTerms,
-    assetGenericName:     asset?.innName            ?? DEMO.assetGenericName,
+    assetName:            asset?.brandName            ?? userAssetName  ?? DEMO.assetName,
+    innName:              asset?.innName               ?? DEMO.assetGenericName,
+    indication:           asset?.indication            ?? userIndication ?? DEMO.therapeuticArea,
+    indicationFull:       asset?.indicationFull        ?? userIndication ?? DEMO.therapeuticAreaFull,
+    suggestedCompetitors: asset?.suggestedCompetitors  ?? ['takeda', 'biocryst', 'pharvaris'],
+    lexiconInns:          liveLexiconInns ?? asset?.lexiconInns ?? ASSETS_CONFIG[0].lexiconInns,
+    lexiconTaTerms:       asset?.lexiconTaTerms        ?? ASSETS_CONFIG[0].lexiconTaTerms,
+    assetGenericName:     asset?.innName               ?? DEMO.assetGenericName,
   }
 }

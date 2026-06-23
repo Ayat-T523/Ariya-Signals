@@ -289,6 +289,21 @@ export async function getDocumentsByCompetitorId(competitorId: string): Promise<
   return data ?? []
 }
 
+export async function getTrialsForCalendarYear(
+  competitorIds: string[],
+  year: number,
+): Promise<DbTrial[]> {
+  if (!supabase || !competitorIds.length) return []
+  const { data } = await supabase
+    .from('trials')
+    .select('id, nct_id, asset_id, company_id, title, phase, status, start_date, completion_date')
+    .in('company_id', competitorIds)
+    .gte('start_date', `${year}-01-01`)
+    .lt('start_date', `${year + 1}-01-01`)
+    .order('start_date', { ascending: true })
+  return data ?? []
+}
+
 // ── Lookup helpers ────────────────────────────────────────────────────────────
 
 // Find a Supabase asset by matching against its INN or any synonym.
@@ -299,4 +314,15 @@ export function findAssetByCode(code: string, assets: DbAsset[]): DbAsset | unde
     a.inn === q ||
     a.synonyms?.some(s => s.toLowerCase() === q)
   )
+}
+
+// Returns the synonyms array from asset_lexicon for the given INN, or null if not found.
+export async function getLexiconByInn(inn: string): Promise<string[] | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('asset_lexicon')
+    .select('synonyms')
+    .eq('inn', inn.toLowerCase())
+    .maybeSingle()
+  return (data as { synonyms: string[] } | null)?.synonyms ?? null
 }

@@ -1,0 +1,23 @@
+# Supabase local dev config — generated for iteration-5
+# Docs: https://supabase.com/docs/guides/cli/config
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[functions.ingest-fda-labels]
+verify_jwt = false
+# Schedule: 0 2 * * 0  (02:00 UTC every Sunday)
+# Production cron is registered via pg_cron — see supabase/seeds/cron_fda_labels.sql
+
+[functions.ingest-ir-rss]
+verify_jwt = false
+# Schedule: 0 7 * * *  (07:00 UTC daily)
+# Production cron is registered via pg_cron — see supabase/seeds/cron_ir_rss.sql
