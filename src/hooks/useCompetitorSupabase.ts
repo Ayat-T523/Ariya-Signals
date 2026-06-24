@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getDocumentsByCompetitorId, findAssetByCode } from '../lib/db'
+import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getHtaSignalsByCompetitorId, getDocumentsByCompetitorId, findAssetByCode } from '../lib/db'
 import { cleanSignalText, buildReadableHeadline, SIGNAL_FALLBACK } from '../lib/signalText'
 import { isoToYQ, trialPhaseToKey, GANTT_SKIP_STATUSES } from '../lib/trialsToGantt'
 
@@ -181,7 +181,7 @@ export function useCompetitorSupabase(competitor: any) {
       }
 
       const assetIds = [...matchedAssets.keys()]
-      const [trials, indicationTrials, regEvents, financials, signals, calendarEvents, documents] = await Promise.all([
+      const [trials, indicationTrials, regEvents, financials, signals, htaSignals, calendarEvents, documents] = await Promise.all([
         getTrialsByAssetIds(assetIds),
         // Phase 2.5: supplementary path — catches trials for assets matched via indication_tags
         // rather than stub pipeline code lookup. Deduped by NCT ID below.
@@ -189,6 +189,7 @@ export function useCompetitorSupabase(competitor: any) {
         getRegulatoryEventsByAssetIds(assetIds),
         getFinancialsByCompetitorId(competitor.id),
         getSignalsByCompetitorId(competitor.id),
+        getHtaSignalsByCompetitorId(competitor.id),
         getRegulatoryCalendar(),
         getDocumentsByCompetitorId(competitor.id),
       ])
@@ -323,12 +324,27 @@ export function useCompetitorSupabase(competitor: any) {
           sourceUrl: e.source_url ?? undefined,
         }))
 
-      const existingHeadlines = new Set([...approvalEvents, ...emaEvents].map(e => e.headline.toLowerCase()))
+      // ── HTA decisions (NICE) → regulatory key events ──────────────────────
+      // hta_decision signals carry no date filter (getSignalsByCompetitorId), so
+      // historical TA decisions (e.g. TA738 / 2021) surface here even though they
+      // fall outside the War Room's 90-day "recent" window.
+      const liveHtaEvents = htaSignals
+        .map((s: any) => ({
+          date:      s.date ?? '',
+          type:      'regulatory',
+          source:    'NICE',
+          headline:  buildReadableHeadline(s, competitor.name),
+          summary:   s.body_excerpt ?? '',
+          _live:     true,
+          sourceUrl: s.source_url ?? undefined,
+        }))
+
+      const existingHeadlines = new Set([...approvalEvents, ...emaEvents, ...liveHtaEvents].map(e => e.headline.toLowerCase()))
       const filteredStubEvents = (competitor.keyEvents ?? []).filter(
         (e: any) => !existingHeadlines.has((e.headline ?? '').toLowerCase())
       )
 
-      const mergedEvents = [...approvalEvents, ...emaEvents, ...filteredStubEvents]
+      const mergedEvents = [...approvalEvents, ...emaEvents, ...liveHtaEvents, ...filteredStubEvents]
       const dataSummary  = buildDataSummary(competitor.name, augPipeline, augProducts, mergedEvents)
 
       // ── Financials from SEC EDGAR ─────────────────────────────────────────

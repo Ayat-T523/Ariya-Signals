@@ -174,6 +174,22 @@ export async function getSignalsByCompetitorId(competitorId: string): Promise<Db
   return data ?? []
 }
 
+// HTA decisions are historical and low-volume (e.g. a 2021 NICE TA). They would be
+// crowded out of getSignalsByCompetitorId's 20-most-recent window by frequent SEC
+// filings, so fetch them on a dedicated signal_type-scoped query that the date-desc
+// limit can't bury.
+export async function getHtaSignalsByCompetitorId(competitorId: string): Promise<DbCompanySignal[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('company_signals')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .eq('competitor_id', competitorId)
+    .eq('signal_type', 'hta_decision')
+    .order('date', { ascending: false })
+    .limit(20)
+  return data ?? []
+}
+
 export interface DbSignalSummary {
   count: number
   latestDate: string | null

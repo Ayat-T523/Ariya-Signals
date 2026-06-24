@@ -870,15 +870,9 @@ export default function WarRoom() {
     refetchInterval: 5 * 60 * 1000,
   })
 
-  // CSL Behring files with ASX (Australian Securities Exchange), not SEC.
-  // No automated live ingest covers ASX — their company_signals rows are manually seeded data.
-  // Exclude at the display layer so re-enabling is a one-line change once live ingest is available.
-  const EXCLUDED_COMPETITOR_IDS = new Set(['csl-behring'])
-
   const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
   const competitorNarrations = liveData?.narrations  ?? new Map<string, string | null>()
   const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
-    .filter(s => !EXCLUDED_COMPETITOR_IDS.has(s.competitor_id ?? ''))
   const calendarEvents     = liveData?.calendar      ?? ([] as DbRegulatoryCalendarEvent[])
   const marketImplications = liveData?.implications  ?? ([] as DbMarketImplication[])
   const allAssets          = liveData?.assets        ?? ([] as DbAsset[])

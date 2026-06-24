@@ -228,6 +228,9 @@ export function buildReadableHeadline(
   if (s.signal_type === 'hta_decision') {
     return s.headline ?? 'HTA decision published'
   }
+  if (s.signal_type === 'congress_abstract') {
+    return s.headline ?? 'Congress abstract published'
+  }
   return cleanSignalText(s)
 }
 

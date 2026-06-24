@@ -12,13 +12,15 @@ import AIButton from '../components/ui/AIButton'
 import PipelineTab from '../components/competitor/tabs/PipelineTab'
 import CompanyTab from '../components/competitor/tabs/CompanyTab'
 import MessagingTab from '../components/competitor/tabs/MessagingTab'
+import KeyEventsTab from '../components/competitor/tabs/KeyEventsTab'
 import competitors from '../data/competitors.json'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { label: 'Pipeline',  id: 'tab-pipeline',  panelId: 'panel-pipeline'  },
-  { label: 'Company',   id: 'tab-company',   panelId: 'panel-company'   },
-  { label: 'Messaging', id: 'tab-messaging', panelId: 'panel-messaging' },
+  { label: 'Pipeline',   id: 'tab-pipeline',  panelId: 'panel-pipeline'  },
+  { label: 'Company',    id: 'tab-company',   panelId: 'panel-company'   },
+  { label: 'Key Events', id: 'tab-events',    panelId: 'panel-events'    },
+  { label: 'Messaging',  id: 'tab-messaging', panelId: 'panel-messaging' },
 ]
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
@@ -175,6 +177,12 @@ export default function CompetitorProfile() {
         <div
           id={TABS[2].panelId} role="tabpanel" aria-labelledby={TABS[2].id} tabIndex={0}
           style={{ display: activeTab === 2 ? 'block' : 'none', outline: 'none' }}
+        >
+          <KeyEventsTab competitor={competitor} />
+        </div>
+        <div
+          id={TABS[3].panelId} role="tabpanel" aria-labelledby={TABS[3].id} tabIndex={0}
+          style={{ display: activeTab === 3 ? 'block' : 'none', outline: 'none' }}
         >
           <MessagingTab competitor={competitor} />
         </div>

@@ -21,3 +21,13 @@ verify_jwt = false
 verify_jwt = false
 # Schedule: 0 7 * * *  (07:00 UTC daily)
 # Production cron is registered via pg_cron — see supabase/seeds/cron_ir_rss.sql
+
+[functions.ingest-hta]
+verify_jwt = false
+# Schedule: 0 9 * * 2  (09:00 UTC every Tuesday)
+# Production cron is registered via pg_cron — see supabase/seeds/cron_hta.sql
+
+[functions.ingest-federal-register]
+verify_jwt = false
+# Schedule: 0 8 * * 1  (08:00 UTC every Monday)
+# Production cron is registered via pg_cron — see supabase/seeds/cron_federal_register.sql
