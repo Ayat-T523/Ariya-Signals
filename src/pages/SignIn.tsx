@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { signIn, signUp, signInWithGoogle, signInWithMicrosoft } from '../lib/auth'
+import { signIn, signUp } from '../lib/auth'
+import { Eye, EyeOff } from 'lucide-react'
 
 type Mode = 'sign-in' | 'sign-up'
+
+const INPUT_STYLE: React.CSSProperties = {
+  padding: '11px 14px',
+  fontSize: '14px',
+  fontFamily: 'Satoshi, Inter, sans-serif',
+  border: '1.5px solid #d1d5db',
+  borderRadius: '8px',
+  outline: 'none',
+  background: '#fff',
+  color: '#1a1a2e',
+  width: '100%',
+  boxSizing: 'border-box',
+}
 
 function Field({
   label, type, value, onChange, placeholder, disabled,
@@ -24,22 +38,55 @@ function Field({
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        autoComplete={type === 'password' ? 'current-password' : 'email'}
-        style={{
-          padding: '11px 14px',
-          fontSize: '14px',
-          fontFamily: 'Satoshi, Inter, sans-serif',
-          border: '1.5px solid #d1d5db',
-          borderRadius: '8px',
-          outline: 'none',
-          background: '#fff',
-          color: '#1a1a2e',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
+        autoComplete="email"
+        style={INPUT_STYLE}
         onFocus={e => { e.currentTarget.style.borderColor = '#0A2472' }}
         onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db' }}
       />
+    </div>
+  )
+}
+
+function PasswordField({
+  label, value, onChange, placeholder, disabled, autoComplete,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  disabled?: boolean
+  autoComplete?: string
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <label style={{ fontSize: '12px', fontWeight: 500, color: '#1a1a2e' }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoComplete={autoComplete ?? 'current-password'}
+          style={{ ...INPUT_STYLE, paddingRight: '40px' }}
+          onFocus={e => { e.currentTarget.style.borderColor = '#0A2472' }}
+          onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db' }}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(v => !v)}
+          aria-label={show ? 'Hide password' : 'Show password'}
+          style={{
+            position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '2px', display: 'flex', alignItems: 'center',
+            color: '#9ca3af',
+          }}
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
     </div>
   )
 }
@@ -52,9 +99,6 @@ export default function SignInPage() {
   const [error, setError]       = useState('')
   const [message, setMessage]   = useState('')
   const [loading, setLoading]   = useState(false)
-
-  // SSO buttons are only shown when Supabase is configured
-  const showSSO = !!supabase
 
   function switchMode(next: Mode) {
     setMode(next)
@@ -85,26 +129,6 @@ export default function SignInPage() {
       setError(msg)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleGoogle() {
-    setError('')
-    try {
-      await signInWithGoogle()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Google sign-in unavailable.'
-      setError(msg)
-    }
-  }
-
-  async function handleMicrosoft() {
-    setError('')
-    try {
-      await signInWithMicrosoft()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Microsoft sign-in unavailable.'
-      setError(msg)
     }
   }
 
@@ -175,76 +199,6 @@ export default function SignInPage() {
             {mode === 'sign-in' ? 'Sign in to Ariya' : 'Create your account'}
           </h1>
 
-          {/* ── SSO buttons (hidden when Supabase not configured) ── */}
-          {showSSO && (
-            <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                <button
-                  type="button"
-                  onClick={handleGoogle}
-                  disabled={loading}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    padding: '11px 14px',
-                    border: '1.5px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: '#fff',
-                    color: '#1a1a2e',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    width: '100%',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                  </svg>
-                  Continue with Google
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleMicrosoft}
-                  disabled={loading}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    padding: '11px 14px',
-                    border: '1.5px solid #d1d5db',
-                    borderRadius: '8px',
-                    background: '#fff',
-                    color: '#1a1a2e',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    fontWeight: 500,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    width: '100%',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
-                    <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
-                    <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
-                    <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-                  </svg>
-                  Continue with Microsoft
-                </button>
-              </div>
-
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                margin: '0 0 16px',
-              }}>
-                <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e7eb', margin: 0 }} />
-                <span style={{ fontSize: '12px', color: '#9ca3af', whiteSpace: 'nowrap' }}>or</span>
-                <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #e5e7eb', margin: 0 }} />
-              </div>
-            </>
-          )}
-
           {/* ── Email / password form ── */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <Field
@@ -255,13 +209,13 @@ export default function SignInPage() {
               placeholder="you@example.com"
               disabled={loading}
             />
-            <Field
+            <PasswordField
               label="Password"
-              type="password"
               value={password}
               onChange={setPassword}
               placeholder="Password"
               disabled={loading}
+              autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
             />
 
             {error && (
