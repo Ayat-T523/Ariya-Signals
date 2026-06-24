@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { contentHash, sourceHash } from '../lib/snapshot'
 
 const CTGOV_BASE = 'https://clinicaltrials.gov/api/v2/studies'
 const TIMEOUT_MS = 30_000
@@ -37,6 +38,13 @@ interface CtStudy {
   }
 }
 
+interface Asset {
+  id: string
+  inn: string
+  synonyms: string[] | null
+  competitor_id: string | null
+}
+
 // Fetch all pages for a given intervention query
 async function fetchAllTrials(query: string): Promise<CtStudy[]> {
   const results: CtStudy[] = []
@@ -60,7 +68,7 @@ async function fetchAllTrials(query: string): Promise<CtStudy[]> {
   return results
 }
 
-function parseStudy(study: CtStudy, assetId: string) {
+function parseStudy(study: CtStudy, asset: Asset) {
   const p = study.protocolSection
   const id = p.identificationModule
   const status = p.statusModule
@@ -72,8 +80,8 @@ function parseStudy(study: CtStudy, assetId: string) {
 
   return {
     nct_id: id.nctId,
-    asset_id: assetId,
-    company_id: null,           // populated later when companies table is seeded
+    asset_id: asset.id,
+    company_id: asset.competitor_id,
     title: id.briefTitle ?? null,
     phase: (design.phases ?? []).join(', ') || null,
     status: status.overallStatus,
@@ -86,6 +94,12 @@ function parseStudy(study: CtStudy, assetId: string) {
     raw_json: study,
     last_synced_at: new Date().toISOString(),
   }
+}
+
+// Only hash the fields that represent a meaningful clinical state change.
+// Avoids false-positive signals from CT.gov cosmetic text edits.
+function signalFields(row: ReturnType<typeof parseStudy>) {
+  return { status: row.status, phase: row.phase, completion_date: row.completion_date, title: row.title }
 }
 
 export default async function handler(req: any, res: any) {
@@ -102,10 +116,10 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: e.message })
   }
 
-  // Load all assets — we search CT.gov by INN + every synonym so no trial is missed
+  // Load all assets — competitor_id is needed for signal attribution
   const { data: assets, error: assetsErr } = await supabase
     .from('assets')
-    .select('id, inn, synonyms')
+    .select('id, inn, synonyms, competitor_id')
 
   if (assetsErr) return res.status(500).json({ error: assetsErr.message })
   if (!assets?.length) {
@@ -116,7 +130,7 @@ export default async function handler(req: any, res: any) {
   const rows: ReturnType<typeof parseStudy>[] = []
   const errors: string[] = []
 
-  for (const asset of assets) {
+  for (const asset of assets as Asset[]) {
     // Search by INN + all synonyms (includes research codes like KVD-900, NTLA-2002)
     const queries = [asset.inn, ...(asset.synonyms ?? [])].filter(Boolean)
 
@@ -127,7 +141,7 @@ export default async function handler(req: any, res: any) {
           const nctId = study.protocolSection.identificationModule.nctId
           if (seen.has(nctId)) continue
           seen.add(nctId)
-          rows.push(parseStudy(study, asset.id))
+          rows.push(parseStudy(study, asset))
         }
       } catch (e: any) {
         errors.push(`${asset.inn}/${query}: ${e.message}`)
@@ -135,7 +149,31 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  // Upsert in batches of 50 — keyed on nct_id so re-runs are safe
+  // Load all existing snapshots in one query — avoids N+1 per trial
+  const { data: snaps } = await supabase
+    .from('trial_snapshots')
+    .select('nct_id, content_hash')
+  const snapMap = new Map(
+    (snaps ?? []).map((s: { nct_id: string; content_hash: string }) => [s.nct_id, s.content_hash])
+  )
+
+  // Classify: first-run (no snapshot), unchanged, or changed
+  type ChangedEntry = { row: ReturnType<typeof parseStudy>; newHash: string }
+  const firstRun: ReturnType<typeof parseStudy>[] = []
+  const changed: ChangedEntry[] = []
+
+  for (const row of rows) {
+    const newHash = contentHash(signalFields(row))
+    const oldHash = snapMap.get(row.nct_id)
+    if (oldHash === undefined) {
+      firstRun.push(row)
+    } else if (oldHash !== newHash) {
+      changed.push({ row, newHash })
+    }
+    // oldHash === newHash: unchanged, no action needed
+  }
+
+  // Upsert all trial rows (keep live data fresh regardless of diff result)
   let upserted = 0
   for (let i = 0; i < rows.length; i += 50) {
     const batch = rows.slice(i, i + 50)
@@ -146,10 +184,70 @@ export default async function handler(req: any, res: any) {
     else upserted += batch.length
   }
 
+  // Seed baselines for first-seen trials — no signals emitted on first run
+  if (firstRun.length > 0) {
+    const seedRows = firstRun.map(row => ({
+      nct_id: row.nct_id,
+      content_hash: contentHash(signalFields(row)),
+    }))
+    for (let i = 0; i < seedRows.length; i += 50) {
+      const { error } = await supabase
+        .from('trial_snapshots')
+        .insert(seedRows.slice(i, i + 50))
+      if (error) errors.push(`seed snapshots batch ${i / 50 + 1}: ${error.message}`)
+    }
+  }
+
+  // Emit signals and update snapshots for changed trials
+  const today = new Date().toISOString().slice(0, 10)
+  let signalsWritten = 0
+
+  for (const { row, newHash } of changed) {
+    const competitorId = row.company_id
+    // Compound accession_number so multiple state changes for the same trial
+    // don't collide on the unique(competitor_id, accession_number) constraint
+    const accessionNumber = `${row.nct_id}:${newHash.slice(0, 8)}`
+    const sHash = sourceHash(`${row.nct_id}:${newHash}`)
+
+    // Deduplicate via source_hash — guards against re-runs before snapshot updates
+    const { count } = await supabase
+      .from('company_signals')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_hash', sHash)
+
+    if ((count ?? 0) === 0 && competitorId) {
+      const { error: insertErr } = await supabase.from('company_signals').insert({
+        competitor_id:    competitorId,
+        signal_type:      'trial_update',
+        date:             today,
+        headline:         `${row.nct_id} — ${row.status}${row.phase ? ` (${row.phase})` : ''}`,
+        body_excerpt:     `Trial: ${row.title ?? row.nct_id}. Status: ${row.status}. Completion: ${row.completion_date ?? 'TBD'}.`,
+        source_url:       `https://clinicaltrials.gov/study/${row.nct_id}`,
+        source_hash:      sHash,
+        data_source:      'clinicaltrials_gov',
+        accession_number: accessionNumber,
+      })
+      if (insertErr) {
+        errors.push(`${row.nct_id}: signal insert failed — ${insertErr.message}`)
+      } else {
+        signalsWritten++
+      }
+    }
+
+    // Update snapshot regardless — keeps hash current for next run
+    await supabase
+      .from('trial_snapshots')
+      .update({ content_hash: newHash, fetched_at: new Date().toISOString() })
+      .eq('nct_id', row.nct_id)
+  }
+
   return res.status(200).json({
     upserted,
     total_found: rows.length,
     assets_processed: assets.length,
+    first_run_seeded: firstRun.length,
+    changed: changed.length,
+    signals_written: signalsWritten,
     ...(errors.length && { errors }),
   })
 }

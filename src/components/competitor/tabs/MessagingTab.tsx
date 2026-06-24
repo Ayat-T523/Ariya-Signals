@@ -386,25 +386,59 @@ export default function MessagingTab({ competitor }) {
       {/* Ingested primary source documents */}
       <SourceDocsSection docs={sourceDocs} />
 
-      {/* Messaging analysis not yet available */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-start', gap: '10px',
-        padding: '14px 16px', borderRadius: '10px',
-        background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
-      }}>
-        <AlertTriangle size={16} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '2px' }} />
-        <div>
-          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)' }}>
-            Messaging data not yet available
-          </p>
-          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.55' }}>
-            Structured messaging analysis requires systematic review of congress presentations, earnings transcripts, and press releases.
-            {sourceDocs.length > 0
-              ? ' Ingested source documents are listed below — review pending.'
-              : ' No source documents have been ingested for this competitor yet.'}
-          </p>
+      {/* Structured messaging analysis — live when snapshot exists, stub otherwise */}
+      {data ? (
+        <>
+          {/* Current core message */}
+          <div>
+            <SectionHeader label="Current positioning" />
+            <CurrentMessageCard data={data} />
+          </div>
+
+          {/* Messaging history timeline */}
+          {data.timeline?.length > 0 && (
+            <div>
+              <SectionHeader label="Messaging history" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {data.timeline.map((entry, i) => (
+                  <TimelineCard key={i} entry={entry} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* vs Pharma Inc comparison table */}
+          {data.vsPharmaInc?.length > 0 && (
+            <div>
+              <SectionHeader label={`vs ${DEMO.companyLabel}`} />
+              <ComparisonTable
+                rows={data.vsPharmaInc}
+                competitorName={competitor.name}
+                competitorId={competitor.id}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '10px',
+          padding: '14px 16px', borderRadius: '10px',
+          background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
+        }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '2px' }} />
+          <div>
+            <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)' }}>
+              Messaging data not yet available
+            </p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.55' }}>
+              Structured messaging analysis requires systematic review of congress presentations, earnings transcripts, and press releases.
+              {sourceDocs.length > 0
+                ? ' Ingested source documents are listed below — review pending.'
+                : ' No source documents have been ingested for this competitor yet.'}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   )

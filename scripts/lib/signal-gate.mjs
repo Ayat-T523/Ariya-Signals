@@ -42,6 +42,81 @@ export function sha256(text) {
   return createHash('sha256').update(text).digest('hex')
 }
 
+// ── Date parsing ───────────────────────────────────────────────────────────────
+
+const MONTHS = {
+  // English
+  january:1, february:2, march:3, april:4, may:5, june:6,
+  july:7, august:8, september:9, october:10, november:11, december:12,
+  jan:1, feb:2, mar:3, apr:4, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, nov:11, dec:12,
+  // Italian
+  gennaio:1, febbraio:2, marzo:3, aprile:4, maggio:5, giugno:6,
+  luglio:7, agosto:8, settembre:9, ottobre:10, novembre:11, dicembre:12,
+  // French
+  janvier:1, 'février':2, mars:3, avril:4, mai:5, juin:6,
+  juillet:7, 'août':8, septembre:9, octobre:10, novembre:11, 'décembre':12,
+  // German
+  januar:1, februar:2, 'märz':3, april:4, juni:6, juli:7,
+  oktober:10, dezember:12,
+}
+
+/**
+ * Parse a free-text publication date into a YYYY-MM-DD string.
+ *
+ * Timezone-safe: builds the ISO string from the parsed Y/M/D parts directly and
+ * NEVER routes through `new Date(...).toISOString()`. The naive approach
+ * (`new Date("April 27, 2026").toISOString().slice(0,10)`) interprets the string
+ * as local midnight, then shifts to UTC — in any UTC+ timezone (e.g. Asia/Calcutta,
+ * UTC+5:30) that rolls the calendar date BACK one day. This caused every
+ * IR/CSL/Takeda ingest date to be stored one day too early.
+ *
+ * Handles "April 27, 2026", "Apr 27 2026", "27 April 2026", and ISO "2026-04-27".
+ *
+ * @param {string|null|undefined} raw
+ * @returns {string|null} YYYY-MM-DD or null if unparseable
+ */
+export function parseSignalDate(raw) {
+  if (!raw) return null
+  const s = String(raw).trim().toLowerCase()
+
+  // ISO first: 2026-04-27
+  const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`
+
+  // European DD/MM/YYYY or DD.MM.YYYY (AIFA, HAS, G-BA use this format)
+  const dmy = s.match(/(\d{1,2})[/.](\d{1,2})[/.](\d{4})/)
+  if (dmy) {
+    const [, d, mo, y] = dmy
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`
+  }
+
+  // "Month D, YYYY"  /  "Month D YYYY"
+  let m = s.match(/([a-zàâäéèêëîïôùûüÿæœ]+)\.?\s+(\d{1,2}),?\s+(\d{4})/)
+  if (m && MONTHS[m[1]]) {
+    return `${m[3]}-${String(MONTHS[m[1]]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`
+  }
+
+  // "D Month YYYY" (e.g. "31 gennaio 2026", "21 juin 2025")
+  m = s.match(/(\d{1,2})\s+([a-zàâäéèêëîïôùûüÿæœ]+)\.?,?\s+(\d{4})/)
+  if (m && MONTHS[m[2]]) {
+    return `${m[3]}-${String(MONTHS[m[2]]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`
+  }
+
+  // "YYYY Month D" — PubMed esummary format (e.g. "2023 Apr 15")
+  m = s.match(/(\d{4})\s+([a-zàâäéèêëîïôùûüÿæœ]+)\.?\s+(\d{1,2})/)
+  if (m && MONTHS[m[2]]) {
+    return `${m[1]}-${String(MONTHS[m[2]]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`
+  }
+
+  // "YYYY Month" — PubMed without day (e.g. "2023 Apr")
+  m = s.match(/(\d{4})\s+([a-zàâäéèêëîïôùûüÿæœ]+)/)
+  if (m && MONTHS[m[2]]) {
+    return `${m[1]}-${String(MONTHS[m[2]]).padStart(2,'0')}-01`
+  }
+
+  return null
+}
+
 // ── Lexicon ───────────────────────────────────────────────────────────────────
 
 /**

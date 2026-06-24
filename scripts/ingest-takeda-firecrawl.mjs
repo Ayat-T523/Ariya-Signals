@@ -19,6 +19,7 @@
 import {
   createSupabaseClient,
   sha256,
+  parseSignalDate,
   isDuplicate,
   writeIngestRun,
 } from './lib/signal-gate.mjs'
@@ -83,18 +84,6 @@ const EXTRACT_PROMPT =
 function isHaeRelevant(text) {
   const lower = text.toLowerCase()
   return TAKEDA_HAE_TERMS.some(t => lower.includes(t))
-}
-
-function parseDate(raw) {
-  if (!raw) return null
-  const d = new Date(raw.trim())
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
-  const m = raw.match(/(\w+\s+\d{1,2},?\s*\d{4})/)
-  if (m) {
-    const d2 = new Date(m[1])
-    if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10)
-  }
-  return null
 }
 
 function classifySignalType(text) {
@@ -171,7 +160,7 @@ async function main() {
       // Relevance gate — HAE-specific only
       if (!isHaeRelevant(`${title} ${summary}`)) { skipped++; continue }
 
-      const date       = parseDate(article.date)
+      const date       = parseSignalDate(article.date)
       const sourceUrl  = article.url
         ? (article.url.startsWith('http') ? article.url : `https://www.takeda.com${article.url}`)
         : pageUrl

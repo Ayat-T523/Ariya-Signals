@@ -31,3 +31,9 @@ verify_jwt = false
 verify_jwt = false
 # Schedule: 0 8 * * 1  (08:00 UTC every Monday)
 # Production cron is registered via pg_cron — see supabase/seeds/cron_federal_register.sql
+
+[functions.ingest-pubmed]
+verify_jwt = false
+# Schedule: 0 7 * * 3  (07:00 UTC every Wednesday)
+# Production cron is registered via pg_cron — see supabase/seeds/cron_pubmed.sql
+# Requires: NCBI_API_KEY secret (optional but recommended — raises rate limit from 3 to 10 req/s)

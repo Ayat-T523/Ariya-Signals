@@ -9,11 +9,8 @@ import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
-import { useAuth } from '@clerk/clerk-react'
 
-const BYPASS_AUTH        = import.meta.env.VITE_BYPASS_AUTH === 'true'
-const CLERK_CONFIGURED  = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()
-const DEMO_PASSWORD_MODE = !!import.meta.env.VITE_DEMO_PASSWORD_HASH?.trim()
+const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true'
 
 // ── Lazy page chunks — each page loads only when first visited ────────────────
 const WarRoom           = lazy(() => import('./pages/WarRoom'))
@@ -62,47 +59,16 @@ function PageLoader() {
 }
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
-// ClerkAuthGuard uses useAuth() — only rendered when ClerkProvider is in the tree.
-// AuthGuard passes through without Clerk so local dev works without credentials.
-function ClerkAuthGuard() {
-  const { isSignedIn, isLoaded } = useAuth()
-  if (!isLoaded) return <PageLoader />
-  if (!isSignedIn) return <Navigate to="/sign-in" replace />
+function SupabaseAuthGuard() {
+  const { authUser, authLoading } = useApp()
+  if (authLoading) return <PageLoader />
+  if (!authUser) return <Navigate to="/sign-in" replace />
   return <Outlet />
-}
-
-function DemoPasswordGuard() {
-  const unlocked = localStorage.getItem('ariya-demo-unlocked') === '1'
-  if (unlocked) return <Outlet />
-  return <Navigate to="/sign-in" replace />
 }
 
 function AuthGuard() {
   if (BYPASS_AUTH) return <Outlet />
-  if (DEMO_PASSWORD_MODE) return <DemoPasswordGuard />
-  if (!CLERK_CONFIGURED) return <Outlet />
-  return <ClerkAuthGuard />
-}
-
-// ── Resets onboarding when a new Clerk user signs in ─────────────────────────
-function ClerkOnboardingSyncInner() {
-  const { userId } = useAuth()
-  const { openOnboarding } = useApp()
-  useEffect(() => {
-    if (!userId) return
-    const lastId = localStorage.getItem('ariya-last-clerk-user')
-    if (lastId !== userId) {
-      localStorage.removeItem('onboardingComplete')
-      localStorage.setItem('ariya-last-clerk-user', userId)
-      openOnboarding()
-    }
-  }, [userId, openOnboarding])
-  return null
-}
-
-function ClerkOnboardingSync() {
-  if (!CLERK_CONFIGURED) return null
-  return <ClerkOnboardingSyncInner />
+  return <SupabaseAuthGuard />
 }
 
 const queryClient = new QueryClient({
@@ -121,14 +87,13 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
       <PostHogPageTracker />
       <AppProvider>
-        <ClerkOnboardingSync />
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Public — sign-in page (Clerk handles its own sub-routing with /*) */}
-              <Route path="/sign-in/*" element={<SignInPage />} />
+              {/* Public — sign-in page */}
+              <Route path="/sign-in" element={<SignInPage />} />
 
-              {/* Protected — all app routes require sign-in when Clerk is active */}
+              {/* Protected — all app routes require a Supabase session */}
               <Route element={<AuthGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/"                   element={<><RouteTitle title="War Room" /><WarRoom /></>} />

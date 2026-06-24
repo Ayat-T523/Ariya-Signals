@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getHtaSignalsByCompetitorId, getDocumentsByCompetitorId, findAssetByCode } from '../lib/db'
+import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getHtaSignalsByCompetitorId, getDocumentsByCompetitorId, getMessagingSnapshot, getMessagingSignals, findAssetByCode } from '../lib/db'
 import { cleanSignalText, buildReadableHeadline, SIGNAL_FALLBACK } from '../lib/signalText'
 import { isoToYQ, trialPhaseToKey, GANTT_SKIP_STATUSES } from '../lib/trialsToGantt'
 
@@ -181,7 +181,7 @@ export function useCompetitorSupabase(competitor: any) {
       }
 
       const assetIds = [...matchedAssets.keys()]
-      const [trials, indicationTrials, regEvents, financials, signals, htaSignals, calendarEvents, documents] = await Promise.all([
+      const [trials, indicationTrials, regEvents, financials, signals, htaSignals, calendarEvents, documents, messagingSnap, messagingSignals] = await Promise.all([
         getTrialsByAssetIds(assetIds),
         // Phase 2.5: supplementary path — catches trials for assets matched via indication_tags
         // rather than stub pipeline code lookup. Deduped by NCT ID below.
@@ -192,6 +192,8 @@ export function useCompetitorSupabase(competitor: any) {
         getHtaSignalsByCompetitorId(competitor.id),
         getRegulatoryCalendar(),
         getDocumentsByCompetitorId(competitor.id),
+        getMessagingSnapshot(competitor.id),
+        getMessagingSignals(competitor.id),
       ])
       if (cancelled) return
 
@@ -391,6 +393,26 @@ export function useCompetitorSupabase(competitor: any) {
       const mergedDeals   = [...liveDeals,   ...(competitor.strategicSignals?.deals  ?? [])]
       const mergedHiring  = [...liveHiring,  ...(competitor.strategicSignals?.hiring ?? [])]
 
+      // ── Live messaging from messaging_snapshots ────────────────────────────
+      // If a snapshot exists, build a live messaging object for MessagingTab.
+      // Falls back to the static JSON value when no snapshot has been seeded yet.
+      const liveMessaging = messagingSnap && messagingSnap.core_message
+        ? {
+            currentCoreMessage:   messagingSnap.core_message,
+            messagePillars:       (messagingSnap.pillars as string[] | null) ?? [],
+            currentMessageSource: messagingSnap.source_url,
+            timeline: messagingSignals.map((s: any) => ({
+              date:          s.date ?? '',
+              sourceType:    'Website copy',
+              headline:      s.headline ?? '',
+              detail:        s.body_excerpt ?? '',
+              shiftDetected: true,
+              whyItMatters:  s.why_it_matters ?? null,
+            })),
+            vsPharmaInc: competitor.messaging?.vsPharmaInc ?? [],
+          }
+        : (competitor.messaging ?? null)
+
       setAugmented({
         ...competitor,
         pipeline:          augPipeline,
@@ -405,6 +427,7 @@ export function useCompetitorSupabase(competitor: any) {
         recentPersonnelChanges,
         recentPressReleases,
         sourceDocs: documents,
+        messaging:  liveMessaging,
         ...(dataSummary ? { executiveSummary: dataSummary, _summaryGenerated: true } : {}),
       })
     }

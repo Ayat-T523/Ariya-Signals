@@ -231,6 +231,9 @@ export function buildReadableHeadline(
   if (s.signal_type === 'congress_abstract') {
     return s.headline ?? 'Congress abstract published'
   }
+  if (s.signal_type === 'publication') {
+    return s.headline ?? 'New publication'
+  }
   return cleanSignalText(s)
 }
 

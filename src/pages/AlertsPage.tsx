@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { analytics } from '../lib/analytics'
 import {
-  CheckCheck, Circle, Filter,
+  CheckCheck, Circle,
   ChevronDown, ChevronRight, Sparkles,
   LayoutList, LayoutGrid,
-  FlaskConical, Pill, Shield, Landmark, Mic, Layers,
+  Layers,
   Database,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -14,9 +14,10 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonAlertList } from '../components/ui/Skeleton'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import FilterDropdown from '../components/ui/FilterDropdown'
-import alertsData from '../data/alerts.json'
 import competitorsData from '../data/competitors.json'
-import themesData from '../data/themes.json'
+import { getRecentSignals } from '../lib/db'
+import { mapSignals } from '../lib/signalMapping'
+import type { MappedAlert } from '../lib/signalMapping'
 import { formatDate, formatDateAbs } from '../utils/formatDate'
 
 // ── Type display config (labels in sentence case) ────────────────────────────
@@ -49,23 +50,9 @@ const SEVERITY_LABEL = {
 // Severity rank used by the "Importance" sort mode
 const SEVERITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 }
 
-// ── All unique types / sources from data ─────────────────────────────────
-const ALL_TYPES   = [...new Set(alertsData.map((a) => a.type))]
-const ALL_SOURCES = [...new Set(alertsData.map((a) => a.source).filter(Boolean))].sort()
-
 // ── Competitor name lookup ────────────────────────────────────────────────────
-function competitorName(id) {
-  return competitorsData.find((c) => c.id === id)?.name ?? id
-}
-
-// ── Theme icon map ────────────────────────────────────────────────────────────
-const THEME_ICON_MAP = {
-  flask:    FlaskConical,
-  pill:     Pill,
-  shield:   Shield,
-  landmark: Landmark,
-  mic:      Mic,
-  layers:   Layers,
+function competitorName(id: string) {
+  return (competitorsData as Array<{ id: string; name: string }>).find((c) => c.id === id)?.name ?? id
 }
 
 // ── Filter chip ───────────────────────────────────────────────────────────────
@@ -258,8 +245,8 @@ function AlertCard({ alert }) {
         </div>
       )}
 
-      {/* What changed — diff for label-change alerts (Task 8d) */}
-      {alert.type === 'label-change' && alert.labelDiff && (
+      {/* What changed — diff panel for signals that carry a body diff */}
+      {alert.labelDiff && (
         <div style={{ marginLeft: '44px', marginBottom: '12px' }}>
           <button
             onClick={() => setWhatChangedOpen((v) => !v)}
@@ -281,22 +268,24 @@ function AlertCard({ alert }) {
             <div id={`diff-${alert.id}`} style={{
               marginTop: '10px',
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: alert.labelDiff.previous ? '1fr 1fr' : '1fr',
               gap: '10px',
             }}>
-              <div style={{
-                background: 'rgba(225,29,72,0.05)',
-                border: '1px solid rgba(225,29,72,0.15)',
-                borderRadius: '10px',
-                padding: '10px 14px',
-              }}>
-                <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#C01041' }}>
-                  Previous
-                </p>
-                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
-                  {alert.labelDiff.previous}
-                </p>
-              </div>
+              {alert.labelDiff.previous && (
+                <div style={{
+                  background: 'rgba(225,29,72,0.05)',
+                  border: '1px solid rgba(225,29,72,0.15)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                }}>
+                  <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#C01041' }}>
+                    Previous
+                  </p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.72)', lineHeight: '1.55' }}>
+                    {alert.labelDiff.previous}
+                  </p>
+                </div>
+              )}
               <div style={{
                 background: 'rgba(16,185,129,0.06)',
                 border: '1px solid rgba(16,185,129,0.18)',
@@ -372,7 +361,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
     return a.timestamp > max ? a.timestamp : max
   }, '')
 
-  const IconComp = THEME_ICON_MAP[theme.icon] ?? Layers
+  const IconComp = Layers
 
   return (
     <div style={{
@@ -496,71 +485,60 @@ function ThemeCluster({ theme, clusterAlerts }) {
 }
 
 // ── Grouped view ──────────────────────────────────────────────────────────────
-function GroupedView({ filteredAlerts }) {
-  const alertMap = Object.fromEntries(alertsData.map((a) => [a.id, a]))
-  const filteredSet = new Set(filteredAlerts.map((a) => a.id))
-
-  // Build clusters from themes, keeping only alerts that pass filters
-  const assignedIds = new Set()
-  const clusters = themesData
-    .map((theme) => {
-      const alerts = theme.alertIds
-        .map((id) => alertMap[id])
-        .filter((a) => a && filteredSet.has(a.id))
-        // Sort by recency within cluster
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      alerts.forEach((a) => assignedIds.add(a.id))
-      return { theme, alerts }
-    })
-    .filter((c) => c.alerts.length > 0)
-    // Sort clusters by recency of most recent alert
-    .sort((a, b) => {
-      const aMax = a.alerts[0]?.timestamp ?? ''
-      const bMax = b.alerts[0]?.timestamp ?? ''
-      return bMax > aMax ? 1 : -1
-    })
-
-  // "Other updates" — alerts not assigned to any theme
-  const otherAlerts = filteredAlerts
-    .filter((a) => !assignedIds.has(a.id))
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-
-  if (clusters.length === 0 && otherAlerts.length === 0) {
+// Live data has no pre-built theme clusters. All signals land in a single group.
+// AI-generated theme clusters will be available in a future phase.
+function GroupedView({ filteredAlerts }: { filteredAlerts: MappedAlert[] }) {
+  if (filteredAlerts.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(5,10,68,0.35)', fontSize: '14px' }}>
-        No themes match your current filters. Switch to List view or clear filters to see all alerts.
+        No signals match the current filters. Switch to List view or clear filters to see all signals.
       </div>
     )
   }
 
-  const otherTheme = {
-    id: 'other-updates',
+  const liveTheme = {
+    id: 'live-signals',
     icon: 'layers',
-    name: 'Other updates',
-    summary: 'Additional signals that do not fit a primary theme cluster. These may be early-stage developments or routine updates worth monitoring.',
+    name: 'Live signals',
+    summary: 'All live signals from ClinicalTrials.gov, FDA, SEC, and other monitored sources. AI-generated theme grouping will be available in a future update.',
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {clusters.map(({ theme, alerts }) => (
-        <ThemeCluster key={theme.id} theme={theme} clusterAlerts={alerts} />
-      ))}
-      {otherAlerts.length >= 2 && (
-        <ThemeCluster theme={otherTheme} clusterAlerts={otherAlerts} />
-      )}
+      <ThemeCluster theme={liveTheme} clusterAlerts={filteredAlerts} />
     </div>
   )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AlertsPage() {
-  const { readAlerts, markAllRead, watchedCompetitors } = useApp()
+  const { readAlerts, markAllRead, watchedCompetitors, syncUnreadCount } = useApp()
   const loaded = usePageLoad('alerts')
 
+  // Live signals fetched from company_signals via getRecentSignals
+  const [liveAlerts, setLiveAlerts] = useState<MappedAlert[]>([])
+  const [isLoading, setIsLoading]   = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setIsLoading(true)
+    setFetchError(null)
+    const competitorIds = watchedCompetitors.size > 0 ? [...watchedCompetitors] : undefined
+    getRecentSignals(180, competitorIds)
+      .then((signals) => {
+        setLiveAlerts(mapSignals(signals))
+        setIsLoading(false)
+      })
+      .catch((err) => {
+        setFetchError(String(err))
+        setIsLoading(false)
+      })
+  }, [watchedCompetitors])
+
   // Filter state — multi-select Sets backing the dropdowns
-  const [competitorFilter, setCompetitorFilter] = useState(() => new Set())
-  const [typeFilter, setTypeFilter]             = useState(() => new Set())
-  const [sourceFilter, setSourceFilter]         = useState(() => new Set())
+  const [competitorFilter, setCompetitorFilter] = useState(() => new Set<string>())
+  const [typeFilter, setTypeFilter]             = useState(() => new Set<string>())
+  const [sourceFilter, setSourceFilter]         = useState(() => new Set<string>())
   const [onlyUnread, setOnlyUnread]             = useState(false)
 
   // Sort mode — matches War Room toggle (default: Importance)
@@ -576,28 +554,29 @@ export default function AlertsPage() {
     }
   })
 
-  function handleViewChange(mode) {
+  function handleViewChange(mode: string) {
     setViewMode(mode)
     try { localStorage.setItem('alertsView', mode) } catch { /* noop */ }
   }
 
-  // Pre-filter by watchlist (graceful: show all if not yet configured)
+  // Base alerts are already scoped by competitor in the DB query;
+  // re-filter client-side for watchlist changes before the next fetch resolves.
   const baseAlerts = watchedCompetitors.size > 0
-    ? alertsData.filter((a) => watchedCompetitors.has(a.competitorId))
-    : alertsData
+    ? liveAlerts.filter((a) => watchedCompetitors.has(a.competitorId))
+    : liveAlerts
 
   // Sort: Importance = severity desc then recency; Recency = unread first then recency
   const sorted = [...baseAlerts].sort((a, b) => {
     if (sortMode === 'importance') {
       const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
       if (sevDiff !== 0) return sevDiff
-      return new Date(b.timestamp) - new Date(a.timestamp)
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     }
     // Recency
     const aRead = readAlerts.has(a.id)
     const bRead = readAlerts.has(b.id)
     if (aRead !== bRead) return aRead ? 1 : -1
-    return new Date(b.timestamp) - new Date(a.timestamp)
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   })
 
   // Apply filters (multi-select: empty Set = no filter on that dimension)
@@ -605,25 +584,33 @@ export default function AlertsPage() {
     if (onlyUnread && readAlerts.has(a.id)) return false
     if (competitorFilter.size > 0 && !competitorFilter.has(a.competitorId)) return false
     if (typeFilter.size > 0       && !typeFilter.has(a.type))               return false
-    if (sourceFilter.size > 0     && !sourceFilter.has(a.source))           return false
+    if (sourceFilter.size > 0     && !sourceFilter.has(a.source ?? ''))     return false
     return true
   })
 
   const unreadCount = baseAlerts.filter((a) => !readAlerts.has(a.id)).length
 
-  // Option lists for each dropdown (counts reflect watchlist-scoped base)
-  const byLabel = (a, b) => a.label.localeCompare(b.label)
-  const competitorOptions = competitorsData.map((c) => ({
+  // Sync unread count to AppContext so NavPanel badge stays current
+  useEffect(() => { syncUnreadCount(unreadCount) }, [unreadCount])
+
+  // Option lists derived from live data
+  const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label)
+  const allTypes   = [...new Set(baseAlerts.map((a) => a.type))]
+  const allSources = [...new Set(baseAlerts.map((a) => a.source).filter(Boolean))].sort() as string[]
+
+  const competitorOptions = (competitorsData as Array<{ id: string; name: string }>).map((c) => ({
     value: c.id,
     label: c.name,
     count: baseAlerts.filter((a) => a.competitorId === c.id).length,
-  })).sort(byLabel)
-  const typeOptions = ALL_TYPES.map((t) => ({
+  })).filter((o) => o.count > 0).sort(byLabel)
+
+  const typeOptions = allTypes.map((t) => ({
     value: t,
-    label: TYPE_CONFIG[t]?.label ?? (t.charAt(0).toUpperCase() + t.slice(1)),
+    label: TYPE_CONFIG[t as keyof typeof TYPE_CONFIG]?.label ?? (t.charAt(0).toUpperCase() + t.slice(1)),
     count: baseAlerts.filter((a) => a.type === t).length,
   })).sort(byLabel)
-  const sourceOptions = ALL_SOURCES.map((s) => ({
+
+  const sourceOptions = allSources.map((s) => ({
     value: s,
     label: s,
     count: baseAlerts.filter((a) => a.source === s).length,
@@ -647,7 +634,7 @@ export default function AlertsPage() {
 
       {/* Description */}
       <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
-        {baseAlerts.length} signals tracked · {unreadCount} unread
+        {isLoading ? 'Loading signals…' : `${baseAlerts.length} signals tracked · ${unreadCount} unread`}
       </p>
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
@@ -680,7 +667,7 @@ export default function AlertsPage() {
             count={unreadCount}
           />
           <button
-            onClick={markAllRead}
+            onClick={() => markAllRead(baseAlerts.map((a) => a.id))}
             disabled={unreadCount === 0}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -729,10 +716,17 @@ export default function AlertsPage() {
       </div>
 
       {/* ── Loading skeleton ────────────────────────────────────────────────── */}
-      {!loaded && <SkeletonAlertList count={baseAlerts.length} />}
+      {(!loaded || isLoading) && <SkeletonAlertList count={8} />}
+
+      {/* ── Fetch error ─────────────────────────────────────────────────────── */}
+      {loaded && !isLoading && fetchError && (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(5,10,68,0.35)', fontSize: '14px' }}>
+          Could not load signals. Check your connection and try again.
+        </div>
+      )}
 
       {/* ── List view ───────────────────────────────────────────────────────── */}
-      {loaded && viewMode === 'list' && (
+      {loaded && !isLoading && !fetchError && viewMode === 'list' && (
         <>
           {/* Sort toggle — matches War Room (Task 4b) */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px' }}>
@@ -797,7 +791,7 @@ export default function AlertsPage() {
       )}
 
       {/* ── Grouped view ────────────────────────────────────────────────────── */}
-      {loaded && viewMode === 'grouped' && (
+      {loaded && !isLoading && !fetchError && viewMode === 'grouped' && (
         <GroupedView filteredAlerts={filtered} />
       )}
 

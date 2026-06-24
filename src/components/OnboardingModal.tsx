@@ -2,24 +2,73 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
+import { ASSETS_CONFIG, getAssetById, type AssetConfig } from '../config/assets-config'
 import { competitorsData } from '../data/kalvista'
+import { useChemblSearch, type ChemblHit } from '../hooks/useChemblSearch'
+import { supabase } from '../lib/supabase'
 
-const ROLES = [
-  { id: 'commercial', label: 'Commercial / Brand',               description: 'Brand positioning, share-of-voice, competitive launch dynamics' },
-  { id: 'access',     label: 'Market Access',                    description: 'HTA decisions, payer dynamics, pricing and reimbursement' },
-  { id: 'analytics',  label: 'Business Insights & Analytics',    description: 'Performance data, KPI tracking, market trends and forecasting' },
-  { id: 'bd',         label: 'BD / Corporate Strategy',          description: 'Deal landscape, pipeline competition, partnership signals' },
-  { id: 'executive',  label: 'Executive / Leadership',           description: 'Franchise-wide view, weekly digests, headline signals' },
-]
+// ── Indication constraint map ─────────────────────────────────────────────────
+// All assets within an indication share lexiconInns and lexiconTaTerms.
+// First entry per indication is representative.
 
-// Acquired assets have no live signals; exclude from the watchlist selector.
+type IndicationConfig = Pick<
+  AssetConfig,
+  'indication' | 'indicationFull' | 'lexiconInns' | 'lexiconTaTerms' | 'suggestedCompetitors'
+>
+
+const INDICATION_CONFIGS = new Map<string, IndicationConfig>()
+for (const a of ASSETS_CONFIG) {
+  if (!INDICATION_CONFIGS.has(a.indication)) INDICATION_CONFIGS.set(a.indication, a)
+}
+
+// Returns the curated indication config if the ChEMBL hit's INN or any synonym
+// appears in that indication's lexiconInns. Returns null when out of scope.
+function resolveIndication(hit: ChemblHit): IndicationConfig | null {
+  const terms = new Set([hit.inn, ...hit.synonyms].map(s => s.toLowerCase()))
+  for (const [, cfg] of INDICATION_CONFIGS) {
+    if (cfg.lexiconInns.some(lex => terms.has(lex.toLowerCase()))) return cfg
+  }
+  return null
+}
+
+// When a ChEMBL hit's INN or synonyms match an existing ASSETS_CONFIG entry,
+// return that entry so we reuse its id and full config rather than creating a
+// synthetic asset.
+function findStaticAsset(hit: ChemblHit): AssetConfig | undefined {
+  const terms = [hit.inn, ...hit.synonyms].map(s => s.toLowerCase())
+  return ASSETS_CONFIG.find(a => terms.includes(a.innName.toLowerCase()))
+}
+
+// Upsert the resolved ChEMBL entity into asset_lexicon. Fire-and-forget —
+// upsert is enrichment only; onboarding is never blocked by its outcome.
+// mechanism and first_approval are not returned by /api/chembl/search, so
+// they are left null (the seed script fills them for curated assets).
+async function upsertToLexicon(hit: ChemblHit): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('asset_lexicon').upsert({
+    inn:        hit.inn,
+    brand_name: null,
+    chembl_id:  hit.chembl_id,
+    synonyms:   hit.synonyms,
+    max_phase:  hit.max_phase,
+    mechanism:  null,
+    fetched_at: new Date().toISOString(),
+  }, { onConflict: 'inn' })
+  if (error) {
+    console.warn('[OnboardingModal] asset_lexicon upsert (non-critical):', error.message)
+  }
+}
+
+// ── Competitor pills ──────────────────────────────────────────────────────────
+
 const selectableCompetitors = (competitorsData as Array<{ id: string; name: string; status?: string }>)
   .filter(c => c.status !== 'acquired')
 
-// Product pills for a competitor chip.
-// Marketed first (by approvalYear desc); pipeline only when marketed count < 2.
-// Dedup: if the product name already contains the INN, omit the redundant "(INN)" suffix.
+// Strip data-quality annotations that should never appear in product UI.
+function stripAnnotations(s: string): string {
+  return s.replace(/\s*\((illustrative|illustrative data|literature|hypothetical|TBD)\)/gi, '').trim()
+}
+
 function competitorPills(id: string): { label: string; title: string }[] {
   const c = (competitorsData as any[]).find(x => x.id === id)
   if (!c) return []
@@ -28,25 +77,27 @@ function competitorPills(id: string): { label: string; title: string }[] {
     .slice()
     .sort((a, b) => (b.approvalYear ?? 0) - (a.approvalYear ?? 0))
     .map(p => {
-      const mol = p.molecule ?? ''
-      const isDup = mol !== '' && p.name.toLowerCase().includes(mol.toLowerCase())
-      return { label: p.name, title: isDup ? p.name : (mol ? `${p.name} (${mol})` : p.name) }
+      const name = stripAnnotations(p.name)
+      const mol  = stripAnnotations(p.molecule ?? '')
+      const isDup = mol !== '' && name.toLowerCase().includes(mol.toLowerCase())
+      return { label: name, title: isDup ? name : (mol ? `${name} (${mol})` : name) }
     })
 
   const pipeline = ((c.pipeline ?? []) as Array<{ name: string; assetInn?: string }>)
     .map(p => {
-      const inn = p.assetInn ?? ''
-      const isDup = inn !== '' && p.name.toLowerCase().includes(inn.toLowerCase())
-      return { label: p.name, title: isDup ? p.name : (inn ? `${p.name} (${inn})` : p.name) }
+      const name = stripAnnotations(p.name)
+      const inn  = stripAnnotations(p.assetInn ?? '')
+      const isDup = inn !== '' && name.toLowerCase().includes(inn.toLowerCase())
+      return { label: name, title: isDup ? name : (inn ? `${name} (${inn})` : name) }
     })
 
-  // Only include pipeline products when there are fewer than 2 marketed products
   return marketed.length >= 2 ? marketed : [...marketed, ...pipeline]
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function OnboardingModal() {
   const {
-    userRole, setUserRole,
     setUserIndication, setUserAssetName, setUserAssetId,
     resetWatchedCompetitors,
     completeOnboarding, closeOnboarding, startTour,
@@ -54,29 +105,96 @@ export default function OnboardingModal() {
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [selectedRole, setSelectedRole] = useState(userRole || null)
+  const [step, setStep] = useState<1 | 2>(1)
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [chemblSelection, setChemblSelection] = useState<{
+    hit: ChemblHit
+    indication: string
+    indicationFull: string
+    lexiconTaTerms: string[]
+    suggestedCompetitors: string[]
+  } | null>(null)
   const [assetSearch, setAssetSearch] = useState('')
   const [selectedCompetitorIds, setSelectedCompetitorIds] = useState<string[]>([])
 
+  // Live ChEMBL search — active when the user has typed ≥2 chars
+  const { hits, loading, error: searchError } = useChemblSearch(assetSearch)
+  const showLive = assetSearch.length >= 2
+
+  // Static fallback list — used when showLive=false or ChEMBL fails/empty
   const filteredAssets = ASSETS_CONFIG.filter(a =>
     assetSearch === '' ||
     a.brandName.toLowerCase().includes(assetSearch.toLowerCase()) ||
     a.innName.toLowerCase().includes(assetSearch.toLowerCase())
   )
 
-  const selectedAsset = selectedAssetId ? getAssetById(selectedAssetId) : undefined
+  // Partition live hits into curated-indication-matched and out-of-scope groups
+  const inScopeGroups = new Map<string, { cfg: IndicationConfig; hits: ChemblHit[] }>()
+  const outOfScopeHits: ChemblHit[] = []
+  if (showLive && !loading && !searchError && hits.length > 0) {
+    for (const hit of hits) {
+      const resolved = resolveIndication(hit)
+      if (resolved) {
+        const key = resolved.indication
+        if (!inScopeGroups.has(key)) inScopeGroups.set(key, { cfg: resolved, hits: [] })
+        inScopeGroups.get(key)!.hits.push(hit)
+      } else {
+        outOfScopeHits.push(hit)
+      }
+    }
+  }
+
+  // Unified selected asset: either a static ASSETS_CONFIG entry or a synthetic
+  // asset built from a ChEMBL hit + its matched indication config.
+  const selectedAsset: AssetConfig | undefined =
+    selectedAssetId
+      ? getAssetById(selectedAssetId)
+      : chemblSelection
+        ? {
+            id:                   chemblSelection.hit.inn,
+            brandName:            chemblSelection.hit.inn,
+            innName:              chemblSelection.hit.inn,
+            indication:           chemblSelection.indication,
+            indicationFull:       chemblSelection.indicationFull,
+            suggestedCompetitors: chemblSelection.suggestedCompetitors,
+            lexiconInns:          [],
+            lexiconTaTerms:       chemblSelection.lexiconTaTerms,
+          }
+        : undefined
+
+  function handleStaticSelect(id: string) {
+    setSelectedAssetId(id)
+    setChemblSelection(null)
+  }
+
+  function handleChemblSelect(hit: ChemblHit) {
+    const resolved = resolveIndication(hit)
+    if (!resolved) return  // unreachable: out-of-scope buttons have no onClick
+
+    const staticMatch = findStaticAsset(hit)
+    if (staticMatch) {
+      setSelectedAssetId(staticMatch.id)
+      setChemblSelection(null)
+    } else {
+      setChemblSelection({ hit, ...resolved })
+      setSelectedAssetId(null)
+    }
+    void upsertToLexicon(hit)
+  }
+
+  function isHitSelected(hit: ChemblHit): boolean {
+    if (selectedAssetId) {
+      const staticMatch = findStaticAsset(hit)
+      return !!(staticMatch && staticMatch.id === selectedAssetId)
+    }
+    return chemblSelection?.hit.inn === hit.inn
+  }
 
   function savePreferences() {
-    if (selectedRole) setUserRole(selectedRole)
-
     if (selectedAsset) {
       setUserIndication(selectedAsset.indication)
       setUserAssetName(selectedAsset.brandName)
       setUserAssetId(selectedAsset.id)
-      // If the user completed Step 3 use their explicit selection; otherwise
-      // fall back to the asset's suggested defaults so the War Room is never empty.
       const toWrite = selectedCompetitorIds.length > 0
         ? selectedCompetitorIds
         : selectedAsset.suggestedCompetitors
@@ -85,18 +203,14 @@ export default function OnboardingModal() {
   }
 
   function handleNext() {
-    if (step === 1 && selectedRole) {
+    if (step === 1 && selectedAsset) {
+      setSelectedCompetitorIds(selectedAsset.suggestedCompetitors)
       setStep(2)
-    } else if (step === 2 && selectedAssetId) {
-      // Pre-populate competitor chips from the chosen asset's suggestions.
-      setSelectedCompetitorIds(selectedAsset?.suggestedCompetitors ?? ['takeda', 'biocryst', 'pharvaris'])
-      setStep(3)
     }
   }
 
   function handleBack() {
     if (step === 2) setStep(1)
-    else if (step === 3) setStep(2)
   }
 
   function handleStartTour() {
@@ -126,7 +240,7 @@ export default function OnboardingModal() {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, selectedRole, selectedAssetId, selectedCompetitorIds])
+  }, [step, selectedAssetId, selectedCompetitorIds])
 
   useEffect(() => {
     const el = dialogRef.current
@@ -150,24 +264,104 @@ export default function OnboardingModal() {
   }, [])
 
   const stepTitles = [
-    'Welcome to Ariya. What is your role?',
     'Which asset are you tracking?',
     'Confirm your competitor watchlist.',
   ]
   const stepSubtitles = [
-    "We'll tailor your War Room and summaries to match.",
     "We'll pre-configure your signals feed and relevance filter.",
     'These are pre-selected based on your asset. Deselect or add others — you can change this any time.',
   ]
 
-  const nextDisabled =
-    (step === 1 && !selectedRole) ||
-    (step === 2 && !selectedAssetId)
+  const nextDisabled = step === 1 && !selectedAsset
 
-  const nextLabel =
-    step === 1 && !selectedRole ? 'Select a role to continue' :
-    step === 2 && !selectedAssetId ? 'Select an asset to continue' :
-    'Next →'
+  const nextLabel = step === 1 && !selectedAsset ? 'Select an asset to continue' : 'Next →'
+
+  // Status line below the search input
+  const statusText = (() => {
+    if (showLive) {
+      if (loading) return 'Searching ChEMBL…'
+      if (searchError) return ''
+      if (hits.length === 0) return `No results in ChEMBL for "${assetSearch}"`
+      const n = hits.filter(h => resolveIndication(h) !== null).length
+      if (n === 0) return 'Results found — none in curated indications (HAE, PNH, PBC)'
+      return `${n} result${n !== 1 ? 's' : ''} in curated indications`
+    }
+    if (assetSearch === '') return ''
+    if (filteredAssets.length === 0) return 'No products match your search'
+    return `${filteredAssets.length} result${filteredAssets.length !== 1 ? 's' : ''} found`
+  })()
+
+  // Shared style for indication group headings
+  const indicationHeadingStyle: React.CSSProperties = {
+    margin: '4px 0 0',
+    fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)',
+  }
+
+  // Renders a static ASSETS_CONFIG card (used in browse mode and fallback)
+  function StaticAssetCard({ asset }: { asset: AssetConfig }) {
+    const isSelected = selectedAssetId === asset.id
+    return (
+      <button
+        key={asset.id}
+        type="button"
+        role="radio"
+        aria-checked={isSelected}
+        onClick={() => handleStaticSelect(asset.id)}
+        style={{
+          textAlign: 'left',
+          border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
+          borderRadius: '12px',
+          padding: '14px 16px',
+          background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
+          cursor: 'pointer',
+          transition: 'border-color 150ms ease, background 150ms ease',
+          width: '100%',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+            {asset.brandName}
+          </p>
+          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.50)', fontStyle: 'italic' }}>
+            {asset.innName}
+          </p>
+        </div>
+        <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
+          {asset.indicationFull}
+        </p>
+      </button>
+    )
+  }
+
+  // Renders the static ASSETS_CONFIG list grouped by indication
+  function StaticGroupedList({ assets }: { assets: AssetConfig[] }) {
+    if (assets.length === 0) {
+      return (
+        <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)', textAlign: 'center', padding: '20px 0', margin: 0 }}>
+          No assets match your search.
+        </p>
+      )
+    }
+    return (
+      <>
+        {(['HAE', 'PNH', 'PBC'] as const)
+          .map(ind => ({ indication: ind, assets: assets.filter(a => a.indication === ind) }))
+          .filter(g => g.assets.length > 0)
+          .map(group => (
+            <div key={group.indication} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={indicationHeadingStyle}>
+                {group.indication} — {group.assets[0].indicationFull}
+              </p>
+              {group.assets.map(asset => (
+                <StaticAssetCard key={asset.id} asset={asset} />
+              ))}
+            </div>
+          ))}
+      </>
+    )
+  }
 
   return createPortal(
     <div style={{
@@ -193,7 +387,7 @@ export default function OnboardingModal() {
       >
         {/* Step indicator */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '28px' }}>
-          {([1, 2, 3] as const).map((s) => (
+          {([1, 2] as const).map((s) => (
             <div key={s} style={{
               height: '3px', flex: 1, borderRadius: '2px',
               background: s <= step ? '#050A44' : 'rgba(5,10,68,0.12)',
@@ -212,44 +406,8 @@ export default function OnboardingModal() {
           {stepSubtitles[step - 1]}
         </p>
 
-        {/* ── Step 1: Role (unchanged) ── */}
+        {/* ── Step 1: Asset selection ── */}
         {step === 1 && (
-          <div role="radiogroup" aria-labelledby="onboarding-title" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-            {ROLES.map((role) => {
-              const isSelected = selectedRole === role.id
-              return (
-                <button
-                  key={role.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => setSelectedRole(role.id)}
-                  style={{
-                    textAlign: 'left',
-                    border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
-                    borderRadius: '12px',
-                    padding: '14px 16px',
-                    background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
-                    cursor: 'pointer',
-                    transition: 'border-color 150ms ease, background 150ms ease',
-                    width: '100%',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  <p style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-                    {role.label}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.65)' }}>
-                    {role.description}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── Step 2: Asset selection ── */}
-        {step === 2 && (
           <div style={{ marginBottom: '24px' }}>
             <input
               type="search"
@@ -265,75 +423,125 @@ export default function OnboardingModal() {
               }}
               autoFocus
             />
-            <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontFamily: 'inherit' }}>
-              {assetSearch === ''
-                ? `${filteredAssets.length} product${filteredAssets.length !== 1 ? 's' : ''} available`
-                : filteredAssets.length === 0
-                  ? 'No products match your search'
-                  : `${filteredAssets.length} of ${ASSETS_CONFIG.length} match`}
-            </p>
-            <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {filteredAssets.length === 0 && (
-                <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)', textAlign: 'center', padding: '20px 0', margin: 0 }}>
-                  No assets match your search.
-                </p>
-              )}
-              {(['HAE', 'PNH', 'PBC'] as const)
-                .map(ind => ({
-                  indication: ind,
-                  assets: filteredAssets.filter(a => a.indication === ind),
-                }))
-                .filter(g => g.assets.length > 0)
-                .map(group => (
-                  <div key={group.indication} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <p style={{
-                      margin: '4px 0 0',
-                      fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-                      letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)',
-                    }}>
-                      {group.indication} — {group.assets[0].indicationFull}
-                    </p>
-                    {group.assets.map((asset) => {
-                      const isSelected = selectedAssetId === asset.id
-                      return (
-                        <button
-                          key={asset.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={isSelected}
-                          onClick={() => setSelectedAssetId(asset.id)}
+
+            {statusText && (
+              <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontFamily: 'inherit' }}>
+                {statusText}
+              </p>
+            )}
+
+            {/* ── Live ChEMBL results (≥2 chars) ── */}
+            {showLive ? (
+              loading ? (
+                <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.40)' }}>
+                    Searching ChEMBL…
+                  </p>
+                </div>
+              ) : searchError || hits.length === 0 ? (
+                // Error or no results: fall back to filtered static list
+                <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <StaticGroupedList assets={filteredAssets} />
+                </div>
+              ) : (
+                // Live results: in-scope selectable + out-of-scope dimmed
+                <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                  {/* In-scope hits grouped by indication */}
+                  {[...inScopeGroups.entries()].map(([ind, { cfg, hits: groupHits }]) => (
+                    <div key={ind} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <p style={indicationHeadingStyle}>
+                        {ind} — {cfg.indicationFull}
+                      </p>
+                      {groupHits.map(hit => {
+                        const isSelected = isHitSelected(hit)
+                        return (
+                          <button
+                            key={hit.inn}
+                            type="button"
+                            role="radio"
+                            aria-checked={isSelected}
+                            onClick={() => handleChemblSelect(hit)}
+                            style={{
+                              textAlign: 'left',
+                              border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
+                              borderRadius: '12px',
+                              padding: '14px 16px',
+                              background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
+                              cursor: 'pointer',
+                              transition: 'border-color 150ms ease, background 150ms ease',
+                              width: '100%',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                              <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+                                {hit.inn}
+                              </p>
+                              {hit.max_phase !== null && (
+                                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.45)' }}>
+                                  Phase {hit.max_phase}
+                                </p>
+                              )}
+                            </div>
+                            <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
+                              {cfg.indicationFull}
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
+
+                  {/* Out-of-scope hits — dimmed, non-selectable */}
+                  {outOfScopeHits.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: inScopeGroups.size > 0 ? '4px' : 0 }}>
+                      <p style={{ ...indicationHeadingStyle, color: 'rgba(5,10,68,0.28)' }}>
+                        Not in curated indications
+                      </p>
+                      {outOfScopeHits.map(hit => (
+                        <div
+                          key={hit.inn}
+                          aria-disabled="true"
+                          title={`${hit.inn} is not in a curated indication (HAE, PNH, PBC)`}
                           style={{
                             textAlign: 'left',
-                            border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
+                            border: '1.5px solid rgba(5,10,68,0.08)',
                             borderRadius: '12px',
                             padding: '14px 16px',
-                            background: isSelected ? 'rgba(5,10,68,0.03)' : '#FFFFFF',
-                            cursor: 'pointer',
-                            transition: 'border-color 150ms ease, background 150ms ease',
-                            width: '100%',
+                            background: 'rgba(5,10,68,0.02)',
+                            cursor: 'not-allowed',
+                            opacity: 0.5,
                             fontFamily: 'inherit',
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                            <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-                              {asset.brandName}
+                            <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.60)' }}>
+                              {hit.inn}
                             </p>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.50)', fontStyle: 'italic' }}>
-                              {asset.innName}
-                            </p>
+                            {hit.max_phase !== null && (
+                              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+                                Phase {hit.max_phase}
+                              </p>
+                            )}
                           </div>
-                          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.55)' }}>
-                            {asset.indicationFull}
+                          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>
+                            Not yet covered — not in a curated indication
                           </p>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))
-              }
-            </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              // ── Static list: full when empty, filtered when typing ──
+              <div role="radiogroup" aria-label="Asset" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <StaticGroupedList assets={filteredAssets} />
+              </div>
+            )}
 
-            {/* Indication confirmation — collapses the old TA step */}
+            {/* Indication confirmation strip */}
             {selectedAsset && (
               <div style={{
                 marginTop: '14px',
@@ -352,15 +560,13 @@ export default function OnboardingModal() {
           </div>
         )}
 
-        {/* ── Step 3: Competitor confirmation ── */}
-        {step === 3 && (
+        {/* ── Step 2: Competitor confirmation ── */}
+        {step === 2 && (
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               {selectableCompetitors.map((competitor) => {
                 const isSelected = selectedCompetitorIds.includes(competitor.id)
-                const allPills = competitorPills(competitor.id)
-                const visiblePills = allPills.slice(0, 2)
-                const overflowCount = allPills.length - visiblePills.length
+                const pills = competitorPills(competitor.id)
                 return (
                   <button
                     key={competitor.id}
@@ -368,66 +574,47 @@ export default function OnboardingModal() {
                     aria-pressed={isSelected}
                     onClick={() => toggleCompetitor(competitor.id)}
                     style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px',
-                      textAlign: 'left',
-                      border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.15)',
-                      borderRadius: '14px',
-                      padding: '9px 12px 10px',
-                      background: isSelected ? '#050A44' : '#FFFFFF',
-                      color: isSelected ? '#FFFFFF' : 'rgba(5,10,68,0.70)',
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '9px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: isSelected ? 'rgba(5,10,68,0.05)' : 'transparent',
                       cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: isSelected ? 600 : 400,
+                      textAlign: 'left',
                       fontFamily: 'inherit',
-                      minHeight: '68px',
-                      boxSizing: 'border-box',
-                      transition: 'background 150ms ease, color 150ms ease, border-color 150ms ease',
+                      width: '100%',
                     }}
                   >
-                    <span style={{ lineHeight: '1.4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                      {competitor.name}
-                    </span>
+                    {/* Checkbox */}
                     <div style={{
-                      display: 'flex', flexWrap: 'nowrap', gap: '4px',
-                      overflow: 'hidden', height: '20px', alignItems: 'center',
-                      maxWidth: '100%',
+                      width: '16px', height: '16px', flexShrink: 0,
+                      borderRadius: '4px',
+                      border: isSelected ? '2px solid #050A44' : '1.5px solid rgba(5,10,68,0.28)',
+                      background: isSelected ? '#050A44' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {visiblePills.map((pill, i) => (
-                        <span
-                          key={i}
-                          title={pill.title}
-                          style={{
-                            display: 'inline-block',
-                            fontSize: '10px', fontWeight: 400,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            background: isSelected ? 'rgba(255,255,255,0.15)' : 'rgba(5,10,68,0.07)',
-                            color: isSelected ? 'rgba(255,255,255,0.80)' : 'rgba(5,10,68,0.55)',
-                            maxWidth: '90px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {pill.label}
-                        </span>
-                      ))}
-                      {overflowCount > 0 && (
-                        <span style={{
-                          display: 'inline-block',
-                          fontSize: '10px', fontWeight: 400,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(5,10,68,0.04)',
-                          color: isSelected ? 'rgba(255,255,255,0.50)' : 'rgba(5,10,68,0.35)',
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0,
-                        }}>
-                          +{overflowCount}
-                        </span>
+                      {isSelected && (
+                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none" aria-hidden="true">
+                          <path d="M1 3.5L3 5.5L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                       )}
                     </div>
+                    {/* Name */}
+                    <span style={{
+                      fontSize: '14px', fontWeight: 600,
+                      color: 'rgba(5,10,68,0.85)',
+                      width: '160px', flexShrink: 0,
+                    }}>
+                      {competitor.name}
+                    </span>
+                    {/* Products */}
+                    <span style={{
+                      fontSize: '12px', color: 'rgba(5,10,68,0.40)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      flex: 1,
+                    }}>
+                      {pills.map(p => p.label).join('  ·  ')}
+                    </span>
                   </button>
                 )
               })}
@@ -442,7 +629,7 @@ export default function OnboardingModal() {
 
         {/* ── Navigation ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {step < 3 ? (
+          {step < 2 ? (
             <button
               onClick={handleNext}
               disabled={nextDisabled}

@@ -11,13 +11,11 @@
 
 export {
   competitorsData,
-  alertsData,
   eventsData,
   marketDevelopments,
   marketPerformanceData,
   pricingData,
   reportsData,
-  themesData,
   userData,
 } from './dataset-hae'
 

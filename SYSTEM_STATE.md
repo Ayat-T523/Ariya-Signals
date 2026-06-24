@@ -1,7 +1,7 @@
 # Ariya Signals — System State Document
 
-**Date:** 2026-06-23  
-**Branch:** `iteration-4`  
+**Date:** 2026-06-24
+**Branch:** `iteration-5`
 **Production URL:** `https://ariya-signals-one.vercel.app`
 
 ---
@@ -16,74 +16,85 @@
 | Icons | Lucide React | ✅ Working |
 | Animations | Framer Motion | ✅ Working |
 | Routing | React Router v7 | ✅ Working |
-| State | `AppContext` (single provider, localStorage persistence) | ✅ Working |
+| State | `AppContext` (single provider; per-user state in Supabase, localStorage as cache) | ✅ Working |
 | Data fetching | React Query (`@tanstack/react-query`) | ✅ Working |
 | Database | Supabase (PostgreSQL, REST + WebSocket via `@supabase/supabase-js`) | ✅ Connected |
+| Auth | Supabase Auth (email/password + Google/Microsoft SSO); `BYPASS_AUTH` for local dev | ✅ Working |
 | Deployment | Vercel (production alias + preview URLs) | ✅ Live |
 | Security | Content Security Policy enforced via `vercel.json` headers | ✅ Active |
 | Analytics | PostHog | ⚠️ Configured but returning 401/404 errors — analytics only, no user impact |
-| Auth | Clerk | ⚠️ Referenced in CSP; auth shell exists but UI is not wired to Clerk flows |
 
 ---
 
 ## 2. Application Routes
 
-| Route | Page | Notes |
+| Route | Page | Status |
 |---|---|---|
-| `/` | War Room | Main dashboard — live data |
-| `/sign-in/*` | Sign In | Auth (public route) |
-| `/competitors` | Competitor Grid | Live + static hybrid |
-| `/competitors/:id` | Competitor Profile | Live + static hybrid |
-| `/intelligence` | Intelligence Feed / Portal | Live + static hybrid |
-| `/alerts` | Alerts Feed | Static JSON only |
-| `/pricing` | Pricing & Access | Static JSON only |
-| `/market-performance` | Market Performance | Route exists — page implementation TBD |
-| `/myspace` | My Space | Route exists — page implementation TBD |
-| `/myspace/alerts` | My Alerts | Route exists — page implementation TBD |
-| `/myspace/documents` | My Documents | Route exists — page implementation TBD |
-| `/ask` | Ask Ariya | Route exists — AI backend not wired |
-| `/admin` | Admin | Route exists — page implementation TBD |
+| `/sign-in` | Sign In | ✅ Live — email/password + Google/Microsoft SSO |
+| `/` | War Room | ✅ Live — primary dashboard |
+| `/competitors` | Competitor Grid | ✅ Live + static hybrid |
+| `/competitors/:id` | Competitor Profile | ✅ Live + static hybrid |
+| `/intelligence` | Intelligence Feed / Portal | ✅ Live + static hybrid |
+| `/alerts` | Alerts Feed | ✅ Live — `company_signals` via `getRecentSignals()` |
+| `/pricing` | Pricing & Access | ⚠️ Static JSON only |
+| `/market-performance` | Market Performance | ✅ Route + page exist |
+| `/myspace` | My Space | ✅ Route + page exist |
+| `/myspace/alerts` | My Alerts | ✅ Route + page exist |
+| `/myspace/documents` | My Documents | ✅ Route + page exist |
+| `/ask` | Ask Ariya | ✅ Route + page exist (AI backend not wired) |
+| `/admin` | Admin | ✅ Route + page exist |
 
-All routes are lazy-loaded and protected by `AuthGuard` (supports Clerk, demo password, or bypass mode).
+All routes are lazy-loaded and protected by `AuthGuard` (Supabase Auth or `BYPASS_AUTH` for local dev).
 
 ---
 
 ## 3. Supabase Tables
 
-### Confirmed Populated
+### Shared / ingest tables (anon-readable)
 
-| Table | Purpose | Used By |
+| Table | Purpose | Read by |
 |---|---|---|
-| `company_signals` | SEC 8-K filings, press releases, exec changes, deal announcements | WarRoom Top Signals, Competitor profiles, Portal Earnings tab |
-| `assets` | HAE/PNH/PBC asset registry (INN, synonyms, competitor ownership, indication tags) | `useCompetitorSupabase` bail guard; HAE asset count on Competitor cards |
-| `trials` | ClinicalTrials.gov trial data (phase, dates, status) | Competitor pipeline Gantt + trial design summaries |
-| `financial_snapshots` | SEC EDGAR revenue + R&D spend (last 3 fiscal years) | Competitor financial snapshot tile |
-| `regulatory_calendar` | EMA CHMP/PRAC/OTHER committee meetings | WarRoom Upcoming Events, Portal Events tab |
-| `regulatory_events` | Regulatory milestones (FDA/EMA decisions, approval dates) | Competitor Key Events section |
-| `documents` | 10-K, 20-F, FDA labels, NICE TAs, EMA EPARs | Competitor Source Documents tab; Messaging tab |
+| `company_signals` | All ingest signals — SEC, FDA, PubMed, CT.gov, HTA, messaging drift | WarRoom, AlertsPage, Competitor profiles |
+| `assets` | HAE/PNH/PBC asset registry (INN, synonyms, competitor ownership, indication tags) | `useCompetitorSupabase`, onboarding |
+| `trials` | ClinicalTrials.gov trial data | Competitor pipeline Gantt, trial design summaries |
+| `financial_snapshots` | SEC EDGAR revenue + R&D spend (last 3 FY) | Competitor financial tile |
+| `regulatory_calendar` | EMA CHMP/PRAC/OTHER committee meetings | WarRoom Upcoming Events, Portal Events |
+| `regulatory_events` | Regulatory milestones (FDA/EMA decisions) | Competitor Key Events |
+| `documents` | 10-K, 20-F, FDA labels, NICE TAs, EMA EPARs | Competitor Messaging tab |
+| `company_summaries` | Rolling 90-day AI narrative summaries | Competitor profile card (falls back to template) |
+| `market_intelligence` | Editorial strategic implications (paywalled) | Portal Market Developments |
+| `messaging_snapshots` | Latest scraped core message + pillars per competitor | Competitor Messaging tab (Phase 5) |
 
-### Existence Confirmed, Population Status Unverified
+### Ingest-only tables (service-role, no anon read)
 
-| Table | Purpose | Status |
+| Table | Purpose | Written by |
 |---|---|---|
-| `company_summaries` | Rolling 90-day narrative summaries per competitor | Exists; may be empty or stale — frontend falls back to template text |
-| `market_intelligence` | Editorial strategic implications (paywalled) | Exists; Portal Market Developments tab falls back to static JSON if empty |
+| `trial_snapshots` | Content-hash baseline for CT.gov diff engine | `api/ingest/trials.ts` |
+| `ingest_runs` | Ingest run audit log | All ingest scripts |
+
+### Per-user tables (RLS default-deny, no anon read)
+
+| Table | Purpose | Key |
+|---|---|---|
+| `user_profiles` | Onboarding state, indication, asset selection | `user_id = auth.uid()` |
+| `watched_assets` | Competitor watchlist | `user_id = auth.uid()` |
+| `read_alerts` | Alert read/unread state | `user_id = auth.uid()` |
 
 ---
 
 ## 4. Static JSON Data Files
 
-All static data lives in `src/data/` and is re-exported from `src/data/kalvista.ts` (via `src/data/dataset-hae.ts`). All files are illustrative/demo data.
+Static data lives in `src/data/` re-exported from `src/data/kalvista.ts` (via `dataset-hae.ts`). All files are illustrative/demo data. Files marked ⚠️ are on disk but no longer imported by any component.
 
 | File | Contents | Used By |
 |---|---|---|
-| `competitors.json` | Competitor metadata, marketed products, pipeline | Competitor Grid; Onboarding Step 3 |
-| `alerts.json` | ~50 curated alert stubs (typed, severity-scored, themed) | Alerts page (entire data source) |
+| `competitors.json` | Competitor metadata, products, pipeline, messaging stubs | Competitor Grid; Onboarding Step 2; CompetitorProfile fallback |
 | `events.json` | Conference and congress calendar entries | WarRoom Upcoming Events (merged with live EMA calendar) |
 | `market-developments.json` | Market signals (HTA, payer, guideline, advocacy) | Portal Market Developments tab |
-| `reports.json` | Earnings/investor report stubs | Portal Earnings tab (disabled — "Coming soon") |
+| `reports.json` | Earnings/investor report stubs | Portal Earnings tab (disabled) |
 | `pricing.json` | Price comparison table across markets | Pricing & Access page |
-| `themes.json` | Alert theme clusters (icon, name, member alert IDs) | Alerts grouped view |
+| `alerts.json` | ~50 curated alert stubs | ⚠️ No longer imported — AlertsPage now reads live `company_signals` |
+| `themes.json` | Alert theme clusters | ⚠️ No longer imported — AlertsPage grouped view uses flat live feed |
 
 ---
 
@@ -91,142 +102,129 @@ All static data lives in `src/data/` and is re-exported from `src/data/kalvista.
 
 ### 5a. War Room (`/`)
 
-The primary dashboard. Combines live Supabase data with static JSON fallbacks.
-
-| Section | Data Source | Status | Notes |
-|---|---|---|---|
-| Greeting + timestamp | Static (`userData`) | ✅ Working | |
-| KPI — New This Week | `company_signals` (Supabase, last 7 days) | ✅ Live | |
-| KPI — Unread Signals | `readAlerts` Set (localStorage) applied to live signals | ✅ Live | Count reflects unread live signals |
-| KPI — High Importance | `company_signals` → severity scoring | ✅ Live | |
-| Top Signals to Triage | `company_signals` (Supabase, 90-day window, watched competitors) | ✅ Live | Shows up to 5 signals after readability + relevance filtering |
-| Signal readability gate | `isSignalReadable()` / `cleanSignalText()` in `signalText.ts` | ✅ Working | Strips SEC boilerplate, XBRL, accession numbers; requires 5+ prose words |
-| Signal severity scoring | `computeSeverity()` with lexicon-based `isRelevant()` gate | ✅ Working | Signals not containing INN/TA terms are capped at LOW |
-| Signal WHY text | `why_it_matters` DB column → template fallback | ⚠️ Partial | DB column sparsely populated; most signals show generic template text |
-| Market Weather — pressure | Derived from live severity counts (90-day window) | ✅ Live | |
-| Market Weather — this week | `company_signals` (last 7 days) | ✅ Live | May show "No notable moves" if no signals in last 7 days |
-| Tracked Competitors cards | `company_signals` signal counts + `company_summaries` narrations | ✅ Live | Narration falls back to template text if `company_summaries` is null/unreadable |
-| Upcoming Events | `regulatory_calendar` (Supabase) merged with `eventsData` (static) | ✅ Hybrid | Deduped by title; EMA events always shown; congress events gated by watchlist |
-| Weekly Digest | Top 3 relevant live signals | ✅ Live | |
-| Market Implications | `market_intelligence` (Supabase) | ✅ Live | Behind `<PaidGate>` UI component (UI-only gate, no backend enforcement) |
-| Ask Ariya button | Modal | ✅ UI only | Modal opens with pre-populated prompts; no AI backend wired |
+| Section | Data Source | Status |
+|---|---|---|
+| Greeting + timestamp | Static (`userData`) | ✅ Working |
+| KPI — New This Week | `company_signals` (last 7 days) | ✅ Live |
+| KPI — Unread Signals | `readAlerts` Set (Supabase `read_alerts`) applied to live signals | ✅ Live |
+| KPI — High Importance | `company_signals` → severity scoring | ✅ Live |
+| Top Signals to Triage | `company_signals` (90-day window, watched competitors) | ✅ Live |
+| Signal readability gate | `isSignalReadable()` / `cleanSignalText()` | ✅ Working |
+| Signal severity scoring | `computeSeverity()` with lexicon-based `isRelevant()` gate | ✅ Working |
+| Signal WHY text | `why_it_matters` DB column → template fallback | ⚠️ Partial — column sparsely populated |
+| Market Weather | Derived from live severity counts | ✅ Live |
+| Tracked Competitors cards | `company_signals` signal counts + `company_summaries` narrations | ✅ Live |
+| Upcoming Events | `regulatory_calendar` (Supabase) merged with `eventsData` (static) | ✅ Hybrid |
+| Weekly Digest | Top 3 relevant live signals | ✅ Live |
+| Market Implications | `market_intelligence` (Supabase) | ✅ Live (behind `<PaidGate>`) |
 
 ### 5b. Competitors (`/competitors`, `/competitors/:id`)
 
-| Section | Data Source | Status | Notes |
-|---|---|---|---|
-| Competitor grid | `competitors.json` filtered by `watchedCompetitors` | ✅ Working | Shows only watched competitors |
-| Signal stats on cards | `getAllSignalsSummary()` Supabase | ✅ Live | Signal count + latest date per competitor |
-| HAE asset count on cards | `assets` table (indication_tags) | ✅ Live | |
-| Timeline Gantt | Hardcoded `TIMELINE_ROWS` + live trial enrichment overlay | ✅ Hybrid | Static phase ranges; live ClinicalTrials.gov data overlaid via hook |
-| Competitor pipeline | `trials` (Supabase) via `useCompetitorSupabase` | ✅ Live | |
-| Financial snapshot | `financial_snapshots` (Supabase, SEC EDGAR) | ✅ Live | |
-| Key Events | `regulatory_events` + `regulatory_calendar` (Supabase) + static stub | ✅ Hybrid | |
-| Strategic Signals (deals) | `company_signals` signal_type=`deal` | ✅ Live | |
-| Personnel Changes | `company_signals` signal_type=`exec_change` | ✅ Live | |
-| Press Releases | `company_signals` signal_type=`press_release` | ✅ Live | |
-| Source Documents | `documents` (Supabase) | ✅ Live | |
-| Messaging / Positioning tab | `competitor.messaging` (static JSON field) + `documents` + `company_signals` (press releases) | ⚠️ Partial | Messaging analysis stub shows "data not yet available" alert; press releases and source documents sections are live |
-| Company description | Built from live pipeline + asset data | ✅ Live | |
-| "Add competitor" button | UI placeholder | ❌ Not functional | "Available in paid version" — no functionality wired |
+| Section | Data Source | Status |
+|---|---|---|
+| Competitor grid | `competitors.json` filtered by `watchedCompetitors` | ✅ Working |
+| Signal stats on cards | `getAllSignalsSummary()` Supabase | ✅ Live |
+| HAE asset count on cards | `assets` table (indication_tags) | ✅ Live |
+| Pipeline / Gantt | `trials` (Supabase) via `useCompetitorSupabase` | ✅ Live |
+| Financial snapshot | `financial_snapshots` (Supabase, SEC EDGAR) | ✅ Live |
+| Key Events | `regulatory_events` + `regulatory_calendar` + static stub | ✅ Hybrid |
+| Strategic Signals | `company_signals` (deal, exec_change, press_release types) | ✅ Live |
+| Source Documents | `documents` (Supabase) | ✅ Live |
+| Messaging tab | `messaging_snapshots` + `company_signals` (messaging_shift) | ✅ Live when snapshot exists; falls back to `competitors.json` stub |
 
 ### 5c. Alerts (`/alerts`)
 
-| Section | Data Source | Status | Notes |
-|---|---|---|---|
-| Alert feed | `alerts.json` (static stub) | ❌ Static | Not connected to Supabase `company_signals` |
-| Watchlist filter | Not applied | ❌ Gap | All stub alerts show regardless of `watchedCompetitors` |
-| Filter UI (competitor, type, source) | Client-side on static data | ✅ UI working | Multi-select dropdowns; unread toggle |
-| Grouped view | `themesData` (static clusters) | ✅ Working | Themes with icons, summaries, member alerts |
-| Sort (importance / recency) | Client-side on static data | ✅ Working | |
-| Read/unread state | `readAlerts` Set (localStorage via AppContext) | ✅ Working | Persisted across sessions |
+| Section | Data Source | Status |
+|---|---|---|
+| Alert feed | `company_signals` via `getRecentSignals(180 days)` + `mapSignals()` | ✅ Live |
+| Watchlist filter | Scoped to `watchedCompetitors` in DB query | ✅ Working |
+| Filter UI (competitor, type, source) | Client-side on live mapped data | ✅ Working |
+| Grouped view | Flat "Live signals" cluster (no AI theme clusters yet) | ✅ Working |
+| Sort (importance / recency) | Client-side severity sort using `signalMapping.ts` severity | ✅ Working |
+| Read/unread state | `read_alerts` table (Supabase); `readAlerts` Set in AppContext | ✅ Live |
+| Mark read / unread / all read | Writes to `read_alerts` table; survives reload + cross-device | ✅ Live |
+| "What changed" diff panel | Shown when `labelDiff` is non-null (label/trial signals with body excerpt) | ✅ Working |
+| Nav badge unread count | Pushed from AlertsPage via `syncUnreadCount()` | ✅ Working |
 
 ### 5d. Intelligence Feed (`/intelligence`)
 
-| Tab | Data Source | Status | Notes |
-|---|---|---|---|
-| Events | `regulatory_calendar` (Supabase) + `eventsData` (static) | ✅ Hybrid | Calendar strip, live EMA events merged with stub congresses |
-| Earnings Filings | `company_signals` (Supabase, press_release type) | ✅ Live | Tab marked "Coming soon" / disabled in current UI |
-| Market Developments | `marketDevelopments` (static JSON) | ⚠️ Static | Guidelines, epidemiology, payer, HTA, advocacy, deal signals |
+| Tab | Data Source | Status |
+|---|---|---|
+| Events | `regulatory_calendar` (Supabase) + `eventsData` (static) | ✅ Hybrid |
+| Market Developments | `marketDevelopments` (static JSON) | ⚠️ Static |
+| Earnings Filings | `company_signals` (press_release type) | ⚠️ Tab disabled ("Coming soon") |
 
-### 5e. Pricing & Access (`/pricing`)
-
-| Section | Data Source | Status | Notes |
-|---|---|---|---|
-| Price comparison table | `pricing.json` (static stub) | ⚠️ Static | Filtered by watchlist (competitor column only) |
-
-### 5f. Navigation & Shell
+### 5e. Navigation & Shell
 
 | Element | Status |
 |---|---|
 | NavPanel (collapsible, 64 px / 208 px) | ✅ Working |
-| TopBar | ✅ Working |
-| Guided Tour (TOUR_ROUTES) | ✅ Working |
+| Sign out button | ✅ Working — direct `LogOut` icon in nav footer |
+| Guided Tour | ✅ Working |
 | Ask Ariya shortcut (`/` key) | ✅ Working (modal only, no AI) |
-| Mobile nav overlay | ✅ Working |
-| Onboarding Modal | ✅ Working (see §5g) |
+| Onboarding Modal | ✅ Working (v5 — see §5f) |
 
-### 5g. Onboarding Modal
+### 5f. Onboarding Modal
 
-| Step | What it does | Data Source | Status |
-|---|---|---|---|
-| Step 1: Role | Select from 5 roles; persisted to localStorage as `ariya-user-role` | Static config | ✅ Working |
-| Step 2: Asset selection | Pick asset by indication (HAE / PNH / PBC); sets `userAssetId`, `userAssetName`, `userIndication` | `ASSETS_CONFIG` (static) | ✅ Working |
-| Step 3: Competitor watchlist | Multi-select chips with product sub-lines and +N overflow; sets `watchedCompetitors` | `competitors.json` + `ASSETS_CONFIG` | ✅ Working |
-| Version stamp | `ONBOARDING_VERSION = 'v4'` forces re-show for visitors from prior versions | AppContext | ✅ Working |
+| Step | What it does | Source of truth |
+|---|---|---|
+| Step 1: Asset selection | Pick by indication (HAE / PNH / PBC); sets `userAssetId`, `userAssetName`, `userIndication` | Supabase `user_profiles` (localStorage cache) |
+| Step 2: Competitor watchlist | Multi-select with product sub-lines; sets `watchedCompetitors` | Supabase `watched_assets` |
+| Version stamp | `ONBOARDING_VERSION = 'v5'` — forces re-show if version mismatch | Supabase `user_profiles.onboarding_version` |
 
 ---
 
 ## 6. Signal Processing Pipeline
 
-All live signals in the War Room pass through this sequential pipeline:
-
+### Alerts feed (`/alerts`)
 ```
-company_signals table (Supabase)
-    ↓ getRecentSignals(90 days, watchedCompetitorIds)
-    ↓ filter: isSignalReadable(s)
-           cleanSignalText() → decodeEntities → stripBoilerplate
-                             → stripExhibitPreamble → isReadableProse
-           Rejects: SEC preambles, XBRL, accession numbers, .htm filenames,
-                    all-caps blobs, <60% alpha ratio, <5 prose words
-    ↓ filter: watchedCompetitors.has(s.competitor_id)
-    ↓ map: mapDbSignalToDisplay
-           buildReadableHeadline() — humanises SEC 8-K item headings for exec_change signals
-           computeSeverity()       — HIGH/MED/LOW based on keyword scoring + isRelevant() gate
-           buildWhyItMatters()     — DB why_it_matters column → template fallback
-    ↓ sort by severity (HIGH first) then date (newest first)
+company_signals (Supabase)
+    ↓ getRecentSignals(180 days, watchedCompetitorIds)
+    ↓ mapSignals() — signalMapping.ts
+           SIGNAL_TYPE_MAP:     DB signal_type → hyphenated UI key
+           SIGNAL_SEVERITY_MAP: severity derived from signal_type
+           SIGNAL_SOURCE_MAP:   human source label
+           labelDiff:           populated for label_update / trial_update signals
+    ↓ client-side: sort + filter (competitor / type / source / unread)
+    = Alert cards with read/unread state from Supabase read_alerts
+```
+
+### War Room top signals
+```
+company_signals (Supabase, 90-day window)
+    ↓ filter: isSignalReadable() — strips SEC boilerplate, XBRL, short/noisy text
+    ↓ filter: watchedCompetitors
+    ↓ map: computeSeverity() + buildReadableHeadline() + buildWhyItMatters()
+    ↓ sort: HIGH → MEDIUM → LOW, then recency
     ↓ slice(0, 5)
-    = Top Signals panel (up to 5 signals shown)
+    = Top Signals panel
 ```
 
-### Current Signal Quality (default watchlist: takeda, biocryst, pharvaris)
-
-- **~12 signals** pass the readability gate in the 90-day window
-- Severity breakdown: ~2 HIGH (Pharvaris Phase 3 financial data), ~4 MEDIUM (exec changes), ~6 LOW
-- `why_it_matters` column is sparsely populated — most signals show template fallback WHY text
-- Signals not containing INN or TA terms (e.g., clean corporate prose) are capped at LOW severity by `isRelevant()`
+### Diff ingest pipelines (first-run-silence: no signal on baseline seed)
+| Pipeline | Table | Signal type |
+|---|---|---|
+| `api/ingest/trials.ts` | `trial_snapshots` | `trial_update` |
+| `supabase/functions/ingest-fda-labels` | `label_snapshots` | `label_update` |
+| `scripts/ingest-messaging-firecrawl.mjs` | `messaging_snapshots` | `messaging_shift` |
 
 ---
 
 ## 7. Configuration: AppContext State
 
-Global application state persisted to localStorage:
-
-| Key | localStorage key | Contents |
+| Slice | Source of truth | localStorage role |
 |---|---|---|
-| `watchedCompetitors` | `pharma-inc-ciwarroom-watched` | `Set<string>` of competitor IDs |
-| `readAlerts` | `pharma-inc-ciwarroom-read-alerts` | `Set<string>` of read signal IDs |
-| `onboardingComplete` | `onboardingComplete` | Boolean |
-| `trackedAssets` | `trackedAssets` | `{ assetId, assetName, indication, lexiconInns, lexiconTaTerms }` |
-| `userRole` | `ariya-user-role` | One of: commercial, access, analytics, bd, executive |
-
-The lexicon (`lexiconInns` + `lexiconTaTerms`) from `trackedAssets` drives all signal relevance gating and severity scoring at runtime.
+| `watchedCompetitors` | Supabase `watched_assets` (hydrated on sign-in) | Cache + BYPASS_AUTH fallback |
+| `readAlerts` | Supabase `read_alerts` (hydrated on sign-in) | Not used (Supabase is authoritative) |
+| `onboardingComplete` | Supabase `user_profiles.onboarding_complete` | Cache + BYPASS_AUTH fallback |
+| `userAssetId/Name` | Supabase `user_profiles` | Cache + BYPASS_AUTH fallback |
+| `userIndication` | Supabase `user_profiles` | Cache + BYPASS_AUTH fallback |
+| `unreadCount` | Pushed by AlertsPage via `syncUnreadCount()` | Not persisted |
 
 ---
 
 ## 8. Asset Configuration (`src/config/assets-config.ts`)
 
-Seven assets configured as static config (not yet stored in Supabase):
+Seven assets configured as static config (not stored in Supabase):
 
 **Trackable assets (user selects one in onboarding):**
 
@@ -236,7 +234,7 @@ Seven assets configured as static config (not yet stored in Supabase):
 | Zevaro | iptacopan | PNH |
 | Chelira | seladelpar | PBC |
 
-**Competitor products (used for signal relevance lexicon):**
+**Competitor products (signal relevance lexicon):**
 
 | Brand | INN | Indication | Company |
 |---|---|---|---|
@@ -245,20 +243,18 @@ Seven assets configured as static config (not yet stored in Supabase):
 | Deucrictibant | deucrictibant | HAE | Pharvaris |
 | Navenibart | navenibart | HAE | Astria Therapeutics |
 
-Each asset entry contains `lexiconInns` (~15 drug name synonyms) and `lexiconTaTerms` (~10–15 TA keywords) used at runtime to gate signal relevance.
-
 ---
 
 ## 9. Security Configuration
 
-`vercel.json` enforces a strict Content Security Policy on all responses. Any new external service added to the app **must** be added to the matching directive here — CSP failures only appear in browser DevTools, never in `curl` or local dev.
+`vercel.json` enforces a strict Content Security Policy. Any new external service **must** be added here — CSP failures only appear in browser DevTools.
 
 | Directive | Permitted Domains |
 |---|---|
-| `connect-src` | `self`, `*.supabase.co`, `wss://*.supabase.co`, `*.fontshare.com`, `*.posthog.com`, `*.clerk.com`, `*.clerk.accounts.dev` |
+| `connect-src` | `self`, `*.supabase.co`, `wss://*.supabase.co`, `*.fontshare.com`, `*.posthog.com` |
 | `font-src` | `self`, `*.fontshare.com` |
 | `style-src` | `self`, `unsafe-inline`, `*.fontshare.com` |
-| `script-src` | `self`, `*.posthog.com`, `*.clerk.com`, `*.clerk.accounts.dev` |
+| `script-src` | `self`, `*.posthog.com` |
 | `img-src` | `self`, `data:`, `blob:` |
 | `worker-src` | `self`, `blob:` |
 | `frame-ancestors` | `none` |
@@ -267,14 +263,26 @@ Each asset entry contains `lexiconInns` (~15 drug name synonyms) and `lexiconTaT
 
 ---
 
-## 10. Environment Variables (Production)
+## 10. Environment Variables
 
-| Variable | Purpose | Status |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL (baked into JS bundle at build time) | ✅ Set in Vercel Production |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon JWT (baked into JS bundle at build time) | ✅ Set in Vercel Production |
-| `VITE_POSTHOG_KEY` | PostHog analytics key | ✅ Set — returning errors (analytics only) |
-| `VITE_DEMO_PASSWORD_HASH` | Hash for demo access gate | ✅ Set |
+### Production (Vercel)
+
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL (baked into JS bundle at build time) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon JWT (baked into JS bundle at build time) |
+| `VITE_POSTHOG_KEY` | PostHog analytics key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for Vercel serverless ingest routes |
+| `INGEST_SECRET` | Shared secret header for `/api/ingest/*` endpoints |
+
+### Local dev only (`.env.local`, never committed)
+
+| Variable | Purpose |
+|---|---|
+| `VITE_BYPASS_AUTH` | Set to `true` to skip Supabase Auth in local dev |
+| `SUPABASE_ACCESS_TOKEN` | Supabase CLI personal access token |
+| `FIRECRAWL_API_KEY` | Firecrawl web scraping API key |
+| `SLACK_FEEDBACK_WEBHOOK_URL` | Slack webhook for feedback widget |
 
 ---
 
@@ -282,35 +290,19 @@ Each asset entry contains `lexiconInns` (~15 drug name synonyms) and `lexiconTaT
 
 | # | Area | Description | Impact |
 |---|---|---|---|
-| 1 | Alerts page | Entire page is static JSON — not connected to `company_signals` | All alert content is illustrative only |
-| 2 | Alerts page | No watchlist filtering — all stub alerts appear regardless of `watchedCompetitors` | Configuration has no effect on Alerts |
-| 3 | Signal WHY text | `why_it_matters` column sparsely populated in `company_signals`; most signals show template text | Reduces signal card quality |
-| 4 | `company_summaries` | Population status unverified; competitor card narrations fall back to template needle text | Competitor card summaries are generic |
-| 5 | Severity scoring | `isRelevant()` hard-caps all signals not containing INN/TA terms to LOW, even for strategic events like M&A or exec changes | Most signals score LOW regardless of actual importance |
-| 6 | Market Weather | Depends on 7-day sub-filter of an already-small signal pool; frequently shows "No notable moves this week" | Market Weather section often empty |
-| 7 | `market_intelligence` | Population status unverified; Market Implications section may show empty state | Portal strategic view incomplete |
-| 8 | Messaging tab | Messaging analysis data not yet available — shows informational alert stub | Competitor positioning analysis absent |
-| 9 | Pricing & Access | Entirely static stub JSON — no live pricing data | Illustrative only |
-| 10 | Intelligence Feed — Earnings tab | Disabled ("Coming soon") | Earnings intelligence not accessible |
-| 11 | Intelligence Feed — Market Developments | Static JSON only | Market signal content is illustrative |
-| 12 | Routes with no implementation | `/market-performance`, `/myspace`, `/myspace/alerts`, `/myspace/documents`, `/ask`, `/admin` | Navigation dead-ends |
-| 13 | PostHog analytics | 401/404 errors in console on every page load | Console noise; analytics not recording |
-| 14 | CSL Behring | No live ASX ingest pipeline; only manually seeded rows | CSL coverage is incomplete |
-| 15 | `assets-config.ts` | Asset lexicon lives in static config, not Supabase | Cannot be updated without a code deploy |
-| 16 | Git commits pending | 3 session fixes deployed to production but not yet committed to `iteration-4` branch | Git history does not reflect deployed state |
+| 1 | Signal WHY text | `why_it_matters` sparsely populated; most signals show template fallback text | Reduces signal card quality |
+| 2 | `company_summaries` | Population status unverified; competitor card narrations fall back to template | Competitor card summaries are generic |
+| 3 | Severity scoring | `isRelevant()` hard-caps signals not containing INN/TA terms to LOW, even M&A or exec changes | Many signals score LOW |
+| 4 | Market Weather | 7-day sub-filter on a small pool; frequently shows "No notable moves this week" | Section often empty |
+| 5 | Messaging tab | Live only after `ingest-messaging-firecrawl.mjs` has run and `messaging_snapshots` is populated | Falls back to `competitors.json` stub until first ingest |
+| 6 | Alerts grouped view | Theme clustering not yet wired — all live signals land in one "Live signals" cluster | No thematic grouping in grouped mode |
+| 7 | Pricing & Access | Entirely static stub JSON — no live pricing data | Illustrative only |
+| 8 | Intelligence Feed — Market Developments | Static JSON only | Market signal content is illustrative |
+| 9 | ESLint | No `eslint.config.js` exists — `npm run lint` fails with "config not found" | Lint is non-functional; pre-existing |
+| 10 | PostHog analytics | 401/404 errors in console on every page load | Console noise; analytics not recording |
+| 11 | CSL Behring | No live ingest pipeline beyond Firecrawl newsroom scraper | CSL coverage is incomplete |
+| 12 | `assets-config.ts` | Asset lexicon lives in static config, not Supabase | Cannot update without a code deploy |
 
 ---
 
-## 12. Changes Applied in This Session (2026-06-23)
-
-These three changes are deployed to production but not yet committed to git.
-
-| File | Change |
-|---|---|
-| `vercel.json` | Added `https://*.supabase.co wss://*.supabase.co` to `connect-src` — this was the root cause of the production site showing 0 signals (browser was blocking all Supabase requests); also widened fontshare directives from `api.fontshare.com` to `*.fontshare.com` to cover `cdn.fontshare.com` where `.woff2` files are served |
-| `src/lib/signalText.ts` | Extended `decodeEntities()` to handle hex HTML entities (`&#x2022;` → `•`, `&#x2013;` → `–`); previously only decimal entities were decoded |
-| `index.html` | Removed `crossorigin` attribute from `<link rel="preload" as="style">` (CSS endpoints do not support CORS preload); added separate `<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>` for font file origin |
-
----
-
-*Generated: 2026-06-23 | Branch: iteration-4 | Author: Ayat Tayebulla / Ariya (Claude)*
+*Updated: 2026-06-24 | Branch: iteration-5*

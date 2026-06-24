@@ -342,3 +342,146 @@ export async function getLexiconByInn(inn: string): Promise<string[] | null> {
     .maybeSingle()
   return (data as { synonyms: string[] } | null)?.synonyms ?? null
 }
+
+// ── Per-user profile (user_profiles) ─────────────────────────────────────────
+
+export interface DbUserProfile {
+  user_id: string
+  indication: string | null
+  asset_id: string | null
+  asset_name: string | null
+  onboarding_complete: boolean
+  onboarding_version: string | null
+}
+
+export async function getUserProfile(userId: string): Promise<DbUserProfile | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('user_id, indication, asset_id, asset_name, onboarding_complete, onboarding_version')
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data as DbUserProfile | null
+}
+
+export async function upsertUserProfile(
+  userId: string,
+  patch: Partial<Omit<DbUserProfile, 'user_id'>>,
+): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('user_profiles')
+    .upsert({ user_id: userId, ...patch, updated_at: new Date().toISOString() })
+  if (error) console.warn('[db] upsertUserProfile:', error.message)
+}
+
+// ── Per-user competitor watchlist (watched_assets) ────────────────────────────
+
+export async function getWatchedCompetitorIds(userId: string): Promise<string[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('watched_assets')
+    .select('competitor_id')
+    .eq('user_id', userId)
+  return (data ?? []).map((r: { competitor_id: string }) => r.competitor_id)
+}
+
+// Bulk-replace: deletes all existing rows for the user then inserts the new set.
+export async function upsertWatchedCompetitors(userId: string, competitorIds: string[]): Promise<void> {
+  if (!supabase) return
+  await supabase.from('watched_assets').delete().eq('user_id', userId)
+  if (!competitorIds.length) return
+  const { error } = await supabase
+    .from('watched_assets')
+    .insert(competitorIds.map(id => ({ user_id: userId, competitor_id: id })))
+  if (error) console.warn('[db] upsertWatchedCompetitors:', error.message)
+}
+
+export async function addWatchedCompetitor(userId: string, competitorId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('watched_assets')
+    .upsert({ user_id: userId, competitor_id: competitorId })
+  if (error) console.warn('[db] addWatchedCompetitor:', error.message)
+}
+
+export async function removeWatchedCompetitor(userId: string, competitorId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('watched_assets')
+    .delete()
+    .match({ user_id: userId, competitor_id: competitorId })
+  if (error) console.warn('[db] removeWatchedCompetitor:', error.message)
+}
+
+// ── Per-user alert read state (read_alerts) ───────────────────────────────────
+
+export async function getReadAlertIds(userId: string): Promise<string[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('read_alerts')
+    .select('alert_id')
+    .eq('user_id', userId)
+  return (data ?? []).map((r: { alert_id: string }) => r.alert_id)
+}
+
+export async function markAlertReadDb(userId: string, alertId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('read_alerts')
+    .upsert({ user_id: userId, alert_id: alertId })
+  if (error) console.warn('[db] markAlertReadDb:', error.message)
+}
+
+export async function markAlertUnreadDb(userId: string, alertId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('read_alerts')
+    .delete()
+    .match({ user_id: userId, alert_id: alertId })
+  if (error) console.warn('[db] markAlertUnreadDb:', error.message)
+}
+
+export async function markAllAlertsReadDb(userId: string, alertIds: string[]): Promise<void> {
+  if (!supabase || !alertIds.length) return
+  const rows = alertIds.map(id => ({ user_id: userId, alert_id: id }))
+  for (let i = 0; i < rows.length; i += 100) {
+    const { error } = await supabase
+      .from('read_alerts')
+      .upsert(rows.slice(i, i + 100))
+    if (error) console.warn('[db] markAllAlertsReadDb:', error.message)
+  }
+}
+
+// ── Competitor messaging snapshots (messaging_snapshots) ─────────────────────
+
+export interface DbMessagingSnapshot {
+  competitor_id: string
+  content_hash:  string
+  core_message:  string | null
+  pillars:       string[] | null
+  source_url:    string
+  scraped_at:    string
+}
+
+export async function getMessagingSnapshot(competitorId: string): Promise<DbMessagingSnapshot | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('messaging_snapshots')
+    .select('competitor_id, content_hash, core_message, pillars, source_url, scraped_at')
+    .eq('competitor_id', competitorId)
+    .maybeSingle()
+  return data as DbMessagingSnapshot | null
+}
+
+export async function getMessagingSignals(competitorId: string): Promise<DbCompanySignal[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('company_signals')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .eq('competitor_id', competitorId)
+    .eq('signal_type', 'messaging_shift')
+    .order('date', { ascending: false })
+    .limit(10)
+  return data ?? []
+}

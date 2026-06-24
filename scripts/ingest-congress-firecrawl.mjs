@@ -129,7 +129,6 @@ async function processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, 
     const abstract = abstracts[i]
     const title    = (abstract.title   ?? '').trim()
     const summary  = (abstract.summary ?? '').trim()
-    const absNo    = (abstract.abstract_number ?? `IDX-${counters.total + i + 1}`).trim()
 
     if (!title && !summary) { counters.skipped++; continue }
 
@@ -144,8 +143,13 @@ async function processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, 
     const { matched, competitorId } = resolveCompetitor(allText, termToCompetitor)
     if (!matched) { counters.skipped++; continue }
 
+    // Dedup on the normalized title within a congress. The abstract title is the
+    // stable identifier; the previous abstract_number key collided/duplicated when
+    // listing pages omitted the number (the IDX-N fallback differed per page, so the
+    // same abstract re-extracted across ?page=N writes was not recognized as a dup).
+    const titleKey    = title.toLowerCase().replace(/\s+/g, ' ').trim()
     const severity    = classifySeverity(`${title} ${summary}`)
-    const sourceHash  = sha256(`${congress}|${absNo}|${title.slice(0, 60)}`)
+    const sourceHash  = sha256(`${congress}|${titleKey}`)
     const headline    = `${congress}: ${title}`.slice(0, 500)
     const bodyExcerpt = summary.slice(0, 400)
 

@@ -23,10 +23,11 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Home, LayoutGrid, Building2, BarChart3, DollarSign,
   Bell, Sparkles, User, Compass, Settings, HelpCircle, X,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useApp, useConfig } from '../../context/AppContext'
+import { signOut } from '../../lib/auth'
 import { userData } from '../../data/kalvista'
 import { REDUCED_MOTION } from '../../lib/motion'
 import { DEMO, APP_VERSION } from '../../config/demo-config'
@@ -456,6 +457,11 @@ export default function NavPanel() {
   const [isExpanded, setIsExpanded] = useState(true)
   const [isMobile, setIsMobile]     = useState(() => window.innerWidth <= 767)
 
+  async function handleSignOut() {
+    await signOut()
+    navigate('/sign-in')
+  }
+
   // Track mobile breakpoint
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)')
@@ -554,12 +560,12 @@ export default function NavPanel() {
             overflow: 'hidden',
             justifyContent: showExpanded ? 'flex-start' : 'center',
           }}>
-            {/* User avatar — generic icon */}
+            {/* User avatar */}
             <div
               title={`${user.name} · ${company}`}
               style={{
                 width: '36px', height: '36px', borderRadius: '50%',
-                flexShrink: 0, cursor: 'default',
+                flexShrink: 0,
                 background: 'rgba(255,255,255,0.12)',
                 border: '1.5px solid rgba(255,255,255,0.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -583,6 +589,9 @@ export default function NavPanel() {
                 </p>
               </div>
             )}
+            {showExpanded && (
+              <FooterIconBtn icon={LogOut} label="Sign out" onClick={handleSignOut} />
+            )}
           </div>
 
           {/* Utility icons — column when collapsed, row when expanded */}
@@ -602,6 +611,9 @@ export default function NavPanel() {
             />
             <FooterIconBtn icon={HelpCircle} label="Help" onClick={() => setHelpOpen(true)} />
             <FooterIconBtn icon={Settings} label="Admin" onClick={() => navigate('/admin')} />
+            {!showExpanded && (
+              <FooterIconBtn icon={LogOut} label="Sign out" onClick={handleSignOut} />
+            )}
           </div>
         </div>
       </>
