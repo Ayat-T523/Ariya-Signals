@@ -85,7 +85,10 @@ export default function CompetitorProfile() {
   const [activeTab, setActiveTab] = useState(0)
 
   const stubCompetitor = competitors.find((c) => c.id === id)
-  const competitor = useCompetitorSupabase(stubCompetitor ?? {})
+  const { data: liveCompetitor, isLoading } = useCompetitorSupabase(stubCompetitor ?? {})
+  // Use live data when ready; while loading show stub metadata only (name/logo/header)
+  // so we never flash illustrative pipeline/events/messaging content.
+  const competitor = liveCompetitor ?? stubCompetitor
   useDocumentTitle(stubCompetitor?.name ?? 'Competitor Profile')
   if (!stubCompetitor) {
     return (
@@ -161,7 +164,21 @@ export default function CompetitorProfile() {
       </div>
 
       {/* ── TAB CONTENT (scrollable with page) ────────────────────────────── */}
-      <div style={{ padding: '20px 36px 36px' }}>
+      <div style={{ padding: '20px 36px 36px', position: 'relative' }}>
+        {/* Loading overlay — shown until live data replaces stub content */}
+        {isLoading && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 5,
+            background: 'rgba(244,248,254,0.80)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            paddingTop: '60px',
+            backdropFilter: 'blur(2px)',
+          }}>
+            <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.45)', fontFamily: 'Satoshi, sans-serif' }}>
+              Loading live data…
+            </p>
+          </div>
+        )}
         <div
           id={TABS[0].panelId} role="tabpanel" aria-labelledby={TABS[0].id} tabIndex={0}
           style={{ display: activeTab === 0 ? 'block' : 'none', outline: 'none' }}

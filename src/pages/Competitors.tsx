@@ -697,10 +697,15 @@ export default function Competitors() {
   const [showTimeline, setShowTimeline] = useState(false)
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
   const [haeAssetCountMap, setHaeAssetCountMap] = useState(new Map<string, number>())
+  const [liveDataReady, setLiveDataReady] = useState(false)
   const loaded = usePageLoad('competitors')
 
   useEffect(() => {
-    getAllSignalsSummary().then(setSignalsSummary)
+    let sigsDone = false
+    let assetsDone = false
+    function checkReady() { if (sigsDone && assetsDone) setLiveDataReady(true) }
+
+    getAllSignalsSummary().then(data => { setSignalsSummary(data); sigsDone = true; checkReady() })
     getAllAssets().then(assets => {
       const map = new Map<string, number>()
       for (const a of assets) {
@@ -711,6 +716,8 @@ export default function Competitors() {
         if (isHAE) map.set(a.competitor_id, (map.get(a.competitor_id) ?? 0) + 1)
       }
       setHaeAssetCountMap(map)
+      assetsDone = true
+      checkReady()
     })
   }, [])
 
@@ -801,7 +808,7 @@ export default function Competitors() {
           <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
             No competitors match this filter.
           </p>
-        ) : !loaded ? (
+        ) : (!loaded || !liveDataReady) ? (
           <SkeletonCompetitorGrid count={competitors.length} />
         ) : (
           <motion.div

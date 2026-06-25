@@ -161,15 +161,25 @@ function buildLiveFinancials(snapshots: DbFinancialSnapshot[]): Record<string, u
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+// Returns true when a stub event contains illustrative annotations that
+// should never appear in the live product. Filters are applied BEFORE
+// merging stub events with live events so nothing illustrative surfaces.
+function isIllustrativeEvent(e: any): boolean {
+  const text = `${e.headline ?? ''} ${e.summary ?? ''} ${e.detail ?? ''}`
+  return /\billustrative\b/i.test(text)
+}
+
 export function useCompetitorSupabase(competitor: any) {
-  const [augmented, setAugmented] = useState(competitor)
+  const [augmented, setAugmented] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
+      setIsLoading(true)
       const allAssets = await getAllAssets()
-      if (cancelled || !allAssets.length) return
+      if (cancelled || !allAssets.length) { setIsLoading(false); return }
 
       const matchedAssets = new Map<string, typeof allAssets[0]>()
       const pipelineCodes = (competitor.pipeline        ?? []).map((a: any) => a.assetInn ?? a.assetId)
@@ -343,7 +353,9 @@ export function useCompetitorSupabase(competitor: any) {
 
       const existingHeadlines = new Set([...approvalEvents, ...emaEvents, ...liveHtaEvents].map(e => e.headline.toLowerCase()))
       const filteredStubEvents = (competitor.keyEvents ?? []).filter(
-        (e: any) => !existingHeadlines.has((e.headline ?? '').toLowerCase())
+        (e: any) =>
+          !existingHeadlines.has((e.headline ?? '').toLowerCase()) &&
+          !isIllustrativeEvent(e)
       )
 
       const mergedEvents = [...approvalEvents, ...emaEvents, ...liveHtaEvents, ...filteredStubEvents]
@@ -394,8 +406,9 @@ export function useCompetitorSupabase(competitor: any) {
       const mergedHiring  = [...liveHiring,  ...(competitor.strategicSignals?.hiring ?? [])]
 
       // ── Live messaging from messaging_snapshots ────────────────────────────
-      // If a snapshot exists, build a live messaging object for MessagingTab.
-      // Falls back to the static JSON value when no snapshot has been seeded yet.
+      // Only show messaging data when a real snapshot exists.
+      // Never fall back to the static competitors.json messaging stub — it is
+      // illustrative and must not appear in the live product.
       const liveMessaging = messagingSnap && messagingSnap.core_message
         ? {
             currentCoreMessage:   messagingSnap.core_message,
@@ -409,9 +422,9 @@ export function useCompetitorSupabase(competitor: any) {
               shiftDetected: true,
               whyItMatters:  s.why_it_matters ?? null,
             })),
-            vsPharmaInc: competitor.messaging?.vsPharmaInc ?? [],
+            vsPharmaInc: [],
           }
-        : (competitor.messaging ?? null)
+        : null
 
       setAugmented({
         ...competitor,
@@ -430,11 +443,12 @@ export function useCompetitorSupabase(competitor: any) {
         messaging:  liveMessaging,
         ...(dataSummary ? { executiveSummary: dataSummary, _summaryGenerated: true } : {}),
       })
+      setIsLoading(false)
     }
 
-    load()
+    load().catch(() => setIsLoading(false))
     return () => { cancelled = true }
   }, [competitor.id])
 
-  return augmented
+  return { data: augmented, isLoading }
 }

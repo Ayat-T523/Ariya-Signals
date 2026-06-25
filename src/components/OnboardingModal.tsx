@@ -66,7 +66,7 @@ const selectableCompetitors = (competitorsData as Array<{ id: string; name: stri
 
 // Strip data-quality annotations that should never appear in product UI.
 function stripAnnotations(s: string): string {
-  return s.replace(/\s*\((illustrative|illustrative data|literature|hypothetical|TBD)\)/gi, '').trim()
+  return s.replace(/\s*\((illustrative[^)]*|literature|hypothetical|TBD)\)/gi, '').trim()
 }
 
 function competitorPills(id: string): { label: string; title: string }[] {
