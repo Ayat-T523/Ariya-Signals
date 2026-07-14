@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { ChevronRight, FileText, BarChart2, Plus } from 'lucide-react'
@@ -7,7 +7,7 @@ import CompetitorBadge from '../components/ui/CompetitorBadge'
 import competitors from '../data/competitors.json'
 import { formatDate } from '../utils/formatDate'
 import { getAllSignalsSummary, getAllAssets, type DbSignalSummary } from '../lib/db'
-import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
+import { REDUCED_MOTION } from '../lib/motion'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
@@ -811,17 +811,13 @@ export default function Competitors() {
         ) : (!loaded || !liveDataReady) ? (
           <SkeletonCompetitorGrid count={competitors.length} />
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.35 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}
-          >
-            {filtered.map(c => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            {filtered.map((c, i) => (
               <motion.div
                 key={c.id}
-                variants={listItem}
-                whileHover={REDUCED_MOTION ? {} : { y: -2 }}
-                transition={{ duration: 0.12 }}
+                className="ariya-card-enter"
+                style={({ ['--card-i']: i } as CSSProperties)}
+                whileHover={REDUCED_MOTION ? {} : { y: -2, transition: { duration: 0.12, ease: [0.25, 0, 0.25, 1] } }}
               >
                 <CompetitorCard competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} />
               </motion.div>
@@ -855,7 +851,7 @@ export default function Competitors() {
                 </p>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
       </div>

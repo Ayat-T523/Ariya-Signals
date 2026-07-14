@@ -93,6 +93,12 @@ export function AppProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setAuthUser(session?.user ?? null)
       setAuthLoading(false)
+      // A recovery link authenticates the user; force them to the reset-password
+      // page to set a new password rather than dropping them straight into the app.
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password')
+        return
+      }
       if (event === 'SIGNED_IN' && session?.user) {
         const userId = session.user.id
         void (async () => {
@@ -144,6 +150,7 @@ export function AppProvider({ children }) {
       }
     })
     return () => subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Competitor watch state ────────────────────────────────────────────────

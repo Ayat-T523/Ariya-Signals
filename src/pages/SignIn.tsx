@@ -138,7 +138,7 @@ export default function SignInPage() {
       return
     }
     const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: `${window.location.origin}/reset-password`,
     })
     if (resetErr) {
       setError(resetErr.message)

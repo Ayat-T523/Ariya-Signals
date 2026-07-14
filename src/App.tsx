@@ -9,6 +9,7 @@ import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
+import ResetPasswordPage from './pages/ResetPassword'
 
 const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true'
 
@@ -90,8 +91,9 @@ export default function App() {
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Public — sign-in page */}
+              {/* Public — sign-in + password-reset pages */}
               <Route path="/sign-in" element={<SignInPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected — all app routes require a Supabase session */}
               <Route element={<AuthGuard />}>
