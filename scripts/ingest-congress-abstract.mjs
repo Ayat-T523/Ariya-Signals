@@ -178,7 +178,7 @@ async function main() {
 
     // F.vii — write
     const { error: insErr } = await supabase.from('company_signals').insert({
-      competitor_id: competitorId,            // resolved drug owner, or 'congress' sentinel
+      competitor_id: competitorId,            // resolved drug owner, or 'unattributed' container (§2.3)
       signal_type:   SIGNAL_TYPE,
       headline:      `${congress}: ${title}`,
       body_excerpt:  body,

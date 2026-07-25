@@ -21,7 +21,11 @@ import { createHash }   from 'node:crypto'
 const GENERIC_HAE_TERMS = [
   'hereditary angioedema', 'hae', 'c1 inhibitor', 'kallikrein', 'bradykinin', 'angioedema',
 ]
-const UNATTRIBUTED = 'congress'   // NOT NULL sentinel for unresolved competitor_id
+// Generic container for signals with no tracked competitor (§2.3). Congress is a
+// SOURCE (recorded in data_source), never a competitor, so unresolved rows land
+// here rather than in a fake 'congress' competitor. NOT NULL forces a value;
+// this is an honest placeholder whose final treatment is a later-iteration call.
+const UNATTRIBUTED = 'unattributed'
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
 
