@@ -23,6 +23,7 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadInnToAssetId,
 } from './lib/signal-gate.mjs'
 
 const DATA_SOURCE = 'pubmed'
@@ -138,8 +139,12 @@ async function getAbstracts(pmids) {
 
 // ── Per-drug ingest ───────────────────────────────────────────────────────────
 
-async function ingestDrug(supabase, drug) {
+async function ingestDrug(supabase, drug, innToAssetId) {
   const term = drug.search_term ?? drug.inn
+  // Identity persisted at ingest (§2.1): the INN we searched, plus its canonical
+  // asset_id when known. Unknown asset_id stays null (honest) — e.g. ntla-2002
+  // until the lexicon gap for "lonvoguran ziclumeran" is filled.
+  const assetId = innToAssetId.get(drug.inn.toLowerCase()) ?? null
   console.log(`\n── ${drug.competitor_id.toUpperCase()} — ${drug.brand} (${term})`)
 
   const { pmids, total, query } = await searchPmids(term, args.max, args.since)
@@ -194,6 +199,8 @@ async function ingestDrug(supabase, drug) {
       source_url:    sourceUrl,
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,
+      inn:           drug.inn,
+      asset_id:      assetId,
     })
 
     if (error) {
@@ -216,10 +223,11 @@ async function main() {
   console.log(`   retmax: ${args.max} per drug | since: ${args.since}\n`)
 
   const supabase = createSupabaseClient()
+  const innToAssetId = await loadInnToAssetId(supabase)
   let totalWritten = 0, totalSkipped = 0, totalErrors = 0
 
   for (const drug of targets) {
-    const { written, skipped, errors } = await ingestDrug(supabase, drug)
+    const { written, skipped, errors } = await ingestDrug(supabase, drug, innToAssetId)
     totalWritten += written
     totalSkipped += skipped
     totalErrors  += errors

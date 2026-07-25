@@ -23,6 +23,8 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadAssetResolver,
+  resolveAsset,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -114,6 +116,7 @@ async function main() {
   console.log(`   pages: ${MAX_PAGES}\n`)
 
   const supabase = createSupabaseClient()
+  const resolver = await loadAssetResolver(supabase)
 
   let written   = 0
   let skipped   = 0
@@ -165,6 +168,8 @@ async function main() {
       const sourceUrl  = article.url ?? pageUrl
       const signalType = classifySignalType(fullText)
       const sourceHash = sha256(`${COMPETITOR_ID}|${title.slice(0, 80)}|${date ?? ''}`)
+      // Tier-3 asset match: persist named drug's INN + asset_id, else null (§4.1).
+      const { inn, assetId } = resolveAsset(fullText.toLowerCase(), resolver)
 
       if (await isDuplicate(supabase, sourceHash)) { skipped++; continue }
 
@@ -177,6 +182,8 @@ async function main() {
         source_url:    sourceUrl,
         source_hash:   sourceHash,
         data_source:   DATA_SOURCE,
+        inn,
+        asset_id:      assetId,
       })
 
       if (error) {

@@ -175,6 +175,98 @@ export function resolveCompetitor(textLower, termToCompetitor, sentinel = UNATTR
   return { matched: true, competitorId: resolved ?? sentinel }
 }
 
+// ── Asset identity (INN-persistence fix, backend §2.1) ─────────────────────────
+
+/**
+ * Load a lowercase INN → asset UUID map from the assets table.
+ *
+ * Used by the writers that already KNOW their INN at ingest (pubmed, hta): they
+ * pass the drug's INN and get back the canonical asset_id, or null if the INN is
+ * not (yet) an assets row — e.g. Intellia's "ntla-2002" until the lexicon gap for
+ * "lonvoguran ziclumeran" is filled. Null is honest: we persist the INN and leave
+ * asset_id null rather than guess.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @returns {Promise<Map<string, string>>}  inn(lowercased) → asset uuid
+ */
+export async function loadInnToAssetId(supabase) {
+  const { data, error } = await supabase.from('assets').select('id, inn')
+  if (error) throw new Error(`assets load failed: ${error.message}`)
+  const map = new Map()
+  for (const row of data ?? []) {
+    if (row.inn) map.set(row.inn.toLowerCase(), row.id)
+  }
+  return map
+}
+
+/**
+ * Build a lowercase term → { competitorId, inn, assetId } resolver from
+ * asset_lexicon (every inn + synonym) joined to assets for the canonical asset_id.
+ * Generic HAE terms resolve to a relevance-only entry (all identity fields null).
+ *
+ * Used by the writers that must DISCOVER the drug from free text (congress,
+ * regulatory firecrawl). This is the identity-carrying superset of loadLexicon.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @returns {Promise<Map<string, {competitorId: string|null, inn: string|null, assetId: string|null}>>}
+ */
+export async function loadAssetResolver(supabase) {
+  const innToAssetId = await loadInnToAssetId(supabase)
+  const { data, error } = await supabase
+    .from('asset_lexicon')
+    .select('inn, synonyms, competitor_id')
+  if (error) throw new Error(`asset_lexicon load failed: ${error.message}`)
+  if (!data?.length) throw new Error('asset_lexicon is empty — Source 1 must complete first.')
+
+  const map = new Map()
+  for (const row of data) {
+    const assetId = row.inn ? (innToAssetId.get(row.inn.toLowerCase()) ?? null) : null
+    const identity = { competitorId: row.competitor_id ?? null, inn: row.inn ?? null, assetId }
+    const terms = [row.inn, ...(row.synonyms ?? [])].filter(Boolean)
+    for (const t of terms) {
+      const k = t.toLowerCase()
+      // Prefer an entry that carries a real drug identity (non-null inn) if one
+      // already exists for this term; never let a later generic entry clobber it.
+      if (!map.has(k) || (map.get(k).inn == null && identity.inn != null)) {
+        map.set(k, identity)
+      }
+    }
+  }
+  for (const t of GENERIC_HAE_TERMS) {
+    if (!map.has(t)) map.set(t, { competitorId: null, inn: null, assetId: null })
+  }
+  return map
+}
+
+/**
+ * Resolve drug identity from free text against a loadAssetResolver() map.
+ *
+ * First specific-drug term wins (matches existing resolveCompetitor precedence;
+ * the multi-drug-in-one-signal rule is §2.2, deferred). When only generic HAE
+ * terms match, the signal is relevant but unattributed: competitorId falls back
+ * to `sentinel`, and inn/assetId stay null (never fabricated).
+ *
+ * @param {string} textLower  Already-lowercased full text
+ * @param {Map<string,{competitorId:string|null,inn:string|null,assetId:string|null}>} resolver
+ * @param {string} [sentinel]  competitor_id fallback when only generic terms match
+ * @returns {{ matched: boolean, competitorId: string|null, inn: string|null, assetId: string|null }}
+ */
+export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED) {
+  let matched = false
+  let generic = null
+  for (const [term, identity] of resolver) {
+    if (!textLower.includes(term)) continue
+    matched = true
+    if (identity.inn != null) {
+      // Specific drug named — this is the strongest signal, take it immediately.
+      return { matched: true, competitorId: identity.competitorId ?? sentinel, inn: identity.inn, assetId: identity.assetId }
+    }
+    generic = identity   // relevance-only match; keep looking for a specific drug
+  }
+  if (!matched) return { matched: false, competitorId: null, inn: null, assetId: null }
+  return { matched: true, competitorId: generic?.competitorId ?? sentinel, inn: null, assetId: null }
+}
+
 // ── Severity ─────────────────────────────────────────────────────────────────
 
 /**

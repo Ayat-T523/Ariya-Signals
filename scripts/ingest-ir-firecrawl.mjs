@@ -24,6 +24,8 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadAssetResolver,
+  resolveAsset,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -154,7 +156,7 @@ function resolveUrl(raw, baseUrl) {
 
 // ── Per-target ingest ─────────────────────────────────────────────────────────
 
-async function ingestTarget(supabase, target) {
+async function ingestTarget(supabase, target, resolver) {
   const { competitor_id, newsUrl, haeTerms } = target
   const prompt = buildPrompt(haeTerms)
 
@@ -208,6 +210,8 @@ async function ingestTarget(supabase, target) {
       const date       = parseSignalDate(article.date)
       const sourceUrl  = resolveUrl(article.url, pageUrl)
       const signalType = classifySignalType(`${title} ${summary}`)
+      // Tier-3 asset match: persist named drug's INN + asset_id, else null (§4.1).
+      const { inn, assetId } = resolveAsset(`${title} ${summary}`.toLowerCase(), resolver)
 
       // Use same hash formula as ir_rss for cross-dedup compatibility
       const sourceHash = sha256(`${competitor_id}|${sourceUrl}|${date ?? ''}`)
@@ -223,6 +227,8 @@ async function ingestTarget(supabase, target) {
         source_url:   sourceUrl,
         source_hash:  sourceHash,
         data_source:  DATA_SOURCE,
+        inn,
+        asset_id:     assetId,
       })
 
       if (error) {
@@ -248,13 +254,14 @@ async function main() {
   console.log(`   pages per target: ${MAX_PAGES}\n`)
 
   const supabase = createSupabaseClient()
+  const resolver = await loadAssetResolver(supabase)
 
   let totalWritten = 0
   let totalSkipped = 0
   let totalErrors  = 0
 
   for (const target of targets) {
-    const { written, skipped, errors } = await ingestTarget(supabase, target)
+    const { written, skipped, errors } = await ingestTarget(supabase, target, resolver)
     totalWritten += written
     totalSkipped += skipped
     totalErrors  += errors

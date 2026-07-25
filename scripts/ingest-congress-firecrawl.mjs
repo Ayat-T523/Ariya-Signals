@@ -25,8 +25,8 @@
 import {
   createSupabaseClient,
   sha256,
-  loadLexicon,
-  resolveCompetitor,
+  loadAssetResolver,
+  resolveAsset,
   classifySeverity,
   isDuplicate,
   writeIngestRun,
@@ -124,7 +124,7 @@ const EXTRACT_PROMPT =
 
 // ── Per-abstract processor ────────────────────────────────────────────────────
 
-async function processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, counters) {
+async function processAbstracts(supabase, abstracts, resolver, pageUrl, counters) {
   for (let i = 0; i < abstracts.length; i++) {
     const abstract = abstracts[i]
     const title    = (abstract.title   ?? '').trim()
@@ -140,7 +140,7 @@ async function processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, 
       abstract.primary_endpoint_result ?? '',
     ].join(' ').toLowerCase()
 
-    const { matched, competitorId } = resolveCompetitor(allText, termToCompetitor)
+    const { matched, competitorId, inn, assetId } = resolveAsset(allText, resolver)
     if (!matched) { counters.skipped++; continue }
 
     // Dedup on the normalized title within a congress. The abstract title is the
@@ -165,6 +165,8 @@ async function processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, 
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,
       severity,
+      inn,
+      asset_id:      assetId,
     })
 
     if (error) {
@@ -186,8 +188,8 @@ async function main() {
   console.log(`   pages:  ${MAX_PAGES}\n`)
 
   const supabase = createSupabaseClient()
-  const termToCompetitor = await loadLexicon(supabase)
-  console.log(`Loaded ${termToCompetitor.size} relevance terms from asset_lexicon.\n`)
+  const resolver = await loadAssetResolver(supabase)
+  console.log(`Loaded ${resolver.size} relevance terms from asset_lexicon.\n`)
 
   const counters = { written: 0, skipped: 0, errors: 0, total: 0, writtenNos: [] }
 
@@ -214,7 +216,7 @@ async function main() {
     }
 
     const beforeWritten = counters.written
-    await processAbstracts(supabase, abstracts, termToCompetitor, pageUrl, counters)
+    await processAbstracts(supabase, abstracts, resolver, pageUrl, counters)
     counters.total += abstracts.length
 
     const newThisPage = counters.written - beforeWritten

@@ -33,6 +33,7 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadInnToAssetId,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -200,7 +201,7 @@ function innInMarkdown(inn, markdown) {
 
 // ── EMA EPAR ingest ───────────────────────────────────────────────────────────
 
-async function ingestEma(supabase, target) {
+async function ingestEma(supabase, target, innToAssetId) {
   console.log(`\n── EMA | ${target.brand} (${target.inn})`)
   console.log(`   ${target.url}`)
 
@@ -261,6 +262,8 @@ async function ingestEma(supabase, target) {
     source_url:    usedUrl,
     source_hash:   sourceHash,
     data_source:   DATA_SOURCE,
+    inn:           target.inn,
+    asset_id:      innToAssetId.get(target.inn.toLowerCase()) ?? null,
   })
 
   if (error) {
@@ -274,7 +277,7 @@ async function ingestEma(supabase, target) {
 
 // ── National HTA ingest ───────────────────────────────────────────────────────
 
-async function ingestNationalHta(supabase, target) {
+async function ingestNationalHta(supabase, target, innToAssetId) {
   console.log(`\n── ${target.agency} (${target.country}) | ${target.brand} (${target.inn})`)
   console.log(`   ${target.url}`)
 
@@ -343,6 +346,8 @@ async function ingestNationalHta(supabase, target) {
       source_url:    sourceUrl,
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,
+      inn:           target.inn,
+      asset_id:      innToAssetId.get(target.inn.toLowerCase()) ?? null,
     })
 
     if (error) {
@@ -366,11 +371,12 @@ async function main() {
   console.log(`   ${allTargets.length} targets\n`)
 
   const supabase = createSupabaseClient()
+  const innToAssetId = await loadInnToAssetId(supabase)
   let totalWritten = 0, totalSkipped = 0, totalErrors = 0
 
   for (const target of allTargets) {
     const fn = target.agency === 'EMA' ? ingestEma : ingestNationalHta
-    const { written, skipped, errors } = await fn(supabase, target)
+    const { written, skipped, errors } = await fn(supabase, target, innToAssetId)
     totalWritten += written
     totalSkipped += skipped
     totalErrors  += errors
