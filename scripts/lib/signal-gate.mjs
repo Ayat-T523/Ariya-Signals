@@ -214,7 +214,7 @@ export async function loadAssetResolver(supabase) {
   const innToAssetId = await loadInnToAssetId(supabase)
   const { data, error } = await supabase
     .from('asset_lexicon')
-    .select('inn, synonyms, competitor_id')
+    .select('inn, brand_name, synonyms, competitor_id')
   if (error) throw new Error(`asset_lexicon load failed: ${error.message}`)
   if (!data?.length) throw new Error('asset_lexicon is empty — Source 1 must complete first.')
 
@@ -222,7 +222,9 @@ export async function loadAssetResolver(supabase) {
   for (const row of data) {
     const assetId = row.inn ? (innToAssetId.get(row.inn.toLowerCase()) ?? null) : null
     const identity = { competitorId: row.competitor_id ?? null, inn: row.inn ?? null, assetId }
-    const terms = [row.inn, ...(row.synonyms ?? [])].filter(Boolean)
+    // Match on inn + brand_name + every synonym (§2.2). brand_name was previously
+    // ignored, so brand-only headlines (Orladeyo, Firazyr, Andembry) never resolved.
+    const terms = [row.inn, row.brand_name, ...(row.synonyms ?? [])].filter(Boolean)
     for (const t of terms) {
       const k = t.toLowerCase()
       // Prefer an entry that carries a real drug identity (non-null inn) if one
