@@ -13,8 +13,9 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { buildWhyItMatters } from './lib/extractWhy.mjs'
 import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
+import { qualityGate } from './lib/signal-gate.mjs'
+import { recoverDisclosure } from './lib/sec-extract.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -307,53 +308,16 @@ for (const competitor of withCik) {
       const accNodash = filing.accession.replace(/-/g, '')
       const docUrl = `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${filing.doc}`
 
-      let headline    = null
-      let bodyExcerpt = null
+      // §2.4: recover a REAL disclosure (8-K body, else the EX-99.1 exhibit) via
+      // the shared extractor — never synthesize a headline. Show the real
+      // headline or REJECT the row (quality gate). Congress-style synthesis and
+      // "Company — Other Events" stubs are no longer produced here.
+      const rec = await recoverDisclosure(docUrl, filing.itemsStr, itemSignalType)
+      const headline    = rec?.headline ?? null
+      const bodyExcerpt = rec?.body ?? null
+      if (!headline || !qualityGate(headline).ok) { skipped++; continue }
 
-      try {
-        const html = await fetchText(docUrl)
-        if (html) {
-          const text = stripHtml(html)
-          if (filing.formType === '8-K') {
-            // Guard: 6-K rows reach here with empty itemsStr — skip composition,
-            // Phase 4 foreign-filer adapter handles those rows.
-            if (!filing.itemsStr) continue
-
-            // Pick the most relevant item number for excerpt extraction
-            const targetItem = filing.itemsStr.split(',')
-              .map(s => s.trim())
-              .find(i => ['1.01', '2.01', '5.02', '8.01'].includes(i)) ?? '1'
-            bodyExcerpt = extractExcerpt(text, targetItem)
-            // Compose title from structured items metadata instead of slicing text.
-            // recoverProseSentence handles press-release items (8.01/7.01) that
-            // have real prose content worth surfacing.
-            headline = composeTitle(name, filing.itemsStr, bodyExcerpt)
-          } else {
-            // Phase 4.1: 6-K adapter — fetch the EX-99.1 press release exhibit.
-            // Financial-only 6-Ks (no EX-99) are skipped; the cover filing text
-            // is a table of contents, not prose worth extracting.
-            const ex99Url = await fetchEx99Url(unpadded, accNodash)
-            if (!ex99Url) { skipped++; continue }
-            const ex99Html = await fetchText(ex99Url)
-            if (ex99Html) {
-              const ex99Text = stripHtml(ex99Html)
-              bodyExcerpt = ex99Text.slice(0, EXCERPT_LEN).trim()
-              headline    = buildHeadline(bodyExcerpt) ?? recoverProseSentence(bodyExcerpt)
-            }
-          }
-        }
-      } catch (_) {
-        // Document fetch failed — still store the filing metadata
-      }
-
-      // Resolve final signal type: item-based for 8-K, text-based for everything else
-      const signalType = itemSignalType ?? classifyByText(bodyExcerpt ?? headline ?? '')
-
-      // Phase 2: generate why_it_matters at ingest time (deterministic — no external API)
-      const whyItMatters = buildWhyItMatters(
-        { headline, body_excerpt: bodyExcerpt, signal_type: signalType },
-        name,
-      )
+      const signalType = itemSignalType ?? classifyByText(bodyExcerpt ?? '')
 
       const { error } = await supabase
         .from('company_signals')
@@ -367,7 +331,6 @@ for (const competitor of withCik) {
             items:            filing.itemsStr || null,
             source_url:       `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${filing.doc}`,
             accession_number: filing.accession,
-            why_it_matters:   whyItMatters,
           },
           { onConflict: 'competitor_id,accession_number', ignoreDuplicates: false }
         )
