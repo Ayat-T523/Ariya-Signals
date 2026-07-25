@@ -273,6 +273,75 @@ export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED) {
   return { matched: true, competitorId: generic?.competitorId ?? sentinel, inn: null, assetId: null }
 }
 
+// ── Data-quality gate (§2.4) ───────────────────────────────────────────────────
+
+// Synthetic headlines produced by the old composeTitle() path — a company name
+// glued to an SEC item description ("Acme — Other Events"), or a bare filing
+// stub ("Acme — SEC 6-K filing"). These carry no real disclosure. §2.4 LOCKED:
+// show the real headline or reject; never synthesize one.
+const SYNTHETIC_HEADLINE = new RegExp(
+  '(?:\\u2014|--|-)\\s*(' +
+    'Other Events|Results of Operations|Entry into a Material|' +
+    'Completion of Acquisition|Departure|Regulation FD|' +
+    'Financial Statements and Exhibits|SEC Filing \\(Item|SEC \\d-?K filing' +
+  ')', 'i',
+)
+
+// SEC form headers / cover-page + XBRL boilerplate. These look like prose but are
+// the filing's furniture, not its disclosure — a headline made of this is garbage.
+const BOILERPLATE = new RegExp(
+  'united states securities and exchange commission|securities and exchange commission|' +
+  'washington,?\\s*d\\.?\\s*c\\.?|pursuant to (?:section|the requirements|rule)|' +
+  'the information (?:contained|in this|furnished|set forth) in this|' +
+  'check the appropriate box|indicate by check mark|registrant\\u2019?s telephone|' +
+  'form\\s*(?:8-k|6-k|10-k|10-q|20-f)\\b|current report|table of contents|' +
+  // an 8-K that only points at its exhibit is not itself a disclosure headline
+  'attached as (?:exhibit|exhibit no)|furnished as exhibit|copy of the press release|' +
+  'is incorporated (?:herein )?by reference',
+  'i',
+)
+
+/**
+ * True when `text` reads like real prose rather than XBRL/exhibit/boilerplate
+ * garbage. Ported verbatim from the SEC ingest so the gate and the ingest agree.
+ */
+export function isProseText(text) {
+  if (!text) return false
+  if (/\d{10}\s+\d{10}/.test(text))   return false
+  if (/exhibit\d+[_\-.]/i.test(text)) return false
+  if (/form\d*k[_\-]/i.test(text))    return false
+  const nonAlpha = (text.match(/[\d_]/g) ?? []).length
+  if (nonAlpha / text.length > 0.4)   return false
+  const skip = /^(true|false|null)$/i
+  const proseWords = (text.match(/\b[A-Za-z]{4,}\b/g) ?? []).filter(w => !skip.test(w))
+  return proseWords.length >= 3
+}
+
+/**
+ * Deterministic data-quality gate (§2.4). Decides whether a signal's headline is
+ * a real, publishable disclosure or must be rejected — with a distinct, honest
+ * reason. It NEVER rewrites; callers either show the real headline or drop the row.
+ *
+ * SCOPE: this targets SEC-source quality problems (synthetic composeTitle stubs,
+ * truncated XBRL boilerplate). Apply it to SEC-sourced rows only. Do NOT blanket
+ * it across all sources — clean structured titles from PubMed / congress / HTA
+ * (e.g. a one-word "Berotralstat" drug-review title) are real and would wrongly
+ * trip the too_short/not_prose checks. Those sources have their own gates.
+ *
+ * @param {string|null|undefined} headline
+ * @returns {{ ok: boolean, reason: string|null }}
+ *   reason ∈ empty_headline | synthetic_stub | too_short | not_prose
+ */
+export function qualityGate(headline) {
+  const h = (headline ?? '').trim()
+  if (!h)                          return { ok: false, reason: 'empty_headline' }
+  if (SYNTHETIC_HEADLINE.test(h))  return { ok: false, reason: 'synthetic_stub' }
+  if (BOILERPLATE.test(h))         return { ok: false, reason: 'boilerplate' }
+  if (h.length < 20)               return { ok: false, reason: 'too_short' }
+  if (!isProseText(h))             return { ok: false, reason: 'not_prose' }
+  return { ok: true, reason: null }
+}
+
 // ── Severity ─────────────────────────────────────────────────────────────────
 
 /**
