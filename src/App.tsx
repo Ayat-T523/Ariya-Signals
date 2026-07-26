@@ -25,6 +25,7 @@ const PricingAndAccess  = lazy(() => import('./pages/PricingAndAccess'))
 const MySpace           = lazy(() => import('./pages/MySpace'))
 const MyAlerts          = lazy(() => import('./pages/MyAlerts'))
 const MyDocuments       = lazy(() => import('./pages/MyDocuments'))
+const InformKit         = lazy(() => import('./pages/InformKit'))  // Phase 0.4 component-library scratch view
 
 // ── Per-route document title ──────────────────────────────────────────────────
 function RouteTitle({ title }: { title: string }) {
@@ -92,6 +93,9 @@ export default function App() {
             <Routes>
               {/* Public — sign-in page */}
               <Route path="/sign-in" element={<SignInPage />} />
+
+              {/* InForm component-library scratch view — public, standalone (no shell/auth) */}
+              <Route path="/inform-kit" element={<><RouteTitle title="InForm Kit" /><InformKit /></>} />
 
               {/* Protected — all app routes require a Supabase session */}
               <Route element={<AuthGuard />}>
