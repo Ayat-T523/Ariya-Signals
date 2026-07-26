@@ -927,13 +927,8 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   )
 }
 
-const EVENT_LEFT_BORDER: Record<string, string> = {
-  conference: '#0055BB',
-  earnings:   '#94A3B8',
-  regulatory: '#10B981',
-  investor:   '#8B5CF6',
-  milestone:  '#EF4444',
-}
+// Event type is carried by the labeled type chip inside EventCard (colour, icon,
+// and word together) — it does not need a second encoding on the card edge.
 
 function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
   const { watchedCompetitors } = useApp()
@@ -1130,12 +1125,10 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
               {upcomingOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {upcoming.map((e) => {
-                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
                     return (
                       <div key={(e as any).id} style={{
                         background: '#ffffff',
                         border: '1px solid rgba(210,226,255,1)',
-                        borderLeft: `3px solid ${leftColor}`,
                         borderRadius: '12px',
                         overflow: 'hidden',
                       }}>
@@ -1174,12 +1167,10 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
               {pastOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {past.map((e) => {
-                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
                     return (
                       <div key={(e as any).id} style={{
                         background: '#ffffff',
                         border: '1px solid rgba(210,226,255,1)',
-                        borderLeft: `3px solid ${leftColor}`,
                         borderRadius: '12px',
                         overflow: 'hidden',
                       }}>

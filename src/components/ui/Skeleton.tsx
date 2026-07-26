@@ -313,7 +313,6 @@ function SkeletonAlertCard() {
     <div style={{
       background: '#FFFFFF',
       border: '1px solid rgba(5,10,68,0.08)',
-      borderLeft: '4px solid rgba(5,10,68,0.10)',
       borderRadius: '16px',
       padding: '18px 20px',
       boxShadow: '0 1px 3px rgba(5,10,68,0.04)',

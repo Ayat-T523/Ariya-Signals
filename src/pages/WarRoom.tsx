@@ -246,15 +246,13 @@ type MergedEventItem = {
 }
 
 // â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const SEVERITY_BORDER: Record<string, string> = {
-  high:   '#E11D48',
-  medium: '#F59E0B',
-  low:    'rgba(5,10,68,0.18)',
-}
-
+// Severity lives entirely in its own badge, next to the word it modifies —
+// no card-edge accent. `high` is solid so it anchors a scan down the feed
+// harder than a border ever did; medium and low stay tinted so only the
+// signals that need triage carry weight. White on #C01041 is 6.2:1.
 const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
-  high:   { bg: 'rgba(225,29,72,0.10)',  text: '#C01041',           label: 'HIGH' },
-  medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',           label: 'MED'  },
+  high:   { bg: '#C01041',               text: '#FFFFFF',            label: 'HIGH' },
+  medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',            label: 'MED'  },
   low:    { bg: 'rgba(5,10,68,0.06)',    text: 'rgba(5,10,68,0.70)', label: 'LOW'  },
 }
 
@@ -524,7 +522,6 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
 
 // â”€â”€ Compact alert card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CompactAlertCard({ alert }: { alert: Alert }) {
-  const sevBorder = SEVERITY_BORDER[alert.severity] || SEVERITY_BORDER.low
   const sevLabel  = SEVERITY_LABEL[alert.severity]  || SEVERITY_LABEL.low
   const competitor = competitorById(alert.competitorId)
 
@@ -533,7 +530,6 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
       background: '#FFFFFF',
       borderRadius: '10px',
       border: '1px solid rgba(5,10,68,0.06)',
-      borderLeft: `3px solid ${sevBorder}`,
       padding: '12px 14px',
     }}>
       {/* Top row: chips left, age right */}
