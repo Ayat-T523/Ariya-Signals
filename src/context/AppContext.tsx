@@ -164,6 +164,26 @@ export function AppProvider({ children }) {
   // localStorage is no longer the source of truth (kept only for migration).
   const [readAlerts, setReadAlerts] = useState<Set<string>>(() => new Set())
 
+  // ── Saved alerts (Phase 3.1) ─────────────────────────────────────────────
+  // Local-only for now, unlike readAlerts above -- there is no saved_alerts
+  // table in Supabase yet, so this does not survive a browser/device switch.
+  // A real per-user store (matching the readAlerts migration) is follow-up
+  // work, not part of building the Alerts inbox itself.
+  const [savedAlerts, setSavedAlerts] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('pharma-inc-ciwarroom-saved-alerts')
+      return raw ? new Set(JSON.parse(raw)) : new Set()
+    } catch { return new Set() }
+  })
+  function toggleSavedAlert(alertId: string) {
+    setSavedAlerts((prev) => {
+      const next = new Set(prev)
+      next.has(alertId) ? next.delete(alertId) : next.add(alertId)
+      try { localStorage.setItem('pharma-inc-ciwarroom-saved-alerts', JSON.stringify([...next])) } catch { /* noop */ }
+      return next
+    })
+  }
+
   // Unread count is pushed here by AlertsPage after it loads the live feed.
   const [unreadCount, setUnreadCount] = useState(0)
   function syncUnreadCount(n: number) { setUnreadCount(n) }
@@ -409,6 +429,8 @@ export function AppProvider({ children }) {
         markAlertRead,
         markAlertUnread,
         markAllRead,
+        savedAlerts,
+        toggleSavedAlert,
         unreadCount,
         syncUnreadCount,
         onboardingComplete,

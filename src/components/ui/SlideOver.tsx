@@ -40,12 +40,14 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
             onClick={onClose}
             style={{
               position: 'absolute', inset: 0,
-              background: 'rgba(5,10,68,0.35)',
-              backdropFilter: 'blur(2px)',
+              background: 'rgba(20,40,58,0.45)',
+              backdropFilter: 'blur(3px)',
             }}
           />
 
-          {/* Panel — slides in from right */}
+          {/* Panel — slides in from right. Glass chrome frame around a cream content layer,
+              per the two-layer InForm rule: chrome is glass, the workspace underneath is
+              neumorphic cream (never glass-on-glass, never neumorphic-as-chrome). */}
           <motion.div
             key="panel"
             initial={{ x: REDUCED_MOTION ? 0 : '100%' }}
@@ -56,8 +58,11 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
               position: 'relative',
               width: `${width}px`, maxWidth: '100vw',
               height: '100%',
-              background: '#FFFFFF',
-              boxShadow: '-8px 0 40px rgba(5,10,68,0.16)',
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(20px) saturate(1.1)',
+              WebkitBackdropFilter: 'blur(20px) saturate(1.1)',
+              borderLeft: '1px solid var(--glass-border)',
+              boxShadow: 'var(--glass-shadow), -20px 0 48px -12px rgba(20,40,58,0.28)',
               display: 'flex', flexDirection: 'column',
               zIndex: 1,
             }}
@@ -66,12 +71,12 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '20px 24px',
-              borderBottom: '1px solid rgba(5,10,68,0.08)',
+              borderBottom: '1px solid var(--glass-border)',
               flexShrink: 0,
             }}>
               <h2 style={{
                 margin: 0, fontSize: '16px', fontWeight: 600,
-                fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.90)',
+                fontFamily: 'var(--font-display)', color: 'var(--ink-900)',
               }}>
                 {title}
               </h2>
@@ -80,17 +85,20 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
                 aria-label="Close"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '6px', borderRadius: '6px',
+                  width: '28px', height: '28px', borderRadius: 'var(--r-sm)',
                   color: 'var(--ink-600)',
-                  display: 'flex', alignItems: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
                 <X size={16} />
               </button>
             </div>
 
-            {/* Scrollable body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+            {/* Scrollable body — cream content layer inside the glass frame */}
+            <div style={{
+              flex: 1, overflowY: 'auto', padding: '24px',
+              background: 'var(--cream-100)',
+            }}>
               {children}
             </div>
           </motion.div>

@@ -1309,3 +1309,66 @@
 
 .mw-empty { text-align: center; padding: var(--s-4) 0 var(--s-2); }
 .mw-empty p { font-family: var(--font-ui); font-size: 13px; color: var(--ink-600); margin: 0; line-height: 1.5; }
+
+/* ---------- Alerts Inbox (Phase 3.1) ---------- */
+/* Row shares the digest-plate/digest-group shell (same grouped-by-competitor
+   structure as DigestFeed) but the row itself carries more: a type chip and
+   mono recency (Alerts needs to show these per row; DigestFeed's row does
+   not), plus action icons and unread state. Severity reads via SeverityDot
+   only -- no colored border, per the craft-floor ban on border accents. */
+.alert-row {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--cream-300);
+  background: none; width: 100%; text-align: left; cursor: pointer; font-family: var(--font-ui);
+  outline: none;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.alert-row:hover { background: var(--cream-50); }
+.alert-row:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+.alert-row-headline {
+  flex: 1; min-width: 0; font-size: 14px; color: var(--ink-700); font-weight: 400;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  line-height: 1.4;
+}
+.alert-row.is-unread .alert-row-headline { color: var(--ink-900); font-weight: 600; }
+.alert-row-type {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--cream-200); color: var(--ink-700);
+  white-space: nowrap; flex-shrink: 0;
+}
+.alert-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; min-width: 44px; text-align: right; }
+.alert-row-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.alert-row-action {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  background: none; border: 0; cursor: pointer; color: var(--ink-500);
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.alert-row-action:hover { background: var(--cream-200); color: var(--ink-900); }
+.alert-row-action:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+.alert-row-action.is-active { color: var(--indigo-600); }
+.alert-row-action.is-active:hover { color: var(--indigo-600); }
+
+/* Group header gains a severity summary dot (highest severity in the group),
+   matching the Signal Feed Variants reference. */
+.alert-group-sev { margin-left: auto; }
+
+/* ---------- Alerts detail drawer content (SlideOver body) ---------- */
+.alert-drawer-hd { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-2); }
+.alert-drawer-title { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--ink-900); line-height: 1.3; margin: 0 0 var(--s-4); }
+.alert-drawer-section { margin-bottom: var(--s-6); }
+.alert-drawer-label {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--ink-600); margin: 0 0 var(--s-2);
+}
+.alert-drawer-body { font-family: var(--font-ui); font-size: 14px; color: var(--ink-800); line-height: 1.55; margin: 0; }
+.alert-drawer-source-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; cursor: pointer; padding: var(--s-2) 0;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink-700);
+}
+.alert-drawer-source-toggle:hover { color: var(--ink-900); }
+.alert-drawer-source-toggle:focus-visible { box-shadow: var(--ring-indigo); outline: none; border-radius: 4px; }
+.alert-drawer-source-body { margin-top: var(--s-3); }
