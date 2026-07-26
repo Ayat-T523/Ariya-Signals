@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-26T12:35:00.000Z",
+  "title": "DESIGN.md — InForm design language (Ariya Signals reskin)",
+  "extensions": {
+    "colorMeta": {
+      "indigo-500": { "role": "primary", "displayName": "Signal Indigo", "canonical": "#2A76F4", "tonalRamp": ["#1E5FD1", "#2A76F4", "#D2E2FF", "#ECF3FF"] },
+      "cream-100": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#F7F2EA",
+        "tonalRamp": ["#FDFBF7", "#F7F2EA", "#EDE6DB", "#E5DDCF", "#D4CABA"]
+      },
+      "ink-900": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#2A2722",
+        "tonalRamp": ["#2A2722", "#3F3A33", "#534E44", "#6B655B", "#8A8579", "#B3AEA3", "#D0CBC0", "#E5E1D6"]
+      },
+      "navy-700": {
+        "role": "neutral",
+        "displayName": "Deep Navy",
+        "canonical": "#24445C",
+        "tonalRamp": ["#14283A", "#1B3449", "#24445C", "#345976", "#4A7293"]
+      },
+      "sage-600": { "role": "status", "displayName": "Approved / Sage", "canonical": "#4F7A4F", "tonalRamp": ["#4F7A4F", "#D9E5D2", "#EFF4EB"] },
+      "terra-600": { "role": "status", "displayName": "Returned / Terra", "canonical": "#B5633F", "tonalRamp": ["#B5633F", "#F1D6C7", "#FAEDE4"] },
+      "crimson-600": { "role": "status", "displayName": "Error / Crimson", "canonical": "#D80027", "tonalRamp": ["#D80027", "#FDD6DB", "#FEECEF"] },
+      "amber-500": { "role": "status", "displayName": "Alert / Amber", "canonical": "#FFDA44", "tonalRamp": ["#E5B200", "#FFDA44", "#FFF3B8", "#FFFBE6"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero numbers/headlines (t-display-72/48), mono for the figure itself per the One Ledger rule." },
+      "h1": { "displayName": "H1", "purpose": "Page-level headings (700/36px)." },
+      "h2": { "displayName": "H2", "purpose": "Section headings (700/24px)." },
+      "h3": { "displayName": "H3", "purpose": "Subsection headings, card titles (600/18px)." },
+      "body": { "displayName": "Body", "purpose": "Default reading size (400/14px)." },
+      "caption": { "displayName": "Caption", "purpose": "Metadata, secondary labels (400/12px)." },
+      "mono": { "displayName": "Ledger Mono", "purpose": "Every number, timestamp, and count (JetBrains Mono)." }
+    },
+    "shadows": [
+      { "name": "neu-raised", "value": "-2px 6px 10px rgba(29,27,32,0.10), 0px -2px 6px rgba(255,255,255,0.70)", "purpose": "Default neumorphic content-card resting state." },
+      { "name": "neu-raised-strong", "value": "-3px 10px 18px rgba(29,27,32,0.14), 0px -3px 8px rgba(255,255,255,0.80)", "purpose": "Emphasized/hover raised state." },
+      { "name": "neu-inset", "value": "inset 2px 2px 6px rgba(164,167,174,0.55), inset -3px -3px 8px rgba(255,255,255,0.85)", "purpose": "Inputs and other pressed/recessed content." },
+      { "name": "neu-pressed", "value": "inset 3px 3px 8px rgba(29,27,32,0.18), inset -2px -2px 6px rgba(255,255,255,0.60)", "purpose": "Active/pressed button state." },
+      { "name": "glass-shadow", "value": "0 10px 30px rgba(20,40,58,0.12), inset 0 1px 0 rgba(255,255,255,0.85)", "purpose": "Passive chrome only (top bar, sidebar, filter bar, menus)." }
+    ],
+    "motion": [
+      { "name": "duration-fast", "value": "120ms", "purpose": "Hover/focus micro-transitions on buttons, inputs, chips." },
+      { "name": "duration-base", "value": "200ms", "purpose": "Most state transitions." },
+      { "name": "duration-cap", "value": "320ms", "purpose": "Hard ceiling per DESIGN.md — no transition in the system should exceed this." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "btn-primary",
+      "description": "Filled Signal Indigo CTA — the one color-filled-flat primitive (neumorphic-only fails contrast per DESIGN.md Accessibility).",
+      "html": "<button class=\"ds-btn-primary\">Investigate</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--r-pill); font: 500 14px/1 var(--font-ui); border: 0; cursor: pointer; background: var(--indigo-500); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 6px 16px -6px rgba(42,118,244,0.55); transition: transform .12s ease, box-shadow .12s ease, background .12s ease; } .ds-btn-primary:hover { background: var(--indigo-600); transform: translateY(-1px); } .ds-btn-primary:active { background: var(--indigo-600); transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); } .ds-btn-primary:focus-visible { outline: none; box-shadow: var(--ring-indigo), 0 6px 16px -6px rgba(42,118,244,0.55); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "btn-secondary",
+      "description": "Neumorphic cream button for non-primary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Dismiss</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--r-pill); font: 500 14px/1 var(--font-ui); border: 0; cursor: pointer; background: var(--cream-100); color: var(--ink-900); box-shadow: -2px 6px 10px rgba(29,27,32,0.10), 0px -2px 6px rgba(255,255,255,0.70); transition: transform .12s ease, box-shadow .12s ease; } .ds-btn-secondary:hover { background: var(--cream-50); transform: translateY(-1px); box-shadow: -3px 10px 18px rgba(29,27,32,0.14), 0px -3px 8px rgba(255,255,255,0.80); } .ds-btn-secondary:active { box-shadow: inset 3px 3px 8px rgba(29,27,32,0.18), inset -2px -2px 6px rgba(255,255,255,0.60); background: var(--cream-100); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Default flat content container; most Ariya components (KpiCard, SignalCard) use the stronger neu-raised recipe instead of this plain variant.",
+      "html": "<div class=\"ds-card\">Card content</div>",
+      "css": ".ds-card { background: var(--cream-100); border: 1px solid var(--cream-300); border-radius: var(--r-lg); padding: 18px; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field — neumorphic inset, indigo focus ring, no bare border-only focus state.",
+      "html": "<input class=\"ds-input\" placeholder=\"Filter signals\\u2026\" />",
+      "css": ".ds-input { width: 100%; background: var(--cream-50); border: 1px solid var(--cream-300); border-radius: var(--r-md); padding: 11px 14px; font: 400 14px/1.5 var(--font-ui); color: var(--ink-900); box-shadow: inset 2px 2px 6px rgba(164,167,174,0.55), inset -3px -3px 8px rgba(255,255,255,0.85); outline: none; transition: border-color .12s, box-shadow .12s; } .ds-input::placeholder { color: var(--ink-500); } .ds-input:focus { border-color: var(--indigo-500); box-shadow: inset 2px 2px 6px rgba(164,167,174,0.55), inset -3px -3px 8px rgba(255,255,255,0.85), var(--ring-indigo); }"
+    },
+    {
+      "name": "Severity Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Severity/status label — tinted background matched to the semantic color family, never pill-shaped for severity (reserve pill for filters).",
+      "html": "<span class=\"ds-tag ds-tag-error\">High</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--r-pill); font: 500 12px/1 var(--font-ui); background: var(--cream-200); color: var(--ink-800); } .ds-tag-error { background: var(--crimson-050); color: var(--crimson-600); } .ds-tag-alert { background: var(--amber-050); color: #8B6D00; } .ds-tag-approved { background: var(--sage-050); color: var(--sage-600); }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-select",
+      "description": "Selectable pill filter for feed/table filter bars.",
+      "html": "<button class=\"ds-chip-select is-active\">Unread <span class=\"ds-chip-count\">7</span></button>",
+      "css": ".ds-chip-select { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: var(--r-pill); background: var(--indigo-050); color: var(--ink-700); font: 500 13px/1 var(--font-accent); cursor: pointer; border: 1px solid transparent; transition: all .12s; } .ds-chip-select:hover { background: var(--indigo-100); color: var(--indigo-600); } .ds-chip-select.is-active { background: var(--indigo-050); color: var(--indigo-500); box-shadow: 0 0 0 1.5px rgba(42,118,244,0.25); } .ds-chip-count { color: var(--indigo-500); margin-left: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Analyst's Desk — intelligent warmth",
+    "overview": "A monitoring workspace that feels like a precision instrument on a warm wooden desk, not a cold enterprise dashboard. Two failure modes to avoid: too cold (legacy enterprise blue-grey) and too casual (consumer-AI playful). The register is a senior analyst's tool: calm, legible, evidence-first, quietly premium. The system has exactly two material layers that never blend: frosted glass for passive chrome (top bar, nav, filter bar, menus), and opaque neumorphic cream for the workspace/content layer (cards, feed rows, KPI tiles, inputs).",
+    "keyCharacteristics": [
+      "Two-layer material rule: glass only for chrome, neumorphism only for content.",
+      "Signal Indigo is the one accent, reserved for AI/citations/primary action.",
+      "Neumorphic base is always cream, never pure white — pure white collapses the shadows.",
+      "JetBrains Mono for every number, timestamp, count, and code-like token.",
+      "Motion capped at 320ms, no bounce, no tilt, no glow."
+    ],
+    "rules": [
+      { "name": "The Two-Layer Rule", "body": "Glass only for chrome, neumorphism only for content. A glass content card or a neumorphic top bar is a violation.", "section": "elevation" },
+      { "name": "The Cream-Not-White Rule", "body": "Neumorphic base must be cream, never pure white — pure white collapses the shadows.", "section": "elevation" },
+      { "name": "The One Ledger Rule", "body": "Every number, timestamp, count, and code-like token uses JetBrains Mono (.num, .mono) — a signature of the system.", "section": "typography" },
+      { "name": "The Flat-CTA Rule", "body": "Primary CTAs are color-filled flat (indigo), not pure neumorphic — neumorphic-only states fail WCAG AA contrast.", "section": "colors" }
+    ],
+    "dos": [
+      "Do use Signal Indigo (#2A76F4) as the only accent across the system.",
+      "Do set every number/timestamp in JetBrains Mono.",
+      "Do keep the neumorphic base cream, never pure white.",
+      "Do reserve glass for passive chrome only.",
+      "Do give every interactive element an explicit focus ring (--ring-indigo/--ring-ink) — shadow inversion alone isn't enough for keyboard visibility.",
+      "Do keep muted/caption text at ink-600 or darker on cream (WCAG AA floor)."
+    ],
+    "donts": [
+      "Don't blend glass and neumorphic materials on the same element.",
+      "Don't use rgba(5,10,68,0.35–0.40) or lighter for text — verified to fail WCAG AA.",
+      "Don't exceed 320ms on any transition, and never use bounce/spring easing.",
+      "Don't use a second accent color alongside Signal Indigo."
+    ]
+  }
+}
