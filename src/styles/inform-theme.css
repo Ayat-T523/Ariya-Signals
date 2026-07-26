@@ -2,6 +2,21 @@
    InForm — Components
    ========================================================== */
 
+/* ---------- App shell (opt-in) ---------- */
+/* Apply to a page's root element once that page is migrated to InForm.
+   Deliberately NOT a bare `body{}` rule (see inform-tokens.css) — unmigrated
+   pages must keep their existing look until they opt in per component/page. */
+.inform-app-bg {
+  background:
+    radial-gradient(1200px 800px at 20% -10%, #F4ECDE 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% 30%, #F0E6D3 0%, transparent 55%),
+    var(--cream-200);
+  color: var(--ink-900);
+  font: var(--t-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 /* ---------- Layout shell ---------- */
 .page {
   max-width: 1200px;

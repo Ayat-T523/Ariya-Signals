@@ -120,16 +120,9 @@
   --t-mono:    400 12px/1.4 var(--font-mono);
 }
 
-/* Reset */
+/* Reset — box-sizing/margin only; no visual (background/color/font) rules on bare
+   html/body here. Those live behind the opt-in `.inform-app-bg` class in
+   inform-theme.css so unmigrated pages keep their existing look until a page
+   applies the class itself (per-component migration, not a global reskin). */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-body {
-  font: var(--t-body);
-  color: var(--ink-900);
-  background:
-    radial-gradient(1200px 800px at 20% -10%, #F4ECDE 0%, transparent 60%),
-    radial-gradient(900px 700px at 110% 30%, #F0E6D3 0%, transparent 55%),
-    var(--cream-200);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
