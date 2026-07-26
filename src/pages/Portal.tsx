@@ -15,7 +15,7 @@ import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
 import { competitorsData, eventsData, marketDevelopments as marketData, reportsData } from '../data/kalvista'
 import { buildSourceLabel } from '../lib/transformers'
-import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic/provenance'
+import { tierOf, sourceNameOf, resolveCuratedSourceName, type AttributionTier } from '../lib/deterministic/provenance'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
 import { useApp, useConfig } from '../context/AppContext'
@@ -743,6 +743,9 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const isVirtualLoc = /^(Virtual|Online|Broadcast)$/i.test(((event as any).location ?? '').trim())
   const sourceUrl    = (event as any).sourceUrl ?? null
   const showSource   = Boolean(sourceUrl && (event as any).sourceType !== 'illustrative')
+  // §4.7: name the publisher (EAACI, Company IR, NICE) rather than linking to a
+  // generic "Source", which tells the reader nothing about who said it.
+  const sourceName   = resolveCuratedSourceName((event as any).sourceType, sourceUrl)
 
   return (
     <div
@@ -821,7 +824,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               onMouseEnter={e => (e.currentTarget.style.color = '#0055BB')}
               onMouseLeave={e => (e.currentTarget.style.color = 'rgba(5,10,68,0.45)')}
             >
-              Source <ExternalLink size={10} />
+              {sourceName ?? 'View source'} <ExternalLink size={10} />
             </a>
           )}
         </div>
@@ -1876,7 +1879,13 @@ function MarketDevCard({ item }) {
   const isLive:   boolean       = (item as any)._isLive === true
   const srcLabel: string | null = (item as any)._sourceLabel ?? null
   const srcUrl:   string | null = (item as any)._sourceUrl ?? (item as any).sourceUrl ?? null
-  const resolvedLabel: string   = srcLabel ?? buildSourceLabel(srcUrl, item.type ?? '')
+  // §4.7: name the real publisher. Live rows carry _sourceLabel; curated rows are
+  // resolved from their domain or sourceType. When nothing names the source we
+  // label the link as an action rather than asserting a publisher called
+  // "Source", which traced nothing.
+  const resolvedName: string | null =
+    srcLabel ?? resolveCuratedSourceName((item as any).sourceType, srcUrl)
+  const resolvedLabel: string   = resolvedName ?? (srcUrl ? 'View source' : '')
   // §4.7 attribution tier is defined over the §4.1 SIGNAL inventory, so it only
   // applies to entries that came from a signal. Calendar entries (a CHMP meeting,
   // an investor day) are not signals and carry no drug attribution, so they get

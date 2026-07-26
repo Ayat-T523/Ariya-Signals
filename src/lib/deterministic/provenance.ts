@@ -86,6 +86,68 @@ export function sourceNameOf(dataSource: string | null | undefined): string | nu
   return SOURCE_NAME[dataSource] ?? null
 }
 
+/**
+ * Source name by publisher domain, for curated entries that carry a URL rather
+ * than a data_source. Ordered most-specific first: a named authority beats the
+ * generic category it belongs to.
+ */
+const DOMAIN_SOURCE: Array<[RegExp, string]> = [
+  [/sec\.gov/i,                       'SEC EDGAR'],
+  [/fda\.gov/i,                       'FDA'],
+  [/ema\.europa\.eu/i,                'EMA'],
+  [/nice\.org\.uk/i,                  'NICE'],
+  [/clinicaltrials\.gov/i,            'ClinicalTrials.gov'],
+  [/globenewswire\.com/i,             'GlobeNewswire'],
+  [/businesswire\.com/i,              'Business Wire'],
+  [/prnewswire\.com/i,                'PR Newswire'],
+  [/eaaci\.org/i,                     'EAACI'],
+  [/aaaai\.org|acaai\.org/i,          'AAAAI / ACAAI'],
+  [/haei\.org/i,                      'HAEi'],
+  // Investor-relations hosts: ir.<company>.com, or a company site's investor path.
+  [/(^|\/\/)ir\.[a-z0-9-]+\.[a-z.]+/i, 'Company IR'],
+  [/\/investors?\b/i,                 'Company IR'],
+]
+
+/**
+ * Curated source categories used by the hand-maintained timeline JSON. These are
+ * categories rather than publishers, so they are only consulted when the domain
+ * is unrecognised.
+ */
+const SOURCE_TYPE_NAME: Record<string, string | null> = {
+  'company-ir':           'Company IR',
+  'company-ir-aggregate': 'Company IR',
+  'sec-edgar':            'SEC EDGAR',
+  'official-congress':    'Congress programme',
+  'official-doc':         'Official document',
+  'press-release-wire':   'Press release wire',
+  // Explicitly not a source. An illustrative row must not claim provenance it
+  // does not have, so it resolves to null and the caller renders no source.
+  'illustrative':         null,
+}
+
+/**
+ * Resolve a displayable source name for a curated entry.
+ *
+ * Tries the publisher domain first (a named authority such as NICE or EAACI is
+ * more useful than "Official document"), then the curated sourceType category.
+ * Returns null when neither is known, so the caller shows an honest gap rather
+ * than the bare placeholder "Source" — which names nothing and, for a reader who
+ * does not trust what they cannot trace, is worse than an absence (§4.7).
+ */
+export function resolveCuratedSourceName(
+  sourceType: string | null | undefined,
+  url: string | null | undefined,
+): string | null {
+  if (sourceType === 'illustrative') return null
+  if (url) {
+    for (const [pattern, name] of DOMAIN_SOURCE) {
+      if (pattern.test(url)) return name
+    }
+  }
+  if (sourceType && sourceType in SOURCE_TYPE_NAME) return SOURCE_TYPE_NAME[sourceType]
+  return null
+}
+
 /** Minimum shape provenance needs. */
 export interface ProvenanceBearing {
   signal_type?: string | null
