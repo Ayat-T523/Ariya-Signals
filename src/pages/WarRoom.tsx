@@ -39,6 +39,7 @@ import {
   type DbMarketImplication,
 } from '../lib/db'
 import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
+import { computeSeverity, summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function decodeEntities(str: string): string {
@@ -56,35 +57,9 @@ const NARRATION_DAYS = 90
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
 const COMMERCIAL_KW  = /revenue|commercial|launch|market share|patient|prescription|growth/i
 
-function isCLevelChange(text: string): boolean {
-  return /chief executive|ceo|chief medical|cmo|chief commercial|cco|chief financial|cfo|board chair|president/.test(text)
-}
-
-// Body-text CRITICAL classification requires co-occurrence with a HAE lexicon term in
-// the same sentence — prevents Phase 3 safety trials (testing adverse events) from
-// matching /phase 3.*result/ and being rated CRITICAL when they shouldn't be.
-function criticalCoOccursWithHAE(text: string, lexicon: Lexicon): boolean {
-  // Match forward ("Phase 3 results") AND reverse ("results from the Phase 3 trial")
-  const CRITICAL_BODY_RE = /phase\s*[23].*result|result.*phase\s*[23]|pivotal.*result|topline.*result|primary endpoint|phase\s*[23].*data/i
-  const sentences = text.split(/(?<=[.!?])\s+/)
-  return sentences.some(sentence => {
-    const s = sentence.toLowerCase()
-    if (!CRITICAL_BODY_RE.test(s)) return false
-    return (
-      lexicon.inns.some(t => s.includes(t)) ||
-      lexicon.ta_terms.some(t => s.includes(t))
-    )
-  })
-}
-
 function isSignalReadable(s: DbRecentSignal): boolean {
   return cleanSignalText(s) !== SIGNAL_FALLBACK
 }
-
-// ── Relevance gate ────────────────────────────────────────────────────────────
-// Derived at runtime from the user's asset config via useConfig() / assets-config.ts.
-// Passed explicitly to all gate functions below — no module-level constant.
-type Lexicon = { inns: string[]; ta_terms: string[] }
 
 // Tags that indicate an asset is in HAE development (matches indication_tags column)
 const HAE_TAG_TERMS = ['hereditary angioedema', 'hae']
@@ -112,62 +87,6 @@ function countHAEAssets(assets: DbAsset[], competitorId: string): number {
       HAE_TAG_TERMS.some(term => tag.toLowerCase().includes(term))
     )
   ).length
-}
-
-function isRelevant(s: DbRecentSignal, lexicon: Lexicon): boolean {
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
-  return (
-    lexicon.inns.some(term => text.includes(term.toLowerCase())) ||
-    lexicon.ta_terms.some(term => text.includes(term.toLowerCase()))
-  )
-}
-
-function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'high' | 'medium' | 'low' {
-  if (!isRelevant(s, lexicon)) {
-    // exec_change and deal are strategically important regardless of TA lexicon match
-    return (s.signal_type === 'exec_change' || s.signal_type === 'deal') ? 'medium' : 'low'
-  }
-
-  const items = (s.items ?? '').split(',').map(i => i.trim())
-  const text  = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
-  const rawText = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-
-  let band: 'critical' | 'high' | 'moderate' | 'low' = 'low'
-
-  // CRITICAL: M&A via items code OR hard regulatory setbacks OR body-text readout
-  // co-occurring with a HAE term (guards against safety-trial false positives)
-  const isCritical = (
-    (items.includes('2.01') && (text.includes('acqui') || text.includes('merger'))) ||
-    /complete response letter|crl|market withdrawal|black.?box warning/i.test(text) ||
-    criticalCoOccursWithHAE(rawText, lexicon)
-  )
-  if (isCritical) band = 'critical'
-
-  // HIGH: material agreements, NDA/MAA filings, PDUFA, AdCom, Phase 2 results, HTA decisions
-  else if (
-    items.includes('1.01') ||
-    /nda|bla|maa|submitted|filing accepted|pdufa|adcom|advisory committee/i.test(text) ||
-    /phase\s*2.*result|hta decision|nice.*recomm|label.*expan|indication.*expan/i.test(text)
-  ) band = 'high'
-
-  // MODERATE: early-phase activity, earnings, guidelines, C-suite changes
-  else if (
-    /phase\s*(1|2).*start|enrollment.*complet|trial.*initiat/i.test(text) ||
-    items.includes('2.02') ||
-    /guideline.*update|congress.*presentation/i.test(text) ||
-    (items.includes('5.02') && isCLevelChange(text))
-  ) band = 'moderate'
-
-  // Step 3: Proximity bump — imminent catalyst (≤60 days out) raises MODERATE → HIGH
-  if (band === 'moderate') {
-    const daysOut = (new Date(s.date ?? '').getTime() - today.getTime()) / 86_400_000
-    if (daysOut > 0 && daysOut <= 60) band = 'high'
-  }
-
-  // Step 4: Collapse to UI tiers (critical and high both render as 'high')
-  return band === 'critical' || band === 'high' ? 'high'
-       : band === 'moderate'                    ? 'medium'
-       : 'low'
 }
 
 function buildSourceLabel(url: string | null, signalType: string): string {
@@ -306,7 +225,11 @@ function mapDbSignalToDisplay(s: DbRecentSignal, lexicon: Lexicon = { inns: [], 
     competitorId: s.competitor_id,
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
-    headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
+    // war-room-spec.md §3.4: top-signal cards read the cached synthesized
+    // clean_headline first — buildReadableHeadline (client-side re-derivation
+    // from raw headline/body_excerpt) is the fallback for rows the ingestion
+    // pipeline hasn't synthesized yet, not the primary source going forward.
+    headline:     s.clean_headline ?? buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
     whyItMatters: s.why_it_matters ?? null,
     source:       buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
@@ -613,23 +536,26 @@ function CompactCompetitorCard({
     lastSignal = '—'
   }
 
-  // Build signal-type severity label (readable signals for this competitor only)
+  // Build signal-type severity label (readable signals for this competitor only).
+  // war-room-spec.md §3.3: counts come from the shared summarizeSeverity helper
+  // (also used by Competitors.tsx), and the window is stated explicitly rather
+  // than left implicit — this label used to say nothing about its window while
+  // the card header above it claimed "last 7 days" for what was actually a
+  // NARRATION_DAYS-scoped (90-day) fetch; both are fixed together.
   const today = new Date()
   const compSignals = recentSignals.filter((s) => s.competitor_id === competitor.id)
-  const highSignals = compSignals.filter((s) => computeSeverity(s, lexicon, today) === 'high')
-  const medSignals  = compSignals.filter((s) => computeSeverity(s, lexicon, today) === 'medium')
+  const severityCounts = summarizeSeverity(compSignals, lexicon, today)
 
   let activityLabel: string
   let activityIsLive: boolean
 
-  if (compSignals.length > 0) {
+  if (severityCounts.total > 0) {
     activityIsLive = true
     const parts: string[] = []
-    if (highSignals.length > 0) parts.push(`${highSignals.length} high`)
-    if (medSignals.length > 0)  parts.push(`${medSignals.length} medium`)
-    const low = compSignals.length - highSignals.length - medSignals.length
-    if (low > 0 && parts.length === 0) parts.push(`${low} low`)
-    activityLabel = parts.join(' · ') + ' signal' + (compSignals.length > 1 ? 's' : '')
+    if (severityCounts.high > 0)   parts.push(`${severityCounts.high} high`)
+    if (severityCounts.medium > 0) parts.push(`${severityCounts.medium} medium`)
+    if (severityCounts.low > 0 && parts.length === 0) parts.push(`${severityCounts.low} low`)
+    activityLabel = parts.join(' · ') + ' signal' + (severityCounts.total > 1 ? 's' : '') + ` (${NARRATION_DAYS}d)`
   } else {
     activityIsLive = false
     activityLabel = ''
@@ -1161,7 +1087,7 @@ export default function WarRoom() {
           <Card>
             <CardHeader
               title="Tracked competitors"
-              subtitle="last 7 days · signal volume"
+              subtitle={`last ${NARRATION_DAYS} days · signal volume`}
               right={<HeaderLink to="/competitors">All competitors</HeaderLink>}
             />
             {trackedCompetitors.length > 0 ? (

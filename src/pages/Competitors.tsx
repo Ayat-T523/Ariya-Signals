@@ -321,7 +321,7 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor
           <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.10)', flexShrink: 0, margin: '0 4px' }} />
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Signals</span>
+              <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Signals · all-time</span>
               {liveSignals && <span style={{ fontSize: 8, color: '#15803d', lineHeight: 1 }}>●</span>}
             </div>
             <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>{signalCount}</span>
