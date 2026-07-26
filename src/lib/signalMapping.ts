@@ -1,4 +1,5 @@
 import type { DbRecentSignal } from './db'
+import { importanceBand, bandToLegacyTier } from './deterministic/importance'
 
 // ── UI alert shape consumed by AlertCard ──────────────────────────────────────
 
@@ -32,22 +33,10 @@ const SIGNAL_TYPE_MAP: Record<string, string> = {
   messaging_shift:     'strategic-shift',   // Phase 5: product-page messaging drift
 }
 
-// Severity derived from signal_type — company_signals has no severity column.
-// 'critical' intentionally omitted: it exists in SEVERITY_RANK for future use
-// (manual escalation or a dedicated column) but no current signal_type maps to it.
-const SIGNAL_SEVERITY_MAP: Record<string, 'high' | 'medium' | 'low'> = {
-  exec_change:         'high',
-  label_update:        'high',
-  deal:                'medium',
-  hta_decision:        'medium',
-  trial_update:        'medium',
-  trial_status_change: 'medium',
-  press_release:       'low',
-  publication:         'low',
-  ir_rss:              'low',
-  earnings:            'low',
-  messaging_shift:     'high',
-}
+// Severity is the D11 importance tier (§4.2) — company_signals has no severity
+// column, and the previous hand-assigned signal_type→severity map disagreed with
+// the score (it rated exec_change 'high' and deal 'medium'; the arc weighting
+// ranks personnel lowest and deal in the top band). One source of truth now.
 
 // Human-readable source label shown in the alert footer
 const SIGNAL_SOURCE_MAP: Record<string, string> = {
@@ -79,7 +68,7 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
     timestamp:    s.date ? `${s.date}T00:00:00Z` : new Date().toISOString(),
     competitorId: s.competitor_id,
     type:         SIGNAL_TYPE_MAP[s.signal_type] ?? s.signal_type,
-    severity:     SIGNAL_SEVERITY_MAP[s.signal_type] ?? 'low',
+    severity:     bandToLegacyTier(importanceBand(s, { today: new Date() })),
     headline:     s.headline ?? s.accession_number,
     whatHappened: s.body_excerpt ?? null,
     whyItMatters: null, // §4-1: no auto-generated interpretation in the free tier

@@ -17,6 +17,7 @@ import {
   TrendingDown, TrendingUp, Pencil, Plus, ExternalLink,
 } from 'lucide-react'
 import { useApp, useConfig } from '../context/AppContext'
+import { importanceBand, bandToLegacyTier } from '../lib/deterministic/importance'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import PaidGate from '../components/ui/PaidGate'
@@ -55,26 +56,9 @@ const NARRATION_DAYS = 90
 // â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
 
-function isCLevelChange(text: string): boolean {
-  return /chief executive|ceo|chief medical|cmo|chief commercial|cco|chief financial|cfo|board chair|president/.test(text)
-}
-
-// Body-text CRITICAL classification requires co-occurrence with a HAE lexicon term in
-// the same sentence — prevents Phase 3 safety trials (testing adverse events) from
-// matching /phase 3.*result/ and being rated CRITICAL when they shouldn't be.
-function criticalCoOccursWithHAE(text: string, lexicon: Lexicon): boolean {
-  // Match forward ("Phase 3 results") AND reverse ("results from the Phase 3 trial")
-  const CRITICAL_BODY_RE = /phase\s*[23].*result|result.*phase\s*[23]|pivotal.*result|topline.*result|primary endpoint|phase\s*[23].*data/i
-  const sentences = text.split(/(?<=[.!?])\s+/)
-  return sentences.some(sentence => {
-    const s = sentence.toLowerCase()
-    if (!CRITICAL_BODY_RE.test(s)) return false
-    return (
-      lexicon.inns.some(t => s.includes(t)) ||
-      lexicon.ta_terms.some(t => s.includes(t))
-    )
-  })
-}
+// isCLevelChange and criticalCoOccursWithHAE removed with D11 (§4.2): both read
+// importance out of phrasing. Importance is now scored from facts — arc, recency,
+// source count, forward catalyst — in lib/deterministic/importance.ts.
 
 function isSignalReadable(s: DbRecentSignal): boolean {
   return cleanSignalText(s) !== SIGNAL_FALLBACK
@@ -121,52 +105,29 @@ function isRelevant(s: DbRecentSignal, lexicon: Lexicon): boolean {
   )
 }
 
+/**
+ * Importance tier for a signal — D11 (§4.2), facts only.
+ *
+ * The score itself (arc weight → recency → source count → forward-catalyst
+ * nudge) lives in lib/deterministic/importance.ts. This wrapper adds the one
+ * thing that is local to the reader: the relevance gate. §3.1 defines the
+ * isRelevant() gate and the severity/importance gate as both driven by the
+ * selected asset's disease area, so a signal outside that area cannot reach the
+ * top band however it scores — an approval for an unrelated drug is not
+ * something to act on. That gate is a deterministic lexicon match on config,
+ * never a keyword judgment about what the text "means".
+ *
+ * Replaces the previous keyword classifier, which read importance out of
+ * phrasing ("material agreement", "hard regulatory setback").
+ */
 function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'high' | 'medium' | 'low' {
-  if (!isRelevant(s, lexicon)) {
-    // exec_change and deal are strategically important regardless of TA lexicon match
-    return (s.signal_type === 'exec_change' || s.signal_type === 'deal') ? 'medium' : 'low'
-  }
-
-  const items = (s.items ?? '').split(',').map(i => i.trim())
-  const text  = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
-  const rawText = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-
-  let band: 'critical' | 'high' | 'moderate' | 'low' = 'low'
-
-  // CRITICAL: M&A via items code OR hard regulatory setbacks OR body-text readout
-  // co-occurring with a HAE term (guards against safety-trial false positives)
-  const isCritical = (
-    (items.includes('2.01') && (text.includes('acqui') || text.includes('merger'))) ||
-    /complete response letter|crl|market withdrawal|black.?box warning/i.test(text) ||
-    criticalCoOccursWithHAE(rawText, lexicon)
-  )
-  if (isCritical) band = 'critical'
-
-  // HIGH: material agreements, NDA/MAA filings, PDUFA, AdCom, Phase 2 results, HTA decisions
-  else if (
-    items.includes('1.01') ||
-    /nda|bla|maa|submitted|filing accepted|pdufa|adcom|advisory committee/i.test(text) ||
-    /phase\s*2.*result|hta decision|nice.*recomm|label.*expan|indication.*expan/i.test(text)
-  ) band = 'high'
-
-  // MODERATE: early-phase activity, earnings, guidelines, C-suite changes
-  else if (
-    /phase\s*(1|2).*start|enrollment.*complet|trial.*initiat/i.test(text) ||
-    items.includes('2.02') ||
-    /guideline.*update|congress.*presentation/i.test(text) ||
-    (items.includes('5.02') && isCLevelChange(text))
-  ) band = 'moderate'
-
-  // Step 3: Proximity bump — imminent catalyst (≤60 days out) raises MODERATE → HIGH
-  if (band === 'moderate') {
-    const daysOut = (new Date(s.date ?? '').getTime() - today.getTime()) / 86_400_000
-    if (daysOut > 0 && daysOut <= 60) band = 'high'
-  }
-
-  // Step 4: Collapse to UI tiers (critical and high both render as 'high')
-  return band === 'critical' || band === 'high' ? 'high'
-       : band === 'moderate'                    ? 'medium'
-       : 'low'
+  // sourceCount and daysToCatalyst are omitted deliberately: no event is
+  // currently carried by more than one source, and no future calendar row
+  // carries a competitor or drug link, so neither can be supplied honestly yet.
+  // Both terms activate in importance.ts the moment that data exists.
+  const band = importanceBand(s, { today })
+  const capped = !isRelevant(s, lexicon) && band === 'act' ? 'watch' : band
+  return bandToLegacyTier(capped)
 }
 
 // buildWhyItMatters removed (§4-1): auto-generated "what this means" is a

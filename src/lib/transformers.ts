@@ -16,6 +16,7 @@
 import type { DbRecentSignal } from './db'
 import type { BaseCard, SignalType } from '../types/signal'
 import { competitorsData } from '../data/kalvista'
+import { importanceBand, bandToLegacyTier } from './deterministic/importance'
 
 // ── DB type → display SignalType ─────────────────────────────────────────────
 const DB_TO_SIGNAL_TYPE: Record<string, SignalType> = {
@@ -27,20 +28,18 @@ const DB_TO_SIGNAL_TYPE: Record<string, SignalType> = {
 // ── Keyword sets (kept in sync with WarRoom.tsx CLINICAL_KW / COMMERCIAL_KW) ─
 const CLINICAL_KW      = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
 const COMMERCIAL_KW    = /revenue|commercial|launch|market share|patient|prescription|growth/i
-const HIGH_CLINICAL_KW = /phase [23] result|phase iii result|phase 3 result|phase iii data|phase 3 data|topline|top-line|primary endpoint met|fda approv|nda accepted|nda submitted|nda approved|ema approv|maa submitted|pdufa|regulatory approv/i
-const SENIOR_EXEC_RE   = /\b(chief executive|chief financial|chief medical|chief scientific|chief commercial|president|ceo|cfo|cmo|cso|cco)\b/i
+// HIGH_CLINICAL_KW and SENIOR_EXEC_RE removed with D11 (§4.2): they graded
+// importance by phrasing. Importance is now scored from facts.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Importance tier — D11 (§4.2), facts only. No lexicon is available on this path,
+ * so the relevance cap applied in the War Room does not apply here; the score is
+ * the pure arc/recency ranking.
+ */
 function computeSeverity(s: DbRecentSignal): 'high' | 'medium' | 'low' {
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  if (s.signal_type === 'deal') return 'high'
-  if (HIGH_CLINICAL_KW.test(text)) return 'high'
-  if (s.signal_type === 'exec_change') {
-    return SENIOR_EXEC_RE.test(text) ? 'high' : 'medium'
-  }
-  if (CLINICAL_KW.test(text) || COMMERCIAL_KW.test(text)) return 'medium'
-  return 'low'
+  return bandToLegacyTier(importanceBand(s, { today: new Date() }))
 }
 
 function computeDataFreshness(date: string | null): 'high' | 'medium' | 'low' {
