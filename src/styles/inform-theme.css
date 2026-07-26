@@ -966,3 +966,62 @@
   background: var(--cream-100); color: var(--ink-700);
   box-shadow: 0 1px 0 var(--cream-300);
 }
+
+/* ==========================================================
+   InForm — Ariya-specific components (Phase 0.4)
+   Built from docs/design/component-references/*.html, ported onto the
+   real tokens above (--cream-*/--ink-*/--indigo-*), not the reference kit
+   standalone --bg-*/--primary/--text-* names or its outdated teal accent.
+   ========================================================== */
+
+/* ---------- KPI Card ---------- */
+.kpi-card {
+  display: flex; flex-direction: column; gap: var(--s-3);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--cream-100);
+  box-shadow: var(--neu-raised);
+  text-decoration: none; color: inherit;
+  outline: none;
+  transition: box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+}
+.kpi-card.is-linkable { cursor: pointer; }
+.kpi-card.is-linkable:hover { box-shadow: var(--neu-raised-strong); transform: translateY(-1px); }
+.kpi-card.is-linkable:active { transform: translateY(0); }
+.kpi-card:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); }
+.kpi-card.compact { padding: var(--s-4); gap: var(--s-2); }
+
+.kpi-label {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-500);
+}
+.kpi-value {
+  font-family: var(--font-mono); font-size: 32px; font-weight: 600;
+  color: var(--ink-900); line-height: 1.05; font-variant-numeric: tabular-nums;
+}
+.kpi-card.compact .kpi-value { font-size: 22px; }
+.kpi-value.is-empty { color: var(--ink-400); }
+.kpi-value.is-error { color: var(--ink-500); }
+
+.kpi-support {
+  font-family: var(--font-ui); font-size: 13px; color: var(--ink-700);
+  display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; min-height: 20px;
+}
+.kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-weight: 600; font-size: 13px; }
+.kpi-delta.up { color: var(--sage-600); }
+.kpi-delta.down { color: var(--crimson-600); }
+.kpi-delta.flat { color: var(--ink-500); }
+
+.kpi-breakdown { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kpi-breakdown .seg { display: inline-flex; align-items: center; gap: 5px; }
+.kpi-breakdown .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+.kpi-spark { width: 100%; height: 32px; }
+.kpi-spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.kpi-footer { font-family: var(--font-ui); font-size: 12px; font-weight: 500; color: var(--indigo-500); display: inline-flex; align-items: center; gap: 4px; }
+.kpi-footer.is-muted { color: var(--ink-500); }
+.kpi-footer svg { transition: transform var(--dur-fast) var(--ease-standard); }
+.kpi-card.is-linkable:hover .kpi-footer svg { transform: translateX(2px); }
+
+.kpi-error-note { font-family: var(--font-ui); font-size: 12px; color: var(--crimson-600); display: flex; align-items: center; gap: 5px; }
