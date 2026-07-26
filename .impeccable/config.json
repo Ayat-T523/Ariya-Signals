@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-07-26T19:05:02.091Z",
         "reason": "User confirmed: same QuoteCard pull-quote indent as StrategicSignalsTab. Neutral colour on the quote paragraph, paired with paddingLeft, never varies."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/atoms/Tooltip.tsx"
+        ],
+        "createdAt": "2026-07-26T19:07:53.020Z",
+        "reason": "User confirmed: ARROW_STYLES builds CSS triangles for the tooltip pointer. Two opposing borders are transparent and the third forms the arrow point; there is no card and no accent."
       }
     ]
   }
