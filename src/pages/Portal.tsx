@@ -859,7 +859,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           {annotation.actionableFollowUp && (
             <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
               <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-                Actionable follow up
+                Actionable follow-up
               </p>
               <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
                 {annotation.actionableFollowUp}
@@ -883,19 +883,29 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         </div>
       )}
 
-      {/* Row 6: Leadership expect/surprise — only in leadership priority view, only when synthesized */}
+      {/* Row 6: Leadership expect/surprise — only in leadership priority view, only when synthesized.
+          Same label/body treatment as Row 4b (uppercase micro-label + body text) — both rows read
+          from the same `annotation` object, so they should look like one family, not two. */}
       {showAnnotations && (annotation?.expect || annotation?.surprise) && (
         <div style={{ display: 'flex', gap: '8px' }}>
           {annotation?.expect && (
-            <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.10)' }}>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What we expect:</p>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotation.expect}</p>
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
+                What we expect
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+                {annotation.expect}
+              </p>
             </div>
           )}
           {annotation?.surprise && (
-            <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.08)' }}>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What would surprise us:</p>
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotation.surprise}</p>
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
+                What would surprise us
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+                {annotation.surprise}
+              </p>
             </div>
           )}
         </div>
