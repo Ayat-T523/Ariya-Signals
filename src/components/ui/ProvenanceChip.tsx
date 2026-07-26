@@ -20,6 +20,13 @@ function relDate(iso: string | null | undefined): string | null {
   return `${Math.floor(mo / 12)}yr ago`
 }
 
+/**
+ * InForm styling (per docs/design/component-references/ProvenanceChip.html):
+ * flat tinted tag -- never neumorphic, never glass, never pill -- so it reads as
+ * metadata on the host card, not a surface of its own. Live = sage/approved
+ * (clickable, underlines on hover); illustrative = amber/urgent (never clickable,
+ * there's no source to jump to).
+ */
 export default function ProvenanceChip({ sourceLabel, sourceUrl, date, isLive }: ProvenanceChipProps) {
   const dateStr = relDate(date)
 
@@ -27,25 +34,28 @@ export default function ProvenanceChip({ sourceLabel, sourceUrl, date, isLive }:
     <span style={{
       display: 'inline-flex',
       alignItems: 'center',
-      gap: '3px',
-      fontSize: '11px',
-      fontWeight: 500,
-      fontFamily: 'Inter, sans-serif',
-      color: isLive ? '#065F46' : 'rgba(5,10,68,0.50)',
-      padding: '2px 7px',
-      borderRadius: '4px',
-      background: isLive ? 'rgba(16,185,129,0.12)' : 'rgba(5,10,68,0.04)',
-      border: isLive ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(5,10,68,0.09)',
+      gap: '5px',
+      fontSize: 'var(--t-caption)',
+      fontWeight: 600,
+      fontFamily: 'var(--font-ui)',
+      color: isLive ? 'var(--sage-600)' : 'var(--amber-800)',
+      padding: '4px 9px',
+      borderRadius: 'var(--r-sm)',
+      background: isLive ? 'var(--sage-050)' : 'var(--amber-050)',
       whiteSpace: 'nowrap',
-      lineHeight: '1.4',
+      lineHeight: '1',
       textDecoration: 'none',
     }}>
+      <span aria-hidden="true" style={{
+        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+        background: isLive ? 'var(--sage-600)' : 'var(--amber-600)',
+      }} />
       {sourceLabel}
       {dateStr && (
-        <span style={{ color: 'rgba(5,10,68,0.30)' }}>&nbsp;·&nbsp;{dateStr}</span>
+        <span style={{ opacity: 0.75, fontWeight: 500, fontFamily: 'var(--font-mono)' }}>&nbsp;·&nbsp;{dateStr}</span>
       )}
       {sourceUrl && (
-        <ExternalLink size={9} strokeWidth={2} style={{ flexShrink: 0, marginLeft: '2px' }} />
+        <ExternalLink size={11} strokeWidth={2} style={{ flexShrink: 0, marginLeft: '-1px', opacity: 0.8 }} />
       )}
     </span>
   )

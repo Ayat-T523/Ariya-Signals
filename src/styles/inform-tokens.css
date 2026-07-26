@@ -38,6 +38,14 @@
   --amber-600: #E5B200;
   --amber-100: #FFF3B8;
   --amber-050: #FFFBE6;
+  --amber-800: #7A4A0F;      /* dark text-safe shade for medium-severity tags on amber-100/050 tint */
+
+  /* Info — low-severity signals. Consistently used across every InForm component
+     reference (Signal Card, Feed Filter Bar, Market Weather, Signal Feed Variants)
+     but missing from the originally-copied token file; adding to match. */
+  --info-600: #4A5A8C;
+  --info-100: #DDE1EC;
+  --info-050: #EEF0F5;
 
   --sage-600:  #4F7A4F;      /* approved state */
   --sage-100:  #D9E5D2;
@@ -99,6 +107,14 @@
   /* Focus */
   --ring-indigo: 0 0 0 3px rgba(42,118,244,0.35);
   --ring-ink:    0 0 0 3px rgba(42,39,34,0.20);
+
+  /* Motion — present in every component reference HTML but missing from the
+     originally-copied token file. Cap is 320ms per DESIGN.md; no bounce/spring. */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-entrance: cubic-bezier(0, 0, 0.2, 1);
 
   /* Type */
   --font-display: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
