@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useApp, useConfig } from '../context/AppContext'
 import { importanceBand, bandToLegacyTier } from '../lib/deterministic/importance'
+import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic/provenance'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import PaidGate from '../components/ui/PaidGate'
@@ -172,6 +173,10 @@ type Alert = {
   whyItMatters?: string
   source?: string
   sourceUrl?: string | null
+  /** Attribution tier — part of the §4.7 provenance contract. */
+  tier?: AttributionTier | null
+  /** When the record was last taken from its source (§4.7). */
+  lastRefreshed?: string | null
 }
 type Competitor = (typeof competitorsData)[0]
 type EventItem  = (typeof eventsData)[0]
@@ -276,8 +281,13 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
     whyItMatters: null, // §4-1: no auto-generated interpretation in the free tier
-    source:       buildSourceLabel(s.source_url, s.signal_type),
+    // §4.7 requires a real source name. data_source records which pipeline wrote
+    // the row and is 100% populated, so prefer it; the URL-derived label is only a
+    // fallback and yields a bare "Source" for company IR domains.
+    source:       sourceNameOf(s.data_source) ?? buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
+    tier:         tierOf(s.signal_type),  // §4.7 provenance contract
+    lastRefreshed: s.created_at ?? null,  // when we last took it from the source
     _isLive:      true,
   }
 }
@@ -530,6 +540,8 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
             sourceLabel={alert.source}
             sourceUrl={alert.sourceUrl}
             date={alert.timestamp}
+            tier={alert.tier}
+            lastRefreshed={alert.lastRefreshed}
           />
         </div>
       )}
