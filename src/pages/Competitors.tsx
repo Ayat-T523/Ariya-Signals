@@ -1,17 +1,19 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
-import { ChevronRight, FileText, BarChart2, Plus } from 'lucide-react'
+import { ChevronRight, FileText, BarChart2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import competitors from '../data/competitors.json'
 import { formatDate } from '../utils/formatDate'
-import { getAllSignalsSummary, getAllAssets, type DbSignalSummary } from '../lib/db'
+import { getAllSignalsSummary, getAllAssets, getRecentSignals, type DbSignalSummary } from '../lib/db'
 import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
 import { useApp } from '../context/AppContext'
+import FilterDropdown from '../components/ui/FilterDropdown'
+import { currentQuarterStart, daysSince } from '../lib/clock'
 
 // ── Threat classification (for KPI count) ────────────────────────────────────
 const HIGH_THREAT_POSTURES = new Set([
@@ -31,6 +33,20 @@ const POSTURE_CONFIG = {
   'Emerging RNA-based prophylaxis':  { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
 }
 
+// ── Threat rank for the "Threat" sort (higher = more threatening) ───────────
+// Per docs/competitors-page-redesign-spec.md §2.2: direct threat > emerging
+// oral/gene/RNA > adjacent > incumbent. Reuses POSTURE_CONFIG's own value set
+// so the ranking and the badge coloring never drift apart.
+const POSTURE_THREAT_RANK: Record<string, number> = {
+  'Emerging direct threat':          4,
+  'Emerging oral competitor':        3,
+  'Emerging gene therapy':           3,
+  'Emerging RNA-based prophylaxis':  3,
+  'Adjacent oral competitor':        2,
+  'Adjacent injectable prophylaxis': 2,
+  'Incumbent to displace':           1,
+}
+
 // ── Auto-composed competitor descriptor ──────────────────────────────────────
 function buildDescriptor(c: any): string {
   const marketed: any[] = c.marketedProducts ?? []
@@ -44,9 +60,6 @@ function buildDescriptor(c: any): string {
     : `${pipeline.length} asset${pipeline.length > 1 ? 's' : ''}${lastPhase ? ` (${lastPhase})` : ''}`
   return `Marketed: ${mktStr} · Pipeline: ${pplStr}`
 }
-
-// ── Quarter reference date ────────────────────────────────────────────────────
-const QUARTER_CUTOFF = new Date('2026-01-01')
 
 // ── Gantt phase colours ───────────────────────────────────────────────────────
 const PHASE_CFG: Record<string, { bg: string; border: string; text: string }> = {
@@ -691,6 +704,8 @@ function KeyCompetitorTimeline() {
 // HAE indication_tags matching — same terms as useCompetitorSupabase INDICATION_TAGS
 const HAE_TAG_TERMS_COMP = ['hereditary angioedema', 'hae']
 
+type SortMode = 'activity' | 'recent' | 'threat' | 'name'
+
 export default function Competitors() {
   const { watchedCompetitors } = useApp()
   const [filter, setFilter]           = useState('all')
@@ -698,6 +713,9 @@ export default function Competitors() {
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
   const [haeAssetCountMap, setHaeAssetCountMap] = useState(new Map<string, number>())
   const [liveDataReady, setLiveDataReady] = useState(false)
+  const [sortMode, setSortMode] = useState<SortMode>('activity')
+  const [postureFilter, setPostureFilter] = useState(new Set<string>())
+  const [quarterActivity, setQuarterActivity] = useState(new Map<string, number>())
   const loaded = usePageLoad('competitors')
 
   useEffect(() => {
@@ -721,12 +739,47 @@ export default function Competitors() {
     })
   }, [])
 
-  const filtered = competitors.filter(c => {
+  // "Activity this quarter" — the sort's primary criterion (§2.2/§2.5). Window
+  // is the real current quarter via the shared clock, not a frozen date.
+  const watchedIds = Array.from(watchedCompetitors).sort()
+  useEffect(() => {
+    if (watchedIds.length === 0) { setQuarterActivity(new Map()); return }
+    const days = daysSince(currentQuarterStart())
+    getRecentSignals(days, watchedIds).then(rows => {
+      const map = new Map<string, number>()
+      for (const r of rows) map.set(r.competitor_id, (map.get(r.competitor_id) ?? 0) + 1)
+      setQuarterActivity(map)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedIds.join(',')])
+
+  const postureFiltered = competitors.filter(c => {
     if (!watchedCompetitors.has(c.id)) return false
     if (filter === 'hae-acute')       return isHaeAcute(c)
     if (filter === 'hae-prophylaxis') return isHaeProphylaxis(c)
     return true
   })
+  const filtered = postureFiltered.filter(c => postureFilter.size === 0 || postureFilter.has(c.strategicPosture))
+
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortMode) {
+      case 'recent': {
+        const aDate = signalsSummary.get(a.id)?.latestDate ?? ''
+        const bDate = signalsSummary.get(b.id)?.latestDate ?? ''
+        return bDate.localeCompare(aDate)
+      }
+      case 'threat':
+        return (POSTURE_THREAT_RANK[b.strategicPosture] ?? 0) - (POSTURE_THREAT_RANK[a.strategicPosture] ?? 0)
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'activity':
+      default:
+        return (quarterActivity.get(b.id) ?? 0) - (quarterActivity.get(a.id) ?? 0)
+    }
+  })
+
+  const postureOptions = Array.from(new Set(postureFiltered.map(c => c.strategicPosture)))
+    .map(p => ({ value: p, label: p, count: postureFiltered.filter(c => c.strategicPosture === p).length }))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -803,8 +856,37 @@ export default function Competitors() {
           </div>
         )}
 
-        {/* 3-column card grid */}
-        {filtered.length === 0 ? (
+        {/* Sort + posture filter control bar (§2.2) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', margin: showTimeline ? '0 0 16px' : '4px 0 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>Sort</span>
+            <select
+              value={sortMode}
+              onChange={e => setSortMode(e.target.value as SortMode)}
+              style={{
+                padding: '6px 10px', borderRadius: '9999px',
+                border: '1.5px solid rgba(5,10,68,0.15)', background: 'transparent',
+                fontSize: '13px', color: 'rgba(5,10,68,0.85)', fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >
+              <option value="activity">Activity (this quarter)</option>
+              <option value="recent">Most recent signal</option>
+              <option value="threat">Threat level</option>
+              <option value="name">Name (A–Z)</option>
+            </select>
+          </div>
+
+          {postureOptions.length > 0 && (
+            <FilterDropdown label="Posture" options={postureOptions} applied={postureFilter} onApply={setPostureFilter} />
+          )}
+
+          <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif', marginLeft: 'auto' }}>
+            {sorted.length} shown
+          </span>
+        </div>
+
+        {/* Responsive card grid */}
+        {sorted.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'var(--ink-600)' }}>
             No competitors match this filter.
           </p>
@@ -812,11 +894,10 @@ export default function Competitors() {
           <SkeletonCompetitorGrid count={competitors.length} />
         ) : (
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ duration: 0.35 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}
+            variants={staggerContainer} initial="initial" animate="animate"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}
           >
-            {filtered.map(c => (
+            {sorted.map(c => (
               <motion.div
                 key={c.id}
                 variants={listItem}
@@ -826,35 +907,6 @@ export default function Competitors() {
                 <CompetitorCard competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} />
               </motion.div>
             ))}
-
-            {/* Add competitor placeholder */}
-            <div style={{
-              border: '1px dashed rgba(210,226,255,1)',
-              borderRadius: '16px',
-              padding: '10px',
-              display: 'flex', flexDirection: 'column',
-            }}>
-              <div style={{
-                background: 'rgba(112,128,144,0.10)',
-                borderRadius: '12px',
-                flex: 1, minHeight: '160px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              }}>
-                <div style={{
-                  background: 'rgba(112,128,144,0.50)',
-                  borderRadius: '9999px', padding: '6px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Plus size={20} color="#ffffff" strokeWidth={2} />
-                </div>
-                <p style={{ margin: 0, fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.25' }}>
-                  Add competitor
-                </p>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', textAlign: 'center' }}>
-                  Available in paid version
-                </p>
-              </div>
-            </div>
           </motion.div>
         )}
 
