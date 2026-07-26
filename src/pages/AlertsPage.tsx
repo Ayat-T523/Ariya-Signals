@@ -20,7 +20,7 @@
  * docs/alerts-ai-synthesis-spec.md §3, not an open concept choice.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, ChevronUp, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
 import { analytics } from '../lib/analytics'
 import { useApp } from '../context/AppContext'
 import { usePageLoad } from '../hooks/usePageLoad'
@@ -28,7 +28,7 @@ import CompetitorBadge from '../components/ui/CompetitorBadge'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import SlideOver from '../components/ui/SlideOver'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
-import { SeverityDot, SeverityTag } from '../components/inform/primitives'
+import { SeverityDot, SeverityTag, severityLabel } from '../components/inform/primitives'
 import { FeedFilterBar, type FeedTab, type SortMode, type AppliedChip } from '../components/inform/FeedFilterBar'
 import competitorsData from '../data/competitors.json'
 import { getRecentSignals } from '../lib/db'
@@ -56,6 +56,30 @@ function typeLabel(t: string) {
 }
 
 const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
+
+// Per alerts-ai-synthesis-spec.md §3.2/§5: filter/sort choice persists across
+// reloads (search text does not -- that's a per-session query, not a saved
+// scope, same convention most inbox tools use).
+const FILTERS_KEY = 'pharma-inc-ciwarroom-alerts-filters'
+interface PersistedFilters {
+  tab: FeedTab
+  sortMode: SortMode
+  competitorFilter: string[]
+  typeFilter: string[]
+}
+function loadPersistedFilters(): PersistedFilters | null {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return {
+      tab: parsed.tab ?? 'Unread',
+      sortMode: parsed.sortMode ?? 'importance',
+      competitorFilter: Array.isArray(parsed.competitorFilter) ? parsed.competitorFilter : [],
+      typeFilter: Array.isArray(parsed.typeFilter) ? parsed.typeFilter : [],
+    }
+  } catch { return null }
+}
 
 function competitorName(id: string) {
   return (competitorsData as Array<{ id: string; name: string }>).find((c) => c.id === id)?.name ?? id
@@ -92,7 +116,9 @@ function AlertRow({ alert, isRead, isSaved, onOpen, onToggleRead, onToggleSave }
   return (
     <div className={`alert-row${isRead ? '' : ' is-unread'}`} onClick={onOpen}>
       <SeverityDot sev={alert.severity} />
+      <span className="alert-row-sev">{severityLabel(alert.severity)}</span>
       <span className="alert-row-headline">{alert.headline}</span>
+      <span className="alert-row-meta">
       <span className="alert-row-type">{typeLabel(alert.type)}</span>
       <span className="alert-row-time">{relTimeShort(alert.timestamp)}</span>
       <span className="alert-row-actions">
@@ -117,9 +143,16 @@ function AlertRow({ alert, isRead, isSaved, onOpen, onToggleRead, onToggleSave }
           <Check size={14} aria-hidden="true" />
         </button>
       </span>
+      </span>
     </div>
   )
 }
+
+// Per alerts-ai-synthesis-spec.md §3.3: each group shows its top 3 (by the
+// page's current sort) plus a "See all N" expander, not an unbounded list --
+// otherwise a broad filter regrows the same unscannable-list problem this
+// redesign exists to fix.
+const GROUP_CAP = 3
 
 // ── Grouped-by-competitor plate ──────────────────────────────────────────────
 function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, onToggleSave }: {
@@ -130,6 +163,8 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
   onToggleRead: (id: string) => void
   onToggleSave: (id: string) => void
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
   const order: string[] = []
   for (const a of alerts) if (!order.includes(a.competitorId)) order.push(a.competitorId)
   const groups = order.map((id) => ({
@@ -141,6 +176,9 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
     <div className="digest-plate inf-raised">
       {groups.map((g) => {
         const worstSev = g.items.reduce((worst, a) => (SEVERITY_RANK[a.severity] > SEVERITY_RANK[worst] ? a.severity : worst), 'low')
+        const isExpanded = expanded.has(g.id)
+        const visibleItems = isExpanded ? g.items : g.items.slice(0, GROUP_CAP)
+        const hiddenCount = g.items.length - visibleItems.length
         return (
           <div className="digest-group" key={g.id}>
             <div className="digest-group-hd">
@@ -149,7 +187,7 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
               <span className="count">{g.items.length} signal{g.items.length === 1 ? '' : 's'}</span>
               <span className="alert-group-sev"><SeverityDot sev={worstSev as 'high' | 'medium' | 'low'} /></span>
             </div>
-            {g.items.map((a) => (
+            {visibleItems.map((a) => (
               <AlertRow
                 key={a.id}
                 alert={a}
@@ -160,6 +198,14 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
                 onToggleSave={(e) => { e.stopPropagation(); onToggleSave(a.id) }}
               />
             ))}
+            {hiddenCount > 0 && (
+              <button
+                type="button" className="alert-group-more"
+                onClick={() => setExpanded((prev) => new Set(prev).add(g.id))}
+              >
+                See all {g.items.length} ({hiddenCount} more)
+              </button>
+            )}
           </div>
         )
       })}
@@ -311,10 +357,21 @@ export default function AlertsPage() {
   useEffect(() => { fetchSignals() }, [fetchSignals, retryKey])
 
   const [query, setQuery]         = useState('')
-  const [tab, setTab]             = useState<FeedTab>('Unread')
-  const [sortMode, setSortMode]   = useState<SortMode>('importance')
-  const [competitorFilter, setCompetitorFilter] = useState<Set<string>>(() => new Set())
-  const [typeFilter, setTypeFilter]             = useState<Set<string>>(() => new Set())
+  const [tab, setTab]             = useState<FeedTab>(() => loadPersistedFilters()?.tab ?? 'Unread')
+  const [sortMode, setSortMode]   = useState<SortMode>(() => loadPersistedFilters()?.sortMode ?? 'importance')
+  const [competitorFilter, setCompetitorFilter] = useState<Set<string>>(() => new Set(loadPersistedFilters()?.competitorFilter ?? []))
+  const [typeFilter, setTypeFilter]             = useState<Set<string>>(() => new Set(loadPersistedFilters()?.typeFilter ?? []))
+
+  useEffect(() => {
+    try {
+      const payload: PersistedFilters = {
+        tab, sortMode,
+        competitorFilter: [...competitorFilter],
+        typeFilter: [...typeFilter],
+      }
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(payload))
+    } catch { /* noop */ }
+  }, [tab, sortMode, competitorFilter, typeFilter])
 
   const [drawerOpen, setDrawerOpen]   = useState(false)
   const [drawerAlert, setDrawerAlert] = useState<MappedAlert | null>(null)
@@ -362,6 +419,33 @@ export default function AlertsPage() {
     return true
   }), [sorted, tab, query, competitorFilter, typeFilter, readAlerts])
 
+  // Drawer prev/next walks the current filtered order (§3.5) -- not the
+  // grouped-by-competitor visual order, so it can cross group boundaries,
+  // but it stays a well-defined "next most important/recent" step either way.
+  const drawerIndex = drawerAlert ? filtered.findIndex((a) => a.id === drawerAlert.id) : -1
+  function goToAdjacent(delta: 1 | -1) {
+    if (drawerIndex === -1) return
+    const next = filtered[drawerIndex + delta]
+    if (next) openDrawer(next)
+  }
+
+  // §3.5 keyboard triage, adapted to this page's shape: there is no separate
+  // roving list-selection state outside the drawer, so ↑/↓/E/S act on the
+  // open drawer's current alert rather than a highlighted-but-unopened row.
+  useEffect(() => {
+    if (!drawerOpen || !drawerAlert) return
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      if (e.key === 'ArrowUp')   { e.preventDefault(); goToAdjacent(-1) }
+      if (e.key === 'ArrowDown') { e.preventDefault(); goToAdjacent(1) }
+      if (e.key === 'e' || e.key === 'E') { e.preventDefault(); toggleRead(drawerAlert!.id) }
+      if (e.key === 's' || e.key === 'S') { e.preventDefault(); toggleSavedAlert(drawerAlert!.id) }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [drawerOpen, drawerAlert, drawerIndex, filtered])
+
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label)
   const competitorOptions = (competitorsData as Array<{ id: string; name: string }>).map((c) => ({
     value: c.id, label: c.name, count: baseAlerts.filter((a) => a.competitorId === c.id).length,
@@ -407,7 +491,11 @@ export default function AlertsPage() {
         appliedChips={appliedChips} onRemoveChip={removeChip} onClearAll={clearAllChips}
       />
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Second facet row reuses .feed-filter-bar's glass chrome so it reads as
+          part of one toolbar system with the bar above, not a bolted-on strip --
+          FeedFilterBar only exposes one facet slot, so a second row is needed,
+          but it should not look like a different component. */}
+      <div className="feed-filter-bar">
         <FilterDropdown label="Competitor" options={competitorOptions} applied={competitorFilter} onApply={setCompetitorFilter} />
         <FilterDropdown label="Type" options={typeOptions} applied={typeFilter} onApply={setTypeFilter} />
       </div>
@@ -434,6 +522,27 @@ export default function AlertsPage() {
       <SlideOver open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Signal detail">
         {drawerAlert && (
           <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
+              <button
+                type="button" className="alert-row-action" title="Previous (↑)" aria-label="Previous signal"
+                disabled={drawerIndex <= 0}
+                onClick={() => goToAdjacent(-1)}
+                style={drawerIndex <= 0 ? { opacity: 0.35, cursor: 'default' } : undefined}
+              >
+                <ChevronUp size={14} aria-hidden="true" />
+              </button>
+              <button
+                type="button" className="alert-row-action" title="Next (↓)" aria-label="Next signal"
+                disabled={drawerIndex === -1 || drawerIndex >= filtered.length - 1}
+                onClick={() => goToAdjacent(1)}
+                style={drawerIndex === -1 || drawerIndex >= filtered.length - 1 ? { opacity: 0.35, cursor: 'default' } : undefined}
+              >
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
+                {drawerIndex + 1} of {filtered.length}
+              </span>
+            </div>
             <AlertDetail alert={drawerAlert} />
             <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--cream-300)', display: 'flex', gap: '8px' }}>
               <button
