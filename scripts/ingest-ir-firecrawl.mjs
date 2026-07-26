@@ -26,6 +26,7 @@ import {
   writeIngestRun,
   loadAssetResolver,
   resolveAsset,
+  refineSignalType,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -131,11 +132,13 @@ function isRelevant(text, haeTerms) {
   return haeTerms.some(t => lower.includes(t))
 }
 
-function classifySignalType(text) {
-  const lower = text.toLowerCase()
+function classifySignalType(title, summary) {
+  const lower = `${title} ${summary}`.toLowerCase()
   if (/(deal|collaborat|licens|acqui|partner|agreement)/.test(lower)) return 'deal'
-  if (/(fda|ema|approv|cleared|authoris|pdufa|nda|bla|maa|granted)/.test(lower)) return 'regulatory_catalyst'
-  return 'press_release'
+  // Regulatory / trial / plain announcement via the shared calibrated rules
+  // (§4.1). The previous OR-regex typed anything mentioning "fda" or "granted"
+  // as regulatory, which over-typed trial readouts and earnings reports.
+  return refineSignalType(title, summary, 'press_release')
 }
 
 function titleInMarkdown(title, markdown) {
@@ -209,7 +212,7 @@ async function ingestTarget(supabase, target, resolver) {
 
       const date       = parseSignalDate(article.date)
       const sourceUrl  = resolveUrl(article.url, pageUrl)
-      const signalType = classifySignalType(`${title} ${summary}`)
+      const signalType = classifySignalType(title, summary)
       // Tier-3 asset match: persist named drug's INN + asset_id, else null (§4.1).
       const { inn, assetId } = resolveAsset(`${title} ${summary}`.toLowerCase(), resolver)
 

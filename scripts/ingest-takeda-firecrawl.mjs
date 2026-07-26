@@ -24,6 +24,7 @@ import {
   writeIngestRun,
   loadAssetResolver,
   resolveAsset,
+  refineSignalType,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -88,11 +89,11 @@ function isHaeRelevant(text) {
   return TAKEDA_HAE_TERMS.some(t => lower.includes(t))
 }
 
-function classifySignalType(text) {
-  const lower = text.toLowerCase()
+function classifySignalType(title, summary) {
+  const lower = `${title} ${summary}`.toLowerCase()
   if (/(deal|collaborat|licens|acqui|partner|agreement)/.test(lower)) return 'deal'
-  if (/(fda|ema|approv|cleared|authoris|pdufa|nda|bla|maa|granted|rejected)/.test(lower)) return 'regulatory_catalyst'
-  return 'press_release'
+  // Shared calibrated rules (§4.1) — see ingest-ir-firecrawl for the rationale.
+  return refineSignalType(title, summary, 'press_release')
 }
 
 function titleInMarkdown(title, markdown) {
@@ -167,7 +168,7 @@ async function main() {
       const sourceUrl  = article.url
         ? (article.url.startsWith('http') ? article.url : `https://www.takeda.com${article.url}`)
         : pageUrl
-      const signalType = classifySignalType(`${title} ${summary}`)
+      const signalType = classifySignalType(title, summary)
       const sourceHash = sha256(`${COMPETITOR_ID}|${title.slice(0, 80)}|${date ?? ''}`)
       // Tier-3 asset match on the release text: persist the named drug's INN +
       // asset_id when one is clearly named; else null (competitor-level, §4.1).

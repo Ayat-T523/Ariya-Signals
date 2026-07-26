@@ -273,6 +273,105 @@ export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED) {
   return { matched: true, competitorId: generic?.competitorId ?? sentinel, inn: null, assetId: null }
 }
 
+// ── Signal-type refinement (§4.1) ──────────────────────────────────────────────
+//
+// signal_type decides the arc, and the arc decides importance (D11, §4.2), so a
+// mis-typed signal is mis-ranked. These rules classify WHAT AN EVENT IS from the
+// source's own words; they never judge how important it is. That distinction is
+// what keeps importance free of keyword scoring.
+//
+// Calibrated against the live corpus. Each pattern group below exists because a
+// real row needed it — see the negative guards especially.
+//
+// MIRROR: supabase/functions/_shared/signalType.ts carries a copy for the Deno
+// edge functions, which cannot import from scripts/. Change both together.
+
+// A named regulator or the jurisdiction acting as one.
+const REG_AUTHORITY = /\b(fda|food and drug administration|ema|european medicines agency|european commission|european union|chmp|mhra|pmda|health canada|swissmedic)\b/i
+
+// Decision-grade actions only. Deliberately EXCLUDES "submitted", "filing", and
+// "granted": "filing" matches SEC boilerplate on every 8-K, and "granted"
+// matches patents and stock-option grants.
+const REG_DECISION = /\b(approv(?:e|ed|es|al)|authoris(?:e|ed)|authoriz(?:e|ed)|acceptance|accepted for (?:review|filing)|clearance|refus(?:al|ed)|positive opinion|negative opinion|marketing authoris(?:ation)|marketing authorization)\b/i
+
+// Tokens that are regulatory on their own — no authority word needed.
+const REG_STRONG = /\b(pdufa|complete response letter|advisory committee|adcom|priority review|fast track designation|breakthrough therapy designation|orphan drug designation|chmp opinion)\b/i
+
+// Events that mention a regulator but are really something else. Each of these
+// produced a false positive during calibration:
+//   - Paragraph IV / ANDA notice letters are patent challenges (IP, §5 PARKED)
+//   - licence and collaboration agreements are deals
+//   - Hart-Scott-Rodino clearance is an M&A step, not a drug approval
+const REG_NOT_REALLY = /\b(paragraph iv|notice letter|abbreviated new drug application|hart-scott-rodino|licen[cs]e agreement|collaboration agreement)\b/i
+
+// A trial readout is a trial event, not a regulatory one, however positive.
+const TRIAL_READOUT = /\b(phase\s*[123](?:\/[123])?\b[^.]{0,60}\b(?:result|results|data|readout)|topline (?:result|data)|primary endpoint (?:met|was met)|pivotal[^.]{0,30}result|completes enrollment|enrollment complete)\b/i
+
+// Periodic or forward-looking announcements that merely MENTION trial data.
+// A quarterly report is a quarterly report even when it recaps a readout, and
+// "to report Phase 3 data" is a scheduling notice, not the readout itself.
+const NOT_A_READOUT = /\b(financial results|quarterly results|full year|fourth quarter|third quarter|second quarter|first quarter|annual report|strategic priorities|outlines \d{4}|to report|to present|will present|updates timing|announces timing)\b/i
+
+// SEC headlines that carry no subject ("On December 12, 2025, BioCryst
+// Pharmaceuticals, Inc.") — for these the body is the only description available.
+const UNINFORMATIVE_HEADLINE = /^\s*(on \w+ \d{1,2},? \d{4}|as previously disclosed|the (?:full )?text of|a copy of)/i
+
+/**
+ * The text that actually describes the event. The headline states what an
+ * announcement is about, so it is the discriminator; the body is consulted only
+ * when the headline says nothing (truncated SEC filings).
+ */
+function subjectText(headline, body) {
+  const h = (headline ?? '').trim()
+  if (!h || h.length < 25 || UNINFORMATIVE_HEADLINE.test(h)) {
+    return `${h} ${body ?? ''}`
+  }
+  return h
+}
+
+/** True when the text describes an actual regulatory decision or milestone. */
+export function isRegulatoryEvent(text) {
+  const t = text ?? ''
+  if (REG_NOT_REALLY.test(t)) return false
+  if (REG_STRONG.test(t)) return true
+  return REG_AUTHORITY.test(t) && REG_DECISION.test(t)
+}
+
+/** True when the text describes an actual trial readout or enrolment milestone. */
+export function isTrialReadout(text) {
+  const t = text ?? ''
+  if (NOT_A_READOUT.test(t)) return false
+  return TRIAL_READOUT.test(t)
+}
+
+// Types whose classification is derived from free text and may be refined.
+// publication, congress_abstract, exec_change, deal, hta_decision and
+// trial_update are structurally known from their source and are left alone —
+// a journal article about an approval is still evidence.
+const REFINABLE = new Set(['press_release', 'regulatory_catalyst'])
+
+/**
+ * Refine a company-announcement signal_type from its own words.
+ *
+ * Returns the refined type, or `currentType` unchanged when nothing applies.
+ * Only ever moves between press_release / regulatory_catalyst / trial_update, so
+ * it cannot silently reclassify a structurally-known type.
+ *
+ * @param {string} headline
+ * @param {string|null} bodyExcerpt
+ * @param {string} currentType the type the source assigned
+ * @returns {string}
+ */
+export function refineSignalType(headline, bodyExcerpt, currentType) {
+  if (!REFINABLE.has(currentType)) return currentType
+  const subject = subjectText(headline, bodyExcerpt)
+  if (isTrialReadout(subject)) return 'trial_update'
+  if (isRegulatoryEvent(subject)) return 'regulatory_catalyst'
+  // Nothing regulatory or trial-shaped: a row previously over-typed as
+  // regulatory_catalyst degrades back to the plain announcement it is.
+  return currentType === 'regulatory_catalyst' ? 'press_release' : currentType
+}
+
 // ── Data-quality gate (§2.4) ───────────────────────────────────────────────────
 
 // Synthetic headlines produced by the old composeTitle() path — a company name

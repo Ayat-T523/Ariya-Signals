@@ -14,6 +14,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { refineSignalType } from '../_shared/signalType.ts'
 
 // ── Feed registry ─────────────────────────────────────────────────────────────
 //
@@ -272,7 +273,9 @@ Deno.serve(async (_req: Request) => {
 
       const { error: insertErr } = await supabase.from('company_signals').insert({
         competitor_id: feed.competitor_id,
-        signal_type:   'press_release',
+        // An IR feed carries approvals and readouts as well as plain releases;
+        // typing everything press_release mis-ranked them (§4.1, D11).
+        signal_type:   refineSignalType(headline, bodyExcerpt, 'press_release'),
         headline,
         body_excerpt:  bodyExcerpt,
         date:          dateOnly,

@@ -14,7 +14,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
-import { qualityGate } from './lib/signal-gate.mjs'
+import { qualityGate, refineSignalType } from './lib/signal-gate.mjs'
 import { recoverDisclosure } from './lib/sec-extract.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -317,7 +317,15 @@ for (const competitor of withCik) {
       const bodyExcerpt = rec?.body ?? null
       if (!headline || !qualityGate(headline).ok) { skipped++; continue }
 
-      const signalType = itemSignalType ?? classifyByText(bodyExcerpt ?? '')
+      // SEC item codes cannot express a regulatory event — companies announce
+      // approvals under item 8.01 ("Other Events"), which classifyItems maps to
+      // press_release. Refine from the filing's own words so the arc (and
+      // therefore D11 importance) reflects what actually happened (§4.1).
+      const signalType = refineSignalType(
+        headline,
+        bodyExcerpt,
+        itemSignalType ?? classifyByText(bodyExcerpt ?? ''),
+      )
 
       const { error } = await supabase
         .from('company_signals')

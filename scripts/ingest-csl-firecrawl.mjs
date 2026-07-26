@@ -25,6 +25,7 @@ import {
   writeIngestRun,
   loadAssetResolver,
   resolveAsset,
+  refineSignalType,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -89,11 +90,11 @@ function isHaeRelevant(text) {
   return CSL_HAE_TERMS.some(t => lower.includes(t))
 }
 
-function classifySignalType(text) {
-  const lower = text.toLowerCase()
+function classifySignalType(title, summary) {
+  const lower = `${title} ${summary}`.toLowerCase()
   if (/(deal|collaborat|licens|acqui|partner|agreement)/.test(lower)) return 'deal'
-  if (/(fda|ema|approv|cleared|authoris|pdufa|nda|bla|maa)/.test(lower))   return 'regulatory_catalyst'
-  return 'press_release'
+  // Shared calibrated rules (§4.1) — see ingest-ir-firecrawl for the rationale.
+  return refineSignalType(title, summary, 'press_release')
 }
 
 /**
@@ -166,7 +167,7 @@ async function main() {
 
       const date       = parseSignalDate(article.date)
       const sourceUrl  = article.url ?? pageUrl
-      const signalType = classifySignalType(fullText)
+      const signalType = classifySignalType(title, summary)
       const sourceHash = sha256(`${COMPETITOR_ID}|${title.slice(0, 80)}|${date ?? ''}`)
       // Tier-3 asset match: persist named drug's INN + asset_id, else null (§4.1).
       const { inn, assetId } = resolveAsset(fullText.toLowerCase(), resolver)

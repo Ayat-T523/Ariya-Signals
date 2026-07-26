@@ -255,7 +255,9 @@ async function ingestEma(supabase, target, innToAssetId) {
 
   const { error } = await supabase.from('company_signals').insert({
     competitor_id: target.competitor_id,
-    signal_type:   SIGNAL_TYPE,
+    // An EMA marketing authorisation is a REGULATORY decision, not an HTA one.
+    // HTA (NICE, G-BA, HAS, AIFA) is reimbursement and keeps hta_decision below.
+    signal_type:   'regulatory_catalyst',
     headline:      headline.slice(0, 500),
     body_excerpt:  excerpt.slice(0, 400),
     date,
