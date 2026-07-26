@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Feed Filter Bar</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0;
+    --bg-elevated: #F8F7F4;
+    --bg-sunken: #EDECEA;
+
+    --primary: #1A5855;
+    --primary-hover: #144643;
+    --primary-tint: #D6E5E4;
+
+    --error: #B54040; --error-text: #7A2A2A; --error-tint: #F2DADA;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --info: #4A5A8C; --info-text: #38456B; --info-tint: #DDE1EC;
+
+    --text-primary: #1C1917;
+    --text-secondary: #6B6560;
+    --text-tertiary: #9D9690;
+    --text-disabled: #C4BFB8;
+
+    --border-default: #D8D1C5;
+    --divider: #E0D9CE;
+
+    --r-lg: 20px; --r-md: 14px; --r-sm: 10px; --r-xs: 6px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+
+    --t-heading-md: 16px;
+    --t-body-md: 14px;
+    --t-body-sm: 13px;
+    --t-caption: 12px;
+    --t-micro: 10px;
+    --t-label: 11px;
+    --ls-label: 0.06em;
+
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-soft: rgba(170, 155, 130, 0.18);
+    --shadow-mid: rgba(170, 155, 130, 0.28);
+    --shadow-strong: rgba(170, 155, 130, 0.38);
+    --highlight-soft: rgba(255, 250, 242, 0.65);
+    --highlight-mid: rgba(255, 250, 242, 0.85);
+
+    --elevation-1: -2px -2px 6px var(--highlight-soft), 2px 2px 6px var(--shadow-soft);
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+    --elevation-4: 0 4px 16px rgba(90,78,58,0.24), 0 1px 4px rgba(90,78,58,0.18);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+
+    --focus-ring: 2px solid var(--primary);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-entrance: cubic-bezier(0, 0, 0.2, 1);
+
+    /* Glass — bar chrome only, never the feed cards */
+    --glass-panel-bg: rgba(248, 247, 244, 0.72);
+    --glass-panel-bg-strong: rgba(248, 247, 244, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --glass-blur: blur(20px) saturate(1.1);
+    --glass-popover-bg: rgba(250, 249, 246, 0.96);
+    --glass-popover-blur: blur(20px) saturate(1.1);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background:
+      radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%),
+      var(--bg-page);
+    color: var(--text-primary);
+    padding: var(--s-6);
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 860px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2); }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 680px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-8); }
+  section.demo h2{ font-size: 15px; font-weight: 600; letter-spacing: -0.005em; margin: 0 0 var(--s-3); padding-bottom: var(--s-2); border-bottom: 1px solid var(--divider); }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-4); }
+
+  /* ---------- shared bits ---------- */
+  .sev-dot{ width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sev-dot.high{ background: var(--error); }
+  .sev-dot.med{ background: var(--urgent); }
+  .sev-dot.low{ background: var(--info); }
+
+  svg.ic{ width: 15px; height: 15px; flex-shrink: 0; }
+
+  /* ================================================================
+     Density switch (demo control, not part of the component)
+     ================================================================ */
+  .density-switch{
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    margin-bottom: var(--s-4); font-size: var(--t-caption); color: var(--text-secondary);
+  }
+  .density-switch .seg-toggle{
+    display: inline-flex; gap: 2px; background: var(--bg-sunken); border-radius: var(--r-pill);
+    padding: 3px; box-shadow: var(--inset-1);
+  }
+  .density-switch .seg{ padding: 5px 12px; border-radius: var(--r-pill); font-size: var(--t-caption); font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+  .density-switch .seg.active{ background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--elevation-1); }
+
+  /* ================================================================
+     Device frame — bounded scroll area to demo sticky behavior
+     ================================================================ */
+  .device{
+    position: relative;
+    height: 460px;
+    overflow-y: auto;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--divider);
+    background: linear-gradient(180deg, #F6F4EE, var(--bg-page));
+  }
+
+  /* ================================================================
+     Feed Filter Bar
+     ================================================================ */
+  .filter-bar{
+    position: sticky; top: 0; z-index: 5;
+    background: var(--glass-panel-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 8px rgba(60,45,30,0.05);
+    transition: background var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+  }
+  .filter-bar.is-scrolled{
+    background: var(--glass-panel-bg-strong);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 16px rgba(60,45,30,0.10);
+  }
+  .filter-bar-row{ display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); }
+
+  /* search field — R3 pressed */
+  .fb-search{
+    display: flex; align-items: center; gap: 8px;
+    flex: 1 1 200px; min-width: 130px;
+    background: var(--bg-sunken); box-shadow: var(--inset-1);
+    border-radius: var(--r-md); padding: 8px 12px;
+    transition: box-shadow var(--dur-fast) var(--ease-standard);
+  }
+  .fb-search svg{ color: var(--text-tertiary); }
+  .fb-search input{
+    border: 0; outline: none; background: transparent; flex: 1; min-width: 0;
+    font: 400 var(--t-body-sm) var(--font); color: var(--text-primary);
+  }
+  .fb-search input::placeholder{ color: var(--text-tertiary); }
+  .fb-search.is-focus{ box-shadow: var(--inset-1), var(--focus-ring); }
+
+  /* quick tabs — segmented control */
+  .quick-tabs{ display: inline-flex; gap: 2px; background: var(--bg-sunken); border-radius: var(--r-pill); padding: 3px; box-shadow: var(--inset-1); flex-shrink: 0; }
+  .quick-tabs .qt{ padding: 6px 13px; border-radius: var(--r-pill); font-size: var(--t-caption); font-weight: 500; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+  .quick-tabs .qt.active{ background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--elevation-1); }
+  [data-density="compact"] .quick-tabs{ display: none; }
+
+  /* filter button */
+  .filter-wrap, .sort-wrap{ position: relative; flex-shrink: 0; }
+  .fb-btn{
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--bg-elevated); box-shadow: var(--elevation-2);
+    border-radius: var(--r-pill); padding: 8px 14px;
+    font-size: var(--t-caption); font-weight: 600; color: var(--text-primary);
+    cursor: pointer; border: 0; white-space: nowrap;
+    transition: box-shadow var(--dur-fast) var(--ease-standard);
+  }
+  .fb-btn:hover{ box-shadow: var(--elevation-3); }
+  .fb-btn:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+  .fb-btn .count{
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #fff;
+    background: var(--primary); border-radius: var(--r-pill); min-width: 17px; height: 17px;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0 5px;
+  }
+  .fb-btn.has-count{ color: var(--primary); }
+
+  .fb-sort{
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 0; cursor: pointer;
+    font-size: var(--t-caption); font-weight: 500; color: var(--text-secondary);
+    padding: 8px 8px; border-radius: var(--r-sm);
+  }
+  .fb-sort:hover{ background: rgba(120,100,75,0.06); }
+  .fb-sort .val{ color: var(--text-primary); font-weight: 600; }
+  .fb-sort:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+
+  /* ---------- popover (R7 glass) ---------- */
+  .popover{
+    position: absolute; top: calc(100% + 8px); right: 0;
+    width: 360px; max-width: calc(100vw - 40px);
+    background: var(--glass-popover-bg);
+    -webkit-backdrop-filter: var(--glass-popover-blur);
+    backdrop-filter: var(--glass-popover-blur);
+    border: 1px solid rgba(120,100,75,0.12);
+    box-shadow: var(--elevation-4);
+    border-radius: var(--r-md);
+    padding: var(--s-3);
+    z-index: 20;
+    opacity: 0; transform: scale(0.96); transform-origin: top right; pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-entrance), transform var(--dur-base) var(--ease-entrance);
+  }
+  .popover.is-open{ opacity: 1; transform: scale(1); pointer-events: auto; }
+  .popover.is-static{ position: static; opacity: 1; transform: none; pointer-events: auto; margin: 0 auto; transform-origin: initial; }
+
+  .cmd-search{
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-sunken); box-shadow: var(--inset-1);
+    border-radius: var(--r-sm); padding: 7px 10px; margin-bottom: var(--s-3);
+  }
+  .cmd-search svg{ color: var(--text-tertiary); }
+  .cmd-search input{ border: 0; outline: none; background: transparent; flex: 1; font-size: var(--t-body-sm); color: var(--text-primary); }
+  .cmd-search input::placeholder{ color: var(--text-tertiary); }
+
+  .facet-list{ max-height: 320px; overflow-y: auto; }
+  .facet-group + .facet-group{ margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--divider); }
+  .facet-group-label{ font-size: var(--t-label); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; margin: 4px 4px 4px; }
+  .status-group{ display: none; }
+  [data-density="compact"] .status-group{ display: block; }
+
+  .facet-option{ display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 8px; cursor: pointer; }
+  .facet-option:hover{ background: rgba(120,100,75,0.06); }
+  .fo-check{ width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-default); background: var(--bg-elevated); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .facet-option.is-checked .fo-check{ background: var(--primary); border-color: var(--primary); }
+  .fo-check svg{ width: 10px; height: 10px; color: #fff; opacity: 0; }
+  .facet-option.is-checked .fo-check svg{ opacity: 1; }
+  .fo-label{ flex: 1; font-size: var(--t-body-sm); color: var(--text-primary); display: flex; align-items: center; gap: 7px; }
+  .fo-count{ font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+  .facet-empty{ font-size: var(--t-caption); color: var(--text-tertiary); text-align: center; padding: var(--s-4) 0; }
+
+  .popover-ft{ display: flex; align-items: center; justify-content: space-between; margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--divider); }
+  .btn-ghost-sm{ background: transparent; border: 0; color: var(--text-secondary); font-size: var(--t-caption); font-weight: 600; padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; }
+  .btn-ghost-sm:hover{ background: rgba(120,100,75,0.07); color: var(--text-primary); }
+  .btn-apply{ background: var(--primary); color: #fff; border: 0; font-size: var(--t-caption); font-weight: 700; padding: 8px 16px; border-radius: var(--r-pill); cursor: pointer; box-shadow: -1px 3px 8px rgba(26,88,85,0.3); }
+  .btn-apply:hover{ background: var(--primary-hover); }
+
+  /* small sort menu */
+  .sort-menu{ width: 170px; padding: var(--s-2); }
+  .sort-menu .fo-count{ display: none; }
+
+  /* ---------- applied chips row ---------- */
+  .chips-row{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: var(--s-3) var(--s-4); }
+  .chips-row.is-empty{ display: none; }
+  .chip{ display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 11px; border-radius: var(--r-sm); font-size: var(--t-caption); font-weight: 500; background: var(--bg-sunken); color: var(--text-primary); }
+  .chip.tint-competitor{ background: var(--primary-tint); color: var(--primary); }
+  .chip.tint-type{ background: var(--info-tint); color: var(--info-text); }
+  .chip.tint-high{ background: var(--error-tint); color: var(--error-text); }
+  .chip.tint-med{ background: var(--urgent-tint); color: var(--urgent-text); }
+  .chip.tint-low{ background: var(--info-tint); color: var(--info-text); }
+  .chip button{ display: flex; background: transparent; border: 0; padding: 2px; cursor: pointer; color: currentColor; opacity: 0.65; border-radius: 4px; }
+  .chip button:hover{ opacity: 1; background: rgba(0,0,0,0.06); }
+  .chip button svg{ width: 11px; height: 11px; }
+  .clear-all{ background: transparent; border: 0; color: var(--text-tertiary); font-size: var(--t-caption); font-weight: 600; cursor: pointer; padding: 5px 6px; }
+  .clear-all:hover{ color: var(--text-primary); text-decoration: underline; }
+
+  /* ---------- placeholder feed rows (scroll filler, out of scope) ---------- */
+  .feed-list{ display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); }
+  .feed-row{ background: var(--bg-elevated); box-shadow: var(--elevation-2); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
+  .feed-row .fr-top{ display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: var(--t-caption); color: var(--text-secondary); }
+  .feed-row .fr-top .name{ font-weight: 600; color: var(--text-primary); }
+  .feed-row .fr-top .time{ font-family: var(--font-mono); margin-left: auto; }
+  .feed-row .fr-head{ font-size: var(--t-body-md); font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+
+  /* ---------- states gallery ---------- */
+  .gallery{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+  .gallery .cell{ border: 1px solid var(--divider); border-radius: var(--r-md); padding: var(--s-4); background: rgba(255,255,255,0.35); overflow: visible; }
+  .gallery .cell.wide{ grid-column: 1 / -1; }
+  .cell-label{ font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-3); }
+
+  .mini-bar{ display: flex; align-items: center; gap: var(--s-2); background: var(--glass-panel-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: var(--r-md); padding: var(--s-3); border: 1px solid var(--glass-border); }
+  .mini-bar.strong{ background: var(--glass-panel-bg-strong); box-shadow: 0 6px 16px rgba(60,45,30,0.10); }
+
+  .sk{ border-radius: 6px; background: linear-gradient(90deg, var(--bg-sunken), var(--border-default), var(--bg-sunken)); background-size: 200% 100%; animation: sk-shimmer 1.3s ease-in-out infinite; }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+  .empty-state{ text-align: center; padding: var(--s-6) var(--s-4); }
+  .empty-state .glyph{ width: 44px; height: 44px; border-radius: 50%; background: var(--bg-sunken); box-shadow: var(--inset-1); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--s-3); color: var(--text-tertiary); }
+  .empty-state h4{ margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .empty-state p{ margin: 0; font-size: var(--t-caption); color: var(--text-secondary); }
+
+  .footnote{ font-size: var(--t-caption); color: var(--text-tertiary); margin-top: var(--s-4); }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6.2 7v5.2l-3.6 1.8V12z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chevrons" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>Feed Filter Bar</h1>
+    <p>Search + quick tabs handle the everyday filter in one click; the faceted popover stays tucked away for the rest; applied filters are always visible as chips so the scope of the feed is never a mystery. Bar is R5 glass chrome — the feed underneath stays opaque neumorphic.</p>
+  </div>
+
+  <!-- ================================================================
+       LIVE DEMO
+       ================================================================ -->
+  <section class="demo">
+    <h2>Live demo — scroll to intensify glass, click Filter to open facets</h2>
+    <p class="note">Starting state matches the reference: quick tab All, facets Pharvaris + High applied (Filter · 2).</p>
+
+    <div class="density-switch">
+      Density
+      <div class="seg-toggle">
+        <span class="seg active" data-density-btn="comfortable">Comfortable</span>
+        <span class="seg" data-density-btn="compact">Compact</span>
+      </div>
+    </div>
+
+    <div class="device" id="device" data-density="comfortable">
+      <div class="filter-bar" id="filterBar">
+        <div class="filter-bar-row">
+          <div class="fb-search" id="searchWrap">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <input type="text" placeholder="Filter signals…" id="searchInput">
+          </div>
+          <div class="quick-tabs" id="quickTabs">
+            <span class="qt active" data-tab="All">All</span>
+            <span class="qt" data-tab="Unread">Unread</span>
+            <span class="qt" data-tab="High">High</span>
+          </div>
+          <div class="filter-wrap">
+            <button class="fb-btn" id="filterBtn"><svg class="ic"><use href="#i-filter"/></svg><span id="filterLabel">Filter</span></button>
+            <div class="popover" id="popover">
+              <div class="cmd-search"><svg class="ic"><use href="#i-search"/></svg><input type="text" placeholder="Search facets…" id="cmdInput"></div>
+              <div class="facet-list" id="facetList"></div>
+              <div class="popover-ft">
+                <button class="btn-ghost-sm" id="clearBtn">Clear</button>
+                <button class="btn-apply" id="applyBtn">Apply</button>
+              </div>
+            </div>
+          </div>
+          <div class="sort-wrap">
+            <button class="fb-sort" id="sortBtn">Sort <span class="val" id="sortVal">Importance</span><svg class="ic"><use href="#i-chevrons"/></svg></button>
+            <div class="popover sort-menu" id="sortMenu">
+              <div class="facet-option is-checked" data-sort="Importance"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label">Importance</span></div>
+              <div class="facet-option" data-sort="Recency"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label">Recency</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="chips-row" id="chipsRow"></div>
+      </div>
+
+      <div class="feed-list">
+        <div class="feed-row"><div class="fr-top"><span class="name">Pharvaris</span><span>· Publication</span><span class="time">2h</span></div><div class="fr-head">FDA accepts NDA for deucrictibant, sets PDUFA date</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">BioCryst</span><span>· Company IR</span><span class="time">6h</span></div><div class="fr-head">Q2 earnings — Orladeyo revenue up 42% YoY</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">KalVista</span><span>· Trial</span><span class="time">1d</span></div><div class="fr-head">Phase 3 KONFIDENT-S pediatric enrollment complete</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">Ionis</span><span>· Publication</span><span class="time">2d</span></div><div class="fr-head">Donidalorsen long-term safety data presented at AAAAI</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">CSL Behring</span><span>· SEC Filing</span><span class="time">3d</span></div><div class="fr-head">8-K filed on Andembry formulary access</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">Takeda</span><span>· Publication</span><span class="time">4d</span></div><div class="fr-head">TAK-755 topline data accepted for late-breaker session</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">BioCryst</span><span>· Company IR</span><span class="time">5d</span></div><div class="fr-head">Announces new manufacturing partnership for Orladeyo</div></div>
+        <div class="feed-row"><div class="fr-top"><span class="name">Ionis</span><span>· SEC Filing</span><span class="time">6d</span></div><div class="fr-head">10-Q filed — R&amp;D spend up 11% on antisense pipeline</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       STATES GALLERY
+       ================================================================ -->
+  <section class="demo">
+    <h2>States</h2>
+    <div class="gallery">
+      <div class="cell">
+        <div class="cell-label">Search focus</div>
+        <div class="fb-search is-focus"><svg class="ic"><use href="#i-search"/></svg><input placeholder="Filter signals…" value="deucrictibant"></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Sticky-scrolled (glass intensifies)</div>
+        <div class="mini-bar strong">
+          <div class="fb-search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="Filter signals…"></div>
+          <div class="fb-btn has-count"><svg class="ic"><use href="#i-filter"/></svg>Filter<span class="count">2</span></div>
+        </div>
+      </div>
+
+      <div class="cell wide" style="display:flex; justify-content:flex-end;">
+        <div class="cell-label" style="width:100%;">Popover open — facets applied</div>
+        <div class="popover is-static" style="width:100%; max-width:380px;">
+          <div class="cmd-search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="Search facets…"></div>
+          <div class="facet-list">
+            <div class="facet-group">
+              <div class="facet-group-label">Competitor</div>
+              <div class="facet-option is-checked"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label">Pharvaris</span><span class="fo-count">12</span></div>
+              <div class="facet-option"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label">BioCryst</span><span class="fo-count">8</span></div>
+            </div>
+            <div class="facet-group">
+              <div class="facet-group-label">Severity</div>
+              <div class="facet-option is-checked"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label"><span class="sev-dot high"></span>High</span><span class="fo-count">5</span></div>
+              <div class="facet-option"><span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label"><span class="sev-dot med"></span>Medium</span><span class="fo-count">14</span></div>
+            </div>
+          </div>
+          <div class="popover-ft"><button class="btn-ghost-sm">Clear</button><button class="btn-apply">Apply</button></div>
+        </div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Empty result</div>
+        <div class="empty-state">
+          <div class="glyph"><svg class="ic"><use href="#i-search"/></svg></div>
+          <h4>No signals match</h4>
+          <p>Try removing a filter or broadening severity.</p>
+        </div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">Loading</div>
+        <div class="mini-bar">
+          <div class="sk" style="flex:1; height:34px; border-radius: var(--r-md);"></div>
+          <div class="sk" style="width:90px; height:30px; border-radius: var(--r-pill);"></div>
+          <div class="sk" style="width:70px; height:30px; border-radius: var(--r-pill);"></div>
+        </div>
+      </div>
+
+      <div class="cell wide">
+        <div class="cell-label">Compact density — search + Filter + Sort only, quick tabs collapse into popover</div>
+        <div class="mini-bar">
+          <div class="fb-search"><svg class="ic"><use href="#i-search"/></svg><input placeholder="Filter signals…"></div>
+          <div class="fb-btn has-count"><svg class="ic"><use href="#i-filter"/></svg>Filter<span class="count">2</span></div>
+          <div class="fb-sort">Sort <span class="val">Importance</span><svg class="ic"><use href="#i-chevrons"/></svg></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">Recipes: bar R5 glass panel (sticky) · search + streaming indicator R3 pressed · popover R7 glass, entrance opacity+scale ≤200ms · Apply button primary fill · chips tinted per facet semantics.</div>
+</div>
+
+<script>
+  const FACETS = {
+    competitor: { label: 'Competitor', options: [
+      {v:'Pharvaris',c:12},{v:'BioCryst',c:8},{v:'Takeda',c:5},{v:'KalVista',c:9},{v:'Ionis',c:6},{v:'CSL Behring',c:4}
+    ]},
+    type: { label: 'Type', options: [
+      {v:'Publication',c:18},{v:'SEC Filing',c:7},{v:'Trial',c:11},{v:'Company IR',c:6}
+    ]},
+    source: { label: 'Source', options: [
+      {v:'FDA.gov',c:9},{v:'ClinicalTrials.gov',c:11},{v:'SEC EDGAR',c:7},{v:'PubMed',c:14},{v:'IR',c:6}
+    ]},
+    severity: { label: 'Severity', options: [
+      {v:'High',c:5,dot:'high'},{v:'Medium',c:14,dot:'med'},{v:'Low',c:23,dot:'low'}
+    ]}
+  };
+  const STATUS = { label: 'Status', options: [ {v:'Unread',c:9}, {v:'High',c:5,dot:'high'} ] };
+  const CHIP_TINT = { competitor: 'tint-competitor', type: 'tint-type', source: '', severity: null };
+
+  let applied = { competitor: new Set(['Pharvaris']), type: new Set(), source: new Set(), severity: new Set(['High']), status: new Set() };
+  let pending = clone(applied);
+  function clone(o){ const r = {}; for (const k in o) r[k] = new Set(o[k]); return r; }
+
+  const facetList = document.getElementById('facetList');
+  const popover = document.getElementById('popover');
+  const filterBtn = document.getElementById('filterBtn');
+  const filterLabel = document.getElementById('filterLabel');
+  const chipsRow = document.getElementById('chipsRow');
+  const cmdInput = document.getElementById('cmdInput');
+
+  function severityTintClass(v){ return v === 'High' ? 'tint-high' : v === 'Medium' ? 'tint-med' : v === 'Low' ? 'tint-low' : ''; }
+
+  function renderFacetGroup(container, key, group){
+    const g = document.createElement('div');
+    g.className = 'facet-group' + (key === 'status' ? ' status-group' : '');
+    const lbl = document.createElement('div');
+    lbl.className = 'facet-group-label';
+    lbl.textContent = group.label;
+    g.appendChild(lbl);
+    group.options.forEach(opt => {
+      const row = document.createElement('div');
+      row.className = 'facet-option' + (pending[key].has(opt.v) ? ' is-checked' : '');
+      row.dataset.group = key; row.dataset.value = opt.v;
+      row.innerHTML = `<span class="fo-check"><svg><use href="#i-check"/></svg></span><span class="fo-label">${opt.dot ? `<span class="sev-dot ${opt.dot}"></span>` : ''}${opt.v}</span><span class="fo-count">${opt.c}</span>`;
+      row.addEventListener('click', () => {
+        if (pending[key].has(opt.v)) pending[key].delete(opt.v); else pending[key].add(opt.v);
+        row.classList.toggle('is-checked');
+      });
+      g.appendChild(row);
+    });
+    container.appendChild(g);
+  }
+
+  function renderPopover(filterText){
+    facetList.innerHTML = '';
+    const q = (filterText || '').toLowerCase();
+    let any = false;
+    const all = Object.assign({status: STATUS}, FACETS);
+    Object.keys(all).forEach(key => {
+      const group = all[key];
+      const filtered = { label: group.label, options: group.options.filter(o => o.v.toLowerCase().includes(q)) };
+      if (filtered.options.length) { any = true; renderFacetGroup(facetList, key, filtered); }
+    });
+    if (!any) { const e = document.createElement('div'); e.className = 'facet-empty'; e.textContent = 'No facets match "' + filterText + '"'; facetList.appendChild(e); }
+  }
+
+  cmdInput.addEventListener('input', () => renderPopover(cmdInput.value));
+
+  function openPopover(){ pending = clone(applied); renderPopover(''); cmdInput.value = ''; popover.classList.add('is-open'); }
+  function closePopover(){ popover.classList.remove('is-open'); }
+  filterBtn.addEventListener('click', (e) => { e.stopPropagation(); popover.classList.contains('is-open') ? closePopover() : openPopover(); document.getElementById('sortMenu').classList.remove('is-open'); });
+
+  document.getElementById('clearBtn').addEventListener('click', () => { pending = { competitor: new Set(), type: new Set(), source: new Set(), severity: new Set(), status: new Set() }; renderPopover(cmdInput.value); });
+  document.getElementById('applyBtn').addEventListener('click', () => { applied = clone(pending); closePopover(); renderChips(); });
+
+  function totalCount(){ return Object.values(applied).reduce((n, s) => n + s.size, 0); }
+
+  function renderChips(){
+    chipsRow.innerHTML = '';
+    const n = totalCount();
+    filterLabel.textContent = n ? `Filter · ${n}` : 'Filter';
+    filterBtn.classList.toggle('has-count', n > 0);
+    let existingCount = document.querySelector('#filterBtn .count');
+    if (existingCount) existingCount.remove();
+
+    Object.keys(applied).forEach(key => {
+      applied[key].forEach(v => {
+        const chip = document.createElement('span');
+        const tint = key === 'severity' || key === 'status' ? severityTintClass(v) || 'tint-competitor' : (CHIP_TINT[key] || '');
+        chip.className = 'chip ' + tint;
+        chip.innerHTML = `${v}<button data-group="${key}" data-value="${v}"><svg class="ic"><use href="#i-x"/></svg></button>`;
+        chip.querySelector('button').addEventListener('click', () => { applied[key].delete(v); renderChips(); });
+        chipsRow.appendChild(chip);
+      });
+    });
+    if (n >= 2) {
+      const clearAll = document.createElement('button');
+      clearAll.className = 'clear-all'; clearAll.textContent = 'Clear all';
+      clearAll.addEventListener('click', () => { applied = { competitor: new Set(), type: new Set(), source: new Set(), severity: new Set(), status: new Set() }; renderChips(); });
+      chipsRow.appendChild(clearAll);
+    }
+    chipsRow.classList.toggle('is-empty', n === 0);
+  }
+
+  // quick tabs
+  document.getElementById('quickTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.qt'); if (!tab) return;
+    document.querySelectorAll('.qt').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+
+  // sort menu
+  const sortBtn = document.getElementById('sortBtn'), sortMenu = document.getElementById('sortMenu'), sortVal = document.getElementById('sortVal');
+  sortBtn.addEventListener('click', (e) => { e.stopPropagation(); sortMenu.classList.toggle('is-open'); closePopover(); });
+  sortMenu.addEventListener('click', (e) => {
+    const opt = e.target.closest('.facet-option'); if (!opt) return;
+    sortMenu.querySelectorAll('.facet-option').forEach(o => o.classList.remove('is-checked'));
+    opt.classList.add('is-checked'); sortVal.textContent = opt.dataset.sort; sortMenu.classList.remove('is-open');
+  });
+
+  document.addEventListener('click', () => { closePopover(); sortMenu.classList.remove('is-open'); });
+
+  // search focus ring
+  const searchInput = document.getElementById('searchInput'), searchWrap = document.getElementById('searchWrap');
+  searchInput.addEventListener('focus', () => searchWrap.classList.add('is-focus'));
+  searchInput.addEventListener('blur', () => searchWrap.classList.remove('is-focus'));
+
+  // sticky intensify on scroll
+  const device = document.getElementById('device'), bar = document.getElementById('filterBar');
+  device.addEventListener('scroll', () => bar.classList.toggle('is-scrolled', device.scrollTop > 4));
+
+  // density switch
+  document.querySelectorAll('[data-density-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-density-btn]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      device.dataset.density = btn.dataset.densityBtn;
+    });
+  });
+
+  renderChips();
+</script>
+</body>
+</html>

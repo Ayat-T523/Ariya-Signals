@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — ProvenanceChip</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0; --bg-elevated: #F8F7F4; --bg-sunken: #EDECEA;
+    --primary: #1A5855; --primary-tint: #D6E5E4;
+    --approved: #4F7A4F; --approved-text: #2F5530; --approved-tint: #D9E4D7;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --text-primary: #1C1917; --text-secondary: #6B6560; --text-tertiary: #9D9690; --text-disabled: #C4BFB8;
+    --border-default: #D8D1C5; --divider: #E0D9CE;
+    --r-md: 14px; --r-sm: 10px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+    --t-body-sm: 13px; --t-caption: 12px; --t-micro: 10px;
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --shadow-soft: rgba(170,155,130,0.18); --shadow-mid: rgba(170,155,130,0.28);
+    --highlight-soft: rgba(255,250,242,0.65); --highlight-mid: rgba(255,250,242,0.85);
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+    --focus-ring: 2px solid var(--primary);
+    --dur-fast: 120ms; --dur-base: 200ms; --ease-standard: cubic-bezier(0.4,0,0.2,1);
+    --glass-tooltip-bg: rgba(42,39,34,0.92); --glass-tooltip-fg: #F7F2EA; --glass-tooltip-blur: blur(12px);
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background: radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%), radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%), var(--bg-page);
+    color: var(--text-primary); padding: var(--s-6); min-height: 100vh;
+  }
+  .wrap{ max-width: 860px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2); }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 680px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-8); }
+  section.demo h2{ font-size: 15px; font-weight: 600; letter-spacing: -0.005em; margin: 0 0 var(--s-3); padding-bottom: var(--s-2); border-bottom: 1px solid var(--divider); }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-4); }
+  .row{ display: flex; flex-wrap: wrap; gap: var(--s-4); align-items: center; }
+
+  /* host card, so the chip is shown as a child element, never floating alone */
+  .host-card{ background: var(--bg-elevated); box-shadow: var(--elevation-2); border-radius: var(--r-md); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-2); min-width: 220px; }
+  .host-card .metric-label{ font-size: var(--t-caption); color: var(--text-tertiary); }
+  .host-card .metric-val{ font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+
+  /* ---------- ProvenanceChip — badge variant ---------- */
+  .prov-wrap{ position: relative; display: inline-block; }
+  .prov-chip{
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px; border-radius: var(--r-sm);
+    font-size: var(--t-caption); font-weight: 600; line-height: 1;
+    background: var(--bg-sunken); color: var(--text-secondary);
+  }
+  .prov-chip .dot{ width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--text-tertiary); }
+  .prov-chip.live{ background: var(--approved-tint); color: var(--approved-text); }
+  .prov-chip.live .dot{ background: var(--approved); }
+  .prov-chip.illustrative{ background: var(--urgent-tint); color: var(--urgent-text); }
+  .prov-chip.illustrative .dot{ background: var(--urgent); }
+  .prov-chip .src{ transition: color var(--dur-fast) var(--ease-standard); }
+  .prov-chip .period{ opacity: 0.75; font-weight: 500; }
+  .prov-chip .sep{ opacity: 0.5; }
+  .prov-chip svg.ext{ width: 11px; height: 11px; margin-left: -1px; opacity: 0.8; }
+
+  a.prov-chip{ text-decoration: none; cursor: pointer; }
+  a.prov-chip:hover .src{ color: var(--primary); text-decoration: underline; }
+  a.prov-chip:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+
+  /* stale — live data past freshness threshold */
+  .prov-chip.stale{ background: var(--bg-sunken); color: var(--text-tertiary); }
+  .prov-chip.stale .dot{ background: var(--text-tertiary); }
+
+  /* compact density — drop status word + period */
+  [data-density="compact"] .status-word,
+  [data-density="compact"] .period,
+  [data-density="compact"] .sep{ display: none; }
+
+  /* ---------- inline meta (compact, for signal-card meta row) ---------- */
+  .prov-inline{ display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-caption); color: var(--text-secondary); }
+  .prov-inline .dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--approved); flex-shrink: 0; }
+  .prov-inline .time{ font-family: var(--font-mono); color: var(--text-tertiary); }
+  .prov-inline .dot-sep{ width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+
+  /* ---------- tooltip (R8 glass, dark) ---------- */
+  .prov-tooltip{
+    position: absolute; bottom: calc(100% + 8px); left: 0;
+    min-width: 240px; max-width: 300px;
+    background: var(--glass-tooltip-bg); color: var(--glass-tooltip-fg);
+    -webkit-backdrop-filter: var(--glass-tooltip-blur); backdrop-filter: var(--glass-tooltip-blur);
+    border: 1px solid rgba(255,250,242,0.08);
+    box-shadow: 0 6px 20px rgba(20,15,10,0.35), 0 1px 3px rgba(20,15,10,0.4);
+    border-radius: var(--r-md); padding: var(--s-3);
+    font-size: var(--t-caption); line-height: 1.5;
+    opacity: 0; transform: translateY(4px); pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-standard);
+    z-index: 10;
+  }
+  .prov-wrap:hover .prov-tooltip, .prov-wrap:focus-within .prov-tooltip{ opacity: 1; transform: translateY(0); pointer-events: auto; transition-delay: 400ms; }
+  .prov-tooltip .tt-src{ font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .prov-tooltip .tt-meta{ font-family: var(--font-mono); color: rgba(247,242,234,0.65); }
+  .prov-tooltip.is-static{ position: static; opacity: 1; transform: none; pointer-events: auto; }
+
+  /* ---------- loading skeleton ---------- */
+  .sk{ border-radius: 6px; background: linear-gradient(90deg, var(--bg-sunken), var(--border-default), var(--bg-sunken)); background-size: 200% 100%; animation: sk-shimmer 1.3s ease-in-out infinite; }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+  /* ---------- density switch (demo control) ---------- */
+  .density-switch{ display: inline-flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-4); font-size: var(--t-caption); color: var(--text-secondary); }
+  .density-switch .seg-toggle{ display: inline-flex; gap: 2px; background: var(--bg-sunken); border-radius: var(--r-pill); padding: 3px; box-shadow: var(--inset-1); }
+  .density-switch .seg{ padding: 5px 12px; border-radius: var(--r-pill); font-size: var(--t-caption); font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+  .density-switch .seg.active{ background: var(--bg-elevated); color: var(--text-primary); box-shadow: -2px -2px 6px var(--highlight-soft), 2px 2px 6px var(--shadow-soft); }
+
+  .gallery{ display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+  .gallery .cell{ border: 1px solid var(--divider); border-radius: var(--r-md); padding: var(--s-4); background: rgba(255,255,255,0.35); }
+  .cell-label{ font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-3); }
+
+  .footnote{ font-size: var(--t-caption); color: var(--text-tertiary); margin-top: var(--s-4); }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>ProvenanceChip</h1>
+    <p>The data-trust label: live-ingested vs. illustrative, at a glance. Flat tinted tag — never neumorphic, never glass — so it reads as metadata on the card, not a surface of its own. Quiet until inspected; honest above all.</p>
+  </div>
+
+  <!-- ============ BADGE VARIANT — on host cards ============ -->
+  <section class="demo">
+    <h2>Badge — on a metric card</h2>
+    <p class="note">Live is clickable (opens the source) and underlines on hover. Illustrative never is — there's no source to jump to.</p>
+    <div class="density-switch">
+      Density
+      <div class="seg-toggle">
+        <span class="seg active" data-density-btn="comfortable">Comfortable</span>
+        <span class="seg" data-density-btn="compact">Compact</span>
+      </div>
+    </div>
+    <div class="row" id="badgeRow">
+      <div class="host-card">
+        <div class="metric-label">Orladeyo FY revenue</div>
+        <div class="metric-val">$132.4M</div>
+        <div class="prov-wrap">
+          <a class="prov-chip live" href="#" onclick="return false;">
+            <span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src">SEC EDGAR</span><span class="sep">·</span><span class="period">FY2025</span>
+          </a>
+          <div class="prov-tooltip"><div class="tt-src">Source: SEC EDGAR</div><div class="tt-meta">Ingested 2 Jun 2026 · Last checked 2h ago</div></div>
+        </div>
+      </div>
+
+      <div class="host-card">
+        <div class="metric-label">KONFIDENT-S enrollment</div>
+        <div class="metric-val">312 / 312</div>
+        <div class="prov-wrap">
+          <a class="prov-chip live" href="#" onclick="return false;">
+            <span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src">ClinicalTrials.gov</span>
+          </a>
+          <div class="prov-tooltip"><div class="tt-src">Source: ClinicalTrials.gov</div><div class="tt-meta">Ingested 30 Jun 2026 · Last checked 20m ago</div></div>
+        </div>
+      </div>
+
+      <div class="host-card">
+        <div class="metric-label">Projected 2027 market share</div>
+        <div class="metric-val">18%</div>
+        <div class="prov-wrap">
+          <span class="prov-chip illustrative">
+            <span class="dot"></span><span class="status-word">Illustrative</span><span class="sep">·</span><span class="src">manual curation</span>
+          </span>
+          <div class="prov-tooltip"><div class="tt-src">Illustrative data</div><div class="tt-meta">Not from a live source.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INLINE META (compact, signal-card meta row) ============ -->
+  <section class="demo">
+    <h2>Inline meta — signal-card meta row</h2>
+    <p class="note">No box — just a small leading live dot ahead of source · time, matching the card's existing meta row.</p>
+    <div class="host-card" style="min-width:320px;">
+      <div class="metric-label" style="font-weight:600; color:var(--text-primary); font-size:14px;">FDA accepts NDA for deucrictibant, sets PDUFA date</div>
+      <div class="prov-inline"><span class="dot"></span><span>FDA.gov</span><span class="dot-sep"></span><span class="time">2h ago</span></div>
+    </div>
+  </section>
+
+  <!-- ============ STATES ============ -->
+  <section class="demo">
+    <h2>States</h2>
+    <div class="gallery">
+      <div class="cell">
+        <div class="cell-label">Live · clickable (hover)</div>
+        <a class="prov-chip live" href="#" onclick="return false;" style="pointer-events:none;">
+          <span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src" style="color:var(--primary); text-decoration:underline;">Primary sources</span>
+        </a>
+      </div>
+      <div class="cell">
+        <div class="cell-label">Illustrative (not clickable)</div>
+        <span class="prov-chip illustrative"><span class="dot"></span><span class="status-word">Illustrative</span><span class="sep">·</span><span class="src">manual curation</span></span>
+      </div>
+      <div class="cell">
+        <div class="cell-label">Stale — muted, tooltip flags age</div>
+        <div class="prov-wrap">
+          <a class="prov-chip stale" href="#" onclick="return false;"><span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src">SEC EDGAR</span></a>
+          <div class="prov-tooltip is-static" style="position:static;"><div class="tt-src">Source: SEC EDGAR</div><div class="tt-meta">Last checked 6 days ago — may be outdated</div></div>
+        </div>
+      </div>
+      <div class="cell">
+        <div class="cell-label">Loading</div>
+        <div class="sk" style="width: 130px; height: 22px; border-radius: var(--r-sm);"></div>
+      </div>
+      <div class="cell">
+        <div class="cell-label">Focus-visible (keyboard)</div>
+        <a class="prov-chip live" href="#" onclick="return false;" style="outline: var(--focus-ring); outline-offset: 2px;">
+          <span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src">SEC EDGAR</span>
+        </a>
+      </div>
+      <div class="cell">
+        <div class="cell-label">Compact density (badge)</div>
+        <span class="prov-chip live" data-density="compact" style="display:inline-flex;"><span class="dot"></span><span class="status-word">Live</span><span class="sep">·</span><span class="src">SEC EDGAR</span><span class="sep">·</span><span class="period">FY2025</span></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">Tokens: live --approved dot/tint/text · illustrative --urgent dot/tint/text · radius --r-sm (never pill) · tooltip R8 dark glass, 400ms open delay · dates in JetBrains Mono.</div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-density-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-density-btn]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('badgeRow').setAttribute('data-density', btn.dataset.densityBtn);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Signal Card</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0;
+    --bg-elevated: #F8F7F4;
+    --bg-elevated-unread: #FBFAF7;
+    --bg-sunken: #EDECEA;
+
+    --primary: #1A5855;
+    --primary-tint: #D6E5E4;
+
+    --error: #B54040; --error-text: #7A2A2A; --error-tint: #F2DADA;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --info: #4A5A8C; --info-text: #38456B; --info-tint: #DDE1EC;
+
+    --text-primary: #1C1917;
+    --text-secondary: #6B6560;
+    --text-tertiary: #9D9690;
+    --text-disabled: #C4BFB8;
+
+    --border-default: #D8D1C5;
+    --divider: #E0D9CE;
+
+    --r-md: 14px; --r-sm: 10px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+
+    --t-heading-md: 16px;
+    --t-body-sm: 13px;
+    --t-caption: 12px;
+    --t-micro: 10px;
+    --ls-label: 0.06em;
+
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-soft: rgba(170, 155, 130, 0.18);
+    --shadow-mid: rgba(170, 155, 130, 0.28);
+    --shadow-strong: rgba(170, 155, 130, 0.38);
+    --highlight-soft: rgba(255, 250, 242, 0.65);
+    --highlight-mid: rgba(255, 250, 242, 0.85);
+
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+
+    --focus-ring-color: var(--primary);
+    --focus-ring: 2px solid var(--focus-ring-color);
+
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Glass — chrome only, never on the repeating card */
+    --glass-bg: rgba(248, 247, 244, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-blur: blur(20px) saturate(1.1);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background:
+      radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%),
+      var(--bg-page);
+    color: var(--text-primary);
+    padding: var(--s-6);
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 900px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2);
+  }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 680px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-6); }
+  section.demo h2{
+    font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+    margin: 0 0 var(--s-3); padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--divider);
+  }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-3); }
+
+  .grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); align-items: start; }
+  .badge-density{
+    display: inline-block; font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-tertiary); letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: var(--s-2);
+  }
+
+  /* ============ Chrome — glass filter bar (reference; not the card) ============ */
+  .chrome-bar{
+    display: flex; align-items: center; gap: var(--s-3);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-pill);
+    padding: var(--s-2) var(--s-4);
+    margin-bottom: var(--s-4);
+    font-size: var(--t-body-sm); color: var(--text-secondary);
+  }
+  .chrome-bar .seg{
+    padding: 5px 12px; border-radius: var(--r-pill); cursor: pointer; font-weight: 500;
+  }
+  .chrome-bar .seg.active{ background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--elevation-2); }
+
+  /* ============ Feed — hover-dim hierarchy ============ */
+  .feed{ display: flex; flex-direction: column; gap: var(--s-3); }
+  .feed.has-focus .sig-card:not(:hover):not(.force-hover){
+    opacity: 0.55;
+  }
+  .feed .sig-card{
+    transition: box-shadow var(--dur-base) var(--ease-standard),
+                opacity var(--dur-base) var(--ease-standard);
+  }
+
+  /* ============ Signal Card ============ */
+  .sig-card{
+    position: relative;
+    display: block;
+    background: var(--bg-elevated);
+    box-shadow: var(--elevation-2);
+    border-radius: var(--r-md);
+    padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 3px);
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+  }
+  .sig-card::before{
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--sev-color, var(--text-tertiary));
+  }
+  .sig-card.sev-high{ --sev-color: var(--error); }
+  .sig-card.sev-med{ --sev-color: var(--urgent); }
+  .sig-card.sev-low{ --sev-color: var(--info); }
+
+  .sig-card:hover, .sig-card.force-hover{ box-shadow: var(--elevation-3); }
+  .sig-card:focus-visible{ outline: var(--focus-ring); outline-offset: 3px; }
+
+  .sig-card.is-unread{ background: var(--bg-elevated-unread); }
+  .sig-card.is-read .sig-meta{ color: var(--text-disabled); }
+  .sig-card.is-read .sig-meta svg{ color: var(--text-disabled); }
+  .sig-card.is-read .sig-meta .src{ color: var(--text-disabled); }
+
+  /* Author row (X-Card header) */
+  .sig-author{
+    display: flex; align-items: center; gap: 8px; margin-bottom: var(--s-2);
+  }
+  .sig-avatar{
+    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--primary), #2C7A75);
+  }
+  .sig-author-line{
+    display: flex; align-items: baseline; gap: 5px; min-width: 0;
+    font-size: var(--t-body-sm); color: var(--text-secondary);
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .sig-author-name{ font-weight: 600; color: var(--text-primary); flex-shrink: 0; }
+  .sig-author-type{ color: var(--text-tertiary); flex-shrink: 0; }
+  .sig-author-type::before{ content: "·"; margin-right: 5px; color: var(--text-tertiary); }
+
+  .sev-tag{
+    font-family: var(--font-mono);
+    font-size: var(--t-micro); font-weight: 700;
+    letter-spacing: var(--ls-label); text-transform: uppercase;
+    padding: 3px 7px; border-radius: 5px;
+    margin-left: auto; flex-shrink: 0;
+  }
+  .sev-tag.high{ background: var(--error-tint); color: var(--error-text); }
+  .sev-tag.med{ background: var(--urgent-tint); color: var(--urgent-text); }
+  .sev-tag.low{ background: var(--info-tint); color: var(--info-text); }
+
+  .sig-headline{
+    font-size: var(--t-heading-md); font-weight: 600; color: var(--text-primary);
+    line-height: 1.35; margin: 0 0 var(--s-2);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .sig-card.is-unread .sig-headline::after{
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--primary); margin-left: 8px; vertical-align: middle;
+  }
+
+  .sig-meta{
+    display: flex; align-items: center; gap: 6px;
+    font-size: var(--t-caption); color: var(--text-secondary);
+  }
+  .sig-meta .dot-sep{ width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+  .sig-meta svg{ width: 12px; height: 12px; color: var(--text-tertiary); flex-shrink: 0; }
+  .sig-meta .time{ font-family: var(--font-mono); }
+
+  .sig-expand{
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: var(--t-micro); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-left: auto; flex-shrink: 0;
+    opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard);
+  }
+  .sig-expand svg{ width: 12px; height: 12px; transition: transform var(--dur-base) var(--ease-standard); }
+  .sig-card:hover .sig-expand, .sig-card.force-hover .sig-expand{ opacity: 1; }
+  .sig-card.is-expanded .sig-expand{ opacity: 1; }
+  .sig-card.is-expanded .sig-expand svg{ transform: rotate(180deg); }
+
+  /* Embedded excerpt — X-Card quoted-post pattern, InForm R3 pressed */
+  .sig-excerpt{
+    max-height: 0; overflow: hidden;
+    transition: max-height var(--dur-base) var(--ease-standard), margin var(--dur-base) var(--ease-standard);
+  }
+  .sig-card.is-expanded .sig-excerpt{ max-height: 160px; margin-top: var(--s-3); }
+  .sig-excerpt-inner.inf-pressed{
+    background: var(--bg-sunken);
+    box-shadow: var(--inset-1);
+    border-radius: var(--r-sm);
+    padding: var(--s-3);
+  }
+  .sig-excerpt-quote{
+    font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.55;
+    margin: 0 0 var(--s-2);
+    padding-left: var(--s-2);
+    border-left: 2px solid var(--border-default);
+    font-style: italic;
+  }
+  .sig-excerpt-why{
+    font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.5; margin: 0;
+  }
+  .sig-excerpt-why strong{ color: var(--primary); font-weight: 700; letter-spacing: 0.02em; font-style: normal; }
+
+  /* Compact density */
+  .sig-card.compact{ padding: var(--s-3) var(--s-3) var(--s-3) calc(var(--s-3) + 3px); }
+  .sig-card.compact .sig-headline{ margin-bottom: 0; -webkit-line-clamp: 1; }
+  .sig-card.compact .sig-author{ margin-bottom: 6px; }
+
+  /* Skeleton */
+  .sk{
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--bg-sunken), var(--border-default), var(--bg-sunken));
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>Signal Card</h1>
+    <p>X-Card anatomy (source-as-author) on InForm's R1 neumorphic shell. Three facts at rest; excerpt + WHY reveal as a nested pressed sub-card. Hover creates momentary hierarchy by dimming siblings — opacity and elevation only, no tilt, no glow on the card.</p>
+  </div>
+
+  <!-- ============ CHROME — glass belongs here, not on the card ============ -->
+  <section class="demo">
+    <h2>Chrome reference — glass lives on the filter bar, not the feed</h2>
+    <p class="note">R5/R7 glass reserved for passive/overlay chrome. The repeating card below stays opaque R1.</p>
+    <div class="chrome-bar">
+      <svg width="15" height="15"><use href="#i-search"/></svg>
+      <span style="flex:1;">Filter signals…</span>
+      <span class="seg active">All</span>
+      <span class="seg">Unread</span>
+      <span class="seg">High</span>
+    </div>
+  </section>
+
+  <!-- ============ FEED — hover-dim hierarchy ============ -->
+  <section class="demo">
+    <h2>Feed behavior — hover lifts one, dims the rest</h2>
+    <p class="note">Hover any card: it lifts to --elevation-3, siblings dim to ~0.55 opacity. Transitions ≤200ms, no 3D tilt, no glow.</p>
+    <div class="feed" id="feed1">
+
+      <div class="sig-card sev-high inf-raised is-unread" tabindex="0" role="button" aria-expanded="false">
+        <div class="sig-author">
+          <div class="sig-avatar">PH</div>
+          <div class="sig-author-line">
+            <span class="sig-author-name">Pharvaris</span>
+            <span class="sig-author-type">Publication</span>
+          </div>
+          <span class="sev-tag high">High</span>
+        </div>
+        <div class="sig-headline">FDA accepts NDA for deucrictibant in hereditary angioedema, sets PDUFA date</div>
+        <div class="sig-meta">
+          <svg><use href="#i-link"/></svg>
+          <span class="src">FDA.gov</span>
+          <span class="dot-sep"></span>
+          <span class="time">2h ago</span>
+          <span class="sig-expand">Why <svg><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="sig-excerpt">
+          <div class="sig-excerpt-inner inf-pressed">
+            <p class="sig-excerpt-quote">"…the Agency has accepted the New Drug Application and assigned a Prescription Drug User Fee Act target action date…"</p>
+            <p class="sig-excerpt-why"><strong>WHY —</strong> Clinical update from Pharvaris — assess relative positioning vs Ekterly on efficacy and safety.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sig-card sev-med inf-raised is-unread" tabindex="0" role="button" aria-expanded="false">
+        <div class="sig-author">
+          <div class="sig-avatar">BX</div>
+          <div class="sig-author-line">
+            <span class="sig-author-name">BioCryst</span>
+            <span class="sig-author-type">Company IR</span>
+          </div>
+          <span class="sev-tag med">Med</span>
+        </div>
+        <div class="sig-headline">BioCryst Q2 earnings: Orladeyo revenue up 42% YoY, raises FY guidance</div>
+        <div class="sig-meta">
+          <svg><use href="#i-link"/></svg>
+          <span class="src">investors.biocryst.com</span>
+          <span class="dot-sep"></span>
+          <span class="time">6h ago</span>
+          <span class="sig-expand">Why <svg><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="sig-excerpt">
+          <div class="sig-excerpt-inner inf-pressed">
+            <p class="sig-excerpt-quote">"…Orladeyo net revenue grew 42% year-over-year to $132.4M; we are raising full-year guidance to reflect continued uptake…"</p>
+            <p class="sig-excerpt-why"><strong>WHY —</strong> Commercial signal — Orladeyo growth rate is the benchmark our launch forecast is measured against.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sig-card sev-low inf-raised is-read" tabindex="0" role="button" aria-expanded="false">
+        <div class="sig-author">
+          <div class="sig-avatar">KV</div>
+          <div class="sig-author-line">
+            <span class="sig-author-name">KalVista</span>
+            <span class="sig-author-type">Trial</span>
+          </div>
+          <span class="sev-tag low">Low</span>
+        </div>
+        <div class="sig-headline">KalVista completes enrollment in Phase 3 KONFIDENT-S pediatric extension study</div>
+        <div class="sig-meta">
+          <svg><use href="#i-link"/></svg>
+          <span class="src">clinicaltrials.gov</span>
+          <span class="dot-sep"></span>
+          <span class="time">1d ago</span>
+          <span class="sig-expand">Why <svg><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="sig-excerpt">
+          <div class="sig-excerpt-inner inf-pressed">
+            <p class="sig-excerpt-quote">"…enrollment is now complete across all sites, with topline pediatric safety data expected in H1 2027…"</p>
+            <p class="sig-excerpt-why"><strong>WHY —</strong> Pediatric data timeline — informs when a competing label expansion could reach market.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ EXPANDED ============ -->
+  <section class="demo">
+    <h2>Expanded — embedded excerpt + WHY (R3 pressed sub-card)</h2>
+    <div class="feed">
+      <div class="sig-card sev-high inf-raised is-unread is-expanded" tabindex="0" role="button" aria-expanded="true">
+        <div class="sig-author">
+          <div class="sig-avatar">PH</div>
+          <div class="sig-author-line">
+            <span class="sig-author-name">Pharvaris</span>
+            <span class="sig-author-type">Publication</span>
+          </div>
+          <span class="sev-tag high">High</span>
+        </div>
+        <div class="sig-headline">FDA accepts NDA for deucrictibant in hereditary angioedema, sets PDUFA date</div>
+        <div class="sig-meta">
+          <svg><use href="#i-link"/></svg>
+          <span class="src">FDA.gov</span>
+          <span class="dot-sep"></span>
+          <span class="time">2h ago</span>
+          <span class="sig-expand">Why <svg><use href="#i-chev"/></svg></span>
+        </div>
+        <div class="sig-excerpt">
+          <div class="sig-excerpt-inner inf-pressed">
+            <p class="sig-excerpt-quote">"…the Agency has accepted the New Drug Application and assigned a Prescription Drug User Fee Act target action date…"</p>
+            <p class="sig-excerpt-why"><strong>WHY —</strong> Clinical update from Pharvaris — assess relative positioning vs Ekterly on efficacy and safety.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATES ============ -->
+  <section class="demo">
+    <h2>States</h2>
+    <div class="grid2">
+      <div>
+        <div class="badge-density">Hover (forced)</div>
+        <div class="sig-card sev-high inf-raised force-hover">
+          <div class="sig-author">
+            <div class="sig-avatar">PH</div>
+            <div class="sig-author-line"><span class="sig-author-name">Pharvaris</span><span class="sig-author-type">Publication</span></div>
+            <span class="sev-tag high">High</span>
+          </div>
+          <div class="sig-headline">FDA accepts NDA for deucrictibant in hereditary angioedema, sets PDUFA date</div>
+          <div class="sig-meta"><svg><use href="#i-link"/></svg><span class="src">FDA.gov</span><span class="dot-sep"></span><span class="time">2h ago</span><span class="sig-expand">Why <svg><use href="#i-chev"/></svg></span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="badge-density">Focus-visible</div>
+        <div class="sig-card sev-med inf-raised" style="outline: var(--focus-ring); outline-offset: 3px;">
+          <div class="sig-author">
+            <div class="sig-avatar">BX</div>
+            <div class="sig-author-line"><span class="sig-author-name">BioCryst</span><span class="sig-author-type">Company IR</span></div>
+            <span class="sev-tag med">Med</span>
+          </div>
+          <div class="sig-headline">BioCryst Q2 earnings: Orladeyo revenue up 42% YoY, raises FY guidance</div>
+          <div class="sig-meta"><svg><use href="#i-link"/></svg><span class="src">investors.biocryst.com</span><span class="dot-sep"></span><span class="time">6h ago</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="badge-density">Loading</div>
+        <div class="sig-card inf-raised" style="--sev-color: var(--border-default);" aria-busy="true">
+          <div class="sig-author">
+            <div class="sk" style="width: 24px; height: 24px; border-radius: 7px;"></div>
+            <div class="sk" style="width: 140px; height: 13px;"></div>
+          </div>
+          <div class="sk" style="width: 100%; height: 15px; margin-bottom: 6px;"></div>
+          <div class="sk" style="width: 70%; height: 15px; margin-bottom: var(--s-2);"></div>
+          <div class="sk" style="width: 140px; height: 12px;"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="badge-density">Read (muted meta)</div>
+        <div class="sig-card sev-low inf-raised is-read">
+          <div class="sig-author">
+            <div class="sig-avatar">KV</div>
+            <div class="sig-author-line"><span class="sig-author-name">KalVista</span><span class="sig-author-type">Trial</span></div>
+            <span class="sev-tag low">Low</span>
+          </div>
+          <div class="sig-headline">KalVista completes enrollment in Phase 3 KONFIDENT-S pediatric extension study</div>
+          <div class="sig-meta"><svg><use href="#i-link"/></svg><span class="src">clinicaltrials.gov</span><span class="dot-sep"></span><span class="time">1d ago</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPACT DENSITY ============ -->
+  <section class="demo">
+    <h2>Compact density — Alerts feed</h2>
+    <p class="note">Author row + headline only. Meta and excerpt collapse entirely.</p>
+    <div class="feed">
+      <div class="sig-card compact sev-high inf-raised is-unread" tabindex="0">
+        <div class="sig-author">
+          <div class="sig-avatar">PH</div>
+          <div class="sig-author-line"><span class="sig-author-name">Pharvaris</span><span class="sig-author-type">Publication</span></div>
+          <span class="sev-tag high">High</span>
+        </div>
+        <div class="sig-headline">FDA accepts NDA for deucrictibant in hereditary angioedema, sets PDUFA date</div>
+      </div>
+      <div class="sig-card compact sev-med inf-raised is-unread" tabindex="0">
+        <div class="sig-author">
+          <div class="sig-avatar">BX</div>
+          <div class="sig-author-line"><span class="sig-author-name">BioCryst</span><span class="sig-author-type">Company IR</span></div>
+          <span class="sev-tag med">Med</span>
+        </div>
+        <div class="sig-headline">BioCryst Q2 earnings: Orladeyo revenue up 42% YoY, raises FY guidance</div>
+      </div>
+      <div class="sig-card compact sev-low inf-raised is-read" tabindex="0">
+        <div class="sig-author">
+          <div class="sig-avatar">KV</div>
+          <div class="sig-author-line"><span class="sig-author-name">KalVista</span><span class="sig-author-type">Trial</span></div>
+          <span class="sev-tag low">Low</span>
+        </div>
+        <div class="sig-headline">KalVista completes enrollment in Phase 3 KONFIDENT-S pediatric extension study</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Expand/collapse on click (WHY + excerpt reveal)
+  document.querySelectorAll('.sig-card[role="button"]').forEach(card => {
+    card.addEventListener('click', () => {
+      const expanded = card.classList.toggle('is-expanded');
+      card.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+    });
+  });
+
+  // Feed hover-dim hierarchy — opacity + elevation only
+  document.querySelectorAll('.feed').forEach(feed => {
+    const cards = feed.querySelectorAll('.sig-card');
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', () => feed.classList.add('has-focus'));
+      card.addEventListener('mouseleave', () => feed.classList.remove('has-focus'));
+      card.addEventListener('focus', () => feed.classList.add('has-focus'));
+      card.addEventListener('blur', () => feed.classList.remove('has-focus'));
+    });
+  });
+</script>
+</body>
+</html>

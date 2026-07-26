@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Signal Feed States</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0; --bg-elevated: #F8F7F4; --bg-sunken: #EDECEA;
+    --primary: #1A5855; --primary-hover: #144643; --primary-tint: #D6E5E4;
+    --error: #B54040; --error-text: #7A2A2A; --error-tint: #F2DADA;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --info: #4A5A8C; --info-text: #38456B; --info-tint: #DDE1EC;
+    --text-primary: #1C1917; --text-secondary: #6B6560; --text-tertiary: #9D9690; --text-disabled: #C4BFB8;
+    --border-default: #D8D1C5; --divider: #E0D9CE;
+    --r-lg: 20px; --r-md: 14px; --r-sm: 10px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+    --t-heading-md: 18px; --t-body-md: 14px; --t-body-sm: 13px; --t-caption: 12px;
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --shadow-soft: rgba(170,155,130,0.18); --shadow-mid: rgba(170,155,130,0.28); --shadow-strong: rgba(170,155,130,0.38);
+    --highlight-soft: rgba(255,250,242,0.65); --highlight-mid: rgba(255,250,242,0.85);
+    --elevation-1: -2px -2px 6px var(--highlight-soft), 2px 2px 6px var(--shadow-soft);
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+    --focus-ring: 2px solid var(--primary);
+    --dur-base: 200ms; --dur-slow: 300ms; --ease-standard: cubic-bezier(0.4,0,0.2,1);
+    --glass-panel-bg: rgba(248,247,244,0.72); --glass-border: rgba(255,255,255,0.55); --glass-blur: blur(20px) saturate(1.1);
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background: radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%), radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%), var(--bg-page);
+    color: var(--text-primary); padding: var(--s-6); min-height: 100vh;
+  }
+  .wrap{ max-width: 780px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2); }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 680px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-8); }
+  section.demo > .sec-tag{ display:inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--primary); padding: 3px 9px; border-radius: var(--r-sm); margin-bottom: var(--s-3); }
+  section.demo h2{ font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-4); line-height: 1.5; }
+
+  .inf-raised{ background: var(--bg-elevated); box-shadow: var(--elevation-2); border-radius: var(--r-lg); }
+
+  /* ---------- 1. Loading skeleton ---------- */
+  .sk{ border-radius: 6px; background: linear-gradient(90deg, var(--bg-sunken), var(--bg-elevated), var(--bg-sunken)); background-size: 200% 100%; animation: sk-shimmer 1.8s var(--ease-standard) infinite; }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce){ .sk{ animation: none; background: var(--bg-sunken); } }
+
+  .skel-plate{ padding: 0; overflow: hidden; }
+  .skel-group + .skel-group{ border-top: 1px solid var(--divider); }
+  .skel-group-hd{ display: flex; align-items: center; gap: var(--s-2); padding: var(--s-4) var(--s-5) var(--s-3); }
+  .skel-row{ display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-5); border-top: 1px solid var(--divider); }
+  .skel-row:first-of-type{ border-top: 0; }
+  .skel-dot{ width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ---------- 2. Empty states ---------- */
+  .empty-box{ padding: var(--s-8) var(--s-6); text-align: center; }
+  .featured-icon{ width: 64px; height: 64px; border-radius: 50%; background: var(--bg-elevated); box-shadow: var(--elevation-2); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--s-4); color: var(--text-secondary); }
+  .featured-icon.is-error{ color: var(--error); }
+  .featured-icon svg{ width: 26px; height: 26px; }
+  .empty-box h3{ font-size: var(--t-heading-md); font-weight: 700; color: var(--text-primary); margin: 0 0 6px; }
+  .empty-box p{ font-size: var(--t-body-md); color: var(--text-secondary); margin: 0 0 var(--s-5); max-width: 380px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+  .empty-box .muted-line{ font-size: var(--t-caption); color: var(--text-tertiary); margin-top: var(--s-4); }
+
+  .btn-primary{ background: var(--primary); color: #fff; border: 0; font-size: var(--t-body-sm); font-weight: 600; padding: 10px 20px; border-radius: var(--r-pill); cursor: pointer; box-shadow: -1px 3px 8px rgba(26,88,85,0.3); }
+  .btn-primary:hover{ background: var(--primary-hover); }
+  .btn-primary:focus-visible{ outline: var(--focus-ring); outline-offset: 3px; }
+  .btn-secondary{ background: var(--bg-elevated); color: var(--text-primary); border: 0; font-size: var(--t-body-sm); font-weight: 600; padding: 10px 20px; border-radius: var(--r-pill); cursor: pointer; box-shadow: var(--elevation-2); }
+  .btn-secondary:hover{ box-shadow: var(--elevation-3); }
+  .btn-secondary:focus-visible{ outline: var(--focus-ring); outline-offset: 3px; }
+
+  /* mini filter bar mock — to show it stays present in 2c / 3b */
+  .mini-filterbar{ display: flex; align-items: center; gap: var(--s-3); background: var(--glass-panel-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
+  .mini-search{ flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-sunken); box-shadow: var(--inset-1); border-radius: var(--r-md); padding: 8px 12px; color: var(--text-tertiary); font-size: var(--t-caption); }
+  .mini-search svg{ width: 14px; height: 14px; }
+  .mini-chip{ display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 11px; border-radius: var(--r-sm); font-size: var(--t-caption); font-weight: 500; background: var(--primary-tint); color: var(--primary); }
+  .mini-chip svg{ width: 11px; height: 11px; opacity: 0.7; }
+  .chips-row-static{ display: flex; gap: 8px; margin-bottom: var(--s-4); }
+
+  /* ---------- 3b partial-load banner + feed ---------- */
+  .partial-banner{ display: flex; align-items: center; gap: var(--s-3); background: var(--urgent-tint); color: var(--urgent-text); border-radius: var(--r-sm); padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); font-size: var(--t-body-sm); }
+  .partial-banner svg{ width: 16px; height: 16px; flex-shrink: 0; }
+  .partial-banner .msg{ flex: 1; }
+  .retry-text{ background: transparent; border: 0; color: var(--urgent-text); font-weight: 700; font-size: var(--t-body-sm); cursor: pointer; padding: 4px 8px; border-radius: 6px; text-decoration: underline; text-underline-offset: 2px; }
+  .retry-text:hover{ background: rgba(0,0,0,0.05); }
+  .retry-text:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+
+  .feed-list{ display: flex; flex-direction: column; gap: var(--s-3); }
+  .feed-row{ background: var(--bg-elevated); box-shadow: var(--elevation-2); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
+  .feed-row .fr-top{ display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: var(--t-caption); color: var(--text-secondary); }
+  .feed-row .fr-top .name{ font-weight: 600; color: var(--text-primary); }
+  .feed-row .fr-top .time{ font-family: var(--font-mono); margin-left: auto; }
+  .feed-row .fr-head{ font-size: var(--t-body-md); font-weight: 600; color: var(--text-primary); line-height: 1.4; }
+
+  .divider-block + .divider-block{ margin-top: var(--s-8); padding-top: var(--s-8); border-top: 3px solid var(--divider); }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-filter-off" viewBox="0 0 24 24"><path d="M4 5h16l-6.2 7v5.2l-3.6 1.8V12z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><path d="M3 3l18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>Signal Feed — states</h1>
+    <p>Loading, empty, and error are mutually exclusive — only one renders at a time. The filter bar stays visible during no-results and partial-load; it's hidden only during the full-page skeleton and full error.</p>
+  </div>
+
+  <!-- ================================================================
+       1 · LOADING
+       ================================================================ -->
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>1 · Loading — skeleton</h2>
+    <p class="note">Maps 1:1 to the digest layout so nothing reflows when data lands. Shape only — no text, no icons. Shimmer stops under prefers-reduced-motion.</p>
+
+    <div class="inf-raised skel-plate">
+      <div class="skel-group">
+        <div class="skel-group-hd">
+          <div class="sk" style="width:24px;height:24px;border-radius:7px;"></div>
+          <div class="sk" style="width:90px;height:13px;"></div>
+          <div class="sk" style="width:44px;height:11px;margin-left:6px;"></div>
+        </div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:420px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:360px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:400px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+      </div>
+      <div class="skel-group">
+        <div class="skel-group-hd">
+          <div class="sk" style="width:24px;height:24px;border-radius:7px;"></div>
+          <div class="sk" style="width:110px;height:13px;"></div>
+          <div class="sk" style="width:44px;height:11px;margin-left:6px;"></div>
+        </div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:390px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:340px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:410px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+        <div class="skel-row"><div class="sk skel-dot"></div><div class="sk" style="flex:1;max-width:370px;height:13px;"></div><div class="sk" style="width:70px;height:11px;margin-left:auto;"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       2 · EMPTY STATES
+       ================================================================ -->
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>2a · No signals yet</h2>
+    <p class="note">Fresh account, pre-ingestion. An invitation, not an apology.</p>
+    <div class="inf-raised empty-box">
+      <div class="featured-icon"><svg><use href="#i-inbox"/></svg></div>
+      <h3>Your feed is warming up</h3>
+      <p>We're pulling signals for your tracked assets. New ones land here as they're found.</p>
+      <button class="btn-primary">Review tracked assets</button>
+    </div>
+  </section>
+
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>2b · All caught up</h2>
+    <p class="note">Unread tab, zero unread. A positive state, not an error.</p>
+    <div class="inf-raised empty-box">
+      <div class="featured-icon"><svg><use href="#i-check"/></svg></div>
+      <h3>You're all caught up</h3>
+      <p>No unread signals. We'll surface new ones as they arrive.</p>
+      <button class="btn-secondary">View all signals</button>
+    </div>
+  </section>
+
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>2c · No results</h2>
+    <p class="note">Filters or search too narrow — the fix is clearing filters, not adding data. Filter bar stays visible with applied chips intact.</p>
+    <div class="mini-filterbar">
+      <div class="mini-search"><svg><use href="#i-search"/></svg>deucrictibant</div>
+      <span class="mini-chip">Takeda<svg><use href="#i-x"/></svg></span>
+      <span class="mini-chip">Low<svg><use href="#i-x"/></svg></span>
+    </div>
+    <div class="inf-raised empty-box">
+      <div class="featured-icon"><svg><use href="#i-filter-off"/></svg></div>
+      <h3>No signals match these filters</h3>
+      <p>Try widening the filters or clearing the search.</p>
+      <button class="btn-secondary">Clear filters</button>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       3 · ERROR STATES
+       ================================================================ -->
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>3a · Feed failed to load</h2>
+    <p class="note">Connection or server issue. Filter bar hidden — there's nothing to filter yet.</p>
+    <div class="inf-raised empty-box">
+      <div class="featured-icon is-error"><svg><use href="#i-alert"/></svg></div>
+      <h3>Couldn't load your feed</h3>
+      <p>Something went wrong on our end. Your data is safe.</p>
+      <button class="btn-primary">Retry</button>
+      <div class="muted-line">If this keeps happening, contact your account team.</div>
+    </div>
+  </section>
+
+  <section class="demo divider-block">
+    <span class="sec-tag">State</span>
+    <h2>3b · Partial load</h2>
+    <p class="note">Some sources didn't respond — the feed still shows what loaded. Filter bar stays visible above.</p>
+    <div class="mini-filterbar">
+      <div class="mini-search"><svg><use href="#i-search"/></svg>Filter signals…</div>
+      <span class="mini-chip">All</span>
+    </div>
+    <div class="partial-banner">
+      <svg><use href="#i-alert"/></svg>
+      <span class="msg">Some sources didn't respond — showing 4 of 6.</span>
+      <button class="retry-text">Retry</button>
+    </div>
+    <div class="feed-list">
+      <div class="feed-row"><div class="fr-top"><span class="name">Pharvaris</span><span>· Publication</span><span class="time">2h</span></div><div class="fr-head">FDA accepts NDA for deucrictibant, sets PDUFA date</div></div>
+      <div class="feed-row"><div class="fr-top"><span class="name">BioCryst</span><span>· Company IR</span><span class="time">6h</span></div><div class="fr-head">Q2 earnings — Orladeyo revenue up 42% YoY</div></div>
+      <div class="feed-row"><div class="fr-top"><span class="name">KalVista</span><span>· Trial</span><span class="time">1d</span></div><div class="fr-head">Phase 3 KONFIDENT-S pediatric enrollment complete</div></div>
+      <div class="feed-row"><div class="fr-top"><span class="name">Ionis</span><span>· Publication</span><span class="time">2d</span></div><div class="fr-head">Donidalorsen long-term safety data presented at AAAAI</div></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

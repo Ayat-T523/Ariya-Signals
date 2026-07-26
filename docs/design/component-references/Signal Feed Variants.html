@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Signal Feed Variants</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0;
+    --bg-elevated: #F8F7F4;
+    --bg-sunken: #EDECEA;
+
+    --primary: #1A5855;
+    --primary-tint: #D6E5E4;
+
+    --error: #B54040; --error-text: #7A2A2A; --error-tint: #F2DADA;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --info: #4A5A8C; --info-text: #38456B; --info-tint: #DDE1EC;
+
+    --text-primary: #1C1917;
+    --text-secondary: #6B6560;
+    --text-tertiary: #9D9690;
+    --text-disabled: #C4BFB8;
+
+    --border-default: #D8D1C5;
+    --divider: #E0D9CE;
+
+    --r-lg: 20px; --r-md: 14px; --r-sm: 10px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+
+    --t-heading-sm: 14px;
+    --t-heading-md: 16px;
+    --t-body-md: 14px;
+    --t-body-sm: 13px;
+    --t-caption: 12px;
+    --t-micro: 10px;
+    --t-label: 11px;
+    --ls-label: 0.06em;
+
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-soft: rgba(170, 155, 130, 0.18);
+    --shadow-mid: rgba(170, 155, 130, 0.28);
+    --shadow-strong: rgba(170, 155, 130, 0.38);
+    --highlight-soft: rgba(255, 250, 242, 0.65);
+    --highlight-mid: rgba(255, 250, 242, 0.85);
+
+    --elevation-1: -2px -2px 6px var(--highlight-soft), 2px 2px 6px var(--shadow-soft);
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+
+    --focus-ring: 2px solid var(--primary);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background:
+      radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%),
+      var(--bg-page);
+    color: var(--text-primary);
+    padding: var(--s-6);
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 760px; margin: 0 auto; }
+
+  .page-hd{ margin-bottom: var(--s-8); }
+  .page-hd .eyebrow{
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2);
+  }
+  .page-hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .page-hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 680px; line-height: 1.55; margin: 0; }
+
+  .variant-hd{ margin-bottom: var(--s-5); padding-top: var(--s-8); border-top: 3px solid var(--divider); }
+  .variant-hd:first-of-type{ padding-top: 0; border-top: 0; }
+  .variant-hd .tag{
+    display: inline-block; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: var(--primary);
+    padding: 3px 9px; border-radius: var(--r-pill); margin-bottom: var(--s-3);
+  }
+  .variant-hd h2{ font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .variant-hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.55; margin: 0; max-width: 640px; }
+
+  .inf-raised{ background: var(--bg-elevated); box-shadow: var(--elevation-2); border-radius: var(--r-lg); }
+
+  .sev-dot{ width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sev-dot.high{ background: var(--error); }
+  .sev-dot.med{ background: var(--urgent); }
+  .sev-dot.low{ background: var(--info); }
+
+  .avatar{
+    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--primary), #2C7A75);
+  }
+
+  .seg-toggle{
+    display: inline-flex; align-items: center; gap: 2px;
+    background: var(--bg-sunken); border-radius: var(--r-pill); padding: 3px;
+    box-shadow: var(--inset-1); margin-bottom: var(--s-5);
+  }
+  .seg-toggle .seg-label{
+    font-size: var(--t-caption); color: var(--text-tertiary); padding: 0 var(--s-3) 0 var(--s-2);
+  }
+  .seg-toggle .seg{
+    padding: 6px 13px; border-radius: var(--r-pill); font-size: var(--t-caption); font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+  }
+  .seg-toggle .seg.active{ background: var(--bg-elevated); color: var(--text-primary); box-shadow: var(--elevation-1); }
+
+  .excerpt.inf-pressed{
+    background: var(--bg-sunken); box-shadow: var(--inset-1); border-radius: var(--r-sm);
+    padding: var(--s-3); margin-top: var(--s-2);
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height var(--dur-base) var(--ease-standard), opacity var(--dur-base) var(--ease-standard), margin var(--dur-base) var(--ease-standard);
+  }
+  .is-open .excerpt.inf-pressed{ max-height: 140px; opacity: 1; }
+  .excerpt-quote{
+    font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.5; font-style: italic;
+    padding-left: var(--s-2); border-left: 2px solid var(--border-default); margin: 0 0 var(--s-2);
+  }
+  .excerpt-why{ font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.5; margin: 0; }
+  .excerpt-why strong{ color: var(--primary); font-weight: 700; font-style: normal; }
+
+  /* ================================================================
+     VARIANT A — Digest / briefing (grouped by company)
+     ================================================================ */
+  .digest-plate{ padding: 0; overflow: hidden; }
+  .digest-group{ }
+  .digest-group + .digest-group{ border-top: 1px solid var(--divider); }
+  .digest-group-hd{
+    display: flex; align-items: center; gap: var(--s-2);
+    padding: var(--s-4) var(--s-5) var(--s-3);
+  }
+  .digest-group-hd .name{ font-size: var(--t-heading-sm); font-weight: 700; color: var(--text-primary); }
+  .digest-group-hd .count{ font-size: var(--t-caption); color: var(--text-tertiary); margin-left: 2px; }
+
+  .digest-row{
+    display: flex; align-items: center; gap: var(--s-3);
+    padding: var(--s-2) var(--s-5);
+    border-top: 1px solid var(--divider);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-standard);
+  }
+  .digest-row:hover{ background: var(--bg-sunken); }
+  .digest-row:focus-visible{ outline: var(--focus-ring); outline-offset: -2px; }
+  .digest-row .headline{
+    flex: 1; min-width: 0; font-size: var(--t-body-md); color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .digest-row .row-meta{
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    font-size: var(--t-caption); color: var(--text-secondary); white-space: nowrap;
+  }
+  .digest-row .row-meta .time{ font-family: var(--font-mono); }
+  .digest-row .row-meta .dot-sep{ width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+
+  .digest-expand-wrap{ padding: 0 var(--s-5); }
+  .digest-expand-wrap .excerpt{ margin-bottom: var(--s-2); }
+  .digest-expand-wrap.is-open{ padding-bottom: var(--s-2); }
+
+  /* ================================================================
+     VARIANT B — Stream / timeline (chronological spine)
+     ================================================================ */
+  .stream{ position: relative; padding-left: 28px; }
+  .stream::before{
+    content: ""; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 2px;
+    background: var(--divider);
+  }
+  .stream-day{
+    position: relative; font-family: var(--font-mono); font-size: var(--t-label);
+    font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase;
+    color: var(--text-tertiary); margin: var(--s-5) 0 var(--s-3);
+  }
+  .stream-day:first-child{ margin-top: 0; }
+  .stream-day::before{
+    content: ""; position: absolute; left: -24px; top: 3px; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--bg-page); border: 2px solid var(--divider);
+  }
+
+  .stream-entry{
+    position: relative;
+    padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+    margin-bottom: 2px;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease-standard), opacity var(--dur-base) var(--ease-standard);
+  }
+  .stream-entry::before{
+    content: ""; position: absolute; left: -24px; top: 16px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--sev-color); border: 2px solid var(--bg-page);
+    transition: transform var(--dur-base) var(--ease-standard);
+    z-index: 1;
+  }
+  .stream-entry.sev-high{ --sev-color: var(--error); }
+  .stream-entry.sev-med{ --sev-color: var(--urgent); }
+  .stream-entry.sev-low{ --sev-color: var(--info); }
+
+  .stream-entry:hover, .stream-entry.force-hover{ background: var(--bg-sunken); }
+  .stream-entry:hover::before, .stream-entry.force-hover::before{ transform: scale(1.35); }
+  .stream-entry:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+  .stream.has-focus .stream-entry:not(:hover):not(.force-hover){ opacity: 0.6; }
+
+  .stream-time{ font-family: var(--font-mono); font-size: var(--t-caption); color: var(--text-tertiary); margin-bottom: 3px; }
+  .stream-author{
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+    font-size: var(--t-body-sm); color: var(--text-secondary);
+  }
+  .stream-author .name{ font-weight: 600; color: var(--text-primary); }
+  .stream-author .type::before{ content: "·"; margin-right: 5px; color: var(--text-tertiary); }
+  .stream-headline{
+    font-size: var(--t-heading-sm); font-weight: 600; color: var(--text-primary);
+    line-height: 1.4; margin: 0 0 4px;
+  }
+  .stream-meta{
+    display: flex; align-items: center; gap: 6px;
+    font-size: var(--t-caption); color: var(--text-secondary);
+  }
+  .stream-meta svg{ width: 11px; height: 11px; color: var(--text-tertiary); }
+  .stream-meta .dot-sep{ width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+
+  .stream-entry .excerpt{ margin-left: 0; }
+
+  .footnote{ font-size: var(--t-caption); color: var(--text-tertiary); margin-top: var(--s-5); }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="page-hd">
+    <div class="eyebrow">InForm · Feed layout comparison</div>
+    <h1>Signal Feed — two arrangements</h1>
+    <p>Same 5 signals, same card content, different arrangement. Variant A groups by company as a curated brief; Variant B lays signals on a chronological spine. Pick one — layout only, card anatomy is unchanged.</p>
+  </div>
+
+  <!-- ================================================================
+       VARIANT A — DIGEST
+       ================================================================ -->
+  <div class="variant-hd">
+    <span class="tag">Variant A</span>
+    <h2>Digest / briefing — grouped by company</h2>
+    <p>Fewest boxes. Reads like a curated brief, not a dashboard. One R1 plate holds all groups; entries are hairline-separated rows, not cards.</p>
+  </div>
+
+  <div class="seg-toggle">
+    <span class="seg-label">Group by</span>
+    <span class="seg active">Company</span>
+    <span class="seg">Severity</span>
+    <span class="seg">Date</span>
+  </div>
+
+  <div class="digest-plate inf-raised">
+
+    <div class="digest-group">
+      <div class="digest-group-hd">
+        <div class="avatar">PH</div>
+        <span class="name">Pharvaris</span>
+        <span class="count">1 signal</span>
+        <span class="sev-dot high" style="margin-left:auto;"></span>
+      </div>
+      <div class="digest-row" tabindex="0" data-target="da-1">
+        <span class="sev-dot high"></span>
+        <span class="headline">FDA accepts NDA for deucrictibant, sets PDUFA date</span>
+        <span class="row-meta"><span>FDA.gov</span><span class="dot-sep"></span><span class="time">2h</span></span>
+      </div>
+      <div class="digest-expand-wrap" id="da-1-wrap">
+        <div class="excerpt inf-pressed" id="da-1">
+          <p class="excerpt-quote">"…the Agency has accepted the New Drug Application and assigned a Prescription Drug User Fee Act target action date…"</p>
+          <p class="excerpt-why"><strong>WHY —</strong> Clinical update from Pharvaris — assess relative positioning vs Ekterly on efficacy and safety.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="digest-group">
+      <div class="digest-group-hd">
+        <div class="avatar">BX</div>
+        <span class="name">BioCryst</span>
+        <span class="count">1 signal</span>
+        <span class="sev-dot med" style="margin-left:auto;"></span>
+      </div>
+      <div class="digest-row" tabindex="0" data-target="da-2">
+        <span class="sev-dot med"></span>
+        <span class="headline">Q2 earnings — Orladeyo revenue up 42% YoY</span>
+        <span class="row-meta"><span>investors.biocryst.com</span><span class="dot-sep"></span><span class="time">6h</span></span>
+      </div>
+      <div class="digest-expand-wrap" id="da-2-wrap">
+        <div class="excerpt inf-pressed" id="da-2">
+          <p class="excerpt-quote">"…Orladeyo net revenue grew 42% year-over-year to $132.4M; we are raising full-year guidance…"</p>
+          <p class="excerpt-why"><strong>WHY —</strong> Commercial signal — Orladeyo growth rate is the benchmark our launch forecast is measured against.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="digest-group">
+      <div class="digest-group-hd">
+        <div class="avatar">KV</div>
+        <span class="name">KalVista</span>
+        <span class="count">1 signal</span>
+        <span class="sev-dot low" style="margin-left:auto;"></span>
+      </div>
+      <div class="digest-row" tabindex="0" data-target="da-3">
+        <span class="sev-dot low"></span>
+        <span class="headline">Phase 3 KONFIDENT-S pediatric enrollment complete</span>
+        <span class="row-meta"><span>clinicaltrials.gov</span><span class="dot-sep"></span><span class="time">1d</span></span>
+      </div>
+      <div class="digest-expand-wrap" id="da-3-wrap">
+        <div class="excerpt inf-pressed" id="da-3">
+          <p class="excerpt-quote">"…enrollment is now complete across all sites, with topline pediatric safety data expected in H1 2027…"</p>
+          <p class="excerpt-why"><strong>WHY —</strong> Pediatric data timeline — informs when a competing label expansion could reach market.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="digest-group">
+      <div class="digest-group-hd">
+        <div class="avatar">IO</div>
+        <span class="name">Ionis</span>
+        <span class="count">1 signal</span>
+        <span class="sev-dot med" style="margin-left:auto;"></span>
+      </div>
+      <div class="digest-row" tabindex="0" data-target="da-4">
+        <span class="sev-dot med"></span>
+        <span class="headline">Donidalorsen long-term safety data presented at AAAAI</span>
+        <span class="row-meta"><span>aaaai.org</span><span class="dot-sep"></span><span class="time">2d</span></span>
+      </div>
+      <div class="digest-expand-wrap" id="da-4-wrap">
+        <div class="excerpt inf-pressed" id="da-4">
+          <p class="excerpt-quote">"…long-term extension data show a consistent safety profile through 96 weeks of dosing…"</p>
+          <p class="excerpt-why"><strong>WHY —</strong> Long-term safety read-through relevant to our own extension-study risk framing.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="digest-group">
+      <div class="digest-group-hd">
+        <div class="avatar">CB</div>
+        <span class="name">CSL Behring</span>
+        <span class="count">1 signal</span>
+        <span class="sev-dot low" style="margin-left:auto;"></span>
+      </div>
+      <div class="digest-row" tabindex="0" data-target="da-5">
+        <span class="sev-dot low"></span>
+        <span class="headline">8-K filed on Andembry formulary access</span>
+        <span class="row-meta"><span>sec.gov</span><span class="dot-sep"></span><span class="time">3d</span></span>
+      </div>
+      <div class="digest-expand-wrap" id="da-5-wrap">
+        <div class="excerpt inf-pressed" id="da-5">
+          <p class="excerpt-quote">"…Andembry has achieved formulary placement with three of the five largest national payers as of this filing…"</p>
+          <p class="excerpt-why"><strong>WHY —</strong> Payer access pace for a rival prophylactic shapes our own formulary strategy timeline.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footnote">Click a row to reveal WHY + excerpt inline as an inset R3 block.</div>
+
+  <!-- ================================================================
+       VARIANT B — STREAM
+       ================================================================ -->
+  <div class="variant-hd">
+    <span class="tag">Variant B</span>
+    <h2>Stream / timeline — chronological spine</h2>
+    <p>Editorial flow of events. A severity-colored spine carries pre-attentive triage down the left edge; day dividers interrupt it. Hover emphasizes one entry and dims the rest — opacity/scale only, ≤200ms.</p>
+  </div>
+
+  <div class="stream" id="stream1">
+
+    <div class="stream-day">Today</div>
+
+    <div class="stream-entry sev-high" tabindex="0" data-target="db-1">
+      <div class="stream-time">2h ago</div>
+      <div class="stream-author"><span class="name">Pharvaris</span><span class="type">Publication</span></div>
+      <div class="stream-headline">FDA accepts NDA for deucrictibant, sets PDUFA date</div>
+      <div class="stream-meta"><svg><use href="#i-link"/></svg><span>FDA.gov</span></div>
+      <div class="excerpt inf-pressed" id="db-1">
+        <p class="excerpt-quote">"…the Agency has accepted the New Drug Application and assigned a Prescription Drug User Fee Act target action date…"</p>
+        <p class="excerpt-why"><strong>WHY —</strong> Clinical update from Pharvaris — assess relative positioning vs Ekterly on efficacy and safety.</p>
+      </div>
+    </div>
+
+    <div class="stream-entry sev-med" tabindex="0" data-target="db-2">
+      <div class="stream-time">6h ago</div>
+      <div class="stream-author"><span class="name">BioCryst</span><span class="type">Company IR</span></div>
+      <div class="stream-headline">Q2 earnings — Orladeyo revenue up 42% YoY</div>
+      <div class="stream-meta"><svg><use href="#i-link"/></svg><span>investors.biocryst.com</span></div>
+      <div class="excerpt inf-pressed" id="db-2">
+        <p class="excerpt-quote">"…Orladeyo net revenue grew 42% year-over-year to $132.4M; we are raising full-year guidance…"</p>
+        <p class="excerpt-why"><strong>WHY —</strong> Commercial signal — Orladeyo growth rate is the benchmark our launch forecast is measured against.</p>
+      </div>
+    </div>
+
+    <div class="stream-day">Yesterday</div>
+
+    <div class="stream-entry sev-low" tabindex="0" data-target="db-3">
+      <div class="stream-time">1d ago</div>
+      <div class="stream-author"><span class="name">KalVista</span><span class="type">Trial</span></div>
+      <div class="stream-headline">Phase 3 KONFIDENT-S pediatric enrollment complete</div>
+      <div class="stream-meta"><svg><use href="#i-link"/></svg><span>clinicaltrials.gov</span></div>
+      <div class="excerpt inf-pressed" id="db-3">
+        <p class="excerpt-quote">"…enrollment is now complete across all sites, with topline pediatric safety data expected in H1 2027…"</p>
+        <p class="excerpt-why"><strong>WHY —</strong> Pediatric data timeline — informs when a competing label expansion could reach market.</p>
+      </div>
+    </div>
+
+    <div class="stream-day">This week</div>
+
+    <div class="stream-entry sev-med" tabindex="0" data-target="db-4">
+      <div class="stream-time">2d ago</div>
+      <div class="stream-author"><span class="name">Ionis</span><span class="type">Publication</span></div>
+      <div class="stream-headline">Donidalorsen long-term safety data presented at AAAAI</div>
+      <div class="stream-meta"><svg><use href="#i-link"/></svg><span>aaaai.org</span></div>
+      <div class="excerpt inf-pressed" id="db-4">
+        <p class="excerpt-quote">"…long-term extension data show a consistent safety profile through 96 weeks of dosing…"</p>
+        <p class="excerpt-why"><strong>WHY —</strong> Long-term safety read-through relevant to our own extension-study risk framing.</p>
+      </div>
+    </div>
+
+    <div class="stream-entry sev-low" tabindex="0" data-target="db-5">
+      <div class="stream-time">3d ago</div>
+      <div class="stream-author"><span class="name">CSL Behring</span><span class="type">SEC Filing</span></div>
+      <div class="stream-headline">8-K filed on Andembry formulary access</div>
+      <div class="stream-meta"><svg><use href="#i-link"/></svg><span>sec.gov</span></div>
+      <div class="excerpt inf-pressed" id="db-5">
+        <p class="excerpt-quote">"…Andembry has achieved formulary placement with three of the five largest national payers as of this filing…"</p>
+        <p class="excerpt-why"><strong>WHY —</strong> Payer access pace for a rival prophylactic shapes our own formulary strategy timeline.</p>
+      </div>
+    </div>
+
+  </div>
+  <div class="footnote">Click an entry to reveal WHY + excerpt. Hover any entry to emphasize it and dim the rest of the stream.</div>
+
+</div>
+
+<script>
+  // Variant A — row click toggles inline excerpt
+  document.querySelectorAll('.digest-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const wrap = document.getElementById(row.dataset.target + '-wrap');
+      wrap.classList.toggle('is-open');
+    });
+    row.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); row.click(); }
+    });
+  });
+
+  // Variant B — entry click toggles excerpt; hover dims siblings
+  const stream = document.getElementById('stream1');
+  stream.querySelectorAll('.stream-entry').forEach(entry => {
+    entry.addEventListener('click', () => entry.classList.toggle('is-open'));
+    entry.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); entry.click(); }
+    });
+    entry.addEventListener('mouseenter', () => stream.classList.add('has-focus'));
+    entry.addEventListener('mouseleave', () => stream.classList.remove('has-focus'));
+    entry.addEventListener('focus', () => stream.classList.add('has-focus'));
+    entry.addEventListener('blur', () => stream.classList.remove('has-focus'));
+  });
+</script>
+</body>
+</html>

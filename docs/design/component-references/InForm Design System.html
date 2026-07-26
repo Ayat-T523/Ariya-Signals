@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Design System</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+
+<!-- Shared SVG icon symbols. Referenced via <svg><use href="#ic-foo"/></svg> -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute; width:0; height:0;" aria-hidden="true">
+  <defs>
+    <g id="stroke" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></g>
+  </defs>
+  <symbol id="ic-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></g></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></g></symbol>
+  <symbol id="ic-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></g></symbol>
+  <symbol id="ic-chevron-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></g></symbol>
+  <symbol id="ic-chevron-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></g></symbol>
+  <symbol id="ic-arrow-up" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></g></symbol>
+  <symbol id="ic-arrow-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></g></symbol>
+  <symbol id="ic-sparkle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></g></symbol>
+  <symbol id="ic-zap" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></g></symbol>
+  <symbol id="ic-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 1 4 17.5v-13Z"/><path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20"/></g></symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6"/></g></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></g></symbol>
+  <symbol id="ic-filter" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></g></symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></g></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></g></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></g></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></g></symbol>
+  <symbol id="ic-cross-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></g></symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></g></symbol>
+  <symbol id="ic-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12 12 4l9 8"/><path d="M5 10v10h14V10"/></g></symbol>
+  <symbol id="ic-bookmark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></g></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/></g></symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></g></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></g></symbol>
+  <symbol id="ic-wifi-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20M8.5 16.5a5 5 0 0 1 7 0M5 12.5a10 10 0 0 1 5.2-2.7M19 12.5a10 10 0 0 0-5-2.7M2 8.8A15 15 0 0 1 9 6M22 8.8a15 15 0 0 0-12-2M12 20h.01"/></g></symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m14.5 9.5-2 5-5 2 2-5z"/></g></symbol>
+  <symbol id="ic-stop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></g></symbol>
+  <symbol id="ic-mic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 11a7 7 0 0 1-14 0M12 18v4"/></g></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="ic-history" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></g></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></g></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-20 9 8 3 3 8z"/></g></symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></g></symbol>
+  <symbol id="ic-building" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 8h5a1 1 0 0 1 1 1v12H14M7 7h2M7 11h2M7 15h2M11 7h0M11 11h0M11 15h0M17 12h0M17 16h0"/></g></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 21c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M17.5 21c0-2.8-1.5-4.6-3.5-5.5"/></g></symbol>
+</svg>
+
+
+<main class="page">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="masthead">
+    <div>
+      <span class="eyebrow">InForm · Design System v1.0</span>
+      <h1>A system<br/>for knowing.</h1>
+      <p>Foundations, components and states for InForm — a research assistant where every answer carries its evidence. Warm ivory, deep register, and a two-layer neumorphic tonality.</p>
+    </div>
+    <div class="meta">
+      <strong>98 components</strong>
+      <span>Cream · Ink · Indigo · Amber · Sage · Terra</span>
+      <span>Plus Jakarta Sans / BR Segma / JetBrains Mono</span>
+    </div>
+  </header>
+
+  <!-- ============ 01 FOUNDATIONS: COLOR ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">01 ·</span>
+      <h2>Color</h2>
+      <span class="rule"></span>
+      <span class="kicker">Two registers: warm cream / deep navy</span>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Functional</div>
+      <div class="grid grid-4">
+        <div class="color-tile"><div class="swatch" style="background:#2A76F4"></div><div><div class="name">Info Indigo</div><div class="hex">#2A76F4</div></div><div class="use">AI, citations, primary action</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#FFDA44"></div><div><div class="name">Urgent Amber</div><div class="hex">#FFDA44</div></div><div class="use">alerts, coverage gaps</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#4F7A4F"></div><div><div class="name">Approved Sage</div><div class="hex">#4F7A4F</div></div><div class="use">approved state, verified</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#B5633F"></div><div><div class="name">Returned Terra</div><div class="hex">#B5633F</div></div><div class="use">returned, needs review</div></div>
+      </div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Registers &amp; Tints</div>
+      <div class="grid grid-4">
+        <div class="color-tile on-dark"><div class="swatch" style="background:#24445C"></div><div><div class="name">Navy 700</div><div class="hex">#24445C</div></div><div class="use">signature deep surface</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#F7F2EA"></div><div><div class="name">Cream 100</div><div class="hex">#F7F2EA</div></div><div class="use">primary surface</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#ECF3FF"></div><div><div class="name">Info Tint</div><div class="hex">#ECF3FF</div></div><div class="use">citation chip, info banner</div></div>
+        <div class="color-tile"><div class="swatch" style="background:linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2)); border:1px solid #fff"></div><div><div class="name">Glass Tint</div><div class="hex">rgba(255,255,255,0.55)</div></div><div class="use">passive panels, HUDs</div></div>
+      </div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Additional · N-scale</div>
+      <div class="grid grid-4">
+        <div class="color-tile"><div class="swatch" style="background:#E5E1D6"></div><div><div class="name">N200</div><div class="hex">#E5E1D6</div></div><div class="use">divider, quiet fill</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#B3AEA3"></div><div><div class="name">N400</div><div class="hex">#B3AEA3</div></div><div class="use">placeholder, disabled</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#6B655B"></div><div><div class="name">N600</div><div class="hex">#6B655B</div></div><div class="use">secondary text</div></div>
+        <div class="color-tile"><div class="swatch" style="background:#2A2722"></div><div><div class="name">N900</div><div class="hex">#2A2722</div></div><div class="use">primary text, logo ink</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 TYPE ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">02 ·</span>
+      <h2>Typography</h2>
+      <span class="rule"></span>
+      <span class="kicker">Plus Jakarta Sans · BR Segma accents · JetBrains Mono</span>
+    </div>
+    <div class="plate">
+      <div class="type-row">
+        <span class="tag">display-72</span><span class="meta">700 · -0.02em</span>
+        <span class="sample" style="font:700 72px/0.95 var(--font-display); letter-spacing:-0.02em;">A system for knowing.</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">h1-36</span><span class="meta">700 · -0.01em</span>
+        <span class="sample" style="font:var(--t-h1); letter-spacing:-0.01em;">What does the 2024 literature say?</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">h2-24</span><span class="meta">700 · 1.15</span>
+        <span class="sample" style="font:var(--t-h2);">Retrieval &amp; claim support</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">h3-18</span><span class="meta">600 · 1.3</span>
+        <span class="sample" style="font:var(--t-h3);">Scientific studies</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">body-lg-16</span><span class="meta">400 · 1.5</span>
+        <span class="sample" style="font:var(--t-body-lg);">Evidence-backed research, not confident guesses.</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">body-14</span><span class="meta">400 · 1.5</span>
+        <span class="sample">Every answer carries its sources inline. Hover a chip to see the supporting passage; click to open the original.</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">ui-med-14</span><span class="meta">500</span>
+        <span class="sample" style="font:var(--t-ui-med);">Verify claim · Open source · Export</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">caption-12</span><span class="meta">400</span>
+        <span class="sample" style="font:var(--t-caption);">Retrieved 6 min ago · 18 sources</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">mono-12</span><span class="meta">JetBrains Mono</span>
+        <span class="sample" style="font:var(--t-mono);">search(&quot;CRISPR off-target 2024&quot;, k=20)</span>
+      </div>
+      <div class="type-row">
+        <span class="tag">accent</span><span class="meta">BR Segma · 500 · 0.1em</span>
+        <span class="sample" style="font:500 12px var(--font-accent); letter-spacing:0.14em; text-transform:uppercase;">Two layers · one register</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 SPACING / RADIUS / ELEVATION ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">03 ·</span>
+      <h2>Spacing, radius &amp; elevation</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="grid grid-3">
+      <div class="plate">
+        <div class="tile-label">Spacing scale</div>
+        <div class="scale-row" style="align-items:flex-end;">
+          <div class="scale-item"><div class="bar" style="width:4px"></div><div class="label">xxs 4</div></div>
+          <div class="scale-item"><div class="bar" style="width:6px"></div><div class="label">xs 6</div></div>
+          <div class="scale-item"><div class="bar" style="width:8px"></div><div class="label">sm 8</div></div>
+          <div class="scale-item"><div class="bar" style="width:12px"></div><div class="label">md 12</div></div>
+          <div class="scale-item"><div class="bar" style="width:16px"></div><div class="label">lg 16</div></div>
+          <div class="scale-item"><div class="bar" style="width:24px"></div><div class="label">xl 24</div></div>
+          <div class="scale-item"><div class="bar" style="width:32px"></div><div class="label">xxl 32</div></div>
+          <div class="scale-item"><div class="bar" style="width:48px"></div><div class="label">xxxl 48</div></div>
+          <div class="scale-item"><div class="bar" style="width:64px"></div><div class="label">wide 64</div></div>
+        </div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Radius scale</div>
+        <div class="grid grid-3">
+          <div class="radius-item"><div class="chip" style="border-radius:6px"></div><div class="mono small">xs · 6</div></div>
+          <div class="radius-item"><div class="chip" style="border-radius:10px"></div><div class="mono small">sm · 10</div></div>
+          <div class="radius-item"><div class="chip" style="border-radius:14px"></div><div class="mono small">md · 14</div></div>
+          <div class="radius-item"><div class="chip" style="border-radius:20px"></div><div class="mono small">lg · 20</div></div>
+          <div class="radius-item"><div class="chip" style="border-radius:28px"></div><div class="mono small">xl · 28</div></div>
+          <div class="radius-item"><div class="chip" style="border-radius:999px"></div><div class="mono small">pill</div></div>
+        </div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Elevation · two layers, one register</div>
+        <div class="grid grid-2" style="margin-top:8px;">
+          <div class="elev-item"><div class="block" style="box-shadow:var(--neu-raised);"></div><div class="mono small">raised</div></div>
+          <div class="elev-item"><div class="block" style="box-shadow:var(--neu-raised-strong);"></div><div class="mono small">raised-strong</div></div>
+          <div class="elev-item"><div class="block" style="box-shadow:var(--neu-inset);"></div><div class="mono small">inset</div></div>
+          <div class="elev-item"><div class="block" style="box-shadow:var(--neu-knob);"></div><div class="mono small">knob</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 BUTTONS ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">04 ·</span>
+      <h2>Buttons</h2>
+      <span class="rule"></span>
+      <span class="kicker">primary · secondary · ghost · destructive × 5 states</span>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Primary · indigo</div>
+      <div class="state-row"><span class="state-label">Default</span><div class="state-items">
+        <button class="btn btn-primary btn-sm">Ask InForm</button>
+        <button class="btn btn-primary">Ask InForm</button>
+        <button class="btn btn-primary btn-lg">Ask InForm</button>
+        <button class="btn btn-primary"><svg width="16" height="16"><use href="#ic-sparkle"/></svg>Synthesize</button>
+        <button class="btn btn-primary btn-icon"><svg width="16" height="16"><use href="#ic-plus"/></svg></button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Hover</span><div class="state-items">
+        <button class="btn btn-primary" style="background:var(--indigo-600); transform:translateY(-1px);">Ask InForm</button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Pressed</span><div class="state-items">
+        <button class="btn btn-primary is-pressed">Ask InForm</button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Focus</span><div class="state-items">
+        <button class="btn btn-primary is-focus">Ask InForm</button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Loading</span><div class="state-items">
+        <button class="btn btn-primary is-loading">Ask InForm<span class="btn-spinner"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.3)" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="white" stroke-width="3" stroke-linecap="round"/></svg></span></button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Disabled</span><div class="state-items">
+        <button class="btn btn-primary" disabled>Ask InForm</button>
+      </div></div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Secondary · cream neumorphic</div>
+      <div class="state-row"><span class="state-label">Default</span><div class="state-items">
+        <button class="btn btn-secondary btn-sm">Add source</button>
+        <button class="btn btn-secondary">Add source</button>
+        <button class="btn btn-secondary btn-lg">Add source</button>
+        <button class="btn btn-secondary"><svg width="16" height="16"><use href="#ic-upload"/></svg>Upload PDF</button>
+        <button class="btn btn-secondary btn-icon"><svg width="16" height="16"><use href="#ic-settings"/></svg></button>
+      </div></div>
+      <div class="state-row"><span class="state-label">Hover</span><div class="state-items"><button class="btn btn-secondary" style="background:var(--cream-50); transform:translateY(-1px); box-shadow:var(--neu-raised-strong);">Add source</button></div></div>
+      <div class="state-row"><span class="state-label">Pressed</span><div class="state-items"><button class="btn btn-secondary is-pressed">Add source</button></div></div>
+      <div class="state-row"><span class="state-label">Focus</span><div class="state-items"><button class="btn btn-secondary is-focus">Add source</button></div></div>
+      <div class="state-row"><span class="state-label">Disabled</span><div class="state-items"><button class="btn btn-secondary" disabled>Add source</button></div></div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Ghost</div>
+        <div class="state-row"><span class="state-label">States</span><div class="state-items">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-ghost" style="background:rgba(42,39,34,0.05)">Hover</button>
+          <button class="btn btn-ghost is-pressed">Pressed</button>
+          <button class="btn btn-ghost is-focus">Focus</button>
+          <button class="btn btn-ghost" disabled>Disabled</button>
+        </div></div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Destructive</div>
+        <div class="state-row"><span class="state-label">States</span><div class="state-items">
+          <button class="btn btn-danger">Delete thread</button>
+          <button class="btn btn-danger" style="background:#b80020">Hover</button>
+          <button class="btn btn-danger is-pressed">Pressed</button>
+          <button class="btn btn-danger" disabled>Disabled</button>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 INPUTS ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">05 ·</span>
+      <h2>Inputs &amp; controls</h2>
+      <span class="rule"></span>
+      <span class="kicker">all states, all sizes, all lockouts</span>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Text field</div>
+        <div class="col">
+          <div class="field">
+            <label>Research question · default</label>
+            <div class="input-wrap has-leading"><span class="leading"><svg width="16" height="16"><use href="#ic-search"/></svg></span>
+              <input class="input" placeholder="Search papers, datasets, notebooks..."/>
+            </div>
+            <div class="helper">Tip — put the year range in brackets, e.g. [2020–2024]</div>
+          </div>
+          <div class="field">
+            <label>Filled</label>
+            <div class="input-wrap has-leading has-trailing"><span class="leading"><svg width="16" height="16"><use href="#ic-search"/></svg></span>
+              <input class="input" value="CRISPR off-target effects 2024"/>
+              <span class="trailing"><span class="chip-count">18</span></span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Focused</label>
+            <div class="input-wrap has-leading"><span class="leading" style="color:var(--indigo-500)"><svg width="16" height="16"><use href="#ic-search"/></svg></span>
+              <input class="input focus-ring" style="border-color:var(--indigo-500)" value="CRISPR off-target"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Error</label>
+            <div class="input-wrap"><input class="input is-error" value="2024/13/01"/></div>
+            <div class="helper error">Date must be valid ISO-8601</div>
+          </div>
+          <div class="field">
+            <label>Success</label>
+            <div class="input-wrap has-trailing"><input class="input is-success" value="jane.doe@lab.edu"/>
+              <span class="trailing" style="color:var(--sage-600)"><svg width="16" height="16"><use href="#ic-check-circle"/></svg></span>
+            </div>
+            <div class="helper success">Verified · workspace invite sent</div>
+          </div>
+          <div class="field">
+            <label>Disabled</label>
+            <input class="input" value="Admin-only field" disabled/>
+          </div>
+          <div class="field">
+            <label>Locked · read-only evidence</label>
+            <input class="input is-locked" value="Sealed for audit · 2024-08-12" readonly/>
+            <div class="helper">Only workspace owner can unlock</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate">
+        <div class="tile-label">Textarea · composer · select</div>
+        <div class="col">
+          <div class="field">
+            <label>Prompt · textarea</label>
+            <textarea class="textarea" placeholder="Ask anything. Paste a URL or DOI to ground your question in a specific paper.">Summarize the evidence on long-COVID neurological symptoms, grouped by study type, and flag disagreements.</textarea>
+          </div>
+
+          <div class="field">
+            <label>Chip-select (filter)</label>
+            <div class="row">
+              <button class="chip-select is-active"><svg width="12" height="12"><use href="#ic-file"/></svg>Scientific studies <span class="count">+2</span><svg width="10" height="10"><use href="#ic-chevron-down"/></svg></button>
+              <button class="chip-select"><svg width="12" height="12"><use href="#ic-file"/></svg>Document type<svg width="10" height="10"><use href="#ic-chevron-down"/></svg></button>
+              <button class="chip-select"><svg width="12" height="12"><use href="#ic-filter"/></svg>Year range<svg width="10" height="10"><use href="#ic-chevron-down"/></svg></button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Select · resting / open</label>
+            <div class="row">
+              <div class="input-wrap has-trailing" style="flex:1">
+                <input class="input" value="Claude 3.7 Sonnet" readonly/>
+                <span class="trailing"><svg width="14" height="14"><use href="#ic-chevron-down"/></svg></span>
+              </div>
+              <div style="width:200px;">
+                <div class="menu" style="min-width:0">
+                  <div class="grp-label">Reasoning</div>
+                  <div class="item is-selected"><svg width="14" height="14"><use href="#ic-check"/></svg>Claude 3.7 Sonnet</div>
+                  <div class="item">Claude Opus 4.5</div>
+                  <div class="item is-disabled">GPT — workspace cap<span class="kbd">LIM</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="plate">
+        <div class="tile-label">Toggle</div>
+        <div class="col">
+          <div class="row" style="justify-content:space-between;"><span>Stream output</span><label class="toggle"><input type="checkbox" checked><span class="track"></span><span class="thumb"></span></label></div>
+          <div class="row" style="justify-content:space-between;"><span>Citation footnotes</span><label class="toggle"><input type="checkbox"><span class="track"></span><span class="thumb"></span></label></div>
+          <div class="row" style="justify-content:space-between;"><span class="small">Web browsing (admin lock)</span><label class="toggle"><input type="checkbox" disabled><span class="track"></span><span class="thumb"></span></label></div>
+        </div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Checkbox &amp; radio</div>
+        <div class="col">
+          <div class="opt-row"><span class="check"></span>Include preprints</div>
+          <div class="opt-row"><span class="check is-checked"></span>Include peer-reviewed <span class="descr">recommended</span></div>
+          <div class="opt-row"><span class="check is-indeterminate"></span>All 18 sources</div>
+          <div class="opt-row"><span class="check is-error"></span>Requires license <span class="descr" style="color:var(--crimson-600)">Not available on Free plan</span></div>
+          <div class="opt-row"><span class="check is-disabled"></span>Workspace datasets</div>
+          <div style="height:1px; background:var(--cream-300); margin:6px 0;"></div>
+          <div class="opt-row"><span class="radio"></span>Concise</div>
+          <div class="opt-row"><span class="radio is-checked"></span>Deep research</div>
+          <div class="opt-row"><span class="radio"></span>Debate mode</div>
+        </div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Slider &amp; segmented</div>
+        <div class="col">
+          <div class="field">
+            <label>Retrieval depth · 18 sources</label>
+            <div class="slider-wrap">
+              <div class="slider-track"><div class="slider-fill" style="width:48%"></div></div>
+              <div class="slider-thumb" style="left:48%"></div>
+            </div>
+            <div class="row" style="justify-content:space-between;"><span class="mono small">5</span><span class="mono small">50</span></div>
+          </div>
+          <div class="field">
+            <label>Mode</label>
+            <div class="seg">
+              <div class="seg-item">Fast</div>
+              <div class="seg-item is-active">Balanced</div>
+              <div class="seg-item">Deep</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Audience</label>
+            <div class="tabs">
+              <div class="tab">General</div>
+              <div class="tab is-active">Researcher</div>
+              <div class="tab">Clinician</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 FEEDBACK ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">06 ·</span>
+      <h2>Feedback &amp; status</h2>
+      <span class="rule"></span>
+      <span class="kicker">banners · toasts · empty · loading</span>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Banners</div>
+        <div class="col">
+          <div class="banner info">
+            <div class="icon"><svg width="18" height="18"><use href="#ic-info"/></svg></div>
+            <div class="body"><div class="title">5 new sources since your last run</div><p class="desc">Re-run retrieval to include them.</p><div class="actions"><button class="btn btn-primary btn-sm">Re-run</button><button class="btn btn-ghost btn-sm">Dismiss</button></div></div>
+          </div>
+          <div class="banner alert">
+            <div class="icon"><svg width="18" height="18"><use href="#ic-alert"/></svg></div>
+            <div class="body"><div class="title">Coverage gap on 2 claims</div><p class="desc">Claims 4 and 7 rest on a single source — we flagged them for review.</p></div>
+          </div>
+          <div class="banner approved">
+            <div class="icon"><svg width="18" height="18"><use href="#ic-check-circle"/></svg></div>
+            <div class="body"><div class="title">Synthesis approved by Dr. Park</div><p class="desc">Locked for audit · 2 min ago</p></div>
+          </div>
+          <div class="banner returned">
+            <div class="icon"><svg width="18" height="18"><use href="#ic-refresh"/></svg></div>
+            <div class="body"><div class="title">Returned for revision</div><p class="desc">&ldquo;Tighten the discussion of selection bias on p.3.&rdquo;</p></div>
+          </div>
+          <div class="banner error">
+            <div class="icon"><svg width="18" height="18"><use href="#ic-cross-circle"/></svg></div>
+            <div class="body"><div class="title">Retrieval failed · timeout</div><p class="desc">Some providers didn't respond in 30s. Retrying in 12s.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate">
+        <div class="tile-label">Toasts &amp; inline</div>
+        <div class="col">
+          <div class="toast"><span class="icon" style="color:#8ad9a2"><svg width="16" height="16"><use href="#ic-check-circle"/></svg></span><span style="flex:1">Exported to Zotero · “LongCOVID-Neuro.bib”</span><button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,0.85)">Undo</button><span class="close"><svg width="14" height="14"><use href="#ic-x"/></svg></span></div>
+          <div class="toast error"><span class="icon"><svg width="16" height="16"><use href="#ic-cross-circle"/></svg></span><span style="flex:1">Couldn't open PDF — source returned 403</span><span class="close"><svg width="14" height="14"><use href="#ic-x"/></svg></span></div>
+
+          <div class="tile-label" style="margin-top:8px;">Progress</div>
+          <div class="col">
+            <div class="row" style="justify-content:space-between;"><span class="small">Indexing notebook · 64%</span><span class="mono small">12.8/20 MB</span></div>
+            <div class="progress"><div class="bar" style="width:64%"></div></div>
+            <div class="row" style="justify-content:space-between;"><span class="small">Retrieving sources...</span></div>
+            <div class="progress indet"><div class="bar"></div></div>
+            <div class="row"><span class="spin"></span><span class="small">Thinking — 18 of 32 documents read</span></div>
+          </div>
+
+          <div class="tile-label" style="margin-top:8px;">Skeleton</div>
+          <div class="card">
+            <div class="row"><div class="sk circ"></div><div style="flex:1"><div class="sk h" style="width:40%;"></div><div class="sk line" style="margin-top:8px; width:70%"></div></div></div>
+            <div class="sk block" style="margin-top:14px;"></div>
+            <div class="sk line" style="margin-top:10px; width:90%"></div>
+            <div class="sk line" style="margin-top:8px; width:60%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 CHIPS TAGS BADGES ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">07 ·</span>
+      <h2>Tags, badges &amp; citation chips</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Status tags</div>
+        <div class="row">
+          <span class="tag neutral"><span class="dot"></span>Draft</span>
+          <span class="tag info"><span class="dot"></span>Synthesizing</span>
+          <span class="tag alert"><span class="dot"></span>Coverage gap</span>
+          <span class="tag approved"><span class="dot"></span>Approved</span>
+          <span class="tag returned"><span class="dot"></span>Returned</span>
+          <span class="tag error"><span class="dot"></span>Failed</span>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <span class="tag solid info">Peer-reviewed</span>
+          <span class="tag solid alert">Preprint</span>
+          <span class="tag solid approved">Verified</span>
+          <span class="tag outline info">Meta-analysis</span>
+          <span class="tag outline returned">Retracted</span>
+        </div>
+      </div>
+      <div class="plate">
+        <div class="tile-label">Citation chips — inline</div>
+        <p style="font-size:14px; line-height:1.65; margin:0; color:var(--ink-800);">
+          Neurological symptoms persisted in <strong>≈ 22% of patients at 12 months</strong> <span class="cite">1</span><span class="cite">2</span>, with cognitive complaints dominating in cohort studies <span class="cite">3</span>. A smaller RCT reported conflicting results for <span style="background:var(--amber-050);">memory-specific endpoints</span> <span class="cite is-active">4</span>. Effects were less pronounced in vaccinated subpopulations <span class="cite">5</span><span class="cite">6</span><span class="cite">+4</span>.
+        </p>
+        <div class="row" style="margin-top:14px;">
+          <span class="cite">1</span><span class="small">default</span>
+          <span class="cite" style="background:var(--indigo-100)">2</span><span class="small">hover</span>
+          <span class="cite is-active">3</span><span class="small">active (pinned)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 SOURCES ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">08 ·</span>
+      <h2>Source cards</h2>
+      <span class="rule"></span>
+      <span class="kicker">default · approved · returned · locked</span>
+    </div>
+    <div class="plate">
+      <div class="grid grid-2">
+        <div class="src-card">
+          <div class="favicon">NE</div>
+          <div class="src-body">
+            <div class="row" style="gap:6px; margin-bottom:4px;"><span class="src-num">[1]</span><span class="tag info" style="padding:2px 8px; font-size:10px;">Peer-reviewed</span></div>
+            <div class="src-title">Post-acute sequelae of SARS-CoV-2 infection in a cohort of 8,341 patients</div>
+            <div class="src-meta"><span>Nature · 2024</span><span class="sep">·</span><span>cited by page 2, 4, 7</span></div>
+          </div>
+        </div>
+        <div class="src-card is-approved">
+          <div class="favicon" style="background:linear-gradient(135deg,var(--sage-600),#365236)">JA</div>
+          <div class="src-body">
+            <div class="row" style="gap:6px; margin-bottom:4px;"><span class="src-num">[2]</span><span class="tag approved" style="padding:2px 8px; font-size:10px;">Approved · workspace</span></div>
+            <div class="src-title">Cognitive outcomes at 12 months — a meta-analysis of 31 cohorts</div>
+            <div class="src-meta"><span>JAMA · 2024</span><span class="sep">·</span><span>n = 43,212</span></div>
+          </div>
+        </div>
+        <div class="src-card is-returned">
+          <div class="favicon" style="background:linear-gradient(135deg,var(--terra-600),#8a4623)">bR</div>
+          <div class="src-body">
+            <div class="row" style="gap:6px; margin-bottom:4px;"><span class="src-num">[3]</span><span class="tag returned" style="padding:2px 8px; font-size:10px;">Preprint · needs review</span></div>
+            <div class="src-title">Observational study on long-COVID memory complaints — bioRxiv</div>
+            <div class="src-meta"><span>bioRxiv · v2</span><span class="sep">·</span><span>not yet peer-reviewed</span></div>
+          </div>
+        </div>
+        <div class="src-card is-locked">
+          <div class="favicon">—</div>
+          <div class="src-body">
+            <div class="row" style="gap:6px; margin-bottom:4px;"><span class="src-num">[—]</span><span class="tag neutral" style="padding:2px 8px; font-size:10px;"><svg width="10" height="10"><use href="#ic-lock"/></svg> Paywalled</span></div>
+            <div class="src-title">Accessing this Elsevier source requires a workspace license</div>
+            <div class="src-meta"><span>Elsevier</span><span class="sep">·</span><span><a href="#" style="color:var(--indigo-500); text-decoration:none;">Request access →</a></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 AI COMPONENTS ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">09 ·</span>
+      <h2>AI components</h2>
+      <span class="rule"></span>
+      <span class="kicker">messages · tool calls · reasoning · claim support · retrieval</span>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Conversation</div>
+        <div class="msg user">
+          <div class="avatar">JD</div>
+          <div class="bubble"><div class="name">You</div>Summarize the 2024 evidence on long-COVID cognitive symptoms, grouped by study type. Flag any disagreement.</div>
+        </div>
+        <div class="msg ai">
+          <div class="avatar"><svg width="14" height="14"><use href="#ic-sparkle"/></svg></div>
+          <div class="bubble"><div class="name">InForm</div>Reading 18 sources — 4 meta-analyses, 9 cohort studies, 3 RCTs, 2 preprints. I'll group by study type and mark any claim that rests on a single source.<br/><br/>Meta-analyses agree on a ≈22% persistence at 12 months <span class="cite">1</span><span class="cite">2</span>…</div>
+        </div>
+        <div class="msg ai streaming">
+          <div class="avatar"><svg width="14" height="14"><use href="#ic-sparkle"/></svg></div>
+          <div class="bubble"><div class="name">InForm · streaming</div>Cohort studies diverge on memory-specific endpoints — the Italian registry reports</div>
+        </div>
+
+        <div class="tile-label" style="margin-top:14px;">Tool calls</div>
+        <div class="col">
+          <div class="tool-call done">
+            <span class="tc-icon"><svg width="12" height="12"><use href="#ic-search"/></svg></span>
+            <span class="tc-name">search</span><span class="tc-args">("long covid cognitive 2024", k=20)</span>
+            <span class="tc-status">20 results · 1.2s</span>
+          </div>
+          <div class="tool-call running">
+            <span class="tc-icon"><svg width="12" height="12"><use href="#ic-book"/></svg></span>
+            <span class="tc-name">read_pdf</span><span class="tc-args">doi:10.1038/s41586-024-07195-4</span>
+            <span class="tc-status"><span class="spin" style="width:10px;height:10px;border-width:2px; margin-right:4px; vertical-align:-1px;"></span>reading</span>
+          </div>
+          <div class="tool-call error">
+            <span class="tc-icon" style="background:var(--crimson-600)"><svg width="12" height="12"><use href="#ic-cross-circle"/></svg></span>
+            <span class="tc-name">fetch_url</span><span class="tc-args">https://elsevier.com/...</span>
+            <span class="tc-status">403 · paywall</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate">
+        <div class="tile-label">Reasoning · claim support · retrieval rail</div>
+        <div class="reason">
+          <div class="hdr">Thought · 2.1s</div>
+          The user asked for grouping by study type, so I should keep meta-analyses separate from cohort studies rather than aggregating. I'll also need to highlight disagreements between the RCT and observational arms.
+        </div>
+
+        <div class="col" style="margin-top:14px;">
+          <div class="claim approved">
+            <strong>Persistence ≈ 22% at 12 months</strong> — consistent across 3 meta-analyses, n ≈ 120k.
+            <div class="claim-meta"><svg width="12" height="12"><use href="#ic-check-circle"/></svg> Supported by <span class="cite">1</span><span class="cite">2</span><span class="cite">5</span></div>
+          </div>
+          <div class="claim alert">
+            <strong>Memory-specific effects</strong> — cohort studies report 14–28% while the only RCT reports 6%.
+            <div class="claim-meta"><svg width="12" height="12"><use href="#ic-alert"/></svg> Disagreement · single RCT <span class="cite">4</span></div>
+          </div>
+          <div class="claim returned">
+            <strong>Vaccination effect</strong> — rests on one preprint.
+            <div class="claim-meta"><svg width="12" height="12"><use href="#ic-refresh"/></svg> Coverage gap · 1 source <span class="cite">3</span></div>
+          </div>
+        </div>
+
+        <div class="rail" style="margin-top:14px;">
+          <div class="rail-hd"><span>Retrieval · 18 sources</span><span>ranked by support</span></div>
+          <div class="rail-item"><span class="no">[1]</span>Nature · cohort 8,341<span style="margin-left:auto;" class="mono small">0.94</span></div>
+          <div class="rail-item"><span class="no">[2]</span>JAMA meta-analysis<span style="margin-left:auto;" class="mono small">0.91</span></div>
+          <div class="rail-item"><span class="no">[3]</span>bioRxiv preprint<span style="margin-left:auto;" class="mono small">0.78</span></div>
+          <div class="rail-item"><span class="no">[4]</span>Lancet RCT n=902<span style="margin-left:auto;" class="mono small">0.76</span></div>
+          <div class="rail-item"><span class="no">[5]</span>BMJ systematic review<span style="margin-left:auto;" class="mono small">0.71</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Composer — resting · focused · streaming · rate-limited</div>
+      <div class="grid grid-2">
+        <div class="composer">
+          <textarea>What's the evidence base on GLP-1 agonists beyond weight loss?</textarea>
+          <div class="actions">
+            <button class="btn btn-secondary btn-sm"><svg width="14" height="14"><use href="#ic-upload"/></svg></button>
+            <button class="chip-select is-active"><svg width="12" height="12"><use href="#ic-file"/></svg>Peer-reviewed</button>
+            <button class="chip-select">Year · 2020+</button>
+            <span class="spacer"></span>
+            <span class="kbd">⌘↵</span>
+            <button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-send"/></svg></button>
+          </div>
+        </div>
+        <div class="composer" style="position:relative; opacity:0.9;">
+          <textarea readonly style="color:var(--ink-500)">Rate limited — 0 / 50 deep research runs remaining today</textarea>
+          <div class="actions">
+            <button class="btn btn-secondary btn-sm" disabled>Upload</button>
+            <span class="spacer"></span>
+            <button class="btn btn-primary btn-sm" disabled><svg width="14" height="14"><use href="#ic-send"/></svg></button>
+          </div>
+          <div class="locked-overlay"><div class="lock-pill"><svg width="14" height="14"><use href="#ic-lock"/></svg>Limit resets in 4h 12m · <a href="#" style="color:var(--indigo-500); text-decoration:none;">Upgrade</a></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 10 NAV ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">10 ·</span>
+      <h2>Navigation</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Tabs · pill &amp; underline</div>
+        <div class="col">
+          <div class="tabs">
+            <div class="tab is-active">All threads<span class="count">24</span></div>
+            <div class="tab">Shared<span class="count">6</span></div>
+            <div class="tab">Archived</div>
+          </div>
+          <div class="tabs-line">
+            <div class="tab is-active">Answer</div>
+            <div class="tab">Sources <span class="count">18</span></div>
+            <div class="tab">Reasoning</div>
+            <div class="tab">Timeline</div>
+          </div>
+          <div class="tile-label" style="margin-top:14px;">Breadcrumb</div>
+          <div class="breadcrumb">
+            <a href="#"><svg width="12" height="12" style="vertical-align:-2px"><use href="#ic-home"/></svg></a>
+            <span class="sep">/</span>
+            <a href="#">Neuro Lab</a>
+            <span class="sep">/</span>
+            <a href="#">Long-COVID</a>
+            <span class="sep">/</span>
+            <span class="cur">Cognitive outcomes — April</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate">
+        <div class="tile-label">Menu · keyboard + group + destructive</div>
+        <div class="row" style="align-items:flex-start;">
+          <div class="menu">
+            <div class="grp-label">Thread</div>
+            <div class="item"><svg width="14" height="14"><use href="#ic-plus"/></svg>New thread<span class="kbd">⌘N</span></div>
+            <div class="item is-selected"><svg width="14" height="14"><use href="#ic-book"/></svg>Open notebook<span class="kbd">⌘O</span></div>
+            <div class="item"><svg width="14" height="14"><use href="#ic-bookmark"/></svg>Pin</div>
+            <div class="divide"></div>
+            <div class="grp-label">Source</div>
+            <div class="item"><svg width="14" height="14"><use href="#ic-link"/></svg>Copy citation</div>
+            <div class="item is-disabled"><svg width="14" height="14"><use href="#ic-upload"/></svg>Export · workspace lock</div>
+            <div class="divide"></div>
+            <div class="item is-destructive"><svg width="14" height="14"><use href="#ic-trash"/></svg>Delete thread<span class="kbd">⌫</span></div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:10px; align-items:flex-start;">
+            <div class="tile-label" style="margin:0">Tooltip</div>
+            <div class="tt">Re-run retrieval on updated sources</div>
+            <div class="tile-label" style="margin-top:6px;">Keyboard</div>
+            <div class="row"><span class="kbd">⌘K</span><span class="small">command palette</span></div>
+            <div class="row"><span class="kbd">⌘↵</span><span class="small">send prompt</span></div>
+            <div class="row"><span class="kbd">/</span><span class="small">insert citation</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Dropdown · visibility / in-chart filter</div>
+      <div class="glass-stage">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="stage-caption">Dark glass · over photographic / tinted backdrop</div>
+          <div class="menu-glass" role="menu" aria-label="Share visibility">
+            <div class="item is-selected" role="menuitemradio" aria-checked="true"><svg><use href="#ic-lock"/></svg>Private</div>
+            <div class="item" role="menuitemradio" aria-checked="false"><svg><use href="#ic-globe"/></svg>Anyone</div>
+            <div class="item" role="menuitemradio" aria-checked="false"><svg><use href="#ic-building"/></svg>Anyone at Ariya</div>
+            <div class="item" role="menuitemradio" aria-checked="false"><svg><use href="#ic-users"/></svg>Only those invited</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="stage-caption">Light glass · same structure, inverted register</div>
+          <div class="menu-glass is-light" role="menu" aria-label="Share visibility (light)">
+            <div class="item is-selected" role="menuitemradio" aria-checked="true"><svg><use href="#ic-lock"/></svg>Private</div>
+            <div class="item"><svg><use href="#ic-globe"/></svg>Anyone</div>
+            <div class="item"><svg><use href="#ic-building"/></svg>Anyone at Ariya</div>
+            <div class="item"><svg><use href="#ic-users"/></svg>Only those invited</div>
+          </div>
+        </div>
+      </div>
+      <div class="small" style="margin-top:12px;">Anatomy · 14px radius · 10/8 pad · backdrop-filter blur(18px) · 1px inner highlight ring · 16px lucide-weight icons · selected = 10% white wash.</div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Sidebar · research workspace</div>
+      <div class="row" style="align-items:flex-start;">
+        <aside class="sidebar">
+          <div class="logo"><span class="mark"></span>InForm</div>
+          <div class="nav-item is-active"><svg width="16" height="16"><use href="#ic-sparkle"/></svg>New research<span class="kbd" style="font-size:10px;padding:1px 5px;">⌘N</span></div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-history"/></svg>Threads<span class="count">24</span></div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-folder"/></svg>Notebooks<span class="count">8</span></div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-book"/></svg>Sources<span class="count">312</span></div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-bookmark"/></svg>Pinned<span class="count">5</span></div>
+          <div style="height:1px; background:var(--cream-300); margin:12px 0;"></div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-user"/></svg>Workspace</div>
+          <div class="nav-item"><svg width="16" height="16"><use href="#ic-settings"/></svg>Settings</div>
+        </aside>
+
+        <div style="flex:1; display:flex; flex-direction:column; gap:16px;">
+          <div class="breadcrumb"><a href="#"><svg width="12" height="12" style="vertical-align:-2px"><use href="#ic-home"/></svg></a><span class="sep">/</span><a href="#">Neuro Lab</a><span class="sep">/</span><span class="cur">Long-COVID · April</span></div>
+          <table class="table">
+            <thead><tr><th>Thread</th><th>Status</th><th>Sources</th><th>Approver</th><th>Updated</th></tr></thead>
+            <tbody>
+              <tr><td>Cognitive outcomes at 12 months</td><td><span class="tag approved"><span class="dot"></span>Approved</span></td><td class="num">18</td><td>Dr. Park</td><td class="num">2 min ago</td></tr>
+              <tr><td>Cardiovascular risks of GLP-1</td><td><span class="tag alert"><span class="dot"></span>Gap</span></td><td class="num">9</td><td>—</td><td class="num">4h ago</td></tr>
+              <tr><td>Selection bias in registry data</td><td><span class="tag returned"><span class="dot"></span>Returned</span></td><td class="num">12</td><td>Dr. Patel</td><td class="num">Yesterday</td></tr>
+              <tr><td>CRISPR off-target 2024</td><td><span class="tag info"><span class="dot"></span>Synthesizing</span></td><td class="num">32</td><td>—</td><td class="num">Just now</td></tr>
+              <tr><td>Retracted paper audit</td><td><span class="tag error"><span class="dot"></span>Failed</span></td><td class="num">0</td><td>—</td><td class="num">Aug 12</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 11 OVERLAYS ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">11 ·</span>
+      <h2>Overlays</h2>
+      <span class="rule"></span>
+      <span class="kicker">modal · drawer · command palette</span>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="plate">
+        <div class="tile-label">Confirmation modal</div>
+        <div class="modal-stage">
+          <div class="modal">
+            <div class="modal-hd">
+              <div style="width:32px; height:32px; border-radius:8px; background:var(--crimson-050); color:var(--crimson-600); display:flex; align-items:center; justify-content:center;"><svg width="16" height="16"><use href="#ic-trash"/></svg></div>
+              <h3>Delete this thread?</h3>
+            </div>
+            <div class="modal-body">This will permanently delete <strong>“Cognitive outcomes at 12 months”</strong> and its 18 linked sources. Approvals already issued will remain on the audit log.</div>
+            <div class="modal-ft">
+              <button class="btn btn-ghost">Cancel</button>
+              <button class="btn btn-danger">Delete thread</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate">
+        <div class="tile-label">Command palette</div>
+        <div class="modal-stage" style="background:rgba(20,40,58,0.18);">
+          <div class="palette">
+            <div class="search">
+              <svg width="16" height="16" style="color:var(--ink-500)"><use href="#ic-search"/></svg>
+              <input placeholder="Search threads, sources, actions…"/>
+              <span class="kbd">esc</span>
+            </div>
+            <div class="p-body">
+              <div class="menu" style="border:0; box-shadow:none; padding:2px;">
+                <div class="grp-label">Actions</div>
+                <div class="item is-selected"><svg width="14" height="14"><use href="#ic-sparkle"/></svg>New deep research<span class="kbd">⌘⇧N</span></div>
+                <div class="item"><svg width="14" height="14"><use href="#ic-upload"/></svg>Upload paper…</div>
+                <div class="grp-label">Recent threads</div>
+                <div class="item"><svg width="14" height="14"><use href="#ic-file"/></svg>Long-COVID · cognitive</div>
+                <div class="item"><svg width="14" height="14"><use href="#ic-file"/></svg>GLP-1 · cardiovascular</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">Drawer · source inspector</div>
+      <div class="modal-stage" style="padding:0; align-items:stretch; min-height:360px;">
+        <div style="flex:1; padding:20px; color:var(--ink-600); font-size:13px;">← the active thread sits here</div>
+        <div class="drawer">
+          <div class="row" style="justify-content:space-between; align-items:flex-start;">
+            <span class="tag info"><span class="dot"></span>Source [2]</span>
+            <button class="btn btn-ghost btn-icon btn-sm"><svg width="14" height="14"><use href="#ic-x"/></svg></button>
+          </div>
+          <h3 style="font:600 17px/1.25 var(--font-display); margin:10px 0 4px;">Cognitive outcomes at 12 months — a meta-analysis of 31 cohorts</h3>
+          <div class="small">JAMA · 2024 · n = 43,212 · peer-reviewed</div>
+          <div class="card" style="margin:14px 0;">
+            <div class="mono small" style="color:var(--ink-500); margin-bottom:6px;">Cited passage · p.4</div>
+            <p style="font-size:13px; line-height:1.5; margin:0; color:var(--ink-800);">“Across 31 cohorts (n = 43,212), persistent cognitive complaints were reported in <mark style="background:var(--amber-100); padding:0 2px;">22.4% (95% CI 19.8–25.1)</mark> of participants at 12 months…”</p>
+          </div>
+          <div class="row">
+            <button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-link"/></svg>Open original</button>
+            <button class="btn btn-secondary btn-sm">Quote in answer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 12 LOCKED / ERROR STATES ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">12 ·</span>
+      <h2>Locked &amp; error states</h2>
+      <span class="rule"></span>
+      <span class="kicker">what the user sees when things go sideways</span>
+    </div>
+    <div class="grid grid-3">
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph"><svg width="28" height="28"><use href="#ic-wifi-off"/></svg></div>
+            <h4>You're offline</h4>
+            <p>Cached threads and notebooks are still available. Retrieval and streaming will resume when you're back online.</p>
+            <div class="actions"><button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-refresh"/></svg>Retry</button><button class="btn btn-ghost btn-sm">Work offline</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph" style="color:#8B6D00"><svg width="28" height="28"><use href="#ic-zap"/></svg></div>
+            <h4>Rate limit reached</h4>
+            <p>You've used 50 of 50 deep-research runs today. Fast search is still available.</p>
+            <div class="actions"><button class="btn btn-primary btn-sm">Upgrade plan</button><button class="btn btn-secondary btn-sm">Switch to fast</button></div>
+            <div class="small" style="margin-top:12px;">Resets in <span class="num">4h 12m</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph"><svg width="28" height="28"><use href="#ic-lock"/></svg></div>
+            <h4>Permission required</h4>
+            <p>This notebook is sealed for audit. Ask Dr. Park for read access, or request an unlock.</p>
+            <div class="actions"><button class="btn btn-primary btn-sm">Request access</button><button class="btn btn-ghost btn-sm">Go back</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph" style="color:var(--crimson-600)"><svg width="28" height="28"><use href="#ic-cross-circle"/></svg></div>
+            <h4>Retrieval failed</h4>
+            <p>Search providers didn't respond in 30s. Your prompt is saved — you can retry without re-typing.</p>
+            <div class="actions"><button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-refresh"/></svg>Retry</button><button class="btn btn-ghost btn-sm">Contact support</button></div>
+            <div class="small mono" style="margin-top:12px;">err · RETR_TIMEOUT_30</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph"><svg width="28" height="28"><use href="#ic-compass"/></svg></div>
+            <h4>Nothing here yet</h4>
+            <p>Start a new research thread to see sources, reasoning and approvals in one place.</p>
+            <div class="actions"><button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-sparkle"/></svg>Start research</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" style="padding:0; overflow:hidden;">
+        <div class="screen-mock">
+          <div>
+            <div class="big-glyph" style="background:var(--cream-100); box-shadow:var(--neu-knob); font:700 24px var(--font-display);">404</div>
+            <h4>Page wandered off</h4>
+            <p>The thread you linked to was deleted or moved. The audit log still has a record.</p>
+            <div class="actions"><button class="btn btn-secondary btn-sm">View audit log</button><button class="btn btn-ghost btn-sm">Home</button></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="plate">
+      <div class="tile-label">In-context locks (inside the UI)</div>
+      <div class="grid grid-3">
+        <div style="position:relative;">
+          <div class="card">
+            <div class="tile-label" style="margin:0 0 8px;">Deep research</div>
+            <p class="small" style="margin:0 0 10px;">Multi-hop retrieval across your sources with citation-grade synthesis.</p>
+            <button class="btn btn-primary btn-sm">Run</button>
+          </div>
+          <div class="locked-overlay"><div class="lock-pill"><svg width="14" height="14"><use href="#ic-lock"/></svg>Pro plan feature</div></div>
+        </div>
+        <div style="position:relative;">
+          <div class="card">
+            <div class="tile-label" style="margin:0 0 8px;">Export citations</div>
+            <p class="small" style="margin:0 0 10px;">BibTeX, CSL-JSON, EndNote XML.</p>
+            <div class="row"><button class="btn btn-secondary btn-sm">BibTeX</button><button class="btn btn-secondary btn-sm">CSL-JSON</button></div>
+          </div>
+          <div class="locked-overlay"><div class="lock-pill"><svg width="14" height="14"><use href="#ic-lock"/></svg>Admin · request access</div></div>
+        </div>
+        <div style="position:relative;">
+          <div class="card">
+            <div class="tile-label" style="margin:0 0 8px;">Web browsing</div>
+            <p class="small" style="margin:0 0 10px;">Reach beyond your uploaded sources.</p>
+            <label class="toggle"><input type="checkbox" disabled><span class="track"></span><span class="thumb"></span></label>
+          </div>
+          <div class="locked-overlay"><div class="lock-pill"><svg width="14" height="14"><use href="#ic-lock"/></svg>Disabled by workspace policy</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 13 APPLIED ============ -->
+  <section class="section">
+    <div class="section-hd">
+      <span class="num">13 ·</span>
+      <h2>Applied — research home</h2>
+      <span class="rule"></span>
+      <span class="kicker">the system at work</span>
+    </div>
+    <div class="plate" style="padding:0; overflow:hidden;">
+      <div style="padding:32px; background: radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,0.6), transparent 50%), linear-gradient(180deg, var(--cream-100), var(--cream-200));">
+        <div class="row" style="justify-content:space-between; margin-bottom:18px;">
+          <div class="breadcrumb"><svg width="12" height="12"><use href="#ic-home"/></svg><span class="cur">Research</span></div>
+          <div class="row">
+            <div class="seg">
+              <div class="seg-item is-active">Personal</div>
+              <div class="seg-item">Team</div>
+              <div class="seg-item">Public</div>
+            </div>
+            <button class="btn btn-secondary btn-sm"><svg width="14" height="14"><use href="#ic-filter"/></svg>Filter</button>
+            <button class="btn btn-primary btn-sm"><svg width="14" height="14"><use href="#ic-plus"/></svg>New thread</button>
+          </div>
+        </div>
+
+        <h1 style="font:700 40px/1.05 var(--font-display); letter-spacing:-0.015em; margin:0 0 6px;">Good morning, Jordan.</h1>
+        <p class="small" style="margin:0 0 20px;">3 threads waiting on review · 18 new sources · 2 coverage gaps</p>
+
+        <div class="prompt-hero">
+          <textarea class="textarea" style="background:transparent; box-shadow:none; border:0; padding:0; min-height:56px; font-size:16px;">What does the 2024 literature say about long-COVID cognitive symptoms? Group by study type and flag disagreement.</textarea>
+          <div class="row" style="margin-top:10px; align-items:center;">
+            <button class="chip-select is-active"><svg width="12" height="12"><use href="#ic-file"/></svg>Scientific studies <span class="count">+2</span></button>
+            <button class="chip-select">Year · 2020+</button>
+            <button class="chip-select">My notebooks</button>
+            <span style="flex:1;"></span>
+            <span class="small">Claude 3.7 · Deep research</span>
+            <button class="btn btn-primary"><svg width="14" height="14"><use href="#ic-sparkle"/></svg>Research<span class="kbd" style="background:rgba(255,255,255,0.2); color:rgba(255,255,255,0.9); border-color:transparent;">⌘↵</span></button>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-top:22px;">
+          <div class="wizard-card">
+            <div class="mark"><svg width="18" height="18"><use href="#ic-book"/></svg></div>
+            <h4>Ground in a paper</h4>
+            <p>Paste a DOI or drop a PDF — every claim will cite back to it.</p>
+          </div>
+          <div class="wizard-card">
+            <div class="mark"><svg width="18" height="18"><use href="#ic-compass"/></svg></div>
+            <h4>Map the field</h4>
+            <p>Survey what 2020–2024 says and where the consensus breaks.</p>
+          </div>
+          <div class="wizard-card">
+            <div class="mark"><svg width="18" height="18"><use href="#ic-eye"/></svg></div>
+            <h4>Audit a claim</h4>
+            <p>Check whether your draft's claims actually hold up in the literature.</p>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:22px; justify-content:space-between; align-items:baseline;">
+          <h3 style="font:700 18px var(--font-display); margin:0;">Recent threads</h3>
+          <a href="#" class="small" style="color:var(--indigo-500); text-decoration:none;">View all →</a>
+        </div>
+        <table class="table" style="margin-top:10px;">
+          <thead><tr><th>Thread</th><th>Status</th><th>Sources</th><th>Updated</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Cognitive outcomes at 12 months</strong><div class="small">Long-COVID · April</div></td><td><span class="tag approved"><span class="dot"></span>Approved</span></td><td class="num">18</td><td class="num">2 min ago</td><td><button class="btn btn-ghost btn-sm"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></button></td></tr>
+            <tr><td><strong>Cardiovascular risks of GLP-1</strong><div class="small">Endocrinology</div></td><td><span class="tag alert"><span class="dot"></span>Coverage gap</span></td><td class="num">9</td><td class="num">4h ago</td><td><button class="btn btn-ghost btn-sm"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></button></td></tr>
+            <tr><td><strong>Selection bias in registry data</strong><div class="small">Methodology</div></td><td><span class="tag returned"><span class="dot"></span>Returned · Dr. Patel</span></td><td class="num">12</td><td class="num">Yesterday</td><td><button class="btn btn-ghost btn-sm"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer style="text-align:center; color:var(--ink-500); font-size:12px; margin-top:64px; padding-top:32px; border-top:1px solid var(--cream-300);">
+    InForm Design System · v1.0 · Cream &amp; Navy · Built on the two-layers-one-register principle
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — KPI Card</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0;
+    --bg-elevated: #F8F7F4;
+    --bg-sunken: #EDECEA;
+
+    --primary: #1A5855;
+    --primary-tint: #D6E5E4;
+
+    --approved: #4F7A4F;
+    --approved-text: #2F5530;
+    --approved-tint: #D9E4D7;
+
+    --error: #B54040;
+    --error-text: #7A2A2A;
+    --error-tint: #F2DADA;
+
+    --text-primary: #1C1917;
+    --text-secondary: #6B6560;
+    --text-tertiary: #9D9690;
+    --text-disabled: #C4BFB8;
+
+    --border-default: #D8D1C5;
+    --divider: #E0D9CE;
+
+    --r-lg: 20px;
+    --r-md: 14px;
+    --r-pill: 999px;
+
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+
+    --t-display: 32px;
+    --t-heading-xl: 22px;
+    --t-body-sm: 13px;
+    --t-caption: 12px;
+    --t-label: 11px;
+
+    --lh-body-sm: 1.55;
+    --ls-label: 0.07em;
+
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-soft: rgba(170, 155, 130, 0.18);
+    --shadow-mid: rgba(170, 155, 130, 0.28);
+    --shadow-strong: rgba(170, 155, 130, 0.38);
+    --highlight-soft: rgba(255, 250, 242, 0.65);
+    --highlight-mid: rgba(255, 250, 242, 0.85);
+
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+
+    --focus-ring-color: var(--primary);
+    --focus-ring: 2px solid var(--focus-ring-color);
+
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background:
+      radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%),
+      var(--bg-page);
+    color: var(--text-primary);
+    padding: var(--s-6);
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 1240px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2);
+  }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 640px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-6); }
+  section.demo h2{
+    font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+    margin: 0 0 var(--s-3); padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--divider);
+  }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-3); }
+
+  .row{ display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); align-items: start; }
+  .row.states{ grid-template-columns: repeat(4, 1fr); }
+
+  /* ============ Recipe R1 — neumorphic raised ============ */
+  .inf-raised{
+    background: var(--bg-elevated);
+    box-shadow: var(--elevation-2);
+    border-radius: var(--r-lg);
+    transition: box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  }
+
+  /* ============ KPI Card ============ */
+  .kpi-card{
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: var(--s-5);
+    cursor: pointer;
+    outline: none;
+  }
+  .kpi-card:hover{
+    box-shadow: var(--elevation-3);
+    transform: translateY(-1px);
+  }
+  .kpi-card:active{ transform: translateY(0); }
+  .kpi-card:focus-visible{
+    box-shadow: var(--elevation-2);
+    outline: var(--focus-ring);
+    outline-offset: 3px;
+  }
+
+  .kpi-card.compact{ padding: var(--s-4); }
+
+  .kpi-label{
+    font-size: var(--t-label);
+    font-weight: 600;
+    letter-spacing: var(--ls-label);
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 var(--s-2);
+    font-family: var(--font);
+  }
+
+  .kpi-value{
+    font-family: var(--font-mono);
+    font-size: var(--t-display);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    line-height: 1.05;
+    margin: 0 0 var(--s-3);
+  }
+  .kpi-card.compact .kpi-value{ font-size: var(--t-heading-xl); margin-bottom: var(--s-2); }
+
+  .kpi-value.is-empty{ color: var(--text-disabled); }
+  .kpi-value.is-error{ color: var(--text-tertiary); }
+
+  /* support rows */
+  .kpi-support{
+    font-size: var(--t-body-sm);
+    line-height: var(--lh-body-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--s-3);
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 20px;
+  }
+
+  .kpi-delta{
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--font-mono); font-weight: 600; font-size: var(--t-body-sm);
+  }
+  .kpi-delta.up{ color: var(--approved-text); }
+  .kpi-delta.down{ color: var(--error-text); }
+  .kpi-delta.flat{ color: var(--text-tertiary); }
+  .kpi-delta svg{ width: 12px; height: 12px; }
+
+  .kpi-breakdown{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .kpi-breakdown .dot{
+    width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+  }
+  .kpi-breakdown .seg{ display: inline-flex; align-items: center; gap: 5px; }
+
+  .kpi-spark{
+    width: 100%; height: 32px; margin: 0 0 var(--s-3);
+  }
+  .kpi-spark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
+
+  .kpi-footer{
+    font-size: var(--t-caption);
+    color: var(--primary);
+    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .kpi-footer svg{ width: 12px; height: 12px; transition: transform var(--dur-fast) var(--ease-standard); }
+  .kpi-card:hover .kpi-footer svg{ transform: translateX(2px); }
+
+  .kpi-footer.is-muted{ color: var(--text-tertiary); }
+
+  .kpi-error-note{
+    font-size: var(--t-caption); color: var(--error-text);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  /* Skeleton */
+  .sk{
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--bg-sunken), var(--border-default), var(--bg-sunken));
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+  .badge-density{
+    display: inline-block; font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-tertiary); letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: var(--s-2);
+  }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-flat" viewBox="0 0 24 24"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M12 8v5M12 16h.01" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>KPI Card</h1>
+    <p>Three scannability-tuned variants sharing one shell (recipe R1, neumorphic raised). The value is the hero — one support row, one action, per card. Real HAE dashboard data.</p>
+  </div>
+
+  <!-- ============ VARIANT 1: Metric + Delta ============ -->
+  <section class="demo">
+    <h2>1 · Metric + delta</h2>
+    <p class="note">Use when the number's <em>change</em> over time is the story.</p>
+    <div class="row">
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">New this week</div>
+        <div class="kpi-value">12</div>
+        <div class="kpi-support">
+          <span class="kpi-delta up"><svg><use href="#i-up"/></svg>8%</span>
+          <span>vs last 7 days</span>
+        </div>
+        <div class="kpi-footer">Open new arrivals <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Pharvaris mentions</div>
+        <div class="kpi-value">34</div>
+        <div class="kpi-support">
+          <span class="kpi-delta down"><svg><use href="#i-down"/></svg>12%</span>
+          <span>vs last 7 days</span>
+        </div>
+        <div class="kpi-footer">Open competitor feed <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">BioCryst filings tracked</div>
+        <div class="kpi-value">7</div>
+        <div class="kpi-support">
+          <span class="kpi-delta flat"><svg><use href="#i-flat"/></svg>0%</span>
+          <span>vs last 7 days</span>
+        </div>
+        <div class="kpi-footer">Open regulatory log <svg><use href="#i-arrow"/></svg></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ VARIANT 2: Metric + Breakdown ============ -->
+  <section class="demo">
+    <h2>2 · Metric + breakdown</h2>
+    <p class="note">Use when the number's <em>composition</em> matters more than its trend.</p>
+    <div class="row">
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Unread signals</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-support">
+          <span>across 3 competitors ·</span>
+          <span class="kpi-breakdown">
+            <span class="seg"><span class="dot" style="background:var(--primary)"></span>11 clinical</span>
+            <span class="seg"><span class="dot" style="background:var(--error)"></span>3 commercial</span>
+          </span>
+        </div>
+        <div class="kpi-footer">Open inbox <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Open review queue</div>
+        <div class="kpi-value">9</div>
+        <div class="kpi-support">
+          <span class="kpi-breakdown">
+            <span class="seg"><span class="dot" style="background:var(--approved)"></span>5 label</span>
+            <span class="seg"><span class="dot" style="background:var(--primary)"></span>4 competitive</span>
+          </span>
+        </div>
+        <div class="kpi-footer">Open review queue <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Tracked HAE assets</div>
+        <div class="kpi-value">18</div>
+        <div class="kpi-support">
+          <span class="kpi-breakdown">
+            <span class="seg"><span class="dot" style="background:var(--approved)"></span>12 approved</span>
+            <span class="seg"><span class="dot" style="background:var(--text-tertiary)"></span>6 pipeline</span>
+          </span>
+        </div>
+        <div class="kpi-footer">Open asset library <svg><use href="#i-arrow"/></svg></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ VARIANT 3: Metric + Sparkline ============ -->
+  <section class="demo">
+    <h2>3 · Metric + sparkline</h2>
+    <p class="note">Use when the number's <em>trend shape</em> is the story — not just up/down, but how.</p>
+    <div class="row">
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">High importance</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-spark">
+          <svg viewBox="0 0 200 32" preserveAspectRatio="none">
+            <polyline points="0,24 20,22 40,26 60,18 80,20 100,12 120,16 140,8 160,10 180,4 200,6" fill="none" stroke="var(--error)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="kpi-footer">Triage now <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Weekly digest opens</div>
+        <div class="kpi-value">142</div>
+        <div class="kpi-spark">
+          <svg viewBox="0 0 200 32" preserveAspectRatio="none">
+            <polyline points="0,20 20,18 40,20 60,14 80,16 100,10 120,12 140,8 160,6 180,9 200,4" fill="none" stroke="var(--approved)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="kpi-footer">Open digest history <svg><use href="#i-arrow"/></svg></div>
+      </a>
+
+      <a class="kpi-card inf-raised" href="#" tabindex="0">
+        <div class="kpi-label">Avg. time to review</div>
+        <div class="kpi-value">3.2<span style="font-size: 16px; color: var(--text-tertiary); font-weight: 500;">d</span></div>
+        <div class="kpi-spark">
+          <svg viewBox="0 0 200 32" preserveAspectRatio="none">
+            <polyline points="0,8 20,10 40,9 60,14 80,13 100,18 120,16 140,20 160,19 180,22 200,24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="kpi-footer">Open review SLA <svg><use href="#i-arrow"/></svg></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============ STATES ============ -->
+  <section class="demo">
+    <h2>States — default · hover · loading · empty · error</h2>
+    <p class="note">Shown side-by-side using the delta variant; identical treatment applies to breakdown and sparkline.</p>
+    <div class="row states">
+      <div>
+        <div class="badge-density">Default</div>
+        <a class="kpi-card inf-raised" href="#" tabindex="0">
+          <div class="kpi-label">New this week</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-support">
+            <span class="kpi-delta up"><svg><use href="#i-up"/></svg>8%</span>
+            <span>vs last 7 days</span>
+          </div>
+          <div class="kpi-footer">Open new arrivals <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+
+      <div>
+        <div class="badge-density">Hover (forced)</div>
+        <a class="kpi-card inf-raised" href="#" tabindex="0" style="box-shadow: var(--elevation-3); transform: translateY(-1px);">
+          <div class="kpi-label">New this week</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-support">
+            <span class="kpi-delta up"><svg><use href="#i-up"/></svg>8%</span>
+            <span>vs last 7 days</span>
+          </div>
+          <div class="kpi-footer">Open new arrivals <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+
+      <div>
+        <div class="badge-density">Loading</div>
+        <div class="kpi-card inf-raised" aria-busy="true">
+          <div class="kpi-label">New this week</div>
+          <div class="sk" style="width: 64px; height: 32px; margin-bottom: var(--s-3);"></div>
+          <div class="sk" style="width: 120px; height: 14px; margin-bottom: var(--s-3);"></div>
+          <div class="sk" style="width: 90px; height: 12px;"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="badge-density">Focus-visible</div>
+        <a class="kpi-card inf-raised" href="#" tabindex="0" style="outline: var(--focus-ring); outline-offset: 3px;">
+          <div class="kpi-label">New this week</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-support">
+            <span class="kpi-delta up"><svg><use href="#i-up"/></svg>8%</span>
+            <span>vs last 7 days</span>
+          </div>
+          <div class="kpi-footer">Open new arrivals <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+    </div>
+
+    <div class="row states" style="margin-top: var(--s-4);">
+      <div>
+        <div class="badge-density">Empty</div>
+        <a class="kpi-card inf-raised" href="#" tabindex="0">
+          <div class="kpi-label">Total revenue</div>
+          <div class="kpi-value is-empty">—</div>
+          <div class="kpi-support"><span style="color: var(--text-disabled);">No billing data connected</span></div>
+          <div class="kpi-footer is-muted">Connect billing <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+
+      <div>
+        <div class="badge-density">Error</div>
+        <a class="kpi-card inf-raised" href="#" tabindex="0">
+          <div class="kpi-label">Unread signals</div>
+          <div class="kpi-value is-error">—</div>
+          <div class="kpi-error-note"><svg width="13" height="13"><use href="#i-alert"/></svg>Couldn't refresh · 4m ago</div>
+          <div class="kpi-footer">Retry <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+
+      <div>
+        <div class="badge-density">Compact density</div>
+        <a class="kpi-card inf-raised compact" href="#" tabindex="0">
+          <div class="kpi-label">New this week</div>
+          <div class="kpi-value">12</div>
+          <div class="kpi-support">
+            <span class="kpi-delta up"><svg><use href="#i-up"/></svg>8%</span>
+            <span>vs last 7 days</span>
+          </div>
+          <div class="kpi-footer">Open new arrivals <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+
+      <div>
+        <div class="badge-density">Compact · breakdown</div>
+        <a class="kpi-card inf-raised compact" href="#" tabindex="0">
+          <div class="kpi-label">Unread signals</div>
+          <div class="kpi-value">6</div>
+          <div class="kpi-support">
+            <span class="kpi-breakdown">
+              <span class="seg"><span class="dot" style="background:var(--primary)"></span>11 clinical</span>
+              <span class="seg"><span class="dot" style="background:var(--error)"></span>3 commercial</span>
+            </span>
+          </div>
+          <div class="kpi-footer">Open inbox <svg><use href="#i-arrow"/></svg></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>InForm — Market Weather</title>
+<meta name="viewport" content="width=1280">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page: #F4F3F0; --bg-elevated: #F8F7F4; --bg-sunken: #EDECEA;
+
+    --primary: #2A76F4; --primary-hover: #1E5FD1; --primary-pressed: #1A4FB0; --primary-tint: #D2E2FF;
+
+    --approved: #4F7A4F; --approved-text: #2F5530; --approved-tint: #D9E4D7;
+    --urgent: #C87F1F; --urgent-text: #7A4A0F; --urgent-tint: #F3E3CC;
+    --error: #B54040; --error-text: #7A2A2A; --error-tint: #F2DADA;
+    --info: #4A5A8C; --info-text: #38456B; --info-tint: #DDE1EC;
+
+    --text-primary: #1C1917; --text-secondary: #6B6560; --text-tertiary: #9D9690; --text-disabled: #C4BFB8;
+    --border-default: #D8D1C5; --divider: #E0D9CE;
+
+    --r-lg: 20px; --r-md: 14px; --r-sm: 10px; --r-pill: 999px;
+    --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+
+    --t-heading-sm: 15px; --t-body-sm: 13px; --t-caption: 12px; --t-micro: 10px; --ls-label: 0.06em;
+
+    --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-soft: rgba(170,155,130,0.18); --shadow-mid: rgba(170,155,130,0.28); --shadow-strong: rgba(170,155,130,0.38);
+    --highlight-soft: rgba(255,250,242,0.65); --highlight-mid: rgba(255,250,242,0.85);
+
+    --elevation-2: -4px -4px 12px var(--highlight-mid), 4px 4px 12px var(--shadow-mid);
+    --elevation-3: -6px -6px 16px var(--highlight-mid), 6px 6px 18px var(--shadow-strong);
+    --inset-1: inset 2px 2px 6px var(--shadow-mid), inset -2px -2px 6px var(--highlight-soft);
+
+    --focus-ring: 2px solid var(--primary);
+    --dur-fast: 120ms; --dur-base: 200ms; --ease-standard: cubic-bezier(0.4,0,0.2,1);
+  }
+
+  * { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+  *{ box-sizing: border-box; }
+  html, body{ margin: 0; }
+  body{
+    font-family: var(--font);
+    background: radial-gradient(ellipse at top left, #F8F5EC 0%, transparent 50%), radial-gradient(ellipse at bottom right, #EDE8DB 0%, transparent 50%), var(--bg-page);
+    color: var(--text-primary); padding: var(--s-6); min-height: 100vh;
+  }
+  a{ color: var(--primary); }
+  a:hover{ color: var(--primary-hover); }
+
+  .wrap{ max-width: 980px; margin: 0 auto; }
+  .hd{ margin-bottom: var(--s-6); }
+  .hd .eyebrow{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2); }
+  .hd h1{ font-size: 26px; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 var(--s-2); }
+  .hd p{ font-size: var(--t-body-sm); color: var(--text-secondary); max-width: 700px; line-height: 1.55; margin: 0; }
+
+  section.demo{ margin-bottom: var(--s-6); }
+  section.demo h2{ font-size: 15px; font-weight: 600; letter-spacing: -0.005em; margin: 0 0 var(--s-3); padding-bottom: var(--s-2); border-bottom: 1px solid var(--divider); }
+  section.demo .note{ font-size: var(--t-caption); color: var(--text-tertiary); margin: 0 0 var(--s-3); }
+  .badge-density{ display: inline-block; font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: var(--s-2); }
+
+  .row{ display: flex; gap: var(--s-4); flex-wrap: wrap; align-items: start; }
+  .grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+  .grid4{ display: grid; grid-template-columns: repeat(4,1fr); gap: var(--s-4); }
+
+  /* ============ Recipe R2 — emphasised raised (content surface) ============ */
+  .inf-raised-lg{
+    background: var(--bg-elevated);
+    box-shadow: var(--elevation-3);
+    border-radius: 8px;
+  }
+
+  /* ============ Market Weather card ============ */
+  .mw-card{
+    width: 360px;
+    padding: var(--s-5);
+    display: flex; flex-direction: column; gap: var(--s-4);
+  }
+  .mw-card.is-focusable{ outline: none; }
+  .mw-card.is-focusable:focus-visible{ outline: var(--focus-ring); outline-offset: 3px; }
+
+  .mw-header{ display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+  .mw-title-group{ display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+  .mw-title{ font-size: var(--t-heading-sm); font-weight: 600; color: var(--text-primary); margin: 0; white-space: nowrap; }
+  .mw-asset-chip{
+    font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: var(--r-sm);
+    background: var(--primary-tint); color: var(--primary-hover);
+    white-space: nowrap;
+  }
+  .mw-live-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--approved); flex-shrink: 0; }
+
+  .mw-timeframe{ display: inline-flex; gap: 2px; background: var(--bg-sunken); border-radius: var(--r-sm); padding: 3px; box-shadow: var(--inset-1); flex-shrink: 0; }
+  .mw-timeframe button{
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--text-secondary); padding: 5px 10px; border-radius: 7px;
+    transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+  }
+  .mw-timeframe button.active{ background: var(--bg-elevated); color: var(--primary); box-shadow: -2px -2px 6px var(--highlight-soft), 2px 2px 6px var(--shadow-soft); }
+  .mw-timeframe button:focus-visible{ outline: var(--focus-ring); outline-offset: 2px; }
+
+  .mw-state{ display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .mw-icon{ width: 22px; height: 22px; flex-shrink: 0; align-self: center; color: var(--state-color, var(--text-tertiary)); }
+  .mw-icon svg{ width: 100%; height: 100%; }
+  .mw-label{ font-size: 19px; font-weight: 700; letter-spacing: -0.01em; color: var(--state-color, var(--text-primary)); }
+  .mw-qualifier{ font-size: var(--t-body-sm); color: var(--text-tertiary); }
+
+  .mw-spark{ height: 26px; margin-top: -6px; }
+  .mw-spark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
+  .mw-spark polyline{ stroke: var(--state-color, var(--text-tertiary)); }
+
+  .mw-moved-label{ font-size: var(--t-micro); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-2); }
+  .mw-drivers{ display: flex; flex-direction: column; gap: 6px; }
+  .mw-driver{ font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.45; }
+  .mw-driver strong{ color: var(--text-primary); font-weight: 600; }
+
+  /* ---------- Part B — by competitor ---------- */
+  .mw-competitors{ display: flex; flex-direction: column; }
+  .mw-comp-row{
+    display: flex; flex-direction: column; gap: 4px;
+    padding: var(--s-3) var(--s-2); margin: 0 calc(-1 * var(--s-2));
+    border-top: 1px solid var(--divider); border-radius: 8px; cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-standard);
+  }
+  .mw-comp-row:first-child{ border-top: 0; }
+  .mw-comp-row:not(:first-child){ border-radius: 0; }
+  .mw-comp-row:hover, .mw-comp-row.force-hover{ background: var(--bg-sunken); }
+  .mw-comp-row:focus-visible{ outline: var(--focus-ring); outline-offset: -2px; }
+  .mw-comp-row.is-hidden{ display: none; }
+  .mw-comp-top{ display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+  .mw-comp-left{ display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .mw-comp-badge{
+    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--primary), #6FA0F8);
+  }
+  .mw-comp-name{ font-size: var(--t-body-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mw-comp-right{ display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .mw-comp-count{ font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .mw-comp-dot{ width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .mw-comp-dot.sev-high{ background: var(--error); }
+  .mw-comp-dot.sev-med{ background: var(--urgent); }
+  .mw-comp-dot.sev-low{ background: var(--info); }
+  .mw-comp-implication{ font-size: var(--t-body-sm); color: var(--text-secondary); line-height: 1.45; margin-left: 32px; }
+  .mw-show-all{
+    align-self: flex-start; background: none; border: 0; cursor: pointer;
+    font-family: var(--font); font-size: var(--t-caption); font-weight: 600; color: var(--primary);
+    padding: 6px 2px 0;
+  }
+  .mw-show-all:hover{ color: var(--primary-hover); text-decoration: underline; }
+
+  /* ---------- Section B — implications callout ---------- */
+  .mw-callout{
+    background: var(--primary-tint); border-left: 0 solid var(--primary);
+    border-radius: var(--r-md); padding: var(--s-3) var(--s-4);
+    font-size: var(--t-body-sm); color: var(--text-primary); line-height: 1.55;
+    transition: border-left-width var(--dur-fast) var(--ease-standard), padding var(--dur-fast) var(--ease-standard);
+  }
+  .mw-callout.accent-bar{ border-left-width: 3px; }
+  .mw-callout p{ margin: 0; }
+
+  .mw-footer{ font-size: var(--t-caption); font-weight: 500; color: var(--primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .mw-footer:hover{ color: var(--primary-hover); text-decoration: underline; }
+
+  .mw-card.compact .mw-spark{ display: none; }
+  .mw-part-b + .mw-part-b{ margin-top: 0; }
+
+  .mw-empty{ text-align: center; padding: var(--s-4) 0 var(--s-2); }
+  .mw-empty p{ font-size: var(--t-body-sm); color: var(--text-tertiary); margin: 0; line-height: 1.5; }
+
+  /* Skeleton */
+  .sk{ border-radius: 6px; background: linear-gradient(90deg, var(--bg-sunken), var(--border-default), var(--bg-sunken)); background-size: 200% 100%; animation: sk-shimmer 1.3s ease-in-out infinite; }
+  @keyframes sk-shimmer{ 0%{ background-position: 200% 0; } 100%{ background-position: -200% 0; } }
+
+  .cell-label{ font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--s-3); }
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-clearing" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-steady" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pressure" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-storm" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <div class="hd">
+    <div class="eyebrow">InForm · Component</div>
+    <h1>Market Weather</h1>
+    <p>State (mood) → Section A: what moved this week, per competitor (evidence) → Section B: one synthesized implication for the client (conclusion). A is many factual rows; B is a single indigo-accented takeaway — never scattered per competitor. Content surface: neumorphic R2 (emphasised raised), never glass.</p>
+  </div>
+
+  <!-- ============ DEFAULT — interactive + tweakable ============ -->
+  <section class="demo">
+    <h2>Default — Ekterly, timeframe toggle re-reads the state</h2>
+    <p class="note">Click 30D / 90D — the weather state, color, qualifier and both payload sections update together. Use the Tweaks panel to adjust the implications callout, density and sparkline.</p>
+    <div id="mwLiveRoot"></div>
+  </section>
+
+  <!-- ============ WEATHER STATES ============ -->
+  <section class="demo">
+    <h2>Weather states</h2>
+    <p class="note">Direction relative to our asset. The metaphor reads faster than a number and sets tone before the detail.</p>
+    <div class="grid4">
+      <div class="mw-card inf-raised-lg" style="width:auto;">
+        <div class="cell-label">Clearing</div>
+        <div class="mw-state" style="--state-color: var(--approved);">
+          <span class="mw-icon"><svg><use href="#i-clearing"/></svg></span>
+          <span class="mw-label">Clearing</span>
+        </div>
+        <div class="mw-qualifier">tailwinds building · 30D</div>
+      </div>
+      <div class="mw-card inf-raised-lg" style="width:auto;">
+        <div class="cell-label">Stable</div>
+        <div class="mw-state" style="--state-color: var(--info);">
+          <span class="mw-icon"><svg><use href="#i-steady"/></svg></span>
+          <span class="mw-label">Holding steady</span>
+        </div>
+        <div class="mw-qualifier">no material shift · 30D</div>
+      </div>
+      <div class="mw-card inf-raised-lg" style="width:auto;">
+        <div class="cell-label">Pressure building</div>
+        <div class="mw-state" style="--state-color: var(--urgent);">
+          <span class="mw-icon"><svg><use href="#i-pressure"/></svg></span>
+          <span class="mw-label">Pressure building</span>
+        </div>
+        <div class="mw-qualifier">over the last 30 days</div>
+      </div>
+      <div class="mw-card inf-raised-lg" style="width:auto;">
+        <div class="cell-label">Storm warning</div>
+        <div class="mw-state" style="--state-color: var(--error);">
+          <span class="mw-icon"><svg><use href="#i-storm"/></svg></span>
+          <span class="mw-label">Storm warning</span>
+        </div>
+        <div class="mw-qualifier">acute threat · 30D</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DENSITY ============ -->
+  <section class="demo">
+    <h2>Density</h2>
+    <div class="row">
+      <div>
+        <div class="badge-density">Comfortable</div>
+        <div class="mw-card inf-raised-lg">
+          <div class="mw-header">
+            <div class="mw-title-group">
+              <h3 class="mw-title">Market weather</h3>
+              <span class="mw-asset-chip">Ekterly</span>
+              <span class="mw-live-dot" title="Live data"></span>
+            </div>
+            <div class="mw-timeframe" role="tablist" aria-label="Timeframe">
+              <button class="active">30D</button>
+              <button>90D</button>
+            </div>
+          </div>
+          <div class="mw-state" style="--state-color: var(--urgent);">
+            <span class="mw-icon"><svg><use href="#i-pressure"/></svg></span>
+            <span class="mw-label">Pressure building</span>
+            <span class="mw-qualifier">over the last 30 days</span>
+          </div>
+          <div class="mw-part-b">
+            <div class="mw-moved-label">What moved this week</div>
+            <div class="mw-competitors">
+              <div class="mw-comp-row" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">PH</div><div class="mw-comp-name">Pharvaris</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">12 signals</span><span class="mw-comp-dot sev-high"></span></div>
+                </div>
+                <div class="mw-comp-implication">NDA accepted for deucrictibant, PDUFA set; differentiated data at EAACI 2026.</div>
+              </div>
+              <div class="mw-comp-row" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">BX</div><div class="mw-comp-name">BioCryst</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">8 signals</span><span class="mw-comp-dot sev-med"></span></div>
+                </div>
+                <div class="mw-comp-implication">Q2 earnings: Orladeyo revenue up 42% YoY, guidance raised.</div>
+              </div>
+              <div class="mw-comp-row" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">TK</div><div class="mw-comp-name">Takeda</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">5 signals</span><span class="mw-comp-dot sev-low"></span></div>
+                </div>
+                <div class="mw-comp-implication">Real-world evidence defending Takhzyro; no new launches.</div>
+              </div>
+            </div>
+          </div>
+          <div class="mw-part-b">
+            <div class="mw-moved-label">Implications</div>
+            <div class="mw-callout"><p>On-demand oral competition is intensifying. Pharvaris' NDA acceptance and differentiated profile put near-term pressure on Ekterly's on-demand positioning, while BioCryst's revenue momentum raises prophylaxis-switching risk. Prioritize the efficacy/safety comparison vs deucrictibant and brief field teams on Orladeyo's trajectory.</p></div>
+          </div>
+          <a class="mw-footer" href="#" onclick="return false;">Read full assessment →</a>
+        </div>
+      </div>
+      <div>
+        <div class="badge-density">Compact</div>
+        <div class="mw-card inf-raised-lg compact">
+          <div class="mw-header">
+            <div class="mw-title-group">
+              <h3 class="mw-title">Market weather</h3>
+              <span class="mw-asset-chip">Ekterly</span>
+              <span class="mw-live-dot" title="Live data"></span>
+            </div>
+            <div class="mw-timeframe" role="tablist" aria-label="Timeframe">
+              <button class="active">30D</button>
+              <button>90D</button>
+            </div>
+          </div>
+          <div class="mw-state" style="--state-color: var(--urgent);">
+            <span class="mw-icon"><svg><use href="#i-pressure"/></svg></span>
+            <span class="mw-label">Pressure building</span>
+            <span class="mw-qualifier">over the last 30 days</span>
+          </div>
+          <div class="mw-part-b">
+            <div class="mw-moved-label">What moved this week</div>
+            <div class="mw-competitors" id="mwCompactRows">
+              <div class="mw-comp-row" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">PH</div><div class="mw-comp-name">Pharvaris</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">12 signals</span><span class="mw-comp-dot sev-high"></span></div>
+                </div>
+                <div class="mw-comp-implication">NDA accepted for deucrictibant, PDUFA set; differentiated data at EAACI 2026.</div>
+              </div>
+              <div class="mw-comp-row" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">BX</div><div class="mw-comp-name">BioCryst</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">8 signals</span><span class="mw-comp-dot sev-med"></span></div>
+                </div>
+                <div class="mw-comp-implication">Q2 earnings: Orladeyo revenue up 42% YoY, guidance raised.</div>
+              </div>
+              <div class="mw-comp-row is-hidden" tabindex="0">
+                <div class="mw-comp-top">
+                  <div class="mw-comp-left"><div class="mw-comp-badge">TK</div><div class="mw-comp-name">Takeda</div></div>
+                  <div class="mw-comp-right"><span class="mw-comp-count">5 signals</span><span class="mw-comp-dot sev-low"></span></div>
+                </div>
+                <div class="mw-comp-implication">Real-world evidence defending Takhzyro; no new launches.</div>
+              </div>
+            </div>
+            <button class="mw-show-all" id="mwShowAll">Show all (3)</button>
+          </div>
+          <div class="mw-part-b">
+            <div class="mw-moved-label">Implications</div>
+            <div class="mw-callout"><p>On-demand oral competition is intensifying. Pharvaris' NDA acceptance and differentiated profile put near-term pressure on Ekterly's on-demand positioning, while BioCryst's revenue momentum raises prophylaxis-switching risk. Prioritize the efficacy/safety comparison vs deucrictibant and brief field teams on Orladeyo's trajectory.</p></div>
+          </div>
+          <a class="mw-footer" href="#" onclick="return false;">Read full assessment →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATES: loading / empty / focus ============ -->
+  <section class="demo">
+    <h2>Loading · empty · focus-visible</h2>
+    <div class="grid2">
+      <div>
+        <div class="badge-density">Loading</div>
+        <div class="mw-card inf-raised-lg" aria-busy="true">
+          <div class="mw-header">
+            <div class="sk" style="width: 120px; height: 16px;"></div>
+            <div class="sk" style="width: 70px; height: 22px; border-radius: var(--r-sm);"></div>
+          </div>
+          <div class="sk" style="width: 70%; height: 22px;"></div>
+          <div class="sk" style="width: 100px; height: 10px; margin: 6px 0 2px;"></div>
+          <div class="sk" style="width: 100%; height: 34px; border-radius: 8px;"></div>
+          <div class="sk" style="width: 100%; height: 34px; border-radius: 8px;"></div>
+          <div class="sk" style="width: 100%; height: 34px; border-radius: 8px;"></div>
+          <div class="sk" style="width: 100px; height: 10px; margin: 6px 0 2px;"></div>
+          <div class="sk" style="width: 100%; height: 56px; border-radius: var(--r-md);"></div>
+        </div>
+      </div>
+      <div>
+        <div class="badge-density">Empty</div>
+        <div class="mw-card inf-raised-lg">
+          <div class="mw-header">
+            <div class="mw-title-group">
+              <h3 class="mw-title">Market weather</h3>
+              <span class="mw-asset-chip">Ekterly</span>
+            </div>
+            <div class="mw-timeframe" role="tablist" aria-label="Timeframe">
+              <button class="active">30D</button>
+              <button>90D</button>
+            </div>
+          </div>
+          <div class="mw-empty">
+            <p>Not enough signal yet — check back as data builds.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="badge-density">Focus-visible (timeframe toggle)</div>
+        <div class="mw-card inf-raised-lg">
+          <div class="mw-header">
+            <div class="mw-title-group">
+              <h3 class="mw-title">Market weather</h3>
+              <span class="mw-asset-chip">Ekterly</span>
+              <span class="mw-live-dot" title="Live data"></span>
+            </div>
+            <div class="mw-timeframe" role="tablist" aria-label="Timeframe">
+              <button class="active" style="outline: var(--focus-ring); outline-offset: 2px;">30D</button>
+              <button>90D</button>
+            </div>
+          </div>
+          <div class="mw-state" style="--state-color: var(--urgent);">
+            <span class="mw-icon"><svg><use href="#i-pressure"/></svg></span>
+            <span class="mw-label">Pressure building</span>
+            <span class="mw-qualifier">over the last 30 days</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="badge-density">Focus-visible (footer link)</div>
+        <div class="mw-card inf-raised-lg">
+          <div class="mw-header">
+            <div class="mw-title-group">
+              <h3 class="mw-title">Market weather</h3>
+              <span class="mw-asset-chip">Ekterly</span>
+              <span class="mw-live-dot" title="Live data"></span>
+            </div>
+          </div>
+          <div class="mw-state" style="--state-color: var(--approved);">
+            <span class="mw-icon"><svg><use href="#i-clearing"/></svg></span>
+            <span class="mw-label">Clearing</span>
+            <span class="mw-qualifier">over the last 90 days</span>
+          </div>
+          <a class="mw-footer" href="#" onclick="return false;" style="outline: var(--focus-ring); outline-offset: 3px; border-radius: 4px;">Read full assessment →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROW HOVER ============ -->
+  <section class="demo">
+    <h2>Competitor row — hover</h2>
+    <p class="note">Hover tints the row --bg-sunken; click drills into that competitor's signals. Rows order by severity/activity, not alphabetically.</p>
+    <div class="mw-card inf-raised-lg">
+      <div class="mw-part-b">
+        <div class="mw-moved-label">What moved this week</div>
+        <div class="mw-competitors">
+          <div class="mw-comp-row force-hover" tabindex="0">
+            <div class="mw-comp-top">
+              <div class="mw-comp-left"><div class="mw-comp-badge">PH</div><div class="mw-comp-name">Pharvaris</div></div>
+              <div class="mw-comp-right"><span class="mw-comp-count">12 signals</span><span class="mw-comp-dot sev-high"></span></div>
+            </div>
+            <div class="mw-comp-implication">NDA accepted for deucrictibant, PDUFA set; differentiated data at EAACI 2026.</div>
+          </div>
+          <div class="mw-comp-row" tabindex="0">
+            <div class="mw-comp-top">
+              <div class="mw-comp-left"><div class="mw-comp-badge">BX</div><div class="mw-comp-name">BioCryst</div></div>
+              <div class="mw-comp-right"><span class="mw-comp-count">8 signals</span><span class="mw-comp-dot sev-med"></span></div>
+            </div>
+            <div class="mw-comp-implication">Q2 earnings: Orladeyo revenue up 42% YoY, guidance raised.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+  const MW_READS = {
+    '30D': {
+      icon: 'i-pressure', color: 'var(--urgent)', label: 'Pressure building',
+      qualifier: 'over the last 30 days',
+      competitors: [
+        { badge: 'PH', name: 'Pharvaris', count: '12 signals', sev: 'sev-high', summary: 'NDA accepted for deucrictibant, PDUFA set; differentiated data at EAACI 2026.' },
+        { badge: 'BX', name: 'BioCryst', count: '8 signals', sev: 'sev-med', summary: 'Q2 earnings: Orladeyo revenue up 42% YoY, guidance raised.' },
+        { badge: 'TK', name: 'Takeda', count: '5 signals', sev: 'sev-low', summary: 'Real-world evidence defending Takhzyro; no new launches.' }
+      ],
+      implication: "On-demand oral competition is intensifying. Pharvaris' NDA acceptance and differentiated profile put near-term pressure on Ekterly's on-demand positioning, while BioCryst's revenue momentum raises prophylaxis-switching risk. Prioritize the efficacy/safety comparison vs deucrictibant and brief field teams on Orladeyo's trajectory."
+    },
+    '90D': {
+      icon: 'i-steady', color: 'var(--info)', label: 'Holding steady',
+      qualifier: 'over the last 90 days',
+      competitors: [
+        { badge: 'PH', name: 'Pharvaris', count: '34 signals', sev: 'sev-high', summary: 'NDA process progressing toward PDUFA; differentiated profile reinforced since EAACI.' },
+        { badge: 'BX', name: 'BioCryst', count: '21 signals', sev: 'sev-med', summary: 'Orladeyo growth sustained across two quarters; guidance raised twice.' },
+        { badge: 'TK', name: 'Takeda', count: '14 signals', sev: 'sev-low', summary: 'Real-world Takhzyro data published; no new launches or label changes.' }
+      ],
+      implication: "Competitive intensity has eased from acute to steady. Pharvaris' NDA timeline and BioCryst's sustained Orladeyo growth remain the key threats to monitor, but no new catalysts emerged this quarter. Maintain current positioning and revisit once the PDUFA date firms up."
+    }
+  };
+
+  function MarketWeatherLive({ t }) {
+    const [tf, setTf] = React.useState('30D');
+    const r = MW_READS[tf];
+    return (
+      <div className={"mw-card inf-raised-lg is-focusable" + (t.density === 'compact' ? ' compact' : '')} tabIndex="0" style={{ '--state-color': r.color }}>
+        <div className="mw-header">
+          <div className="mw-title-group">
+            <h3 className="mw-title">Market weather</h3>
+            <span className="mw-asset-chip">Ekterly</span>
+            <span className="mw-live-dot" title="Live data"></span>
+          </div>
+          <div className="mw-timeframe" role="tablist" aria-label="Timeframe">
+            <button className={tf === '30D' ? 'active' : ''} role="tab" aria-selected={tf === '30D'} onClick={() => setTf('30D')}>30D</button>
+            <button className={tf === '90D' ? 'active' : ''} role="tab" aria-selected={tf === '90D'} onClick={() => setTf('90D')}>90D</button>
+          </div>
+        </div>
+        <div className="mw-state">
+          <span className="mw-icon"><svg><use href={"#" + r.icon}/></svg></span>
+          <span className="mw-label">{r.label}</span>
+          <span className="mw-qualifier">{r.qualifier}</span>
+        </div>
+        {t.showSpark && (
+          <div className="mw-spark">
+            <svg viewBox="0 0 200 26" preserveAspectRatio="none">
+              <polyline points="0,4 25,7 50,6 75,12 100,11 125,17 150,16 175,22 200,21" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
+        <div className="mw-part-b">
+          <div className="mw-moved-label">What moved this week</div>
+          <div className="mw-competitors">
+            {r.competitors.map(c => (
+              <div className="mw-comp-row" tabIndex="0" key={c.badge}>
+                <div className="mw-comp-top">
+                  <div className="mw-comp-left"><div className="mw-comp-badge">{c.badge}</div><div className="mw-comp-name">{c.name}</div></div>
+                  <div className="mw-comp-right"><span className="mw-comp-count">{c.count}</span><span className={"mw-comp-dot " + c.sev}></span></div>
+                </div>
+                <div className="mw-comp-implication">{c.summary}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mw-part-b">
+          <div className="mw-moved-label">Implications</div>
+          <div className={"mw-callout" + (t.accentBar ? ' accent-bar' : '')}><p>{r.implication}</p></div>
+        </div>
+        <a className="mw-footer" href="#" onClick={e => e.preventDefault()}>Read full assessment →</a>
+      </div>
+    );
+  }
+
+  function MarketWeatherApp() {
+    const [t, setTweak] = useTweaks({ accentBar: false, density: 'comfortable', showSpark: true });
+    return (
+      <React.Fragment>
+        <MarketWeatherLive t={t} />
+        <TweaksPanel>
+          <TweakSection label="Implications" />
+          <TweakToggle label="Accent bar" value={t.accentBar} onChange={v => setTweak('accentBar', v)} />
+          <TweakSection label="Layout" />
+          <TweakRadio label="Density" value={t.density} options={['comfortable', 'compact']} onChange={v => setTweak('density', v)} />
+          <TweakToggle label="Show sparkline" value={t.showSpark} onChange={v => setTweak('showSpark', v)} />
+        </TweaksPanel>
+      </React.Fragment>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('mwLiveRoot')).render(<MarketWeatherApp />);
+</script>
+<script>
+  const showAllBtn = document.getElementById('mwShowAll');
+  showAllBtn.addEventListener('click', () => {
+    document.getElementById('mwCompactRows').querySelectorAll('.is-hidden').forEach(r => r.classList.remove('is-hidden'));
+    showAllBtn.remove();
+  });
+</script>
+</body>
+</html>
