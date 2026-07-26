@@ -80,8 +80,14 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
     competitorId: s.competitor_id,
     type:         SIGNAL_TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     SIGNAL_SEVERITY_MAP[s.signal_type] ?? 'low',
-    headline:     s.headline ?? s.accession_number,
-    whatHappened: s.body_excerpt ?? null,
+    // clean_headline is the synthesized title (never a filename); s.headline is the
+    // deterministically-normalized fallback from ingestion. accession_number is a raw
+    // filing ID and must never render as a headline.
+    headline:     s.clean_headline ?? s.headline ?? 'Untitled signal',
+    // what_changed is the synthesized neutral summary. body_excerpt is raw source text —
+    // it stays out of the primary summary and is only surfaced via labelDiff below,
+    // which the UI already treats as an opt-in "inspect the change" affordance.
+    whatHappened: s.what_changed ?? null,
     whyItMatters: s.why_it_matters ?? null,
     source:       SIGNAL_SOURCE_MAP[s.signal_type] ?? null,
     labelDiff:    hasDiff ? { previous: null, current: s.body_excerpt! } : null,

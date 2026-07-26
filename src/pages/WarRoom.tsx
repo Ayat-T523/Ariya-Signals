@@ -25,7 +25,6 @@ import {
   eventsData,
   userData,
 } from '../data/kalvista'
-import { DEMO } from '../config/demo-config'
 import {
   getAllSignalsSummary,
   getRegulatoryCalendar,
@@ -171,25 +170,6 @@ function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'hig
        : 'low'
 }
 
-function buildWhyItMatters(s: DbRecentSignal, competitorName: string, assetName: string, indication: string): string {
-  if (s.why_it_matters) return s.why_it_matters
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  switch (s.signal_type) {
-    case 'deal':
-      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
-    case 'exec_change':
-      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
-    case 'press_release':
-      if (CLINICAL_KW.test(text))
-        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
-      if (COMMERCIAL_KW.test(text))
-        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
-      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
-    default:
-      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
-  }
-}
-
 function buildSourceLabel(url: string | null, signalType: string): string {
   if (!url) return 'SEC EDGAR'
   if (url.includes('sec.gov')) {
@@ -221,7 +201,7 @@ type Alert = {
   type: string
   severity: string
   headline: string
-  whyItMatters?: string
+  whyItMatters?: string | null
   source?: string
   sourceUrl?: string | null
 }
@@ -236,7 +216,7 @@ type LiveSignalDisplayItem = {
   type: string
   severity: 'high' | 'medium' | 'low'
   headline: string
-  whyItMatters: string
+  whyItMatters: string | null
   source: string
   sourceUrl: string | null
   _isLive: true
@@ -314,14 +294,12 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
 
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
+function mapDbSignalToDisplay(s: DbRecentSignal, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
   const TYPE_MAP: Record<string, string> = {
     deal:          'deal',
     press_release: 'publication',
     exec_change:   'exec-move',
   }
-  const competitor = competitorById(s.competitor_id)
-  const competitorName = competitor?.name ?? s.competitor_id
   return {
     id:           `live-${s.id}`,
     timestamp:    s.date ? `${s.date}T00:00:00Z` : new Date().toISOString(),
@@ -329,7 +307,7 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
-    whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
+    whyItMatters: s.why_it_matters ?? null,
     source:       buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
     _isLive:      true,
@@ -906,7 +884,7 @@ export default function WarRoom() {
   )
 
   // Top 5 alerts — relevant live signals only
-  const liveDisplayItems = relevantSignals.map(s => mapDbSignalToDisplay(s, assetName, indication, lexicon))
+  const liveDisplayItems = relevantSignals.map(s => mapDbSignalToDisplay(s, lexicon))
 
   const topAlerts = (liveDisplayItems as unknown as Alert[])
     .sort((a, b) => {
