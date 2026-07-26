@@ -974,6 +974,15 @@
    standalone --bg-*/--primary/--text-* names or its outdated teal accent.
    ========================================================== */
 
+/* ---------- Shared neumorphic recipes (R1 / R2) ---------- */
+/* Named to match the reference-kit convention. Individual components below
+   mostly write their own background/shadow/radius directly (so a hover state
+   can change just the shadow); these two are for plain containers like
+   DigestFeed's plate and MarketWeather's card that do not need their own
+   hover recipe. */
+.inf-raised { background: var(--cream-100); box-shadow: var(--neu-raised); border-radius: var(--r-lg); }
+.inf-raised-lg { background: var(--cream-100); box-shadow: var(--neu-raised-strong); border-radius: var(--r-lg); }
+
 /* ---------- KPI Card ---------- */
 .kpi-card {
   display: flex; flex-direction: column; gap: var(--s-3);
@@ -1102,3 +1111,42 @@
 }
 .signal-excerpt-why { font-size: 13px; color: var(--ink-700); line-height: 1.5; margin: 0; }
 .signal-excerpt-why strong { color: var(--indigo-500); font-weight: 700; letter-spacing: 0.02em; font-style: normal; }
+
+/* ---------- Digest Feed (Variant A -- grouped by competitor) ---------- */
+/* Fewest boxes: one plate holds every group; entries are hairline rows,
+   not individually-elevated cards (that treatment is Signal Card, above). */
+.digest-plate { padding: 0; overflow: hidden; }
+.digest-group + .digest-group { border-top: 1px solid var(--cream-300); }
+.digest-group-hd { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-4) var(--s-5) var(--s-3); }
+.digest-group-hd .name { font-size: 14px; font-weight: 700; color: var(--ink-900); font-family: var(--font-ui); }
+.digest-group-hd .count { font-size: 12px; color: var(--ink-500); margin-left: 2px; font-family: var(--font-ui); }
+
+.digest-row {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-2) var(--s-5);
+  border-top: 1px solid var(--cream-300);
+  border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+  background: none; width: 100%; text-align: left; cursor: pointer; font-family: var(--font-ui);
+  outline: none;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.digest-row:hover { background: var(--cream-50); }
+.digest-row:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+.digest-row .headline {
+  flex: 1; min-width: 0; font-size: 14px; color: var(--ink-900);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.digest-row .row-meta { flex-shrink: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-700); white-space: nowrap; }
+.digest-row .row-meta .time { font-family: var(--font-mono); }
+
+.digest-expand-wrap { padding: 0 var(--s-5); max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard); }
+.digest-expand-wrap.is-open { max-height: 200px; padding-bottom: var(--s-2); }
+.digest-expand-wrap .signal-excerpt { margin-bottom: var(--s-2); }
+
+.digest-footer {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  background: none; border: 0; padding: var(--s-2) var(--s-5); cursor: pointer;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--indigo-500);
+  text-decoration: none;
+}
+.digest-footer:hover { color: var(--indigo-600); }
