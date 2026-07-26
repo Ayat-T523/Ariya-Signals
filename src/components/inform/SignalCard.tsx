@@ -1,7 +1,7 @@
 // InForm — Signal Card (per docs/design/component-references/Signal Card.html).
 // X-Card anatomy on InForm's neumorphic shell: three facts at rest (author,
 // headline, meta); excerpt + WHY reveal as a nested pressed sub-card on expand.
-import { useState, type KeyboardEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { ExternalLink, ChevronDown } from 'lucide-react'
 import CompetitorBadge from '../ui/CompetitorBadge'
 import { SeverityTag, severityColor } from './primitives'
@@ -13,7 +13,15 @@ export function SignalCard({ signal, compact = false, forceHover = false }: {
   forceHover?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [excerptHeight, setExcerptHeight] = useState(0)
+  const excerptRef = useRef<HTMLDivElement>(null)
   const canExpand = !compact && !!(signal.excerpt || signal.why)
+
+  // Measure after the DOM actually commits, not during render (reading
+  // scrollHeight mid-render returned a stale value from before this toggle).
+  useLayoutEffect(() => {
+    if (expanded && excerptRef.current) setExcerptHeight(excerptRef.current.scrollHeight)
+  }, [expanded])
 
   function toggle() {
     if (canExpand) setExpanded(v => !v)
@@ -64,8 +72,8 @@ export function SignalCard({ signal, compact = false, forceHover = false }: {
       </div>
 
       {canExpand && (
-        <div className="signal-excerpt-wrap">
-          <div className="signal-excerpt">
+        <div className="signal-excerpt-wrap" style={{ maxHeight: expanded ? `${excerptHeight}px` : '0px' }}>
+          <div className="signal-excerpt" ref={excerptRef}>
             {signal.excerpt && <p className="signal-excerpt-quote">&ldquo;{signal.excerpt}&rdquo;</p>}
             {signal.why && <p className="signal-excerpt-why"><strong>WHY — </strong>{signal.why}</p>}
           </div>

@@ -1100,8 +1100,16 @@
 .signal-card.is-expanded .signal-expand svg { transform: rotate(180deg); }
 .signal-card.compact .signal-expand { display: none; }
 
-.signal-excerpt-wrap { max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard), margin var(--dur-base) var(--ease-standard); }
-.signal-card.is-expanded .signal-excerpt-wrap { max-height: 200px; margin-top: var(--s-3); }
+/* max-height transition, not the grid-template-rows 0fr/1fr trick: tried that
+   first (avoids animating a layout property) but verified in the browser that
+   the transition gets permanently stuck at 0px on the real element -- a fresh
+   clone with the same classes resolves fine, so it is specifically the
+   transition that breaks, not the static rule. max-height is a real,
+   long-proven pattern; the max-height value itself is set from the SignalCard
+   component's own measured scrollHeight (see SignalCard.tsx), not a guessed
+   constant, so it never clips a longer excerpt/WHY. */
+.signal-excerpt-wrap { max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard); }
+.signal-card.is-expanded .signal-excerpt-wrap { margin-top: var(--s-3); }
 .signal-excerpt {
   background: var(--cream-50); box-shadow: var(--neu-inset); border-radius: var(--r-sm); padding: var(--s-3);
 }
@@ -1139,8 +1147,10 @@
 .digest-row .row-meta { flex-shrink: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-700); white-space: nowrap; }
 .digest-row .row-meta .time { font-family: var(--font-mono); }
 
+/* Same max-height approach as .signal-excerpt-wrap, see its comment above --
+   measured scrollHeight from DigestFeed.tsx, not a guessed constant. */
 .digest-expand-wrap { padding: 0 var(--s-5); max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard); }
-.digest-expand-wrap.is-open { max-height: 200px; padding-bottom: var(--s-2); }
+.digest-expand-wrap.is-open { padding-bottom: var(--s-2); }
 .digest-expand-wrap .signal-excerpt { margin-bottom: var(--s-2); }
 
 .digest-footer {
