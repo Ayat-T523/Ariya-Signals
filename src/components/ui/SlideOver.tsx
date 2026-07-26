@@ -81,7 +81,7 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   padding: '6px', borderRadius: '6px',
-                  color: 'rgba(5,10,68,0.40)',
+                  color: 'var(--ink-600)',
                   display: 'flex', alignItems: 'center',
                 }}
               >

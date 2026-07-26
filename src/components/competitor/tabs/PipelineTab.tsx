@@ -531,7 +531,7 @@ function TrialDesignSection({ asset }) {
         <div style={{ padding: '4px 14px 14px', borderTop: '1px solid rgba(5,10,68,0.07)' }}>
           {asset.trialDesignSummary && (
             <div style={{ marginBottom: '14px' }}>
-              <p style={{ margin: '10px 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+              <p style={{ margin: '10px 0 6px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
                 Trial design summary
               </p>
               <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.65', color: 'rgba(5,10,68,0.70)' }}>
@@ -613,7 +613,7 @@ function AssetCard({ asset, competitorId }) {
       <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.4' }}>
         {asset.mechanism}
         {asset.roa && (
-          <> · <span style={{ fontWeight: 600, color: 'rgba(5,10,68,0.40)' }}>RoA</span> {asset.roa}</>
+          <> · <span style={{ fontWeight: 600, color: 'var(--ink-600)' }}>RoA</span> {asset.roa}</>
         )}
       </p>
 

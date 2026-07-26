@@ -73,7 +73,7 @@ export default function MyDocuments() {
             <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>
               Indexed documents
             </h2>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--ink-600)' }}>
               3 documents · illustrative
             </p>
           </div>
@@ -114,7 +114,7 @@ export default function MyDocuments() {
                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.88)', lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {doc.name}
                 </p>
-                <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--ink-600)' }}>
                   {doc.date} · {doc.size}
                 </p>
               </div>
@@ -155,19 +155,19 @@ export default function MyDocuments() {
           background: 'rgba(5,10,68,0.06)', margin: '0 auto 12px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Upload size={20} color="rgba(5,10,68,0.35)" />
+          <Upload size={20} color="var(--ink-600)" />
         </div>
         <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.55)' }}>
           Upload a PDF, Word, PowerPoint, or Excel file
         </p>
-        <p style={{ margin: '0 0 16px', fontSize: '12px', color: 'rgba(5,10,68,0.38)' }}>
+        <p style={{ margin: '0 0 16px', fontSize: '12px', color: 'var(--ink-600)' }}>
           Up to 50 MB · Your documents are private and never shared
         </p>
         <span style={{
           display: 'inline-block',
           padding: '5px 14px', borderRadius: '8px',
           fontSize: '12px', fontWeight: 500,
-          background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.40)',
+          background: 'rgba(5,10,68,0.06)', color: 'var(--ink-600)',
           cursor: 'not-allowed',
         }}>
           Document upload is available in the full product

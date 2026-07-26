@@ -58,13 +58,13 @@ function EventCard({ event }) {
           }}>
             {cfg.label}
           </span>
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)' }}>·</span>
+          <span style={{ fontSize: '11px', color: 'var(--ink-600)' }}>·</span>
           <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.45)' }}>
             {formatDateAbs(event.date)}
           </span>
           {event.source && (
             <>
-              <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)' }}>·</span>
+              <span style={{ fontSize: '11px', color: 'var(--ink-600)' }}>·</span>
               <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>
                 {event.source}
               </span>

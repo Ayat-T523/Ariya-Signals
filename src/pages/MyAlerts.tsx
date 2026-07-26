@@ -50,7 +50,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
       margin: '0 0 8px',
       fontSize: '11px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'rgba(5,10,68,0.40)',
+      color: 'var(--ink-600)',
     }}>
       {children}
     </p>
@@ -144,7 +144,7 @@ export default function MyAlerts() {
             borderRadius: '8px',
             cursor: 'default',
           }}>
-            <Mail size={15} color="rgba(5,10,68,0.40)" strokeWidth={1.5} />
+            <Mail size={15} color="var(--ink-600)" strokeWidth={1.5} />
             <span style={{
               flex: 1,
               fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
@@ -152,7 +152,7 @@ export default function MyAlerts() {
             }}>
               Weekly digest — Monday 07:00 — Email
             </span>
-            <ChevronDown size={15} color="rgba(5,10,68,0.35)" strokeWidth={1.5} />
+            <ChevronDown size={15} color="var(--ink-600)" strokeWidth={1.5} />
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export default function MyAlerts() {
             border: '1px solid rgba(210,226,255,1)',
             borderRadius: '8px',
           }}>
-            <Bell size={15} color="rgba(5,10,68,0.40)" strokeWidth={1.5} />
+            <Bell size={15} color="var(--ink-600)" strokeWidth={1.5} />
             <span style={{
               flex: 1,
               fontSize: '14px', fontFamily: 'Satoshi, sans-serif',

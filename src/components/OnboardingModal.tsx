@@ -295,7 +295,7 @@ export default function OnboardingModal() {
   const indicationHeadingStyle: React.CSSProperties = {
     margin: '4px 0 0',
     fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
-    letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)',
+    letterSpacing: '0.08em', color: 'var(--ink-600)',
   }
 
   // Renders a static ASSETS_CONFIG card (used in browse mode and fallback)
@@ -434,7 +434,7 @@ export default function OnboardingModal() {
             {showLive ? (
               loading ? (
                 <div style={{ padding: '24px 0', textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.40)' }}>
+                  <p style={{ margin: 0, fontSize: '14px', color: 'var(--ink-600)' }}>
                     Searching ChEMBL…
                   </p>
                 </div>
@@ -520,7 +520,7 @@ export default function OnboardingModal() {
                               {hit.inn}
                             </p>
                             {hit.max_phase !== null && (
-                              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+                              <p style={{ margin: 0, fontSize: '12px', color: 'var(--ink-600)' }}>
                                 Phase {hit.max_phase}
                               </p>
                             )}
@@ -609,7 +609,7 @@ export default function OnboardingModal() {
                     </span>
                     {/* Products */}
                     <span style={{
-                      fontSize: '12px', color: 'rgba(5,10,68,0.40)',
+                      fontSize: '12px', color: 'var(--ink-600)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       flex: 1,
                     }}>

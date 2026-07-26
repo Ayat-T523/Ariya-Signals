@@ -206,21 +206,21 @@ function CompetitorListItem({ competitor, isLast, haeAssetCount }: { competitor:
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: '10px' }}>
         {/* Column 1 */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(5,10,68,0.38)' }}>Signals this quarter</p>
+          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Signals this quarter</p>
           <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>— signals</p>
         </div>
         {/* Divider */}
         <div style={{ width: '1px', height: '32px', background: 'rgba(5,10,68,0.08)', margin: '0 12px', flexShrink: 0 }} />
         {/* Column 2 */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(5,10,68,0.38)' }}>Pipeline</p>
+          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Pipeline</p>
           <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>{pipelineCount} assets</p>
         </div>
         {/* Divider */}
         <div style={{ width: '1px', height: '32px', background: 'rgba(5,10,68,0.08)', margin: '0 12px', flexShrink: 0 }} />
         {/* Column 3 */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(5,10,68,0.38)' }}>Last signal</p>
+          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Last signal</p>
           <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>—</p>
         </div>
       </div>
@@ -404,7 +404,7 @@ function KeyCompetitorTimeline() {
 
         {/* Zoom */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.40)', fontWeight: 500, marginRight: 2 }}>Zoom</span>
+          <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontWeight: 500, marginRight: 2 }}>Zoom</span>
           {(['Y', 'Q', 'M'] as const).map((label, i) => {
             const val = [36, 52, 78][i]
             return (
@@ -426,7 +426,7 @@ function KeyCompetitorTimeline() {
 
         {/* Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.40)', fontWeight: 500, marginRight: 2 }}>Filter</span>
+          <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontWeight: 500, marginRight: 2 }}>Filter</span>
           {uniqueCompIds.map(id => {
             const name   = (competitors as any[]).find(c => c.id === id)?.name ?? id
             const hidden = hiddenComps.has(id)
@@ -511,7 +511,7 @@ function KeyCompetitorTimeline() {
             <div key={year} style={{
               width: 4 * actualQw, flexShrink: 0, height: 28,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '11px', fontWeight: 700, color: 'rgba(5,10,68,0.40)',
+              fontSize: '11px', fontWeight: 700, color: 'var(--ink-600)',
               background: 'rgba(5,10,68,0.03)',
               borderRight: yi < YEARS.length - 1 ? '1px solid rgba(5,10,68,0.07)' : 'none',
             }}>
@@ -533,7 +533,7 @@ function KeyCompetitorTimeline() {
               <div key={idx} style={{
                 width: actualQw, flexShrink: 0, height: 26,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '10px', fontWeight: 500, color: 'rgba(5,10,68,0.35)',
+                fontSize: '10px', fontWeight: 500, color: 'var(--ink-600)',
                 borderRight: (idx + 1) % 4 === 0 ? '1px solid rgba(5,10,68,0.07)' : '1px solid rgba(5,10,68,0.03)',
               }}>
                 {QUARTERS[idx % 4]}
@@ -582,7 +582,7 @@ function KeyCompetitorTimeline() {
                   <span style={{ fontWeight: 700, fontSize: '11px', color: 'rgba(5,10,68,0.80)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {compName}
                   </span>
-                  <span style={{ fontSize: '10px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--ink-600)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {row.drugLabel}
                   </span>
                 </div>
@@ -796,7 +796,7 @@ export default function Competitors() {
         {showTimeline && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
             <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
               Tracked competitors
             </span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
@@ -805,7 +805,7 @@ export default function Competitors() {
 
         {/* 3-column card grid */}
         {filtered.length === 0 ? (
-          <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'var(--ink-600)' }}>
             No competitors match this filter.
           </p>
         ) : (!loaded || !liveDataReady) ? (

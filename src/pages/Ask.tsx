@@ -199,7 +199,7 @@ export default function Ask() {
       <div style={{ height: '1px', background: 'rgba(5,10,68,0.06)', margin: '32px 0' }} />
 
       {/* Section label */}
-      <p style={{ margin: '0 0 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+      <p style={{ margin: '0 0 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
         Example questions
       </p>
 
@@ -212,7 +212,7 @@ export default function Ask() {
               <div style={{ height: '1px', background: 'rgba(5,10,68,0.06)', margin: '20px 0' }} />
             )}
             {/* Category label */}
-            <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+            <p style={{ margin: '0 0 12px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
               {cat.category}
             </p>
             {/* 3 question cards */}

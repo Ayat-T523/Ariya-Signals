@@ -699,7 +699,7 @@ function CompactCompetitorCard({
           style={{
             padding: '1px 7px', borderRadius: '9999px',
             fontSize: '10px', fontWeight: 500,
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.40)',
+            background: 'rgba(5,10,68,0.06)', color: 'var(--ink-600)',
             cursor: 'help', whiteSpace: 'nowrap',
           }}
         >
@@ -722,7 +722,7 @@ function CompactCompetitorCard({
           {activityText}
         </p>
       ) : (
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.35)', lineHeight: 1.5, fontStyle: 'italic' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'var(--ink-600)', lineHeight: 1.5, fontStyle: 'italic' }}>
           No recent signals in the last {NARRATION_DAYS} days
         </p>
       )}
@@ -830,7 +830,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
             type="button"
             title="View source"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(event.sourceUrl!, '_blank', 'noreferrer') }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(5,10,68,0.35)', display: 'inline-flex', alignItems: 'center' }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink-600)', display: 'inline-flex', alignItems: 'center' }}
           >
             <ExternalLink size={10} />
           </button>
@@ -1166,7 +1166,7 @@ export default function WarRoom() {
                   <CompactAlertCard key={alert.id} alert={alert} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
                   {!liveDataLoaded
                     ? 'Loading signals…'
                     : watchedCompetitors.size === 0
@@ -1194,7 +1194,7 @@ export default function WarRoom() {
                 ))}
               </div>
             ) : (
-              <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: '8px 0', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
                 You're not tracking any competitors yet.{' '}
                 <a href="/competitors" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
                 {' '}to add some to your watchlist.
@@ -1322,7 +1322,7 @@ export default function WarRoom() {
                   })}
                 </ul>
               ) : (
-                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
                   {watchedCompetitors.size === 0
                     ? 'Track competitors to see their weekly moves here.'
                     : 'No notable moves from your tracked competitors this week.'}
@@ -1371,7 +1371,7 @@ export default function WarRoom() {
                   <EventRow key={e.id} event={e} last={i === upcomingEvents.length - 1} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
                   No upcoming events found.{' '}
                   <a href="/intelligence?tab=events" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
                   {' '}for the full calendar.
@@ -1402,7 +1402,7 @@ export default function WarRoom() {
                 })}
               </ul>
             ) : (
-              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
                 No recent signals to summarise
               </p>
             )}

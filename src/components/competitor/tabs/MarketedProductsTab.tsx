@@ -28,7 +28,7 @@ function RevenueChart({ data }) {
   return (
     <div>
       {/* Y-axis label per D-003 */}
-      <p style={{ margin: '0 0 4px', fontSize: '11px', color: 'rgba(5,10,68,0.40)', fontWeight: 500 }}>
+      <p style={{ margin: '0 0 4px', fontSize: '11px', color: 'var(--ink-600)', fontWeight: 500 }}>
         Revenue (USD M, illustrative)
       </p>
       <ResponsiveContainer width="100%" height={100}>
@@ -41,11 +41,11 @@ function RevenueChart({ data }) {
           </defs>
           <XAxis
             dataKey="year"
-            tick={{ fontSize: 11, fill: 'rgba(5,10,68,0.40)' }}
+            tick={{ fontSize: 11, fill: 'var(--ink-600)' }}
             axisLine={false} tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: 'rgba(5,10,68,0.40)' }}
+            tick={{ fontSize: 11, fill: 'var(--ink-600)' }}
             axisLine={false} tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -105,11 +105,11 @@ function ProductCard({ product }) {
       </p>
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', margin: '12px 0 16px' }}>
         <div>
-          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>Approved</p>
+          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>Approved</p>
           <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.80)', fontVariantNumeric: 'tabular-nums' }}>{product.approvalYear}</p>
         </div>
         <div>
-          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>Markets</p>
+          <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>Markets</p>
           <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'rgba(5,10,68,0.80)' }}>{product.geographies?.join(', ')}</p>
         </div>
       </div>
@@ -124,13 +124,13 @@ function ProductCard({ product }) {
       {/* Label updates */}
       {product.labelUpdates?.length > 0 && (
         <div style={{ borderTop: '1px solid rgba(5,10,68,0.06)', paddingTop: '16px' }}>
-          <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
             Label updates
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {product.labelUpdates.map((update, i) => (
               <div key={i} style={{ display: 'flex', gap: '12px' }}>
-                <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap', marginTop: '2px' }}>
                   {formatDateAbs(update.date)}
                 </span>
                 <div>

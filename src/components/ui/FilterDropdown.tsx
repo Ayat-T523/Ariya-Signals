@@ -132,7 +132,7 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
 
           <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
             {filteredOpts.length === 0 ? (
-              <p style={{ padding: '8px 14px', margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+              <p style={{ padding: '8px 14px', margin: 0, fontSize: '12px', color: 'var(--ink-600)' }}>
                 No matches.
               </p>
             ) : (
@@ -159,7 +159,7 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
                     />
                     <span style={{ flex: 1 }}>{opt.label}</span>
                     <span style={{
-                      fontSize: '11px', color: 'rgba(5,10,68,0.40)',
+                      fontSize: '11px', color: 'var(--ink-600)',
                       fontVariantNumeric: 'tabular-nums',
                     }}>
                       {opt.count}

@@ -40,7 +40,7 @@ function SectionLinkCard({ section }) {
           background: 'rgba(5,10,68,0.06)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
-          <Icon size={18} color="rgba(5,10,68,0.35)" />
+          <Icon size={18} color="var(--ink-600)" />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -64,7 +64,7 @@ function SectionLinkCard({ section }) {
           <p style={{
             margin: 0, fontSize: '13px',
             fontFamily: 'Inter, sans-serif',
-            color: 'rgba(5,10,68,0.40)', lineHeight: '1.55',
+            color: 'var(--ink-600)', lineHeight: '1.55',
           }}>
             {section.description}
           </p>
@@ -100,7 +100,7 @@ function SectionLinkCard({ section }) {
           }}>
             {section.title}
           </h2>
-          <ArrowRight size={14} color="rgba(5,10,68,0.35)" />
+          <ArrowRight size={14} color="var(--ink-600)" />
         </div>
         <p style={{
           margin: 0, fontSize: '13px',

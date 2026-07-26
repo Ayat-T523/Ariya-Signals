@@ -26,7 +26,7 @@ function SectionHeader({ label }) {
     <p style={{
       margin: '0 0 12px', fontSize: '11px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'rgba(5,10,68,0.40)',
+      color: 'var(--ink-600)',
     }}>
       {label}
     </p>
@@ -128,7 +128,7 @@ function TimelineCard({ entry }) {
           padding: '2px 9px', borderRadius: '9999px',
           fontSize: '11px', fontWeight: 700,
           background: entry.shiftDetected ? 'rgba(245,158,11,0.12)' : 'rgba(5,10,68,0.06)',
-          color: entry.shiftDetected ? '#92500A' : 'rgba(5,10,68,0.40)',
+          color: entry.shiftDetected ? '#92500A' : 'var(--ink-600)',
           whiteSpace: 'nowrap',
         }}>
           {entry.shiftDetected ? '⚡ Shift detected' : 'Consistent with prior messaging'}
@@ -279,7 +279,7 @@ function SourceDocsSection({ docs }: { docs: any[] }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
           Ingested Source Documents
         </p>
         <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d' }}>
@@ -312,18 +312,18 @@ function SourceDocsSection({ docs }: { docs: any[] }) {
                   {doc.source_label ?? doc.document_type}
                 </p>
                 {doc.date_published && (
-                  <span style={{ flexShrink: 0, fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
+                  <span style={{ flexShrink: 0, fontSize: '12px', color: 'var(--ink-600)' }}>
                     {formatDateAbs(doc.date_published)}
                   </span>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 {wordLabel && (
-                  <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
                     {wordLabel}
                   </span>
                 )}
-                <a href={doc.source_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                <a href={doc.source_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'var(--ink-600)' }}>
                   <ExternalLink size={12} />
                 </a>
               </div>
@@ -341,7 +341,7 @@ function AnnouncementsSection({ items }: { items: any[] }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
           Recent Company Announcements
         </p>
       </div>
@@ -355,7 +355,7 @@ function AnnouncementsSection({ items }: { items: any[] }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               {item.accession_number
                 ? <ProvenanceChip sourceLabel="SEC EDGAR" sourceUrl={item.sourceUrl} date={item.date} />
-                : item.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap' }}>{formatDateAbs(item.date)}</span>
+                : item.date && <span style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>{formatDateAbs(item.date)}</span>
               }
             </div>
           </div>
@@ -425,7 +425,7 @@ export default function MessagingTab({ competitor }) {
           padding: '14px 16px', borderRadius: '10px',
           background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
         }}>
-          <AlertTriangle size={16} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '2px' }} />
+          <AlertTriangle size={16} style={{ flexShrink: 0, color: 'var(--ink-600)', marginTop: '2px' }} />
           <div>
             <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)' }}>
               Messaging data not yet available

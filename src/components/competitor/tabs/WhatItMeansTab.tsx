@@ -29,7 +29,7 @@ function SectionHeader({ label }) {
     <p style={{
       margin: '0 0 12px', fontSize: '11px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'rgba(5,10,68,0.40)',
+      color: 'var(--ink-600)',
     }}>
       {label}
     </p>
@@ -55,11 +55,11 @@ function OverlapMatrix({ overlap }) {
             padding: '14px 16px',
           }}>
             <div>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.35)' }}>Our asset</p>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>Our asset</p>
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#0055BB' }}>{item.ourAsset}</span>
             </div>
             <div>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.35)' }}>Their asset</p>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>Their asset</p>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(5,10,68,0.75)' }}>{item.theirAsset}</span>
             </div>
             <div style={{ paddingTop: '18px' }}>
@@ -295,7 +295,7 @@ function PersonnelSection({ personnel }) {
           )
         })}
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.38)', fontStyle: 'italic' }}>
+      <p style={{ margin: '8px 0 0', fontSize: '11px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
         Illustrative
       </p>
     </div>

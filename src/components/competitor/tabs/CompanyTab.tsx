@@ -45,7 +45,7 @@ function KpiCard({ label, value, delta }: { label: string; value: string; delta?
       padding: '14px 16px',
       display: 'flex', flexDirection: 'column', gap: '6px',
     }}>
-      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+      <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
         {label}
       </span>
       <span style={{ fontSize: '20px', fontWeight: 700, color: 'rgba(5,10,68,0.90)', fontFamily: 'Satoshi, sans-serif', lineHeight: '1.2' }}>
@@ -97,7 +97,7 @@ function FinancialsSection({ financials }: { financials: any }) {
         {!isLive && <KpiCard label="HAE R&D Allocation" value={financials.haeRdAllocation} />}
       </div>
       {isLive && financials._financialsCurrency && financials._financialsCurrency !== 'USD' && (
-        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
+        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
           Reported in {financials._financialsCurrency}; converted to USD at annual average exchange rate.
         </p>
       )}
@@ -151,12 +151,12 @@ function PipelineSummary({ pipeline }: { pipeline: any[] }) {
                 </div>
                 <span style={{
                   fontSize: '11px', fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#10224A' : 'rgba(5,10,68,0.40)',
+                  color: isActive ? '#10224A' : 'var(--ink-600)',
                   textAlign: 'center', whiteSpace: 'nowrap',
                 }}>
                   {step}
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: 500, color: isActive ? '#10224A' : 'rgba(5,10,68,0.35)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: isActive ? '#10224A' : 'var(--ink-600)' }}>
                   {count}
                 </span>
               </div>
@@ -190,7 +190,7 @@ function PersonnelTable({ personnel, recentChanges }: { personnel: any[]; recent
           <div style={{ background: '#FFFFFF', border: '1px solid rgba(210,226,255,1)', borderRadius: '12px', overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px 1fr', padding: '8px 16px', background: 'rgba(5,10,68,0.03)', borderBottom: '1px solid rgba(5,10,68,0.08)' }}>
               {['Name', 'Title', 'Tenure', 'Notable Background'].map(h => (
-                <span key={h} style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>{h}</span>
+                <span key={h} style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>{h}</span>
               ))}
             </div>
             {personnel.map((p, i) => (
@@ -218,9 +218,9 @@ function PersonnelTable({ personnel, recentChanges }: { personnel: any[]; recent
               <div key={i} style={{ background: '#FFFFFF', border: '1px solid rgba(210,226,255,1)', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                 <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4', flex: 1 }}>{c.headline}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  {c.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{formatDateAbs(c.date)}</span>}
+                  {c.date && <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>{formatDateAbs(c.date)}</span>}
                   {c.sourceUrl && (
-                    <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                    <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'var(--ink-600)' }}>
                       <ExternalLink size={12} />
                     </a>
                   )}
@@ -289,9 +289,9 @@ function SignalCard({ date, headline, whyItMatters, note, _live, sourceUrl }: an
           {_live && <SourceBadge live label="Live · SEC EDGAR" />}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap', marginTop: '2px' }}>{formatDateAbs(date)}</span>}
+          {date && <span style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap', marginTop: '2px' }}>{formatDateAbs(date)}</span>}
           {_live && sourceUrl && (
-            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)', marginTop: '2px' }}>
+            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', color: 'var(--ink-600)', marginTop: '2px' }}>
               <ExternalLink size={12} />
             </a>
           )}
@@ -307,7 +307,7 @@ function SignalCard({ date, headline, whyItMatters, note, _live, sourceUrl }: an
       {note && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <AlertCircle size={11} color="rgba(5,10,68,0.30)" />
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>{note}</span>
+          <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontStyle: 'italic' }}>{note}</span>
         </div>
       )}
     </div>
@@ -322,7 +322,7 @@ function QuoteCard({ date, source, quote, whyItMatters }: any) {
       </p>
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: whyItMatters ? '10px' : 0 }}>
         {source && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>{source}</span>}
-        {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.35)' }}>· {formatDateAbs(date)}</span>}
+        {date && <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>· {formatDateAbs(date)}</span>}
       </div>
       {whyItMatters && (
         <div style={{ background: 'rgba(42,118,244,0.08)', borderRadius: '8px', padding: '10px 12px' }}>
@@ -340,7 +340,7 @@ function SignalSection({ icon: Icon, label, children, empty }: any) {
     <div>
       <SectionHeader icon={Icon} label={label} />
       {empty
-        ? <p style={{ margin: '0 0 4px', fontSize: '13px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>No {label.toLowerCase()} recorded.</p>
+        ? <p style={{ margin: '0 0 4px', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>No {label.toLowerCase()} recorded.</p>
         : <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>{children}</div>
       }
     </div>

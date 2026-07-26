@@ -355,9 +355,9 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
       <div style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
+          <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>{count} events</span>
         </div>
-        <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'var(--ink-600)' }}>
           Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov (live)
         </p>
       </div>
@@ -393,7 +393,7 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
                 return (
                   <td key={i} style={{ position: 'sticky', top: MO_H, zIndex: 1, background: BG, height: CONF_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: DIV_H, borderRight: i < N - 1 ? DIV_V : 'none' }}>
                     {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'rgba(5,10,68,0.40)', lineHeight: '1.5' }}>{ln}</div>
+                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
                     ))}
                   </td>
                 )
@@ -409,7 +409,7 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
                 return (
                   <td key={i} style={{ position: 'sticky', top: MO_H + CONF_H, zIndex: 1, background: BG, height: IR_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: THICK, borderRight: i < N - 1 ? DIV_V : 'none' }}>
                     {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'rgba(5,10,68,0.40)', lineHeight: '1.5' }}>{ln}</div>
+                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
                     ))}
                   </td>
                 )
@@ -426,7 +426,7 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
                 <tr key={id}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 1, background: BG, padding: '8px', verticalAlign: 'middle', borderBottom: isLast ? 'none' : DIV_H, borderRight: DIV_FC }}>
                     <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{comp.name}</p>
-                    <p style={{ margin: '1px 0 0', fontSize: '10px', color: 'rgba(5,10,68,0.38)', fontStyle: 'italic' }}>{CAL_ASSET[id]}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: '10px', color: 'var(--ink-600)', fontStyle: 'italic' }}>{CAL_ASSET[id]}</p>
                   </td>
                   {MONTHS_LABELS.map((_, mi) => (
                     <td key={mi} style={{ padding: '4px 5px', verticalAlign: 'middle', borderBottom: isLast ? 'none' : DIV_H, borderRight: mi < N - 1 ? DIV_V : 'none' }}>
@@ -449,7 +449,7 @@ function SectionLabel({ children }) {
     <p style={{
       margin: '0 0 10px', fontSize: '11px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'rgba(5,10,68,0.38)',
+      color: 'var(--ink-600)',
     }}>
       {children}
     </p>
@@ -860,7 +860,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {/* Row 2: title */}
       <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
         {event.title}
-        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
+        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'var(--ink-600)' }}>(past)</span>}
       </p>
 
       {/* Row 2b: CI significance — only when no note is present */}
@@ -883,7 +883,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {/* Row 4: Expected topics */}
       {event.expectedTopics?.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
             Expected topics
           </p>
           <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
@@ -898,7 +898,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {regulatoryCtx && (
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
               Why this is relevant
             </p>
             <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
@@ -906,7 +906,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
             </p>
           </div>
           <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
               Actionable follow up
             </p>
             <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
@@ -1081,7 +1081,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
           onClick={() => setShowCatalysts(v => !v)}
           style={{
             background: 'none', border: 'none', padding: '0 0 2px',
-            borderBottom: '1px dashed rgba(5,10,68,0.35)',
+            borderBottom: '1px dashed var(--ink-600)',
             cursor: 'pointer', fontSize: '12px',
             fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
             whiteSpace: 'nowrap', flexShrink: 0,
@@ -1096,7 +1096,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 
       {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+        <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>
           Showing 90 days · scroll to navigate
         </span>
       </div>
@@ -1131,7 +1131,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 
       {/* ── Sections ─────────────────────────────────────────────────────────── */}
       {upcoming.length === 0 && past.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>
           No events found
         </p>
       ) : (
@@ -1148,7 +1148,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
                 >
                   <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
+                    <ChevronDown size={14} color='var(--ink-600)' strokeWidth={2} />
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
                     Upcoming · {upcoming.length} events
@@ -1194,7 +1194,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
                 >
                   <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
+                    <ChevronDown size={14} color='var(--ink-600)' strokeWidth={2} />
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
                     Past · last 90 days · {past.length} {past.length === 1 ? 'event' : 'events'}
@@ -1335,7 +1335,7 @@ function ReportDetailPanel({ report }) {
   if (!report) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.35)' }}>Select a report to view details.</p>
+        <p style={{ fontSize: '14px', color: 'var(--ink-600)' }}>Select a report to view details.</p>
       </div>
     )
   }
@@ -1439,7 +1439,7 @@ function ReportsTab({ liveEarnings }: { liveEarnings: DbRecentSignal[] }) {
         padding: '16px 20px', borderRadius: '12px',
         background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
       }}>
-        <Clock size={18} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '1px' }} />
+        <Clock size={18} style={{ flexShrink: 0, color: 'var(--ink-600)', marginTop: '1px' }} />
         <div>
           <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)', fontFamily: 'Satoshi, sans-serif' }}>
             Synthesized analysis not yet available
@@ -1454,7 +1454,7 @@ function ReportsTab({ liveEarnings }: { liveEarnings: DbRecentSignal[] }) {
       {earnings.length > 0 && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
               Live Earnings Signals
             </p>
             <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d' }}>
@@ -1481,7 +1481,7 @@ function ReportsTab({ liveEarnings }: { liveEarnings: DbRecentSignal[] }) {
                 </div>
                 {s.source_url && (
                   <a href={s.source_url} target="_blank" rel="noopener noreferrer"
-                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: 'var(--ink-600)' }}>
                     <ExternalLink size={13} />
                   </a>
                 )}
@@ -1548,7 +1548,7 @@ function DealsPanel({ deals }) {
   function SortIcon({ k }: { k: string }) {
     const active = sortKey === k
     return (
-      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'rgba(5,10,68,0.35)', marginLeft: '4px' }}>
+      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'var(--ink-600)', marginLeft: '4px' }}>
         {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
       </span>
     )
@@ -1771,7 +1771,7 @@ function HtaPayerPanel({ items }) {
           </div>
         ))}
         {items.length === 0 && (
-          <p style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'rgba(5,10,68,0.35)' }}>
+          <p style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
             No HTA or payer items available.
           </p>
         )}
@@ -1867,7 +1867,7 @@ function MarketSignalsPanel({ items }) {
       </div>
       {/* 3-column flex grid */}
       {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
           No signals match the current filter.
         </p>
       ) : (
@@ -2134,7 +2134,7 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
 
       {/* Card list — Feed (1 col) or Landscape (2-col grid) */}
       {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
           No market developments match the current filter.
         </p>
       ) : (

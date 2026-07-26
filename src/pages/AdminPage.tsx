@@ -57,7 +57,7 @@ function SynonymCell({ synonyms }) {
         </span>
       ))}
       {overflow > 0 && (
-        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '11px', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
           +{overflow} more
         </span>
       )}
@@ -84,7 +84,7 @@ function Tooltip({ text }) {
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       <Info
         size={13}
-        color="rgba(5,10,68,0.35)"
+        color="var(--ink-600)"
         strokeWidth={1.8}
         style={{ cursor: 'pointer' }}
         onMouseEnter={() => setVisible(true)}
@@ -188,7 +188,7 @@ export default function AdminPage() {
               {TRACKED_ASSETS.map(asset => (
                 <tr key={asset.inn} style={{ background: '#FFFFFF' }}>
                   <TD style={{ fontWeight: 600, color: 'rgba(5,10,68,0.88)' }}>{asset.inn}</TD>
-                  <TD style={{ fontStyle: asset.brandName ? 'normal' : 'italic', color: asset.brandName ? 'rgba(5,10,68,0.75)' : 'rgba(5,10,68,0.40)' }}>
+                  <TD style={{ fontStyle: asset.brandName ? 'normal' : 'italic', color: asset.brandName ? 'rgba(5,10,68,0.75)' : 'var(--ink-600)' }}>
                     {asset.brandName ?? '— (in development)'}
                   </TD>
                   <TD>{asset.company}</TD>
@@ -225,7 +225,7 @@ export default function AdminPage() {
             onClick={resetOnboarding}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'inherit',
+              fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'inherit',
               textDecoration: 'underline',
             }}
           >

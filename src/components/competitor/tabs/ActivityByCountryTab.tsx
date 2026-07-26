@@ -3,7 +3,7 @@ import EmptyState from '../../ui/EmptyState'
 const STRENGTH_CONFIG = {
   high:   { dot: '#0055BB', label: 'High',   labelColor: '#0055BB', bg: 'rgba(0,85,187,0.08)' },
   medium: { dot: '#1A6BFF', label: 'Medium', labelColor: '#1A6BFF', bg: 'rgba(26,107,255,0.06)' },
-  low:    { dot: 'rgba(5,10,68,0.25)', label: 'Low', labelColor: 'rgba(5,10,68,0.40)', bg: 'rgba(5,10,68,0.03)' },
+  low:    { dot: 'rgba(5,10,68,0.25)', label: 'Low', labelColor: 'var(--ink-600)', bg: 'rgba(5,10,68,0.03)' },
 }
 
 function StrengthDot({ strength }) {
@@ -55,7 +55,7 @@ export default function ActivityByCountryTab({ competitor }) {
           <p key={col} style={{
             margin: 0, fontSize: '11px', fontWeight: 700,
             textTransform: 'uppercase', letterSpacing: '0.08em',
-            color: 'rgba(5,10,68,0.40)',
+            color: 'var(--ink-600)',
           }}>
             {col}
           </p>

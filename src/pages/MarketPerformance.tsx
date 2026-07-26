@@ -24,7 +24,7 @@ export default function MarketPerformance() {
         margin: '0 0 12px',
         fontSize: '11px', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'rgba(5,10,68,0.40)',
+        color: 'var(--ink-600)',
       }}>
         Market data
       </p>

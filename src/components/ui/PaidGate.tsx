@@ -22,13 +22,13 @@ export default function PaidGate({ label, description = 'Available in the full p
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
-        <Lock size={15} color="rgba(5,10,68,0.40)" strokeWidth={2} />
+        <Lock size={15} color="var(--ink-600)" strokeWidth={2} />
       </div>
       <div>
         <p style={{ margin: '0 0 2px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.55)', fontFamily: 'Satoshi, sans-serif' }}>
           {label}
         </p>
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.38)', fontFamily: 'Inter, sans-serif' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'Inter, sans-serif' }}>
           {description}
         </p>
       </div>

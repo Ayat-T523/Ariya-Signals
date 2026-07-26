@@ -39,7 +39,7 @@ function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sour
           {headline}
         </p>
         {date && (
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap', marginTop: '2px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap', marginTop: '2px' }}>
             {formatDateAbs(date)}
           </span>
         )}
@@ -67,7 +67,7 @@ function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sour
       {note && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <AlertCircle size={11} color="rgba(5,10,68,0.30)" />
-          <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>{note}</span>
+          <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontStyle: 'italic' }}>{note}</span>
         </div>
       )}
     </div>
@@ -91,7 +91,7 @@ function QuoteCard({ date, source, quote, whyItMatters }) {
       </p>
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: whyItMatters ? '10px' : 0 }}>
         {source && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.45)', fontStyle: 'italic' }}>{source}</span>}
-        {date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.35)' }}>· {formatDateAbs(date)}</span>}
+        {date && <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>· {formatDateAbs(date)}</span>}
       </div>
       {whyItMatters && (
         <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
@@ -113,7 +113,7 @@ function Section({ icon, label, children, empty }) {
     <div>
       <SectionHeader icon={icon} label={label} />
       {empty ? (
-        <p style={{ margin: '0 0 4px', fontSize: '13px', color: 'rgba(5,10,68,0.35)', fontStyle: 'italic' }}>
+        <p style={{ margin: '0 0 4px', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
           No {label.toLowerCase()} recorded.
         </p>
       ) : children}

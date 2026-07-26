@@ -86,7 +86,7 @@ export default function AskModal({ onClose, source }) {
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: 'rgba(5,10,68,0.35)',
+            color: 'var(--ink-600)',
             padding: 0,
           }}
           aria-label="Close"

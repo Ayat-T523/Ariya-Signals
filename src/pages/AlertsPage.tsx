@@ -411,7 +411,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
             )}
           </div>
           {latestTs && (
-            <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.38)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>
               Updated {formatDate(latestTs)}
             </span>
           )}
@@ -419,8 +419,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
 
         {/* Chevron */}
         {expanded
-          ? <ChevronDown size={16} color="rgba(5,10,68,0.35)" style={{ flexShrink: 0 }} />
-          : <ChevronRight size={16} color="rgba(5,10,68,0.35)" style={{ flexShrink: 0 }} />
+          ? <ChevronDown size={16} color="var(--ink-600)" style={{ flexShrink: 0 }} />
+          : <ChevronRight size={16} color="var(--ink-600)" style={{ flexShrink: 0 }} />
         }
       </button>
 
@@ -490,7 +490,7 @@ function ThemeCluster({ theme, clusterAlerts }) {
 function GroupedView({ filteredAlerts }: { filteredAlerts: MappedAlert[] }) {
   if (filteredAlerts.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(5,10,68,0.35)', fontSize: '14px' }}>
+      <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--ink-600)', fontSize: '14px' }}>
         No signals match the current filters. Switch to List view or clear filters to see all signals.
       </div>
     )
@@ -720,7 +720,7 @@ export default function AlertsPage() {
 
       {/* ── Fetch error ─────────────────────────────────────────────────────── */}
       {loaded && !isLoading && fetchError && (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(5,10,68,0.35)', fontSize: '14px' }}>
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--ink-600)', fontSize: '14px' }}>
           Could not load signals. Check your connection and try again.
         </div>
       )}
@@ -730,7 +730,7 @@ export default function AlertsPage() {
         <>
           {/* Sort toggle — matches War Room (Task 4b) */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
               Sort by
             </span>
             {[
@@ -758,7 +758,7 @@ export default function AlertsPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(5,10,68,0.35)', fontSize: '14px' }}>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--ink-600)', fontSize: '14px' }}>
               No signals match the current filters.
             </div>
           ) : (
@@ -767,7 +767,7 @@ export default function AlertsPage() {
               transition={{ duration: 0.35 }}
             >
               {!hasActiveFilter && (
-                <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'rgba(5,10,68,0.35)' }}>
+                <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--ink-600)' }}>
                   {sortMode === 'importance'
                     ? `${filtered.length} signals — highest severity first`
                     : `${unreadCount} unread`}
