@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -15,11 +15,29 @@ interface Props {
 const EASE: [number, number, number, number] = [0.25, 0.0, 0.25, 1.0]
 
 export default function SlideOver({ open, onClose, title, children, width = 480 }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Escape closes; focus moves into the panel on open (WCAG 2.4.3) and is
+  // trapped there while open, matching the pattern already established in
+  // NavPanel.tsx's HelpModal -- this drawer previously had neither.
   useEffect(() => {
     if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    panelRef.current?.focus()
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key !== 'Tab') return
+      const el = panelRef.current
+      if (!el) return
+      const focusable = el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])'
+      )
+      if (!focusable.length) return
+      const first = focusable[0], last = focusable[focusable.length - 1]
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus() } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus() } }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
   return createPortal(
@@ -28,6 +46,7 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
         <div
           role="dialog"
           aria-modal="true"
+          aria-label={title}
           style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}
         >
           {/* Backdrop — fades in/out */}
@@ -40,7 +59,7 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
             onClick={onClose}
             style={{
               position: 'absolute', inset: 0,
-              background: 'rgba(20,40,58,0.45)',
+              background: 'var(--scrim)',
               backdropFilter: 'blur(3px)',
             }}
           />
@@ -50,6 +69,8 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
               neumorphic cream (never glass-on-glass, never neumorphic-as-chrome). */}
           <motion.div
             key="panel"
+            ref={panelRef}
+            tabIndex={-1}
             initial={{ x: REDUCED_MOTION ? 0 : '100%' }}
             animate={{ x: 0 }}
             exit={{ x: REDUCED_MOTION ? 0 : '100%' }}

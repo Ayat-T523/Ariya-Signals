@@ -19,7 +19,7 @@
  * already committed) — content and layout precisely specified by
  * docs/alerts-ai-synthesis-spec.md §3, not an open concept choice.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
 import { analytics } from '../lib/analytics'
 import { useApp } from '../context/AppContext'
@@ -35,6 +35,7 @@ import { getRecentSignals } from '../lib/db'
 import { mapSignals } from '../lib/signalMapping'
 import type { MappedAlert } from '../lib/signalMapping'
 import { formatDateAbs } from '../utils/formatDate'
+import { Link } from 'react-router-dom'
 
 // ── Type labels (sentence case; no per-type color — severity is the only
 //    color-coded signal on a row, per DESIGN.md's one-accent discipline) ──
@@ -75,6 +76,11 @@ function relTimeShort(iso: string, now: Date = new Date()): string {
 }
 
 // ── Row ────────────────────────────────────────────────────────────────────
+// Not role="button" on the wrapper: it contains three real <button> children
+// (Read more/Save/Mark read), and a button-in-button is invalid ARIA that
+// breaks keyboard and screen-reader navigation. The onClick below is a mouse
+// convenience only; "Read more" is the one real keyboard-reachable entry
+// point into the drawer, so nothing is lost by not double-exposing the row.
 function AlertRow({ alert, isRead, isSaved, onOpen, onToggleRead, onToggleSave }: {
   alert: MappedAlert
   isRead: boolean
@@ -84,9 +90,7 @@ function AlertRow({ alert, isRead, isSaved, onOpen, onToggleRead, onToggleSave }
   onToggleSave: (e: React.MouseEvent) => void
 }) {
   return (
-    <div className={`alert-row${isRead ? '' : ' is-unread'}`} onClick={onOpen} role="button" tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
-    >
+    <div className={`alert-row${isRead ? '' : ' is-unread'}`} onClick={onOpen}>
       <SeverityDot sev={alert.severity} />
       <span className="alert-row-headline">{alert.headline}</span>
       <span className="alert-row-type">{typeLabel(alert.type)}</span>
@@ -190,11 +194,15 @@ function LoadingRows() {
     </div>
   )
 }
-function EmptyRows({ variant, onShowAll }: { variant: 'fresh' | 'caught-up' | 'no-results'; onShowAll?: () => void }) {
+function EmptyRows({ variant, onShowAll, onClearFilters }: {
+  variant: 'fresh' | 'caught-up' | 'no-results'
+  onShowAll?: () => void
+  onClearFilters?: () => void
+}) {
   const copy = {
     fresh:       { icon: Inbox,        heading: 'Your inbox is warming up',  body: "We're pulling signals for your tracked competitors. New ones land here as they're found." },
-    'caught-up': { icon: CheckCircle2, heading: "You're all caught up",      body: 'No unread high-priority signals right now.' },
-    'no-results':{ icon: FilterX,      heading: 'No signals match these filters', body: 'Try widening the filters or clearing the search.' },
+    'caught-up': { icon: CheckCircle2, heading: "You're all caught up",      body: 'No unread signals at medium severity or higher right now.' },
+    'no-results':{ icon: FilterX,      heading: 'No signals match these filters', body: 'Try a different search term, or clear the filters to see everything.' },
   }[variant]
   const Icon = copy.icon
   return (
@@ -202,18 +210,25 @@ function EmptyRows({ variant, onShowAll }: { variant: 'fresh' | 'caught-up' | 'n
       <div className="icon-circle"><Icon size={26} aria-hidden="true" /></div>
       <h3>{copy.heading}</h3>
       <p>{copy.body}</p>
+      {variant === 'fresh' && (
+        <Link to="/competitors" className="btn btn-secondary">Review tracked competitors</Link>
+      )}
       {variant === 'caught-up' && onShowAll && (
         <button type="button" className="btn btn-secondary" onClick={onShowAll}>Show all signals</button>
+      )}
+      {variant === 'no-results' && onClearFilters && (
+        <button type="button" className="btn btn-secondary" onClick={onClearFilters}>Clear filters</button>
       )}
     </div>
   )
 }
-function ErrorRows({ message }: { message: string }) {
+function ErrorRows({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="digest-plate inf-raised signal-feed-empty">
       <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
       <h3>Couldn&rsquo;t load your signals</h3>
-      <p>{message}</p>
+      <p>Check your connection and try again.</p>
+      <button type="button" className="btn btn-primary" onClick={onRetry}>Retry</button>
     </div>
   )
 }
@@ -225,7 +240,7 @@ function AlertDetail({ alert }: { alert: MappedAlert }) {
     <div>
       <div className="alert-drawer-hd">
         <SeverityTag sev={alert.severity} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink-600)' }}>
+        <span style={({ font: 'var(--t-mono)', color: 'var(--ink-600)' } as React.CSSProperties)}>
           {formatDateAbs(alert.timestamp)}
         </span>
       </div>
@@ -282,8 +297,9 @@ export default function AlertsPage() {
   const [liveAlerts, setLiveAlerts] = useState<MappedAlert[]>([])
   const [isLoading, setIsLoading]   = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [retryKey, setRetryKey]     = useState(0)
 
-  useEffect(() => {
+  const fetchSignals = useCallback(() => {
     setIsLoading(true)
     setFetchError(null)
     const competitorIds = watchedCompetitors.size > 0 ? [...watchedCompetitors] : undefined
@@ -291,6 +307,8 @@ export default function AlertsPage() {
       .then((signals) => { setLiveAlerts(mapSignals(signals)); setIsLoading(false) })
       .catch((err) => { setFetchError(String(err)); setIsLoading(false) })
   }, [watchedCompetitors])
+
+  useEffect(() => { fetchSignals() }, [fetchSignals, retryKey])
 
   const [query, setQuery]         = useState('')
   const [tab, setTab]             = useState<FeedTab>('Unread')
@@ -361,6 +379,7 @@ export default function AlertsPage() {
     if (key === 'type')       setTypeFilter((prev) => { const n = new Set(prev); n.delete(value); return n })
   }
   function clearAllChips() { setCompetitorFilter(new Set()); setTypeFilter(new Set()) }
+  function clearAllFilters() { setCompetitorFilter(new Set()); setTypeFilter(new Set()); setQuery(''); setTab('All') }
 
   const emptyVariant: 'fresh' | 'caught-up' | 'no-results' =
     baseAlerts.length === 0 ? 'fresh' : (tab === 'Unread' && appliedChips.length === 0 && !query) ? 'caught-up' : 'no-results'
@@ -368,10 +387,12 @@ export default function AlertsPage() {
   return (
     <div data-tour="alerts-page" style={{ padding: '20px 36px 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--ink-600)' }}>
+      <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
         {isLoading ? 'Loading signals…' : (
           <>Showing <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink-900)' }}>{filtered.length}</span> of{' '}
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink-900)' }}>{baseAlerts.length}</span>
+            {tab === 'Unread' && ' — unread, medium+ severity'}
+            {tab === 'High' && ' — high severity'}
             {tab !== 'All' && (
               <> — <button type="button" onClick={() => setTab('All')} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--indigo-600)', font: 'inherit', fontWeight: 600 }}>Show all</button></>
             )}
@@ -393,11 +414,11 @@ export default function AlertsPage() {
 
       {(!loaded || isLoading) && <LoadingRows />}
 
-      {loaded && !isLoading && fetchError && <ErrorRows message="Could not load signals. Check your connection and try again." />}
+      {loaded && !isLoading && fetchError && <ErrorRows onRetry={() => setRetryKey((k) => k + 1)} />}
 
       {loaded && !isLoading && !fetchError && (
         filtered.length === 0
-          ? <EmptyRows variant={emptyVariant} onShowAll={() => setTab('All')} />
+          ? <EmptyRows variant={emptyVariant} onShowAll={() => setTab('All')} onClearFilters={clearAllFilters} />
           : (
             <AlertGroups
               alerts={filtered}
@@ -430,7 +451,7 @@ export default function AlertsPage() {
                 {readAlerts.has(drawerAlert.id) ? 'Mark unread' : 'Mark read'}
               </button>
               {drawerAlert.source && (
-                <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>
+                <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-ui)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
                   <Database size={12} aria-hidden="true" /> {drawerAlert.source}
                 </span>
               )}
