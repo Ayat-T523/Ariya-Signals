@@ -68,7 +68,7 @@ function buildCISignificance(event: any, indication: string): string | null {
         ? `${name} reports quarterly results. Watch for ${ind} franchise revenue trends, guidance changes, and pipeline updates.`
         : `Multiple competitors report quarterly results. Watch for ${ind} franchise revenue trends and pipeline updates.`
     case 'regulatory':
-      // No generic placeholder — regulatory events with known competitors have ciContext notes
+      // No generic placeholder — regulatory events with known competitors carry an annotation instead
       return null
     case 'investor':
       return name
@@ -88,30 +88,19 @@ function buildCISignificance(event: any, indication: string): string | null {
   }
 }
 
-function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFollowUp: string } | null {
-  if (event.type !== 'regulatory') return null
-  // Authored ciContext takes priority — fail-safe: only use when both fields present
-  const ctx = (event as any).ciContext
-  if (ctx?.whyRelevant && ctx?.actionableFollowUp) {
-    return { whyRelevant: ctx.whyRelevant, actionableFollowUp: ctx.actionableFollowUp }
-  }
-  // Live EMA calendar events: template from committee subtype
-  if ((event as any)._isLive) {
-    const sub: string = (event as any)._emaSubtype ?? ''
-    if (sub === 'CHMP') return {
-      whyRelevant: 'CHMP plenaries set the EU regulatory calendar. Decisions here affect HAE competitor approvals, label changes, and opinion renewals.',
-      actionableFollowUp: 'Check EMA post-meeting outcomes for any HAE or angioedema INN mentions. Update competitor regulatory timelines if a new opinion is adopted.',
-    }
-    if (sub === 'PRAC') return {
-      whyRelevant: 'PRAC meetings review post-market safety signals. A safety concern for an HAE competitor could shift prescribing behaviour or trigger label changes.',
-      actionableFollowUp: 'Review PRAC meeting highlights for any HAE-class safety referrals. Flag to medical affairs if a competitor product is under review.',
-    }
-    return {
-      whyRelevant: 'This EMA agenda item references an HAE-relevant term, indicating it may affect competitor products or the treatment landscape.',
-      actionableFollowUp: 'Review the published EMA meeting agenda for full context. Escalate to medical affairs if this relates to a direct competitor product.',
-    }
-  }
-  return null
+// Per-event synthesized annotation (docs/intelligence-feed-spec.md §2.2). Cached at
+// ingestion, read as-is here — never templated or derived client-side. Absent for most
+// events until the AI synthesis pipeline (Phase 2.2, deferred) populates it; that's an
+// honest empty state, not a bug — no defensible per-event line beats a generic one.
+interface EventAnnotation {
+  whyRelevant: string
+  actionableFollowUp: string | null
+  expect?: string
+  surprise?: string
+}
+
+function getEventAnnotation(event: any): EventAnnotation | null {
+  return (event as any).annotation ?? null
 }
 
 // ── Event type config ─────────────────────────────────────────────────────────
@@ -180,31 +169,11 @@ const SIGNAL_FILTER_TABS = [
 
 const SIGNAL_ITEM_TYPES = new Set(['guideline', 'epidemiology', 'advocacy', 'launch-performance'])
 
-// ── Leadership-priority annotations ──────────────────────────────────────────
+// ── Leadership-priority filter ───────────────────────────────────────────────
+// "Leadership priority" stays a view filter over these event types — the expect/surprise
+// annotation content itself now comes from the per-event `annotation` field (see
+// EventAnnotation above), not a type-keyed template.
 const LEADERSHIP_TYPES = new Set(['conference', 'earnings', 'regulatory', 'investor', 'milestone'])
-
-const LEADERSHIP_ANNOTATIONS = {
-  conference: {
-    expect:   'Headline presentations centered on real-world evidence and dosing convenience narratives.',
-    surprise: 'Unanticipated head-to-head efficacy data, new MoA claims, or unexpected competitor-led positioning.',
-  },
-  earnings: {
-    expect:   'Franchise revenue commentary consistent with prior guidance; routine pipeline updates.',
-    surprise: 'Material guidance changes, pipeline reprioritization, or deal announcements.',
-  },
-  regulatory: {
-    expect:   'Decision aligned with prior CHMP/FDA signals; standard label scope.',
-    surprise: 'Broader-than-expected indication, accelerated pathway, or restrictive label conditions.',
-  },
-  investor: {
-    expect:   'Pipeline prioritisation updates, revised trial timelines, and pre-launch commercial strategy framing.',
-    surprise: 'Unannounced partnership, licensing deal, M&A signal, or indication expansion beyond current programme.',
-  },
-  milestone: {
-    expect:   'Data readout or regulatory filing consistent with prior signal; analyst reaction expected within 24 hours.',
-    surprise: 'Statistically unexpected result, safety signal, or strategic redirect on the development path.',
-  },
-}
 
 // ─── Key Catalysts Calendar — data ───────────────────────────────────────────
 
@@ -747,9 +716,8 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
-  const annotations = showAnnotations ? (LEADERSHIP_ANNOTATIONS[event.type] ?? null) : null
+  const annotation = getEventAnnotation(event)
   const ciSignificance = buildCISignificance(event, indication)
-  const regulatoryCtx = buildRegulatoryContext(event)
   const durationDays = isMultiDay
     ? Math.round((new Date(event.endDate).getTime() - new Date(event.date).getTime()) / 86400000) + 1
     : null
@@ -877,25 +845,27 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         </div>
       )}
 
-      {/* Row 4b: Regulatory context — why relevant + actionable follow up */}
-      {regulatoryCtx && (
+      {/* Row 4b: Synthesized annotation — why relevant, + actionable follow up when present */}
+      {annotation?.whyRelevant && (
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
             <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
               Why this is relevant
             </p>
             <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
-              {regulatoryCtx.whyRelevant}
+              {annotation.whyRelevant}
             </p>
           </div>
-          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-              Actionable follow up
-            </p>
-            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
-              {regulatoryCtx.actionableFollowUp}
-            </p>
-          </div>
+          {annotation.actionableFollowUp && (
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
+                Actionable follow up
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+                {annotation.actionableFollowUp}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -913,17 +883,21 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         </div>
       )}
 
-      {/* Row 6: Leadership annotations — only in leadership priority view */}
-      {annotations && (
+      {/* Row 6: Leadership expect/surprise — only in leadership priority view, only when synthesized */}
+      {showAnnotations && (annotation?.expect || annotation?.surprise) && (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.10)' }}>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What we expect:</p>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.expect}</p>
-          </div>
-          <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.08)' }}>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What would surprise us:</p>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotations.surprise}</p>
-          </div>
+          {annotation?.expect && (
+            <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.10)' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What we expect:</p>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotation.expect}</p>
+            </div>
+          )}
+          {annotation?.surprise && (
+            <div style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.08)' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 600, lineHeight: '18px', color: 'var(--font-primary)' }}>What would surprise us:</p>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, lineHeight: '18px', color: 'var(--font-primary)' }}>{annotation.surprise}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -965,7 +939,6 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
     attendingCompetitors: [] as string[],
     expectedTopics: [] as string[],
     _isLive: true as const,
-    _emaSubtype: row.event_type,
   }))
 
   const allEvents = [...(eventsData as any[]), ...mappedCalendarEvents]
