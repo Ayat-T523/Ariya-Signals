@@ -883,13 +883,14 @@ export default function WarRoom() {
     }))
   const needleItems = liveNeedleItems
 
-  // Market weather — pressure status weighted by signal severity
-  const weatherToday = new Date()
-  const highSigCount = recentLiveSignals.filter((s) => computeSeverity(s, lexicon, weatherToday) === 'high').length
-  const medSigCount  = recentLiveSignals.filter((s) => computeSeverity(s, lexicon, weatherToday) === 'medium').length
+  // Market weather — pressure status weighted by signal severity, same
+  // NARRATION_DAYS window and shared summarizeSeverity helper as Tracked
+  // Competitors and Top signals, so "pressure" never quietly means a
+  // different window than the rest of the page.
+  const weatherSeverity = summarizeSeverity(recentLiveSignals, lexicon, new Date())
   const pressureStatus: keyof typeof WINDOW_STATUS_CONFIG =
-    highSigCount >= 2                            ? 'Pressure building'
-    : (highSigCount >= 1 || medSigCount >= 3)    ? 'Pressure stable'
+    weatherSeverity.high >= 2                                  ? 'Pressure building'
+    : (weatherSeverity.high >= 1 || weatherSeverity.medium >= 3) ? 'Pressure stable'
     : 'Pressure easing'
 
   // Weekly digest — top 3 relevant signals from the live feed
@@ -1034,7 +1035,7 @@ export default function WarRoom() {
               }
               subtitle={
                 liveDataLoaded
-                  ? `${readableSignals.length} live · ${topAlerts.length} shown · ${unreadCount} unread`
+                  ? `${readableSignals.length} live · last ${NARRATION_DAYS}d · ${topAlerts.length} shown · ${unreadCount} unread`
                   : `${topAlerts.length} shown · ${unreadCount} unread`
               }
               right={
@@ -1181,7 +1182,7 @@ export default function WarRoom() {
                     fontSize: '10px', fontWeight: 700,
                     color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
                   }}>
-                    30D
+                    {NARRATION_DAYS}D
                   </span>
                 </div>
               }
@@ -1199,7 +1200,7 @@ export default function WarRoom() {
                 {pressureStatus}
               </span>
               <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
-                over the last 30 days
+                over the last {NARRATION_DAYS} days
               </span>
             </div>
 
