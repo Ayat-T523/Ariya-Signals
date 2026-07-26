@@ -1194,3 +1194,49 @@
   text-decoration: underline; text-underline-offset: 2px; font-family: var(--font-ui);
 }
 .signal-feed-banner .retry:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+
+/* ---------- Feed Filter Bar ---------- */
+/* R5 glass chrome -- passive/overlay chrome, never the feed underneath. */
+.feed-filter-bar {
+  display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+  background: rgba(247,242,234,0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1); backdrop-filter: blur(20px) saturate(1.1);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  font-family: var(--font-ui);
+}
+.ffb-search {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 200px; min-width: 130px;
+  background: var(--cream-50); box-shadow: var(--neu-inset);
+  border-radius: var(--r-md); padding: 8px 12px;
+}
+.ffb-search svg { color: var(--ink-500); flex-shrink: 0; }
+.ffb-search input {
+  border: 0; outline: none; background: transparent; flex: 1; min-width: 0;
+  font-family: var(--font-ui); font-size: 13px; color: var(--ink-900);
+}
+.ffb-search input::placeholder { color: var(--ink-500); }
+.ffb-search:focus-within { box-shadow: var(--neu-inset), var(--ring-indigo); }
+
+.ffb-tabs { display: inline-flex; gap: 2px; background: var(--cream-50); border-radius: var(--r-pill); padding: 3px; box-shadow: var(--neu-inset); flex-shrink: 0; }
+.ffb-tabs button {
+  padding: 6px 13px; border-radius: var(--r-pill); font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+  color: var(--ink-700); cursor: pointer; border: 0; background: transparent; white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.ffb-tabs button.active { background: var(--cream-100); color: var(--ink-900); box-shadow: var(--neu-raised); }
+.ffb-tabs button:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+
+.ffb-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: var(--s-3); margin-top: var(--s-3); border-top: 1px solid rgba(255,255,255,0.4); width: 100%; }
+.ffb-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 6px 5px 11px; border-radius: var(--r-sm);
+  font-family: var(--font-ui); font-size: 12px; font-weight: 500;
+  background: var(--cream-100); color: var(--ink-900);
+}
+.ffb-chip button { display: flex; background: transparent; border: 0; padding: 2px; cursor: pointer; color: currentColor; opacity: 0.65; border-radius: 4px; }
+.ffb-chip button:hover { opacity: 1; background: rgba(0,0,0,0.06); }
+.ffb-clear-all { background: transparent; border: 0; color: var(--ink-500); font-family: var(--font-ui); font-size: 12px; font-weight: 600; cursor: pointer; padding: 5px 6px; }
+.ffb-clear-all:hover { color: var(--ink-900); text-decoration: underline; }

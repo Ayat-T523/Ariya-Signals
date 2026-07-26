@@ -59,30 +59,35 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
     setDraft(new Set())
   }
 
+  // InForm styling: the trigger is a raised neumorphic pill (per fb-btn in
+  // docs/design/component-references/Feed Filter Bar.html); the popover is
+  // glass chrome (R7) since it's passive/overlay chrome, not workspace
+  // content. Logic above (search, draft/apply/clear, click-outside) is
+  // unchanged -- only presentation is InForm.
   return (
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         style={{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          padding: '6px 14px', borderRadius: '9999px',
-          fontSize: '13px', fontWeight: isActive ? 700 : 500,
-          background: isActive ? '#050A44' : 'transparent',
-          color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.65)',
-          border: `1.5px solid ${isActive ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
-          cursor: 'pointer', transition: 'all 120ms ease',
-          fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', gap: '7px',
+          padding: '8px 14px', borderRadius: 'var(--r-pill)',
+          fontSize: '12px', fontWeight: 600,
+          background: 'var(--cream-100)',
+          color: isActive ? 'var(--indigo-500)' : 'var(--ink-900)',
+          border: 'none', boxShadow: 'var(--neu-raised)',
+          cursor: 'pointer', transition: 'box-shadow var(--dur-fast) var(--ease-standard)',
+          fontFamily: 'var(--font-ui)',
         }}
       >
         <span>{label}</span>
         {isActive && (
           <span style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '11px', fontWeight: 700,
-            background: 'rgba(255,255,255,0.25)', color: '#FFFFFF',
-            borderRadius: '9999px', padding: '0 6px',
-            minWidth: '18px', height: '17px',
+            fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700,
+            background: 'var(--indigo-500)', color: '#fff',
+            borderRadius: 'var(--r-pill)', padding: '0 5px',
+            minWidth: '17px', height: '17px',
           }}>
             {appliedCount}
           </span>
@@ -92,7 +97,7 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
           strokeWidth={2}
           style={{
             opacity: 0.75,
-            transition: 'transform 150ms ease',
+            transition: 'transform var(--dur-base) var(--ease-standard)',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         />
@@ -101,12 +106,14 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
       {open && (
         <div
           style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0,
             minWidth: '280px', maxWidth: '360px',
-            background: '#FFFFFF',
-            borderRadius: '12px',
-            border: '1px solid rgba(5,10,68,0.10)',
-            boxShadow: '0 8px 28px rgba(5,10,68,0.15)',
+            background: 'rgba(250,249,246,0.96)',
+            backdropFilter: 'blur(20px) saturate(1.1)',
+            WebkitBackdropFilter: 'blur(20px) saturate(1.1)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid rgba(255,255,255,0.55)',
+            boxShadow: '0 4px 16px rgba(90,78,58,0.24), 0 1px 4px rgba(90,78,58,0.18)',
             zIndex: 50,
             padding: '12px 0 8px',
           }}
@@ -120,11 +127,13 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
                 placeholder={`Filter ${label.toLowerCase()}...`}
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  padding: '6px 10px', fontSize: '13px',
-                  border: '1px solid rgba(5,10,68,0.15)',
-                  borderRadius: '6px', outline: 'none',
-                  fontFamily: 'inherit',
-                  color: 'rgba(5,10,68,0.85)',
+                  padding: '7px 10px', fontSize: '13px',
+                  background: 'var(--cream-50)',
+                  boxShadow: 'var(--neu-inset)',
+                  border: 'none',
+                  borderRadius: 'var(--r-sm)', outline: 'none',
+                  fontFamily: 'var(--font-ui)',
+                  color: 'var(--ink-900)',
                 }}
               />
             </div>
@@ -132,7 +141,7 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
 
           <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
             {filteredOpts.length === 0 ? (
-              <p style={{ padding: '8px 14px', margin: 0, fontSize: '12px', color: 'var(--ink-600)' }}>
+              <p style={{ padding: '8px 14px', margin: 0, fontSize: '12px', color: 'var(--ink-500)', fontFamily: 'var(--font-ui)' }}>
                 No matches.
               </p>
             ) : (
@@ -144,22 +153,22 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
                     style={{
                       display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '6px 14px',
-                      fontSize: '13px',
-                      color: 'rgba(5,10,68,0.85)',
+                      fontSize: '13px', fontFamily: 'var(--font-ui)',
+                      color: 'var(--ink-900)',
                       cursor: 'pointer',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(5,10,68,0.04)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(120,100,75,0.06)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(opt.value)}
-                      style={{ accentColor: '#050A44', cursor: 'pointer' }}
+                      style={{ accentColor: 'var(--indigo-500)', cursor: 'pointer' }}
                     />
                     <span style={{ flex: 1 }}>{opt.label}</span>
                     <span style={{
-                      fontSize: '11px', color: 'var(--ink-600)',
+                      fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--ink-500)',
                       fontVariantNumeric: 'tabular-nums',
                     }}>
                       {opt.count}
@@ -175,15 +184,15 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 14px 4px',
               marginTop: '4px',
-              borderTop: '1px solid rgba(5,10,68,0.08)',
+              borderTop: '1px solid var(--cream-300)',
             }}
           >
             <button
               onClick={handleClear}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
-                fontSize: '12px', color: 'rgba(5,10,68,0.50)',
-                fontFamily: 'inherit',
+                fontSize: '12px', color: 'var(--ink-500)',
+                fontFamily: 'var(--font-ui)',
                 textDecoration: 'underline',
               }}
             >
@@ -192,11 +201,11 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
             <button
               onClick={handleApply}
               style={{
-                padding: '5px 14px', borderRadius: '9999px',
-                background: '#050A44', color: '#FFFFFF',
-                border: 'none', fontSize: '12px', fontWeight: 600,
+                padding: '6px 14px', borderRadius: 'var(--r-pill)',
+                background: 'var(--indigo-500)', color: '#fff',
+                border: 'none', fontSize: '12px', fontWeight: 700,
                 cursor: 'pointer',
-                fontFamily: 'inherit',
+                fontFamily: 'var(--font-ui)',
               }}
             >
               Apply
