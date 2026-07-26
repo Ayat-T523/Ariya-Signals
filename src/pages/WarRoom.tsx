@@ -19,7 +19,7 @@ import {
 import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
-import PaidGate from '../components/ui/PaidGate'
+import EmptyState from '../components/ui/EmptyState'
 import {
   competitorsData,
   eventsData,
@@ -983,9 +983,6 @@ export default function WarRoom() {
     : (highSigCount >= 1 || medSigCount >= 3)    ? 'Pressure stable'
     : 'Pressure easing'
 
-  // Market weather — implication bullets (live from DB only)
-  const displayedImplications = marketImplications.map((i) => i.content)
-
   // Weekly digest — top 3 relevant signals from the live feed
   const digestItems = relevantSignals
     .slice(0, 3)
@@ -1332,7 +1329,29 @@ export default function WarRoom() {
 
             {/* Implications */}
             <div>
-              <PaidGate label="Market Implications" description="Strategic interpretation of signals · Available in the full platform" />
+              <p style={{
+                margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.10em',
+                color: 'rgba(5,10,68,0.65)',
+              }}>
+                Implications
+              </p>
+              {marketImplications.length > 0 ? (
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {marketImplications.map((imp) => (
+                    <li key={imp.id}>
+                      <p style={{ margin: 0, fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
+                        {decodeEntities(imp.content)}
+                      </p>
+                      {imp.period_label && (
+                        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.45)' }}>{imp.period_label}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState message="Not enough recent signals to generate market implications yet." />
+              )}
             </div>
 
             {/* Footer */}
