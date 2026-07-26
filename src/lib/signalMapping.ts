@@ -82,7 +82,7 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
     severity:     SIGNAL_SEVERITY_MAP[s.signal_type] ?? 'low',
     headline:     s.headline ?? s.accession_number,
     whatHappened: s.body_excerpt ?? null,
-    whyItMatters: s.why_it_matters ?? null,
+    whyItMatters: null, // §4-1: no auto-generated interpretation in the free tier
     source:       SIGNAL_SOURCE_MAP[s.signal_type] ?? null,
     labelDiff:    hasDiff ? { previous: null, current: s.body_excerpt! } : null,
   }

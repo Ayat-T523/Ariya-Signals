@@ -75,29 +75,9 @@ function composeTitle(s: DbRecentSignal, competitorName: string): string {
   return `${competitorName} — ${TYPE_LABEL[s.signal_type] ?? 'SEC Filing'}`
 }
 
-function buildWhyItMatters(
-  s: DbRecentSignal,
-  competitorName: string,
-  assetName: string,
-  indication: string,
-): string {
-  if (s.why_it_matters) return s.why_it_matters
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  switch (s.signal_type) {
-    case 'deal':
-      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
-    case 'exec_change':
-      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
-    case 'press_release':
-      if (CLINICAL_KW.test(text))
-        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
-      if (COMMERCIAL_KW.test(text))
-        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
-      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
-    default:
-      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
-  }
-}
+// buildWhyItMatters removed (§4-1): interpretation ("watch for implications",
+// "assess relative positioning") is a paid-tier function. The free tier surfaces
+// structural facts only — never an auto-generated "what this means".
 
 export function buildSourceLabel(url: string | null, signalType: string): string {
   if (!url) return 'Source'
@@ -131,9 +111,6 @@ export function dbSignalToBaseCard(
   s: DbRecentSignal,
   opts: TransformerOptions = {},
 ): BaseCard {
-  const assetName  = opts.assetName  ?? 'the asset'
-  const indication = opts.indication ?? 'your indication'
-
   const signalType: SignalType = DB_TO_SIGNAL_TYPE[s.signal_type] ?? 'publication'
   const competitor    = competitorsData.find((c) => c.id === s.competitor_id)
   const competitorName = competitor?.name ?? s.competitor_id
@@ -157,7 +134,7 @@ export function dbSignalToBaseCard(
       sourceCoverage: 'high',
       dataFreshness:  computeDataFreshness(s.date),
     },
-    whyItMatters:         buildWhyItMatters(s, competitorName, assetName, indication),
+    whyItMatters:         null, // §4-1: no auto-generated interpretation in the free tier
     dealValue:            signalType === 'deal' ? extractDealValue(text) : null,
     agencyOutcome:        null, // populated by regulatory transformer (Phase 4)
     attendingCompetitors: null, // not applicable for SEC filing signals

@@ -32,14 +32,13 @@ import {
   getRecentSignals,
   getMarketImplications,
   getAllAssets,
-  getCompetitorSummaries,
   type DbAsset,
   type DbSignalSummary,
   type DbRegulatoryCalendarEvent,
   type DbRecentSignal,
   type DbMarketImplication,
 } from '../lib/db'
-import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
+import { cleanSignalText, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function decodeEntities(str: string): string {
@@ -55,7 +54,6 @@ const NARRATION_DAYS = 90
 
 // â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
-const COMMERCIAL_KW  = /revenue|commercial|launch|market share|patient|prescription|growth/i
 
 function isCLevelChange(text: string): boolean {
   return /chief executive|ceo|chief medical|cmo|chief commercial|cco|chief financial|cfo|board chair|president/.test(text)
@@ -171,24 +169,8 @@ function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'hig
        : 'low'
 }
 
-function buildWhyItMatters(s: DbRecentSignal, competitorName: string, assetName: string, indication: string): string {
-  if (s.why_it_matters) return s.why_it_matters
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  switch (s.signal_type) {
-    case 'deal':
-      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
-    case 'exec_change':
-      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
-    case 'press_release':
-      if (CLINICAL_KW.test(text))
-        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
-      if (COMMERCIAL_KW.test(text))
-        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
-      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
-    default:
-      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
-  }
-}
+// buildWhyItMatters removed (§4-1): auto-generated "what this means" is a
+// paid-tier function; the free tier shows structural facts only.
 
 function buildSourceLabel(url: string | null, signalType: string): string {
   if (!url) return 'SEC EDGAR'
@@ -199,18 +181,23 @@ function buildSourceLabel(url: string | null, signalType: string): string {
   return 'Source'
 }
 
+// §4-1: factual activity descriptor only — no interpretation ("monitor for…",
+// "made a strategic move"). Prefer the real cleaned headline; else name the
+// event class plainly.
+const EVENT_CLASS: Record<string, string> = {
+  exec_change:         'reported a leadership change',
+  deal:                'disclosed a deal',
+  press_release:       'issued a press release',
+  publication:         'has a new publication',
+  hta_decision:        'received an HTA decision',
+  regulatory_catalyst: 'has a regulatory event',
+  congress_abstract:   'presented a congress abstract',
+  trial_update:        'has a trial update',
+}
 function buildNeedleText(s: DbRecentSignal): string {
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  if (s.signal_type === 'exec_change') {
-    return 'had a leadership change — monitor for commercial or strategic follow-through'
-  }
   const cleaned = cleanSignalText(s)
-  const cleanedIsReadable = cleaned !== SIGNAL_FALLBACK
-  const detail = cleanedIsReadable ? `: ${cleaned}` : ''
-  if (s.signal_type === 'deal') return `made a strategic move${detail || ' — see source for details'}`
-  if (CLINICAL_KW.test(text))   return `released clinical data${detail || ' — see source for details'}`
-  if (COMMERCIAL_KW.test(text)) return `signalled commercial progress${detail || ' — see source for details'}`
-  return cleanedIsReadable ? `disclosed new information: ${cleaned}` : 'filed a public disclosure — see source for details'
+  if (cleaned !== SIGNAL_FALLBACK) return cleaned
+  return EVENT_CLASS[s.signal_type] ?? 'filed a public disclosure'
 }
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -329,7 +316,7 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
-    whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
+    whyItMatters: null, // §4-1: no auto-generated interpretation in the free tier
     source:       buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
     _isLive:      true,
@@ -612,14 +599,12 @@ function CompactCompetitorCard({
   liveSignals,
   recentSignals,
   haeAssetCount,
-  narration,
   lexicon,
 }: {
   competitor: Competitor
   liveSignals: DbSignalSummary | null
   recentSignals: DbRecentSignal[]
   haeAssetCount: number
-  narration: string | null
   lexicon: Lexicon
 }) {
   const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
@@ -656,11 +641,11 @@ function CompactCompetitorCard({
     activityLabel = ''
   }
 
-  // Phase 2C: body text — prefer stored narration (only when it reads as clean prose);
-  // fall back to a built needle, then an honest empty state when no signals exist.
+  // §4-1: body text is the most recent signal's real headline. The stored
+  // company_summaries narration is AI-generated interpretation ("which the
+  // Ekterly team should consider...") — legacy from the AI track, not read here.
   const hasSignals = compSignals.length > 0
-  const cleanNarration = narration && isReadableProse(narration) ? narration : null
-  const activityText: string | null = cleanNarration ?? (hasSignals ? buildNeedleText(compSignals[0]) : null)
+  const activityText: string | null = hasSignals ? buildNeedleText(compSignals[0]) : null
 
   return (
     <Link
@@ -861,9 +846,10 @@ export default function WarRoom() {
       getRegulatoryCalendar(),
       getMarketImplications(),
       getAllAssets(),                   // indication_tags for HAE asset count per competitor
-      getCompetitorSummaries(),        // Phase 2C: per-competitor rolling narrations
-    ]).then(([summary, recent, calendar, implications, assets, narrations]) => ({
-      summary, recent, calendar, implications, assets, narrations,
+      // §4-1: getCompetitorSummaries() dropped — company_summaries holds
+      // AI-generated interpretation, which the free tier must not surface.
+    ]).then(([summary, recent, calendar, implications, assets]) => ({
+      summary, recent, calendar, implications, assets,
     })),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -871,7 +857,6 @@ export default function WarRoom() {
   })
 
   const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
-  const competitorNarrations = liveData?.narrations  ?? new Map<string, string | null>()
   const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
   const calendarEvents     = liveData?.calendar      ?? ([] as DbRegulatoryCalendarEvent[])
   const marketImplications = liveData?.implications  ?? ([] as DbMarketImplication[])
@@ -984,7 +969,8 @@ export default function WarRoom() {
     : 'Pressure easing'
 
   // Market weather — implication bullets (live from DB only)
-  const displayedImplications = marketImplications.map((i) => i.content)
+  // §4-1: market implications are interpretation — gated behind PaidGate, never
+  // rendered in the free tier (see the Implications block below).
 
   // Weekly digest — top 3 relevant signals from the live feed
   const digestItems = relevantSignals
@@ -1190,7 +1176,7 @@ export default function WarRoom() {
                 gap: '12px',
               }}>
                 {trackedCompetitors.map((c) => (
-                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} narration={competitorNarrations.get(c.id) ?? null} lexicon={lexicon} />
+                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} lexicon={lexicon} />
                 ))}
               </div>
             ) : (

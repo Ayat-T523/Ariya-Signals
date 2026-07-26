@@ -1,11 +1,9 @@
 /**
  * Name: buildNarration
- * Description: Phase 2C — per-competitor rolling narration generator.
- *   Deterministic only — no external API calls. Rides the same engine as extractWhy.mjs.
- *
- *   Given a list of recent signals for one competitor, produces a 1-2 sentence
- *   narration of activity. Returns null when there are no signals (UI shows honest
- *   empty state instead).
+ * Description: Per-competitor rolling activity summary. Deterministic and
+ *   STRUCTURAL only (§4-1) — a factual count of recent signals by event class.
+ *   No interpretation, no "what this means", no reading of why_it_matters.
+ *   Returns null when there are no signals (UI shows an honest empty state).
  *
  * Usage:
  *   import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
@@ -15,71 +13,42 @@
 /** How many days back ingest looks when building the narration. Must match getRecentSignals() window. */
 export const NARRATION_DAYS = 90
 
-// ── Signal priority ranking ────────────────────────────────────────────────────
-// Picks the most competitively significant signal to lead the narration.
-
-const HAE_PHASE3_RE = /HAE Phase 3|hereditary angioedema.*phase 3|phase 3.*HAE/i
-const DEAL_WHY_RE   = /strategic move|loan agreement|merger|acquisition/i
-
-function signalPriority(s) {
-  const why = s.why_it_matters ?? ''
-  if (HAE_PHASE3_RE.test(why))       return 0   // highest: HAE Phase 3 readout
-  if (s.signal_type === 'deal')       return 1
-  if (DEAL_WHY_RE.test(why))         return 1
-  if (why.includes('Senior leader'))  return 2
-  if (s.signal_type === 'exec_change') return 3
-  if (why.includes('HAE-relevant'))   return 4
-  if (s.signal_type === 'press_release') return 5
-  return 6
+const EVENT_LABEL = {
+  deal:                'deal',
+  exec_change:         'leadership change',
+  press_release:       'press release',
+  publication:         'publication',
+  hta_decision:        'HTA decision',
+  regulatory_catalyst: 'regulatory event',
+  congress_abstract:   'congress abstract',
+  trial_update:        'trial update',
 }
 
-// ── Type breakdown helper ─────────────────────────────────────────────────────
-
+// Factual "N type(s)" breakdown across every event class present.
 function typeBreakdown(signals) {
-  const deals = signals.filter(s => s.signal_type === 'deal').length
-  const execs  = signals.filter(s => s.signal_type === 'exec_change').length
-  const press  = signals.filter(s => s.signal_type === 'press_release').length
+  const counts = {}
+  for (const s of signals) counts[s.signal_type] = (counts[s.signal_type] ?? 0) + 1
   const parts = []
-  if (deals > 0) parts.push(`${deals} deal${deals > 1 ? 's' : ''}`)
-  if (execs > 0) parts.push(`${execs} leadership change${execs > 1 ? 's' : ''}`)
-  if (press > 0) parts.push(`${press} press release${press > 1 ? 's' : ''}`)
+  for (const [type, n] of Object.entries(counts)) {
+    const label = EVENT_LABEL[type] ?? type
+    parts.push(`${n} ${label}${n > 1 ? 's' : ''}`)
+  }
   return parts.join(', ')
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
 /**
- * Build a 1-2 sentence narration for a competitor's recent signal activity.
+ * Build a factual 1-sentence activity summary for a competitor's recent signals.
  *
- * @param {Array<{signal_type: string, why_it_matters: string|null}>} signals
- *   Recent signals for this competitor (caller applies the date filter).
- * @param {string} competitorName  Display name of the competitor.
+ * @param {Array<{signal_type: string}>} signals  Recent signals (caller applies the date filter).
+ * @param {string} competitorName                 Display name of the competitor.
  * @param {object} [opts]
- * @param {number} [opts.days=NARRATION_DAYS]  Window size — used only in null label.
- * @returns {string|null}  Narration text, or null when no signals.
+ * @param {number} [opts.days=NARRATION_DAYS]      Window size — used in the fallback label.
+ * @returns {string|null}  Structural summary, or null when no signals.
  */
 export function buildNarration(signals, competitorName, { days = NARRATION_DAYS } = {}) {
   if (!signals || signals.length === 0) return null
-
-  // Sort by priority so the most significant leads
-  const sorted   = [...signals].sort((a, b) => signalPriority(a) - signalPriority(b))
-  const topSignal = sorted[0]
-  const topWhy    = topSignal?.why_it_matters ?? null
-  const rest      = signals.length - 1
-
-  if (signals.length === 1) {
-    // Single signal: lead directly with its why
-    return topWhy ?? `${competitorName} filed 1 disclosure in the last ${days} days.`
-  }
-
-  // Multiple signals: lead with top insight, append rest count
-  const restLabel = rest === 1 ? '1 other disclosure' : `${rest} other disclosures`
+  const n = signals.length
   const breakdown = typeBreakdown(signals)
-
-  if (topWhy) {
-    return `${topWhy} Plus ${restLabel} (${breakdown}).`
-  }
-
-  // No why_it_matters on any signal — fall back to count + breakdown
-  return `${signals.length} recent disclosures: ${breakdown}.`
+  if (breakdown) return `${n} recent disclosure${n > 1 ? 's' : ''}: ${breakdown}.`
+  return `${competitorName} filed ${n} disclosure${n > 1 ? 's' : ''} in the last ${days} days.`
 }

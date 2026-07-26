@@ -371,7 +371,7 @@ export function useCompetitorSupabase(competitor: any) {
         .map((s: any) => ({
           date:         s.date,
           headline:     cleanSignalText(s),
-          whyItMatters: s.why_it_matters ?? null,
+          whyItMatters: null, // §4-1: no auto-generated interpretation
           _live:        true,
           sourceUrl:    s.source_url,
         }))
@@ -420,7 +420,7 @@ export function useCompetitorSupabase(competitor: any) {
               headline:      s.headline ?? '',
               detail:        s.body_excerpt ?? '',
               shiftDetected: true,
-              whyItMatters:  s.why_it_matters ?? null,
+              whyItMatters:  null, // §4-1: no auto-generated interpretation
             })),
             vsPharmaInc: [],
           }

@@ -64,43 +64,12 @@ function findDigestForEvent(event) {
     .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null
 }
 
-// Generates a CI-focused one-liner for events that have no manually authored note.
-// Derived purely from existing fields — no invented facts.
-// `indication` comes from the user's onboarding preference (e.g. "HAE"); falls back to "your indication".
-function buildCISignificance(event: any, indication: string): string | null {
-  if (event.note) return null  // note already provides specific context
-  const comp = event.attendingCompetitors?.[0]
-  const name = comp ? competitorName(comp) : null
-  const n: number = event.attendingCompetitors?.length ?? 0
-  const ind = indication || 'your indication'
-  switch (event.type) {
-    case 'conference':
-      return n > 0
-        ? `${n} tracked competitor${n > 1 ? 's' : ''} presenting. Monitor for ${ind} positioning shifts, new efficacy data, and messaging changes.`
-        : `Monitor for ${ind} competitive landscape updates and positioning signals across the field.`
-    case 'earnings':
-      return name
-        ? `${name} reports quarterly results. Watch for ${ind} franchise revenue trends, guidance changes, and pipeline updates.`
-        : `Multiple competitors report quarterly results. Watch for ${ind} franchise revenue trends and pipeline updates.`
-    case 'regulatory':
-      // No generic placeholder — regulatory events with known competitors have ciContext notes
-      return null
-    case 'investor':
-      return name
-        ? `${name} R&D day — typically the highest-value event for forward-looking pipeline and commercial strategy signals.`
-        : 'Investor R&D day — monitor for pipeline prioritisation and commercial strategy signals.'
-    case 'milestone': {
-      const isAcq   = /acqui/i.test(event.title)
-      const isPhase = /phase [23]|phase iii/i.test(event.title)
-      const isNDA   = /nda|submission/i.test(event.title)
-      if (isAcq)   return `${name ?? 'This competitor'} corporate transaction — monitor follow-up messaging for portfolio and commercial implications.`
-      if (isPhase) return `Phase 3 data readout for ${name ?? 'this competitor'}. A positive result reshapes the competitive landscape for ${ind}.`
-      if (isNDA)   return `Regulatory filing milestone for ${name ?? 'this competitor'}. Marks the start of the formal approval clock.`
-      return `${name ?? 'This competitor'} milestone — monitor for commercial or pipeline implications in ${ind}.`
-    }
-    default:
-      return null
-  }
+// §4-1: auto-generated "CI significance" removed. Templated interpretation
+// ("Monitor for positioning shifts", "reshapes the competitive landscape") is a
+// paid-tier function. The free tier shows events factually (title, date,
+// attendees); a hand-authored note (event.note) is still surfaced as-is.
+function buildCISignificance(_event: any, _indication: string): string | null {
+  return null
 }
 
 function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFollowUp: string } | null {
