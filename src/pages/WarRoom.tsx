@@ -1344,13 +1344,13 @@ export default function WarRoom() {
                         {decodeEntities(imp.content)}
                       </p>
                       {imp.period_label && (
-                        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.45)' }}>{imp.period_label}</span>
+                        <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>{imp.period_label}</span>
                       )}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <EmptyState message="Not enough recent signals to generate market implications yet." />
+                <EmptyState message="Not enough recent signals to generate implications yet." />
               )}
             </div>
 
