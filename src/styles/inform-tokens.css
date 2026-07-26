@@ -78,6 +78,18 @@
   --s-xxxl:48px;
   --s-wide:64px;
 
+  /* Numbered spacing scale (4px increments) — used throughout the Phase 0.4
+     Ariya components (KpiCard, SignalCard, DigestFeed, FeedFilterBar,
+     MarketWeather in inform-theme.css) but missing from the originally-copied
+     token file, so every var(--s-N) there was silently resolving to nothing
+     (padding/gap collapsing to 0). Adding to match the referenced scale. */
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
   /* Neumorphic shadows (for cream surfaces) */
   --neu-raised:
     -2px 6px 10px 0px rgba(29,27,32,0.10),

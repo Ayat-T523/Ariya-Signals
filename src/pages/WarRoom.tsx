@@ -460,8 +460,9 @@ function HeaderLink({ to, children }: { to: string; children: ReactNode }) {
     <Link
       to={to}
       style={{
-        fontSize: '12px', fontWeight: 600, color: 'rgba(5,10,68,0.55)',
+        fontSize: '12px', fontWeight: 600, color: 'rgba(5,10,68,0.65)',
         textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px',
+        padding: '6px 2px',
       }}
     >
       {children} <ArrowRight size={11} />
@@ -805,14 +806,14 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
             display: 'inline-block', marginTop: '2px',
             padding: '1px 7px', borderRadius: '9999px',
             fontSize: '10px', fontWeight: 600, letterSpacing: '0.03em',
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.55)',
+            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.65)',
           }}>
             {SOURCE_TYPE_LABEL[event.sourceType]}
           </span>
         )}
         {subtitle && (
           <p style={{
-            margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.50)',
+            margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.65)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {subtitle}
@@ -830,7 +831,11 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
             type="button"
             title="View source"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(event.sourceUrl!, '_blank', 'noreferrer') }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink-600)', display: 'inline-flex', alignItems: 'center' }}
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink-600)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: '24px', height: '24px', flexShrink: 0,
+            }}
           >
             <ExternalLink size={10} />
           </button>
