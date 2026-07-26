@@ -354,7 +354,13 @@ function AnnouncementsSection({ items }: { items: any[] }) {
             <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4', flex: 1 }}>{item.headline}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               {item.accession_number
-                ? <ProvenanceChip sourceLabel="SEC EDGAR" sourceUrl={item.sourceUrl} date={item.date} />
+                ? <ProvenanceChip
+                    sourceLabel={item.sourceLabel ?? 'SEC EDGAR'}
+                    sourceUrl={item.sourceUrl}
+                    date={item.date}
+                    tier={item.tier}
+                    lastRefreshed={item.lastRefreshed}
+                  />
                 : item.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap' }}>{formatDateAbs(item.date)}</span>
               }
             </div>

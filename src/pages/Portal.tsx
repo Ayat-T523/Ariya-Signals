@@ -15,6 +15,7 @@ import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
 import { competitorsData, eventsData, marketDevelopments as marketData, reportsData } from '../data/kalvista'
 import { buildSourceLabel } from '../lib/transformers'
+import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic/provenance'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
 import { useApp, useConfig } from '../context/AppContext'
@@ -1876,6 +1877,14 @@ function MarketDevCard({ item }) {
   const srcLabel: string | null = (item as any)._sourceLabel ?? null
   const srcUrl:   string | null = (item as any)._sourceUrl ?? (item as any).sourceUrl ?? null
   const resolvedLabel: string   = srcLabel ?? buildSourceLabel(srcUrl, item.type ?? '')
+  // §4.7 attribution tier is defined over the §4.1 SIGNAL inventory, so it only
+  // applies to entries that came from a signal. Calendar entries (a CHMP meeting,
+  // an investor day) are not signals and carry no drug attribution, so they get
+  // no tier rather than an invented one.
+  const provenanceTier: AttributionTier | null =
+    item.type === 'deal' ? tierOf('deal')
+    : item.type === 'hta' ? tierOf('hta_decision')
+    : null
 
   return (
     <div style={{
@@ -1902,6 +1911,8 @@ function MarketDevCard({ item }) {
               sourceLabel={resolvedLabel}
               sourceUrl={srcUrl}
               date={item.date}
+              tier={provenanceTier}
+              lastRefreshed={(item as any)._lastRefreshed ?? null}
               isLive={isLive}
             />
           )}
@@ -2022,8 +2033,10 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
     parties: [competitorName(row.competitor_id)],
     dealType: 'Press Release',
     _isLive: true as const,
-    _sourceLabel: 'SEC EDGAR',
+    // §4.7: prefer the recorded pipeline over a hardcoded label.
+    _sourceLabel: sourceNameOf(row.data_source) ?? 'SEC EDGAR',
     _sourceUrl: row.source_url ?? null,
+    _lastRefreshed: row.created_at ?? null,
   }))
 
   const sorted = [...(marketData as any[]), ...liveDealItems]

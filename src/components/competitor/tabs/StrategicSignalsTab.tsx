@@ -4,6 +4,7 @@ import {
 import EmptyState from '../../ui/EmptyState'
 import ProvenanceChip from '../../ui/ProvenanceChip'
 import { formatDateAbs } from '../../../utils/formatDate'
+import type { AttributionTier } from '../../../lib/deterministic/provenance'
 
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ icon: Icon, label }) {
@@ -22,9 +23,11 @@ function SectionHeader({ icon: Icon, label }) {
 }
 
 // ── Signal card ───────────────────────────────────────────────────────────────
-function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sourceLabel = null }: {
+function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sourceLabel = null, tier = null, lastRefreshed = null }: {
   date?: string; headline?: string; whyItMatters?: string; note?: string
   sourceUrl?: string | null; sourceLabel?: string | null
+  /** §4.7 provenance contract. Null for illustrative stub rows, which carry no source. */
+  tier?: AttributionTier | null; lastRefreshed?: string | null
 }) {
   return (
     <div style={{
@@ -51,6 +54,8 @@ function SignalCard({ date, headline, whyItMatters, note, sourceUrl = null, sour
             sourceLabel={sourceLabel ?? 'Source'}
             sourceUrl={sourceUrl}
             date={date}
+            tier={tier}
+            lastRefreshed={lastRefreshed}
           />
         </div>
       )}
@@ -142,7 +147,8 @@ export default function StrategicSignalsTab({ competitor }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {deals.map((d, i) => (
                 <SignalCard key={i} date={d.date} headline={d.headline} whyItMatters={d.whyItMatters}
-                  sourceUrl={d.sourceUrl ?? null} sourceLabel={d.sourceLabel ?? 'SEC EDGAR'} />
+                  sourceUrl={d.sourceUrl ?? null} sourceLabel={d.sourceLabel ?? 'SEC EDGAR'}
+                  tier={d.tier ?? null} lastRefreshed={d.lastRefreshed ?? null} />
               ))}
             </div>
           </Section>
@@ -151,7 +157,8 @@ export default function StrategicSignalsTab({ competitor }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {hiring.map((h, i) => (
                 <SignalCard key={i} date={h.date} headline={h.headline} whyItMatters={h.whyItMatters}
-                  note={h.dataSourceNote} sourceUrl={h.sourceUrl ?? null} />
+                  note={h.dataSourceNote} sourceUrl={h.sourceUrl ?? null} sourceLabel={h.sourceLabel ?? null}
+                  tier={h.tier ?? null} lastRefreshed={h.lastRefreshed ?? null} />
               ))}
             </div>
           </Section>

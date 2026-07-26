@@ -189,9 +189,13 @@ type LiveSignalDisplayItem = {
   type: string
   severity: 'high' | 'medium' | 'low'
   headline: string
-  whyItMatters: string
+  // whyItMatters is absent by design (§4-1): the free tier carries no
+  // auto-generated interpretation, so the display model has no field for it.
   source: string
   sourceUrl: string | null
+  /** §4.7 provenance contract. */
+  tier: AttributionTier | null
+  lastRefreshed: string | null
   _isLive: true
 }
 
@@ -280,7 +284,6 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
-    whyItMatters: null, // §4-1: no auto-generated interpretation in the free tier
     // §4.7 requires a real source name. data_source records which pipeline wrote
     // the row and is 100% populated, so prefer it; the URL-derived label is only a
     // fallback and yields a bare "Source" for company IR domains.
