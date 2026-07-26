@@ -1025,3 +1025,80 @@
 .kpi-card.is-linkable:hover .kpi-footer svg { transform: translateX(2px); }
 
 .kpi-error-note { font-family: var(--font-ui); font-size: 12px; color: var(--crimson-600); display: flex; align-items: center; gap: 5px; }
+
+/* ---------- Signal Card ---------- */
+/* Hover-dim hierarchy lives on the list wrapper: when any card in a
+   .signal-list is hovered/focused, siblings dim. Opacity + elevation only. */
+.signal-list.has-focus .signal-card:not(:hover):not(.force-hover) { opacity: 0.55; }
+.signal-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--cream-100);
+  box-shadow: var(--neu-raised);
+  border: 0;
+  border-radius: var(--r-md);
+  padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 3px);
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: inherit;
+  transition: box-shadow var(--dur-base) var(--ease-standard), opacity var(--dur-base) var(--ease-standard);
+}
+.signal-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--sev-color, var(--ink-400));
+}
+.signal-card:hover, .signal-card.force-hover { box-shadow: var(--neu-raised-strong); }
+.signal-card:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); }
+.signal-card.is-unread { background: var(--cream-50); }
+
+.signal-author { display: flex; align-items: center; gap: 8px; margin-bottom: var(--s-2); min-width: 0; }
+.signal-author-line {
+  display: flex; align-items: baseline; gap: 5px; min-width: 0;
+  font-size: 13px; color: var(--ink-700);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.signal-author-name { font-weight: 600; color: var(--ink-900); flex-shrink: 0; }
+.signal-author-type { color: var(--ink-500); flex-shrink: 0; }
+.signal-author-type::before { content: "·"; margin-right: 5px; color: var(--ink-500); }
+
+.signal-headline {
+  font-size: 16px; font-weight: 600; color: var(--ink-900);
+  line-height: 1.35; margin: 0 0 var(--s-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.signal-card.compact .signal-headline { margin-bottom: 0; -webkit-line-clamp: 1; }
+.signal-card.is-unread .signal-headline::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--indigo-500); margin-left: 8px; vertical-align: middle;
+}
+
+.signal-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-700); }
+.signal-meta svg { width: 12px; height: 12px; color: var(--ink-500); flex-shrink: 0; }
+.signal-meta .time { font-family: var(--font-mono); }
+
+.signal-expand {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-500); margin-left: auto; flex-shrink: 0;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.signal-expand svg { width: 12px; height: 12px; transition: transform var(--dur-base) var(--ease-standard); }
+.signal-card:hover .signal-expand, .signal-card.force-hover .signal-expand, .signal-card.is-expanded .signal-expand { opacity: 1; }
+.signal-card.is-expanded .signal-expand svg { transform: rotate(180deg); }
+.signal-card.compact .signal-expand { display: none; }
+
+.signal-excerpt-wrap { max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard), margin var(--dur-base) var(--ease-standard); }
+.signal-card.is-expanded .signal-excerpt-wrap { max-height: 200px; margin-top: var(--s-3); }
+.signal-excerpt {
+  background: var(--cream-50); box-shadow: var(--neu-inset); border-radius: var(--r-sm); padding: var(--s-3);
+}
+.signal-excerpt-quote {
+  font-size: 13px; color: var(--ink-700); line-height: 1.55; font-style: italic;
+  margin: 0 0 var(--s-2); padding-left: var(--s-2); border-left: 2px solid var(--cream-300);
+}
+.signal-excerpt-why { font-size: 13px; color: var(--ink-700); line-height: 1.5; margin: 0; }
+.signal-excerpt-why strong { color: var(--indigo-500); font-weight: 700; letter-spacing: 0.02em; font-style: normal; }
