@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-07-26T06:59:31.180Z",
+        "reason": "User confirmed Plus Jakarta Sans is a documented InForm brand choice (see DESIGN.md Typography section)"
+      }
+    ]
+  }
+}

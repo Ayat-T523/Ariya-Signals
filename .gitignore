@@ -34,3 +34,8 @@ Icon\r
 .env.production
 .env.staging
 .env.*.local
+
+# Impeccable — per-developer overrides and local runtime cache stay local;
+# .impeccable/config.json (shared detector ignores) is tracked.
+.impeccable/config.local.json
+.impeccable/hook.cache.json

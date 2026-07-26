@@ -515,7 +515,13 @@
   height: 6px; background: var(--cream-300); border-radius: 3px;
   box-shadow: var(--neu-inset); overflow: hidden; width: 100%;
 }
-.progress .bar { height: 100%; background: var(--indigo-500); transition: width .3s;}
+/* Set via the --progress custom property (0-1), not width, so the fill animates
+   on the compositor (transform) instead of triggering layout on every frame. */
+.progress .bar {
+  height: 100%; width: 100%; background: var(--indigo-500);
+  transform: scaleX(var(--progress, 0)); transform-origin: left center;
+  transition: transform .3s;
+}
 .progress.indet .bar { width: 40%; animation: indet 1.3s ease-in-out infinite; }
 @keyframes indet {
   0% { margin-left: -40%;}
