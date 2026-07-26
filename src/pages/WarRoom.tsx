@@ -381,7 +381,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
   linkTo?: string
   linkLabel?: string
 }) {
-  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(5,10,68,0.50)'
+  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(5,10,68,0.65)'
   return (
     <div style={{
       background: '#FFFFFF',
@@ -417,7 +417,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
         )}
       </div>
       {caption && (
-        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.65)' }}>
           {caption}
         </p>
       )}
@@ -926,11 +926,11 @@ export default function WarRoom() {
             color: 'rgba(5,10,68,0.92)', lineHeight: 1.25,
           }}>
             {greeting()}, {userData.user.name}.{' '}
-            <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
+            <span style={{ color: 'rgba(5,10,68,0.65)', fontWeight: 600 }}>
               Here's the state of {indication}.
             </span>
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.65)' }}>
             {assetName} · {indication}
             {trackedCompetitors.length > 0 && (
               <>
@@ -1054,7 +1054,7 @@ export default function WarRoom() {
                           padding: '4px 10px', borderRadius: '9999px',
                           fontSize: '11px', fontWeight: on ? 700 : 500,
                           background: on ? '#050A44' : 'transparent',
-                          color: on ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
+                          color: on ? '#FFFFFF' : 'rgba(5,10,68,0.65)',
                           border: `1.5px solid ${on ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
                           cursor: 'pointer', fontFamily: 'inherit',
                         }}
@@ -1130,8 +1130,8 @@ export default function WarRoom() {
                 width: '100%', textAlign: 'left', fontFamily: 'inherit',
               }}
             >
-              <Search size={14} color="rgba(5,10,68,0.50)" aria-hidden="true" />
-              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.55)' }}>
+              <Search size={14} color="rgba(5,10,68,0.65)" aria-hidden="true" />
+              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.65)' }}>
                 What changed for {assetName} this week?
               </span>
             </button>
@@ -1180,7 +1180,7 @@ export default function WarRoom() {
                     padding: '2px 9px', borderRadius: '9999px',
                     background: 'rgba(5,10,68,0.06)',
                     fontSize: '10px', fontWeight: 700,
-                    color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
+                    color: 'rgba(5,10,68,0.65)', letterSpacing: '0.05em',
                   }}>
                     {NARRATION_DAYS}D
                   </span>
@@ -1199,7 +1199,7 @@ export default function WarRoom() {
                 <StatusIcon size={14} strokeWidth={2.5} />
                 {pressureStatus}
               </span>
-              <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+              <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.65)' }}>
                 over the last {NARRATION_DAYS} days
               </span>
             </div>
@@ -1254,7 +1254,7 @@ export default function WarRoom() {
                         {decodeEntities(imp.content)}
                       </p>
                       {imp.period_label && (
-                        <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>{imp.period_label}</span>
+                        <span style={{ display: 'block', marginTop: '2px', fontSize: '12px', color: 'rgba(5,10,68,0.65)' }}>{imp.period_label}</span>
                       )}
                     </li>
                   ))}
