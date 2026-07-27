@@ -13,7 +13,7 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonPortalList } from '../components/ui/Skeleton'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
-import { competitorsData, eventsData, marketDevelopments as marketData, reportsData } from '../data/kalvista'
+import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { buildSourceLabel } from '../lib/transformers'
 import { tierOf, sourceNameOf, resolveCuratedSourceName, type AttributionTier } from '../lib/deterministic/provenance'
 import { formatDateAbs } from '../utils/formatDate'
@@ -53,17 +53,10 @@ function isPast(dateStr) {
 // report.date within 7 days AFTER event.date. Returns the earliest match (or null).
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
-function findDigestForEvent(event) {
-  if (!event.attendingCompetitors?.length) return null
-  const eventTs = new Date(event.date).getTime()
-  return reportsData
-    .filter((r) => {
-      if (!event.attendingCompetitors.includes(r.competitorId)) return false
-      const diff = new Date(r.date).getTime() - eventTs
-      return diff >= 0 && diff <= SEVEN_DAYS_MS
-    })
-    .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null
-}
+// findDigestForEvent removed with the Earnings Filings tab: the digests it
+// attached to past events came from reports.json, every record of which is
+// isIllustrative. Illustrative content does not ship in the live product, and an
+// absent digest is an honest absence.
 
 // §4-1: auto-generated "CI significance" removed. Templated interpretation
 // ("Monitor for positioning shifts", "reshapes the competitive landscape") is a
@@ -500,11 +493,13 @@ function KpiDealCard({ deal }) {
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
 const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: number }) => JSX.Element; disabled?: boolean; disabledLabel?: string }> = [
   { label: 'Events',              icon: CalendarDays },
-  { label: 'Earnings Filings',    icon: FileText,     disabled: true, disabledLabel: 'Coming soon' },
   { label: 'Market Developments', icon: TrendingUp   },
 ]
 
-const TAB_COUNTS = [eventsData.length, reportsData.length, marketData.length]
+// Earnings Filings removed: every reports.json record is isIllustrative, and
+// signal_type 'earnings' is declared but never ingested, so the tab had no real
+// content to show. It returns when an earnings source lands.
+const TAB_COUNTS = [eventsData.length, marketData.length]
 
 function TabBar({ active, onChange }) {
   return (
@@ -730,7 +725,6 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const locationStr = event.location && event.location !== 'Virtual'
     ? ` · ${event.location}`
     : event.location === 'Virtual' ? ' · Virtual' : ''
-  const digestReport = past ? findDigestForEvent(event) : null
   const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
@@ -918,14 +912,6 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       )}
 
       {/* Post-event digest link */}
-      {digestReport && (
-        <Link
-          to={`/intelligence?tab=reports&competitor=${digestReport.competitorId}`}
-          style={{ fontSize: '12px', fontWeight: 600, color: '#0055BB', textDecoration: 'none', borderBottom: '1px dashed rgba(0,85,187,0.40)' }}
-        >
-          Read digest →
-        </Link>
-      )}
 
     </div>
   )
@@ -1201,266 +1187,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// TAB 2: REPORTS & EARNINGS
-// ──────────────────────────────────────────────────────────────────────────────
-
-const ALL_REPORT_TYPES = [...new Set(reportsData.map((r) => r.type))]
-
-function ReportListCard({ report }) {
-  const { indication } = useConfig()
-  const typeCfg = REPORT_TYPE[report.type] || { label: report.type, bg: 'rgba(42,118,244,0.15)', text: '#2A76F4', icon: null }
-  const cName = competitorName(report.competitorId)
-
-  return (
-    <div style={{
-      background: '#ffffff',
-      border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '12px',
-      padding: '8px 16px',
-      display: 'flex', flexDirection: 'column', gap: '12px',
-    }}>
-      {/* Row 1: type pill + illustrative badge + date */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            padding: '4px 8px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
-            background: typeCfg.bg, color: typeCfg.text,
-            whiteSpace: 'nowrap',
-          }}>
-            {typeCfg.label}
-          </span>
-          {(report as any).isIllustrative && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif',
-              background: 'rgba(245,158,11,0.12)', color: '#92500A',
-              whiteSpace: 'nowrap',
-            }}>
-              Illustrative
-            </span>
-          )}
-        </div>
-        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
-          {formatDateAbs(report.date)}
-        </span>
-      </div>
-
-      {/* Row 2: badge + title */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexShrink: 0 }}>
-        <div style={{ flexShrink: 0 }}>
-          <CompetitorBadge name={cName} size={24} />
-        </div>
-        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
-          {report.title}
-        </p>
-      </div>
-
-      {/* Row 3: TA extract */}
-      {report.haeExtract && (
-        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-            {indication} extract:
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
-            {report.haeExtract}
-          </p>
-        </div>
-      )}
-
-      {/* Row 4: sources + confidence */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b', whiteSpace: 'nowrap', flexShrink: 0 }}>Sources:</span>
-          <span style={{
-            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px',
-            borderBottom: '1px dashed #434343', paddingBottom: '2px',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {report.source}
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b', whiteSpace: 'nowrap' }}>Confidence:</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: '#434c5b' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#49A078', display: 'inline-block', flexShrink: 0 }} />
-            Strong
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ReportDetailPanel({ report }) {
-  const { assetName, indication } = useConfig()
-  if (!report) {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontSize: '14px', color: 'rgba(5,10,68,0.35)' }}>Select a report to view details.</p>
-      </div>
-    )
-  }
-
-  const typeCfg = REPORT_TYPE[report.type] || { label: report.type }
-
-  return (
-    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', height: '100%' }}>
-      {/* Section 1 — Title + meta */}
-      <div>
-        <h2 style={{ margin: '0 0 10px', fontSize: '20px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: '1.3' }}>
-          {report.title}
-        </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          {(() => { const TypeIcon = typeCfg?.icon; return (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            {TypeIcon ? <TypeIcon size={12} strokeWidth={1.8} /> : <FileText size={12} strokeWidth={1.8} />}
-            {typeCfg.label ?? report.type}
-          </span>
-          )})()}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <CalendarDays size={12} strokeWidth={1.8} /> {formatDateAbs(report.date)}
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--font-secondary)' }}>
-            <Link2 size={12} strokeWidth={1.8} /> {report.source}
-          </span>
-          {(report as any).isIllustrative && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif',
-              background: 'rgba(245,158,11,0.12)', color: '#92500A',
-              whiteSpace: 'nowrap',
-            }}>
-              Illustrative
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Section 2 — KPI cards */}
-      {report.kpis && (
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-          {report.kpis.map((kpi, i) => {
-            const l = kpi.label.toUpperCase()
-            const KpiIcon = l.includes('REVENUE') || l.includes('CASH') || l.includes('DEAL') || l.includes('VALUE')
-              ? DollarSign
-              : l.includes('PIPELINE') || l.includes('FILING') || l.includes('PHASE') || l.includes('ORAL')
-              ? FlaskConical
-              : l.includes('GUIDANCE') || l.includes('GROWTH') || l.includes('RWE') || l.includes('INVEST')
-              ? TrendingUp
-              : l.includes('DATE') || l.includes('TIMELINE') || l.includes('READOUT')
-              ? CalendarDays
-              : Crosshair
-            return (
-              <div key={i} style={{ flex: '0 0 auto', background: 'rgba(21,45,97,1)', borderRadius: '12px', padding: '16px 32px', minWidth: '140px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                  <KpiIcon size={12} color='rgba(255,255,255,0.5)' />
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>
-                    {kpi.label}
-                  </span>
-                </div>
-                <p style={{ margin: '0 0 4px', fontSize: '26px', fontWeight: 700, color: '#FFFFFF', lineHeight: 1 }}>
-                  {kpi.value}
-                </p>
-                <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>
-                  {kpi.subtext}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Section 5 — TA extract fallback (only if no kpis) */}
-      {!report.kpis && report.haeExtract && (
-        <div>
-          <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)' }}>
-            {indication} Extract
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--font-primary)', lineHeight: '1.7' }}>
-            {report.haeExtract}
-          </p>
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-function ReportsTab({ liveEarnings }: { liveEarnings: DbRecentSignal[] }) {
-  const { watchedCompetitors } = useApp()
-  // Strict config scoping: only watched competitors' earnings signals
-  const earnings = liveEarnings.filter(s => watchedCompetitors.has(s.competitor_id ?? ''))
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-      {/* Not yet available notice */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-start', gap: '12px',
-        padding: '16px 20px', borderRadius: '12px',
-        background: 'rgba(5,10,68,0.03)', border: '1px solid rgba(210,226,255,1)',
-      }}>
-        <Clock size={18} style={{ flexShrink: 0, color: 'rgba(5,10,68,0.35)', marginTop: '1px' }} />
-        <div>
-          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.80)', fontFamily: 'Satoshi, sans-serif' }}>
-            Synthesized analysis not yet available
-          </p>
-          <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.55)', lineHeight: '1.55' }}>
-            Earnings call summaries, investor day notes, and analyst report digests will appear here once they have been reviewed and structured. Raw source documents are linked below where available.
-          </p>
-        </div>
-      </div>
-
-      {/* Live earnings signals — shown if present */}
-      {earnings.length > 0 && (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.40)' }}>
-              Live Earnings Signals
-            </p>
-            <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 7px', borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d' }}>
-              Live
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {earnings.map((s) => (
-              <div key={s.id} style={{
-                background: '#FFFFFF', borderRadius: '10px',
-                border: '1px solid rgba(210,226,255,1)',
-                padding: '12px 14px',
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px',
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {s.date && (
-                    <p style={{ margin: '0 0 4px', fontSize: '11px', fontWeight: 700, color: 'rgba(5,10,68,0.45)' }}>
-                      {formatDateAbs(s.date)}
-                    </p>
-                  )}
-                  <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4' }}>
-                    {decodeEntities(s.headline ?? '')}
-                  </p>
-                </div>
-                {s.source_url && (
-                  <a href={s.source_url} target="_blank" rel="noopener noreferrer"
-                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: 'rgba(5,10,68,0.35)' }}>
-                    <ExternalLink size={13} />
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// TAB 3: MARKET DEVELOPMENTS
+// TAB 2: MARKET DEVELOPMENTS
 // ──────────────────────────────────────────────────────────────────────────────
 
 function formatMonthYear(dateStr) {
@@ -2135,7 +1862,9 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-const TAB_NAME_TO_INDEX = { events: 0, reports: 1, market: 2 }
+// 'reports' intentionally absent — the tab was removed. A stale ?tab=reports
+// link resolves to undefined and falls back to Events rather than erroring.
+const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 
 export default function Portal() {
   const [searchParams] = useSearchParams()
@@ -2144,7 +1873,6 @@ export default function Portal() {
   const loaded = usePageLoad('portal')
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
   const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
-  const [liveEarnings, setLiveEarnings] = useState<DbRecentSignal[]>([])
   const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
 
   useEffect(() => {
@@ -2159,7 +1887,6 @@ export default function Portal() {
       .then(([calendar, signals, calTrials]) => {
         setLiveCalendarEvents(calendar)
         setLiveDeals(signals.filter((s) => s.signal_type === 'deal' && isQualityHeadline(s.headline)))
-        setLiveEarnings(signals.filter((s) => s.signal_type === 'earnings' && isQualityHeadline(s.headline)))
         setLiveTrialCells(trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>)
       })
       .catch(() => {})
@@ -2183,8 +1910,7 @@ export default function Portal() {
             transition={{ duration: 0.35 }}
           >
             <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><ReportsTab liveEarnings={liveEarnings} /></div>
-            <div style={{ display: activeTab === 2 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
           </motion.div>
         )}
       </div>

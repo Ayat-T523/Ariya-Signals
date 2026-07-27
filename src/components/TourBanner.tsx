@@ -32,10 +32,6 @@ function buildSteps(assetName: string, indication: string): TourStep[] {
       text: `A rolling calendar of regulatory, clinical, and commercial events across the ${indication} landscape. Switch to Leadership priority to see only the events that require your attention.`,
     },
     {
-      route: '/intelligence?tab=reports',
-      text: 'Post-earnings digests for each tracked competitor, available within 24 hours of a call. Filter by competitor or digest type.',
-    },
-    {
       route: '/intelligence?tab=market',
       text: `${indication} deal activity and HTA decisions in one place. Use the Deals and HTA filters to focus on what matters for your role.`,
     },
