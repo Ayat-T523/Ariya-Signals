@@ -11,6 +11,7 @@ export interface MappedAlert {
   headline: string
   whatHappened: string | null
   whyItMatters: string | null
+  suggestedAction: string | null
   source: string | null
   labelDiff: { previous: string | null; current: string } | null
 }
@@ -89,6 +90,9 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
     // which the UI already treats as an opt-in "inspect the change" affordance.
     whatHappened: s.what_changed ?? null,
     whyItMatters: s.why_it_matters ?? null,
+    // AI-synthesized, asset-aware, cached at ingestion (war-room-redesign-spec.md
+    // §4) — never derived client-side, never a generic fallback when absent.
+    suggestedAction: s.suggested_action ?? null,
     source:       SIGNAL_SOURCE_MAP[s.signal_type] ?? null,
     labelDiff:    hasDiff ? { previous: null, current: s.body_excerpt! } : null,
   }

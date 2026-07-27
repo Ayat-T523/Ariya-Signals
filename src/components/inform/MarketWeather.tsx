@@ -24,7 +24,10 @@ export interface MarketWeatherProps {
   onTimeframeChange?: (tf: '30D' | '90D') => void
   rows: WeatherRow[]
   rowsEmptyMessage?: string
+  /** Single takeaway. Use `implications` instead to show a short capped list (e.g. the War
+   *  Room rail's "top 2-3"); when both are passed, `implications` wins. */
   implication?: string
+  implications?: string[]
   implicationEmptyMessage?: string
   readMoreTo?: string
   compact?: boolean
@@ -32,7 +35,7 @@ export interface MarketWeatherProps {
 
 export function MarketWeather({
   asset, isLive = true, state, qualifier, timeframe, onTimeframeChange,
-  rows, rowsEmptyMessage, implication, implicationEmptyMessage, readMoreTo, compact = false,
+  rows, rowsEmptyMessage, implication, implications, implicationEmptyMessage, readMoreTo, compact = false,
 }: MarketWeatherProps) {
   const [showAll, setShowAll] = useState(false)
   const meta = STATE_META[state]
@@ -96,7 +99,13 @@ export function MarketWeather({
 
       <div>
         <div className="mw-section-label">Implications</div>
-        {implication ? (
+        {implications && implications.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+            {implications.map((text, i) => (
+              <div className="mw-callout" key={i}><p>{text}</p></div>
+            ))}
+          </div>
+        ) : implication ? (
           <div className="mw-callout"><p>{implication}</p></div>
         ) : (
           <div className="mw-empty"><p>{implicationEmptyMessage ?? 'Not enough recent signals to generate implications.'}</p></div>

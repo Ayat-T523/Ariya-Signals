@@ -230,6 +230,7 @@ export interface DbRecentSignal {
   why_it_matters: string | null
   clean_headline: string | null
   what_changed: string | null
+  suggested_action: string | null
 }
 
 export async function getRecentSignals(limitDays: number, competitorIds?: string[]): Promise<DbRecentSignal[]> {
@@ -239,7 +240,7 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   let query = supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters, clean_headline, what_changed')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters, clean_headline, what_changed, suggested_action')
     .gte('date', cutoffStr)
     .order('date', { ascending: false })
   if (competitorIds && competitorIds.length > 0) {

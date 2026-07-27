@@ -662,6 +662,8 @@
 .menu-glass.is-light .item.is-selected { background: rgba(42,118,244,0.10); color: var(--indigo-600); }
 .menu-glass.is-light .item.is-selected svg { color: var(--indigo-600); }
 .menu-glass.is-light .divide { background: rgba(20,40,58,0.08); }
+.menu-glass.is-compact { width: 200px; padding: 6px; }
+.menu-glass.is-compact .item { padding: 8px 10px; font-size: 13px; gap: 8px; }
 
 /* Ambient plate for showcasing glass over a tinted backdrop */
 .glass-stage {
@@ -1256,7 +1258,7 @@
    synthesized implication. B is always a single indigo-accented takeaway,
    never one bullet per competitor. Content surface: neu-raised-lg (R2). */
 .mw-card { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5); outline: none; }
-.mw-card.compact { padding: var(--s-4); }
+.mw-card.compact { padding: var(--s-4); gap: var(--s-3); }
 .mw-card:focus-visible { box-shadow: var(--neu-raised-strong), var(--ring-indigo); }
 
 .mw-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
@@ -1297,6 +1299,10 @@
 .mw-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .mw-row-count { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ink-900); }
 .mw-row-implication { font-family: var(--font-ui); font-size: 13px; color: var(--ink-700); line-height: 1.45; margin-left: 32px; }
+/* Compact mode (a fixed-width rail, e.g. the War Room worklist page) needs a
+   predictable row height to hold its own no-scroll budget -- clamp the
+   evidence line instead of letting a long needle sentence wrap freely. */
+.mw-card.compact .mw-row-implication { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .mw-show-all { align-self: flex-start; background: none; border: 0; cursor: pointer; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--indigo-600); padding: 6px 2px; }
 .mw-show-all:hover { color: var(--indigo-600); text-decoration: underline; }
 
@@ -1409,3 +1415,114 @@
 .alert-drawer-source-toggle:hover { color: var(--ink-900); }
 .alert-drawer-source-toggle:focus-visible { box-shadow: var(--ring-indigo); outline: none; border-radius: 4px; }
 .alert-drawer-source-body { margin-top: var(--s-3); }
+
+/* ---------- War Room (Phase 4, Direction A) ---------- */
+/* Stat bar — chrome, per the two-layer rule: glass, never neumorphic. The
+   only glass surface on this page; everything below it is cream content. */
+.stat-bar {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  backdrop-filter: blur(20px) saturate(1.1);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+.stat-bar-item { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-size: 13px; color: var(--ink-700); white-space: nowrap; }
+.stat-bar-item .num { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--ink-900); }
+.stat-bar-item.is-urgent .num { color: var(--crimson-600); }
+.stat-bar-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-500); opacity: 0.6; flex-shrink: 0; }
+.stat-bar-link { margin-left: auto; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--indigo-600); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; padding: 4px 2px; }
+.stat-bar-link:hover { text-decoration: underline; }
+.stat-bar-link:focus-visible { box-shadow: var(--ring-indigo); outline: none; border-radius: 4px; }
+
+/* Worklist — shares the digest-plate/alert-row shell (same grouped shell
+   family as the Alerts inbox) but each row is a single flat plate, not
+   grouped by competitor: importance/recency order must survive intact for
+   this to read as a worklist rather than a re-sorted archive. Severity is
+   text + dot only, same as .alert-row -- no border accent (craft-floor).
+   One line at rest (severity, competitor, headline, time, actions, all
+   inline like .alert-row) plus one optional line for the suggested action
+   -- P1's no-scroll budget does not survive a 4-line row at six rows. */
+.worklist-plate { padding: 0; overflow: visible; }
+.worklist-row {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--s-3) var(--s-5);
+  border-top: 1px solid var(--cream-300);
+}
+.worklist-row:first-child { border-top: 0; }
+.worklist-row-top { display: flex; align-items: center; gap: var(--s-2); min-height: 24px; }
+.worklist-row-sev {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-600); flex-shrink: 0;
+}
+.worklist-row-competitor { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; max-width: 140px; }
+.worklist-row-competitor .name { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worklist-row-headline {
+  flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: var(--ink-900);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
+.worklist-row-action-line {
+  display: flex; align-items: flex-start; gap: 5px;
+  font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600); line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-left: calc(10px + 5px); /* aligns under the headline, past the severity dot+label */
+}
+.worklist-row-action-line svg { flex-shrink: 0; width: 12px; height: 12px; margin-top: 2px; color: var(--indigo-500); }
+.worklist-row-action-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Handle control — trigger + menu-glass dropdown, reusing the existing glass
+   menu component rather than inventing a second dropdown language. */
+.worklist-handle { position: relative; margin-left: auto; flex-shrink: 0; }
+.worklist-handle-trigger {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: var(--cream-100); box-shadow: var(--neu-raised);
+  border: 0; cursor: pointer;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--ink-800);
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+.worklist-handle-trigger.is-in-progress { color: var(--amber-800); }
+.worklist-handle-trigger:hover { box-shadow: var(--neu-raised-strong); }
+.worklist-handle-trigger:active, .worklist-handle-trigger.is-open { box-shadow: var(--neu-pressed); }
+.worklist-handle-trigger:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); outline: none; }
+.worklist-handle-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; width: 200px; }
+.worklist-inspect-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--r-sm); flex-shrink: 0;
+  background: none; border: 0; cursor: pointer; color: var(--ink-500);
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.worklist-inspect-btn:hover { background: var(--cream-200); color: var(--ink-900); }
+.worklist-inspect-btn:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+
+.worklist-empty { text-align: center; padding: var(--s-8) var(--s-5); }
+.worklist-empty .icon-circle { margin: 0 auto var(--s-3); }
+.worklist-empty h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink-900); margin: 0 0 6px; }
+.worklist-empty p { font-family: var(--font-ui); font-size: 13px; color: var(--ink-600); margin: 0; }
+
+@media (max-width: 900px) {
+  .worklist-row-top { flex-wrap: wrap; row-gap: 4px; }
+  .worklist-row-time { margin-left: 0; }
+  .worklist-handle { margin-left: 0; }
+}
+
+/* Next up — condensed event rail row (rail width is fixed and narrow, so this
+   is deliberately terser than the full Intelligence Feed event card). */
+.next-up-row {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--cream-300);
+  text-decoration: none;
+}
+.next-up-row:first-child { border-top: 0; }
+.next-up-date { text-align: center; min-width: 34px; flex-shrink: 0; }
+.next-up-date .day { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--ink-900); line-height: 1; }
+.next-up-date .month { display: block; font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-600); margin-top: 2px; }
+.next-up-title { flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink-900); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-up-countdown { font-family: var(--font-mono); font-size: 11px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }

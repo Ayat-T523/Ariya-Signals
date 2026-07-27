@@ -20,21 +20,20 @@
  * docs/alerts-ai-synthesis-spec.md §3, not an open concept choice.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, ChevronUp, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronUp, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
 import { analytics } from '../lib/analytics'
 import { useApp } from '../context/AppContext'
 import { usePageLoad } from '../hooks/usePageLoad'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import SlideOver from '../components/ui/SlideOver'
-import ProvenanceChip from '../components/ui/ProvenanceChip'
-import { SeverityDot, SeverityTag, severityLabel } from '../components/inform/primitives'
+import { SeverityDot, severityLabel } from '../components/inform/primitives'
 import { FeedFilterBar, type FeedTab, type SortMode, type AppliedChip } from '../components/inform/FeedFilterBar'
+import { AlertDetail } from '../components/inform/AlertDetail'
 import competitorsData from '../data/competitors.json'
 import { getRecentSignals } from '../lib/db'
 import { mapSignals } from '../lib/signalMapping'
 import type { MappedAlert } from '../lib/signalMapping'
-import { formatDateAbs } from '../utils/formatDate'
 import { Link } from 'react-router-dom'
 
 // ── Type labels (sentence case; no per-type color — severity is the only
@@ -275,62 +274,6 @@ function ErrorRows({ onRetry }: { onRetry: () => void }) {
       <h3>Couldn&rsquo;t load your signals</h3>
       <p>Check your connection and try again.</p>
       <button type="button" className="btn btn-primary" onClick={onRetry}>Retry</button>
-    </div>
-  )
-}
-
-// ── Detail drawer content ────────────────────────────────────────────────────
-function AlertDetail({ alert }: { alert: MappedAlert }) {
-  const [sourceOpen, setSourceOpen] = useState(false)
-  return (
-    <div>
-      <div className="alert-drawer-hd">
-        <SeverityTag sev={alert.severity} />
-        <span style={({ font: 'var(--t-mono)', color: 'var(--ink-600)' } as React.CSSProperties)}>
-          {formatDateAbs(alert.timestamp)}
-        </span>
-      </div>
-      <h3 className="alert-drawer-title">{alert.headline}</h3>
-
-      {alert.whatHappened && (
-        <div className="alert-drawer-section">
-          <p className="alert-drawer-label">What changed</p>
-          <p className="alert-drawer-body">{alert.whatHappened}</p>
-        </div>
-      )}
-
-      {alert.whyItMatters && (
-        <div className="alert-drawer-section">
-          <p className="alert-drawer-label">Why it matters</p>
-          <div className="mw-callout"><p>{alert.whyItMatters}</p></div>
-        </div>
-      )}
-
-      {(alert.labelDiff || alert.source) && (
-        <div className="alert-drawer-section">
-          {alert.source && (
-            <ProvenanceChip sourceLabel={alert.source} date={alert.timestamp} isLive />
-          )}
-          {alert.labelDiff && (
-            <>
-              <button
-                type="button" className="alert-drawer-source-toggle"
-                aria-expanded={sourceOpen} onClick={() => setSourceOpen((v) => !v)}
-              >
-                {sourceOpen ? <ChevronDown size={13} aria-hidden="true" /> : <ChevronRight size={13} aria-hidden="true" />}
-                Original source
-              </button>
-              {sourceOpen && (
-                <div className="alert-drawer-source-body">
-                  <div className="signal-excerpt">
-                    <p className="signal-excerpt-quote">&ldquo;{alert.labelDiff.current}&rdquo;</p>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
     </div>
   )
 }
