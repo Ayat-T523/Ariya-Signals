@@ -723,7 +723,8 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
     : null
   const isVirtualLoc = /^(Virtual|Online|Broadcast)$/i.test(((event as any).location ?? '').trim())
   const sourceUrl    = (event as any).sourceUrl ?? null
-  const showSource   = Boolean(sourceUrl && (event as any).sourceType !== 'illustrative')
+  const isIllustrative = (event as any).sourceType === 'illustrative'
+  const showSource   = Boolean(sourceUrl && !isIllustrative)
 
   return (
     <div
@@ -845,23 +846,34 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         </div>
       )}
 
-      {/* Row 4b: Synthesized annotation — why relevant, + actionable follow up when present */}
+      {/* Row 4b: Synthesized annotation — why relevant, + actionable follow-up when present.
+          Body text matches Expected Topics (14px) — this is the product's stated differentiator
+          (asset-aware "why it matters"), not a footnote, so it shouldn't read smaller than a plain
+          topic list. Illustrative/hypothetical events get an amber tint + inline "· Illustrative"
+          tag on the label itself, so the register reads correctly at the point of reading, not
+          only via the disconnected Row 1 pill (critique 2026-07-26, P1). */}
       {annotation?.whyRelevant && (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-              Why this is relevant
+          <div style={{
+            flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px',
+            background: isIllustrative ? 'rgba(245,158,11,0.08)' : 'rgba(42,118,244,0.06)',
+          }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? '#92500A' : 'var(--ink-600)' }}>
+              Why this is relevant{isIllustrative ? ' · Illustrative' : ''}
             </p>
-            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
               {annotation.whyRelevant}
             </p>
           </div>
           {annotation.actionableFollowUp && (
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-                Actionable follow-up
+            <div style={{
+              flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px',
+              background: isIllustrative ? 'rgba(245,158,11,0.08)' : 'rgba(16,34,74,0.06)',
+            }}>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? '#92500A' : 'var(--ink-600)' }}>
+                Actionable follow-up{isIllustrative ? ' · Illustrative' : ''}
               </p>
-              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
                 {annotation.actionableFollowUp}
               </p>
             </div>
@@ -893,7 +905,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
                 What we expect
               </p>
-              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
                 {annotation.expect}
               </p>
             </div>
@@ -903,7 +915,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
                 What would surprise us
               </p>
-              <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
                 {annotation.surprise}
               </p>
             </div>

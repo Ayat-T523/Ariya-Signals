@@ -76,7 +76,9 @@
     "note": "Hypothetical scenario — not yet scheduled. Flag for monitoring if FDA announces a HAE-specific advisory committee.",
     "annotation": {
       "whyRelevant": "An FDA advisory committee for the HAE space signals active regulatory engagement with new entrants. AdCom votes are highly predictive of approval direction — a positive vote for any competitor compresses the window for sebetralstat to establish first-mover positioning before a rival secures a favourable label.",
-      "actionableFollowUp": "Monitor FDA.gov for a meeting notice (~30 days prior notice is typical). Pre-brief KOLs on the competitive landscape ahead of any scheduled meeting. Prepare scenario briefings for both positive and negative AdCom outcomes."
+      "actionableFollowUp": "Watch FDA.gov for a meeting notice (~30 days prior notice is typical) and the resulting committee vote — a positive vote for any competitor compresses sebetralstat's first-mover window.",
+      "expect": "A standard AdCom review process consistent with prior HAE regulatory engagement — no unusual procedural signals.",
+      "surprise": "A split or negative committee vote on efficacy or safety grounds, or an unusually narrow proposed label scope that reshapes competitive positioning ahead of sebetralstat's launch."
     },
     "sourceType": "illustrative",
     "sourceUrl": null
@@ -175,7 +177,7 @@
     "note": "H1 2026 target per Pharvaris 6-K filings (SEC EDGAR). Exact filing date not yet publicly confirmed as of June 2026.",
     "annotation": {
       "whyRelevant": "Pharvaris's NDA for deucrictibant (oral on-demand prophylaxis) places their PDUFA date in late 2026–early 2027 — directly overlapping sebetralstat's commercial launch planning window. If approved, deucrictibant enters the market as a direct on-demand alternative with an established clinical dossier.",
-      "actionableFollowUp": "Track FDA acknowledgement letter (~30 days post-filing). Flag PDUFA date when announced and update launch timeline assumptions. Initiate counter-launch narrative review with medical affairs and alert the commercial team to accelerate readiness milestones."
+      "actionableFollowUp": "Watch for the FDA acknowledgement letter (~30 days post-filing) and the PDUFA date once announced — both determine how much runway remains before deucrictibant could reach market against sebetralstat's own launch timeline."
     },
     "sourceType": "sec-edgar",
     "sourceUrl": "https://ir.pharvaris.com"
