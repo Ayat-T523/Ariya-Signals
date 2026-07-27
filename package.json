@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
+    "typecheck:app": "tsc -p tsconfig.app.json --noEmit",
     "preview": "vite preview",
     "ingest:fda": "node --env-file=.env.local scripts/run-ingest.mjs",
     "ingest:trials": "node --env-file=.env.local scripts/run-trials.mjs"
