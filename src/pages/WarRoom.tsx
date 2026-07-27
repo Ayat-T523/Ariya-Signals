@@ -306,7 +306,7 @@ export default function WarRoom() {
   const mostActive = [...countsByCompetitor.entries()].sort((a, b) => b[1] - a[1])[0]
   const mostActiveName = mostActive ? competitorById(mostActive[0])?.name ?? mostActive[0] : null
 
-  const unreadTotal = relevantSignals.length // "unread" here = live in the window; read/unread lives on the Alerts page
+  const signalVolume = relevantSignals.length // total in the window; read/unread state lives on the Alerts page, not here
 
   // Market weather — same pressure computation as before Phase 4 (unchanged).
   const weatherSeverity = summarizeSeverity(recentLiveSignals, lexicon, new Date())
@@ -395,7 +395,7 @@ export default function WarRoom() {
           <span className="num">{needsYouCount}</span> need{needsYouCount === 1 ? 's' : ''} you
         </span>
         <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num">{unreadTotal}</span> live · {NARRATION_DAYS}d</span>
+        <span className="stat-bar-item"><span className="num">{signalVolume}</span> signals · {NARRATION_DAYS}d</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
           Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
