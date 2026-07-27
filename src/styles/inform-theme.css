@@ -1316,6 +1316,54 @@
 .mw-empty { text-align: center; padding: var(--s-4) 0 var(--s-2); }
 .mw-empty p { font-family: var(--font-ui); font-size: 13px; color: var(--ink-600); margin: 0; line-height: 1.5; }
 
+/* ---------- Competitor Card (Round 2, R1.2) ---------- */
+.competitor-card {
+  display: flex; flex-direction: column; gap: var(--s-3);
+  height: 100%; box-sizing: border-box;
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--cream-100);
+  box-shadow: var(--neu-raised);
+  text-decoration: none; color: inherit;
+  outline: none;
+  transition: box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+}
+.competitor-card:hover { box-shadow: var(--neu-raised-strong); }
+.competitor-card:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); }
+
+.cc-header { display: flex; align-items: flex-start; gap: var(--s-3); }
+.cc-title-group { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.cc-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--ink-900); margin: 0; line-height: 1.3; }
+.cc-posture {
+  align-self: flex-start;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 8px; border-radius: var(--r-xs);
+  white-space: nowrap;
+}
+.cc-posture.tier-incumbent { background: var(--cream-200); color: var(--ink-700); }
+.cc-posture.tier-adjacent  { background: var(--indigo-050); color: var(--indigo-600); }
+.cc-posture.tier-emerging  { background: var(--terra-050); color: var(--terra-600); }
+
+.cc-descriptor { font-family: var(--font-ui); font-size: 13px; color: var(--ink-700); line-height: 1.55; flex: 1; margin: 0; }
+
+.cc-stats { display: flex; align-items: center; }
+.cc-stat { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.cc-stat-label { font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--ink-600); display: inline-flex; align-items: center; gap: 4px; }
+.cc-stat-value { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--ink-900); white-space: nowrap; }
+.cc-stat-live { width: 6px; height: 6px; border-radius: 50%; background: var(--sage-600); flex-shrink: 0; }
+.cc-stat-divider { width: 1px; height: 40px; background: var(--cream-300); flex-shrink: 0; margin: 0 var(--s-2); }
+
+.cc-cta {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--r-pill);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  background: var(--indigo-500); color: #fff;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.competitor-card:hover .cc-cta { background: var(--indigo-600); }
+
 /* ---------- Alerts Inbox (Phase 3.1) ---------- */
 /* Row shares the digest-plate/digest-group shell (same grouped-by-competitor
    structure as DigestFeed) but the row itself carries more: a type chip and

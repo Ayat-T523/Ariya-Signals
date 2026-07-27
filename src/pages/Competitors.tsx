@@ -10,6 +10,7 @@ import { getAllSignalsSummary, getAllAssets, getRecentSignals, type DbSignalSumm
 import { staggerContainer, listItem, REDUCED_MOTION } from '../lib/motion'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
+import EmptyState from '../components/ui/EmptyState'
 import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
 import { useApp } from '../context/AppContext'
 import FilterDropdown from '../components/ui/FilterDropdown'
@@ -21,17 +22,6 @@ const HIGH_THREAT_POSTURES = new Set([
   'Emerging direct threat',
   'Emerging oral competitor',
 ])
-
-// ── Strategic posture badge colours ──────────────────────────────────────────
-const POSTURE_CONFIG = {
-  'Incumbent to displace':           { bg: 'rgba(5,10,68,0.08)',    text: 'rgba(5,10,68,0.70)' },
-  'Adjacent oral competitor':        { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
-  'Adjacent injectable prophylaxis': { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
-  'Emerging direct threat':          { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
-  'Emerging gene therapy':           { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
-  'Emerging oral competitor':        { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
-  'Emerging RNA-based prophylaxis':  { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
-}
 
 // ── Threat rank for the "Threat" sort (higher = more threatening) ───────────
 // Per docs/competitors-page-redesign-spec.md §2.2: direct threat > emerging
@@ -45,6 +35,13 @@ const POSTURE_THREAT_RANK: Record<string, number> = {
   'Adjacent oral competitor':        2,
   'Adjacent injectable prophylaxis': 2,
   'Incumbent to displace':           1,
+}
+
+// Posture badge tier — reuses the threat rank so the badge and the "Threat"
+// sort can never disagree about which postures count as more dangerous.
+function posturePillTier(posture: string): 'incumbent' | 'adjacent' | 'emerging' {
+  const rank = POSTURE_THREAT_RANK[posture] ?? 0
+  return rank >= 3 ? 'emerging' : rank === 2 ? 'adjacent' : 'incumbent'
 }
 
 // ── Auto-composed competitor descriptor ──────────────────────────────────────
@@ -191,85 +188,8 @@ function isHaeProphylaxis(c) {
   )
 }
 
-// ── CompetitorListItem ────────────────────────────────────────────────────────
-function CompetitorListItem({ competitor, isLast, haeAssetCount }: { competitor: any; isLast: boolean; haeAssetCount: number }) {
-  const pipelineCount = haeAssetCount
-
-  return (
-    <div style={{ padding: '14px 14px 14px' }}>
-      {/* Row 1: badge + name */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <CompetitorBadge name={competitor.name} size={20} />
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {competitor.name}
-        </span>
-      </div>
-
-      {/* Row 2: auto-composed descriptor */}
-      <p style={{
-        margin: '6px 0 0',
-        fontSize: '12px',
-        color: 'rgba(5,10,68,0.62)',
-        lineHeight: 1.55,
-      }}>
-        {buildDescriptor(competitor)}
-      </p>
-
-      {/* Row 3: three-column stats */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: '10px' }}>
-        {/* Column 1 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Signals this quarter</p>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>— signals</p>
-        </div>
-        {/* Divider */}
-        <div style={{ width: '1px', height: '32px', background: 'rgba(5,10,68,0.08)', margin: '0 12px', flexShrink: 0 }} />
-        {/* Column 2 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Pipeline</p>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>{pipelineCount} assets</p>
-        </div>
-        {/* Divider */}
-        <div style={{ width: '1px', height: '32px', background: 'rgba(5,10,68,0.08)', margin: '0 12px', flexShrink: 0 }} />
-        {/* Column 3 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'var(--ink-600)' }}>Last signal</p>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--font-primary)' }}>—</p>
-        </div>
-      </div>
-
-      {/* Row 4: See more details button */}
-      <div style={{ marginTop: '12px' }}>
-        <Link to={`/competitors/${competitor.id}`} style={{ textDecoration: 'none' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(21,45,97,1)',
-            color: '#FFFFFF',
-            borderRadius: '9999px',
-            padding: '7px 16px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}>
-            See more details
-            <ChevronRight size={13} />
-          </div>
-        </Link>
-      </div>
-
-      {/* Divider */}
-      {!isLast && (
-        <div style={{ borderBottom: '1px solid rgba(5,10,68,0.06)', marginTop: '14px' }} />
-      )}
-    </div>
-  )
-}
-
-// ── Competitor Card (Figma 84:1682) ──────────────────────────────────────────
+// ── Competitor Card ────────────────────────────────────────────────────────
 function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor: any; liveSignals?: DbSignalSummary | null; haeAssetCount: number }) {
-  const [hovered, setHovered] = useState(false)
   const pipelineCount  = haeAssetCount
   const signalCount    = liveSignals?.count ?? 0
   const lastSignalDate = liveSignals?.latestDate ?? null
@@ -277,66 +197,51 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor
   return (
     <Link
       to={`/competitors/${competitor.id}`}
-      style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="competitor-card"
       onClick={() => analytics.competitor_viewed(competitor.name)}
     >
-      <div style={{
-        background: '#ffffff',
-        border: '1px solid rgba(210,226,255,1)',
-        borderRadius: '16px',
-        padding: '16px',
-        display: 'flex', flexDirection: 'column', gap: '12px',
-        flex: 1, cursor: 'pointer',
-        transition: 'box-shadow 200ms ease',
-        boxShadow: hovered
-          ? '0px 0px 12px 2px rgba(194,219,255,0.80), 0px 0px 40px 4px rgba(194,219,255,0.48)'
-          : 'none',
-      }}>
-
-        {/* Badge + name + posture pill */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          <div style={{ flexShrink: 0 }}>
-            <CompetitorBadge name={competitor.name} size={44} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <p style={{ margin: 0, fontSize: '20px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.25' }}>
-              {competitor.name}
-            </p>
-          </div>
+      {/* Badge + name + posture pill */}
+      <div className="cc-header">
+        <CompetitorBadge name={competitor.name} size={44} />
+        <div className="cc-title-group">
+          <p className="cc-name">{competitor.name}</p>
+          <span className={`cc-posture tier-${posturePillTier(competitor.strategicPosture)}`}>
+            {competitor.strategicPosture}
+          </span>
         </div>
-
-        {/* Auto-composed descriptor */}
-        <p style={{ margin: 0, fontSize: '13px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.62)', lineHeight: '1.55', flex: 1 }}>
-          {buildDescriptor(competitor)}
-        </p>
-
-        {/* Three-column stats */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Pipeline</span>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>{pipelineCount} assets</span>
-          </div>
-          <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.10)', flexShrink: 0, margin: '0 4px' }} />
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Signals · all-time</span>
-              {liveSignals && <span style={{ fontSize: 8, color: '#15803d', lineHeight: 1 }}>●</span>}
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>{signalCount}</span>
-          </div>
-          <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.10)', flexShrink: 0, margin: '0 4px' }} />
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px' }}>Last signal</span>
-              {liveSignals && <span style={{ fontSize: 8, color: '#15803d', lineHeight: 1 }}>●</span>}
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>{formatDate(lastSignalDate ?? '')}</span>
-          </div>
-        </div>
-
       </div>
+
+      {/* Auto-composed descriptor */}
+      <p className="cc-descriptor">{buildDescriptor(competitor)}</p>
+
+      {/* Three-column stats */}
+      <div className="cc-stats">
+        <div className="cc-stat">
+          <span className="cc-stat-label">Pipeline</span>
+          <span className="cc-stat-value">{pipelineCount} assets</span>
+        </div>
+        <div className="cc-stat-divider" />
+        <div className="cc-stat">
+          <span className="cc-stat-label">
+            Signals · all-time
+            {liveSignals && <span className="cc-stat-live" aria-hidden="true" />}
+          </span>
+          <span className="cc-stat-value">{signalCount}</span>
+        </div>
+        <div className="cc-stat-divider" />
+        <div className="cc-stat">
+          <span className="cc-stat-label">
+            Last signal
+            {liveSignals && <span className="cc-stat-live" aria-hidden="true" />}
+          </span>
+          <span className="cc-stat-value">{formatDate(lastSignalDate ?? '')}</span>
+        </div>
+      </div>
+
+      <span className="cc-cta">
+        See more details
+        <ChevronRight size={13} aria-hidden="true" />
+      </span>
     </Link>
   )
 }
@@ -393,21 +298,21 @@ function KeyCompetitorTimeline() {
       <div style={{
         flexShrink: 0, padding: '10px 16px',
         display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
-        borderBottom: '1px solid rgba(5,10,68,0.06)',
+        borderBottom: '1px solid var(--cream-300)',
       }}>
-        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--font-primary)' }}>
+        <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--ink-900)' }}>
           Key competitor timelines
         </span>
         <span style={{
           fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-          borderRadius: '9999px', background: 'rgba(42,118,244,0.10)', color: '#0055BB',
+          borderRadius: '9999px', background: 'var(--indigo-050)', color: 'var(--indigo-600)',
         }}>
           {visibleRows.length} of {watchedTimelineRows.length} programs
         </span>
         {hasAnyLive && (
           <span style={{
             fontSize: '10px', fontWeight: 600, padding: '2px 7px',
-            borderRadius: '9999px', background: 'rgba(22,163,74,0.10)', color: '#15803d',
+            borderRadius: '9999px', background: 'var(--sage-050)', color: 'var(--sage-600)',
           }}>
             Live · ClinicalTrials.gov
           </span>
@@ -421,12 +326,13 @@ function KeyCompetitorTimeline() {
           {(['Y', 'Q', 'M'] as const).map((label, i) => {
             const val = [36, 52, 78][i]
             return (
-              <button key={label} onClick={() => setQw(val)} style={{
+              <button key={label} type="button" onClick={() => setQw(val)} style={{
                 width: 28, height: 24, borderRadius: 6,
-                border: qw === val ? '1.5px solid #050A44' : '1.5px solid rgba(5,10,68,0.12)',
-                background: qw === val ? '#050A44' : 'transparent',
-                color: qw === val ? '#FFFFFF' : 'rgba(5,10,68,0.50)',
+                border: qw === val ? '1.5px solid var(--navy-700)' : '1.5px solid var(--cream-400)',
+                background: qw === val ? 'var(--navy-700)' : 'transparent',
+                color: qw === val ? '#FFFFFF' : 'var(--ink-600)',
                 fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {label}
@@ -435,7 +341,7 @@ function KeyCompetitorTimeline() {
           })}
         </div>
 
-        <div style={{ width: 1, height: 20, background: 'rgba(5,10,68,0.10)', flexShrink: 0 }} />
+        <div style={{ width: 1, height: 20, background: 'var(--cream-400)', flexShrink: 0 }} />
 
         {/* Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
@@ -444,12 +350,13 @@ function KeyCompetitorTimeline() {
             const name   = (competitors as any[]).find(c => c.id === id)?.name ?? id
             const hidden = hiddenComps.has(id)
             return (
-              <button key={id} onClick={() => toggleComp(id)} style={{
+              <button key={id} type="button" onClick={() => toggleComp(id)} style={{
                 padding: '2px 8px', borderRadius: '9999px',
-                border: hidden ? '1.5px solid rgba(5,10,68,0.10)' : '1.5px solid rgba(42,118,244,0.30)',
-                background: hidden ? 'transparent' : 'rgba(42,118,244,0.08)',
-                color: hidden ? 'rgba(5,10,68,0.30)' : '#0055BB',
+                border: hidden ? '1.5px solid var(--cream-400)' : '1.5px solid var(--indigo-100)',
+                background: hidden ? 'transparent' : 'var(--indigo-050)',
+                color: hidden ? 'var(--ink-400)' : 'var(--indigo-600)',
                 fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
                 textDecoration: hidden ? 'line-through' : 'none',
                 transition: 'all 120ms ease',
               }}>
@@ -465,7 +372,7 @@ function KeyCompetitorTimeline() {
         flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap',
         padding: '6px 16px',
-        borderBottom: '1px solid rgba(5,10,68,0.06)',
+        borderBottom: '1px solid var(--cream-300)',
       }}>
         {([
           { label: 'Phase I',   k: 'phase1' },
@@ -476,11 +383,11 @@ function KeyCompetitorTimeline() {
           return (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: 16, height: 10, borderRadius: 3, background: cfg.bg, border: `1.5px solid ${cfg.border}`, flexShrink: 0 }} />
-              <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.55)', fontWeight: 500 }}>{label}</span>
+              <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontWeight: 500 }}>{label}</span>
             </div>
           )
         })}
-        <div style={{ width: 1, height: 14, background: 'rgba(5,10,68,0.12)', flexShrink: 0 }} />
+        <div style={{ width: 1, height: 14, background: 'var(--cream-400)', flexShrink: 0 }} />
         {[
           {
             node: (
@@ -504,7 +411,7 @@ function KeyCompetitorTimeline() {
         ].map(({ node, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             {node}
-            <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.55)', fontWeight: 500 }}>{label}</span>
+            <span style={{ fontSize: '11px', color: 'var(--ink-600)', fontWeight: 500 }}>{label}</span>
           </div>
         ))}
       </div>
@@ -514,19 +421,19 @@ function KeyCompetitorTimeline() {
 
         {/* Year header — always shown */}
         <div style={{
-          position: 'sticky', top: 0, zIndex: 4, background: 'var(--bg-1)',
+          position: 'sticky', top: 0, zIndex: 4, background: 'var(--cream-100)',
           display: 'flex',
-          borderBottom: qw === 36 ? '2px solid rgba(5,10,68,0.10)' : '1px solid rgba(5,10,68,0.08)',
+          borderBottom: qw === 36 ? '2px solid var(--cream-400)' : '1px solid var(--cream-300)',
           minWidth: LABEL_W + TL_TOTAL_Q * actualQw,
         }}>
-          <div style={{ width: LABEL_W, flexShrink: 0, height: 28, borderRight: '1px solid rgba(5,10,68,0.07)', background: 'rgba(5,10,68,0.03)' }} />
+          <div style={{ width: LABEL_W, flexShrink: 0, height: 28, borderRight: '1px solid var(--cream-300)', background: 'var(--cream-200)' }} />
           {YEARS.map((year, yi) => (
             <div key={year} style={{
               width: 4 * actualQw, flexShrink: 0, height: 28,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '11px', fontWeight: 700, color: 'var(--ink-600)',
-              background: 'rgba(5,10,68,0.03)',
-              borderRight: yi < YEARS.length - 1 ? '1px solid rgba(5,10,68,0.07)' : 'none',
+              fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--ink-600)',
+              background: 'var(--cream-200)',
+              borderRight: yi < YEARS.length - 1 ? '1px solid var(--cream-300)' : 'none',
             }}>
               {year}
             </div>
@@ -536,18 +443,18 @@ function KeyCompetitorTimeline() {
         {/* Quarter header — Q and M zoom only */}
         {qw !== 36 && (
           <div style={{
-            position: 'sticky', top: 28, zIndex: 4, background: 'var(--bg-1)',
+            position: 'sticky', top: 28, zIndex: 4, background: 'var(--cream-100)',
             display: 'flex',
-            borderBottom: qw === 52 ? '2px solid rgba(5,10,68,0.10)' : '1px solid rgba(5,10,68,0.08)',
+            borderBottom: qw === 52 ? '2px solid var(--cream-400)' : '1px solid var(--cream-300)',
             minWidth: LABEL_W + TL_TOTAL_Q * actualQw,
           }}>
-            <div style={{ width: LABEL_W, flexShrink: 0, height: 26, borderRight: '1px solid rgba(5,10,68,0.07)' }} />
+            <div style={{ width: LABEL_W, flexShrink: 0, height: 26, borderRight: '1px solid var(--cream-300)' }} />
             {Array.from({ length: TL_TOTAL_Q }, (_, idx) => (
               <div key={idx} style={{
                 width: actualQw, flexShrink: 0, height: 26,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '10px', fontWeight: 500, color: 'var(--ink-600)',
-                borderRight: (idx + 1) % 4 === 0 ? '1px solid rgba(5,10,68,0.07)' : '1px solid rgba(5,10,68,0.03)',
+                fontSize: '10px', fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--ink-600)',
+                borderRight: (idx + 1) % 4 === 0 ? '1px solid var(--cream-300)' : '1px solid var(--cream-200)',
               }}>
                 {QUARTERS[idx % 4]}
               </div>
@@ -558,18 +465,18 @@ function KeyCompetitorTimeline() {
         {/* Month header — M zoom only */}
         {qw === 78 && (
           <div style={{
-            position: 'sticky', top: 54, zIndex: 4, background: 'var(--bg-1)',
+            position: 'sticky', top: 54, zIndex: 4, background: 'var(--cream-100)',
             display: 'flex',
-            borderBottom: '2px solid rgba(5,10,68,0.10)',
+            borderBottom: '2px solid var(--cream-400)',
             minWidth: LABEL_W + TL_TOTAL_Q * actualQw,
           }}>
-            <div style={{ width: LABEL_W, flexShrink: 0, height: 22, borderRight: '1px solid rgba(5,10,68,0.07)' }} />
+            <div style={{ width: LABEL_W, flexShrink: 0, height: 22, borderRight: '1px solid var(--cream-300)' }} />
             {Array.from({ length: TL_TOTAL_Q * 3 }, (_, idx) => (
               <div key={idx} style={{
                 width: 26, flexShrink: 0, height: 22,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '9px', fontWeight: 500, color: 'rgba(5,10,68,0.30)',
-                borderRight: (idx + 1) % 3 === 0 ? '1px solid rgba(5,10,68,0.07)' : '1px solid rgba(5,10,68,0.03)',
+                fontSize: '9px', fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--ink-400)',
+                borderRight: (idx + 1) % 3 === 0 ? '1px solid var(--cream-300)' : '1px solid var(--cream-200)',
               }}>
                 {MONTHS[idx % 12]}
               </div>
@@ -583,16 +490,16 @@ function KeyCompetitorTimeline() {
             const compName = (competitors as any[]).find(c => c.id === row.competitorId)?.name ?? row.competitorId
 
             return (
-              <div key={rowIdx} style={{ position: 'relative', height: ROW_H, borderBottom: '1px solid rgba(5,10,68,0.05)' }}>
+              <div key={rowIdx} style={{ position: 'relative', height: ROW_H, borderBottom: '1px solid var(--cream-300)' }}>
 
                 {/* Sticky label column */}
                 <div style={{
                   position: 'sticky', left: 0, zIndex: 2,
-                  background: 'var(--bg-1)', width: LABEL_W, height: '100%',
-                  borderRight: '1px solid rgba(5,10,68,0.07)',
+                  background: 'var(--cream-100)', width: LABEL_W, height: '100%',
+                  borderRight: '1px solid var(--cream-300)',
                   display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 10px',
                 }}>
-                  <span style={{ fontWeight: 700, fontSize: '11px', color: 'rgba(5,10,68,0.80)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{ fontWeight: 700, fontSize: '11px', fontFamily: 'var(--font-ui)', color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {compName}
                   </span>
                   <span style={{ fontSize: '10px', color: 'var(--ink-600)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -616,7 +523,7 @@ function KeyCompetitorTimeline() {
                         {bar.label}
                       </span>
                       {bar._live && (
-                        <span style={{ marginLeft: 4, fontSize: 8, color: '#15803d', flexShrink: 0 }}>●</span>
+                        <span style={{ marginLeft: 4, fontSize: 8, color: 'var(--sage-600)', flexShrink: 0 }}>●</span>
                       )}
                     </div>
                   )
@@ -688,7 +595,7 @@ function KeyCompetitorTimeline() {
                   <div key={idx} style={{
                     position: 'absolute', left: LABEL_W + idx * actualQw,
                     top: 0, width: 1, height: '100%',
-                    background: 'rgba(5,10,68,0.04)', pointerEvents: 'none',
+                    background: 'rgba(42,39,34,0.04)', pointerEvents: 'none',
                   }} />
                 ))}
               </div>
@@ -705,6 +612,13 @@ function KeyCompetitorTimeline() {
 const HAE_TAG_TERMS_COMP = ['hereditary angioedema', 'hae']
 
 type SortMode = 'activity' | 'recent' | 'threat' | 'name'
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'activity', label: 'Activity' },
+  { value: 'recent',   label: 'Recent'   },
+  { value: 'threat',   label: 'Threat'   },
+  { value: 'name',     label: 'Name'     },
+]
 
 export default function Competitors() {
   const { watchedCompetitors } = useApp()
@@ -790,26 +704,22 @@ export default function Competitors() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             {/* Filter pills */}
-            <div style={{ display: 'inline-flex', padding: '3px', borderRadius: '9999px', border: '1px solid rgba(210,226,255,1)', gap: '2px' }}>
+            <div className="seg">
               {[
                 { value: 'all',             label: 'All'             },
                 { value: 'hae-acute',       label: 'HAE acute'       },
                 { value: 'hae-prophylaxis', label: 'HAE prophylaxis' },
-              ].map(opt => {
-                const isActive = filter === opt.value
-                return (
-                  <button key={opt.value} onClick={() => setFilter(opt.value)} style={{
-                    padding: '4px 10px', borderRadius: '9999px',
-                    fontSize: '14px', fontWeight: isActive ? 700 : 400,
-                    background: isActive ? 'rgba(21,45,97,1)' : 'transparent',
-                    color: isActive ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                    border: 'none', cursor: 'pointer',
-                    transition: 'all 120ms ease', fontFamily: 'inherit', whiteSpace: 'nowrap',
-                  }}>
-                    {opt.label}
-                  </button>
-                )
-              })}
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg-item${filter === opt.value ? ' is-active' : ''}`}
+                  onClick={() => setFilter(opt.value)}
+                  style={{ border: 'none', background: filter === opt.value ? undefined : 'transparent' }}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -820,12 +730,12 @@ export default function Competitors() {
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               background: 'none', border: 'none', padding: '0',
               cursor: 'pointer', flexShrink: 0,
-              fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif',
-              color: '#10224A',
+              fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-ui)',
+              color: 'var(--ink-800)',
             }}
           >
-            <BarChart2 size={14} strokeWidth={2} color="#10224A" />
-            <span style={{ borderBottom: '1px dashed #10224A', paddingBottom: '1px', lineHeight: '1.4' }}>
+            <BarChart2 size={14} strokeWidth={2} aria-hidden="true" />
+            <span style={{ borderBottom: '1px dashed var(--ink-400)', paddingBottom: '1px', lineHeight: '1.4' }}>
               {showTimeline ? 'Hide timeline' : 'View timeline'}
             </span>
           </button>
@@ -835,8 +745,9 @@ export default function Competitors() {
         {showTimeline && (
           <div style={{
             marginBottom: '0',
-            border: '1px solid rgba(210,226,255,1)',
-            borderRadius: '16px',
+            background: 'var(--cream-100)',
+            boxShadow: 'var(--neu-raised)',
+            borderRadius: 'var(--r-lg)',
             overflow: 'hidden',
             height: '520px',
             display: 'flex', flexDirection: 'column',
@@ -848,48 +759,43 @@ export default function Competitors() {
         {/* Separator between timeline and grid */}
         {showTimeline && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
+            <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
               Tracked competitors
             </span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+            <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
           </div>
         )}
 
-        {/* Sort + posture filter control bar (§2.2) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', margin: showTimeline ? '0 0 16px' : '4px 0 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>Sort</span>
-            <select
-              value={sortMode}
-              onChange={e => setSortMode(e.target.value as SortMode)}
-              style={{
-                padding: '6px 10px', borderRadius: '9999px',
-                border: '1.5px solid rgba(5,10,68,0.15)', background: 'transparent',
-                fontSize: '13px', color: 'rgba(5,10,68,0.85)', fontFamily: 'inherit', cursor: 'pointer',
-              }}
-            >
-              <option value="activity">Activity (this quarter)</option>
-              <option value="recent">Most recent signal</option>
-              <option value="threat">Threat level</option>
-              <option value="name">Name (A–Z)</option>
-            </select>
+        {/* Sort + posture filter control bar (§2.2) — glass chrome, per DESIGN.md's
+            two-layer model (filter bars are chrome, never neumorphic content). */}
+        <div className="feed-filter-bar" style={{ margin: showTimeline ? '0 0 16px' : '4px 0 16px' }}>
+          <div className="seg">
+            {SORT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`seg-item${sortMode === opt.value ? ' is-active' : ''}`}
+                onClick={() => setSortMode(opt.value)}
+                style={{ border: 'none', background: sortMode === opt.value ? undefined : 'transparent' }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
           {postureOptions.length > 0 && (
             <FilterDropdown label="Posture" options={postureOptions} applied={postureFilter} onApply={setPostureFilter} />
           )}
 
-          <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif', marginLeft: 'auto' }}>
+          <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', marginLeft: 'auto' }}>
             {sorted.length} shown
           </span>
         </div>
 
         {/* Responsive card grid */}
         {sorted.length === 0 ? (
-          <p style={{ textAlign: 'center', padding: '60px', fontSize: '13px', color: 'var(--ink-600)' }}>
-            No competitors match this filter.
-          </p>
+          <EmptyState message="No competitors match this filter." />
         ) : (!loaded || !liveDataReady) ? (
           <SkeletonCompetitorGrid count={competitors.length} />
         ) : (
