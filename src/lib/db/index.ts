@@ -455,6 +455,42 @@ export async function markAllAlertsReadDb(userId: string, alertIds: string[]): P
   }
 }
 
+// ── Per-user alert triage/handling state (alert_handling_state) ──────────────
+// war-room-redesign-spec.md §7 — personal, Supabase-backed, same shape/RLS posture as
+// read_alerts above. Absence of a row means 'needs_triage' (the default), so resetting
+// to 'needs_triage' deletes the row rather than writing a redundant default value.
+
+export type HandlingState = 'needs_triage' | 'in_progress' | 'handled' | 'dismissed'
+
+export async function getHandlingStates(userId: string): Promise<Record<string, HandlingState>> {
+  if (!supabase) return {}
+  const { data } = await supabase
+    .from('alert_handling_state')
+    .select('alert_id, handling_state')
+    .eq('user_id', userId)
+  const out: Record<string, HandlingState> = {}
+  for (const row of (data ?? []) as { alert_id: string; handling_state: HandlingState }[]) {
+    out[row.alert_id] = row.handling_state
+  }
+  return out
+}
+
+export async function setHandlingStateDb(userId: string, alertId: string, state: HandlingState): Promise<void> {
+  if (!supabase) return
+  if (state === 'needs_triage') {
+    const { error } = await supabase
+      .from('alert_handling_state')
+      .delete()
+      .match({ user_id: userId, alert_id: alertId })
+    if (error) console.warn('[db] setHandlingStateDb (reset):', error.message)
+    return
+  }
+  const { error } = await supabase
+    .from('alert_handling_state')
+    .upsert({ user_id: userId, alert_id: alertId, handling_state: state, updated_at: new Date().toISOString() })
+  if (error) console.warn('[db] setHandlingStateDb:', error.message)
+}
+
 // ── Competitor messaging snapshots (messaging_snapshots) ─────────────────────
 
 export interface DbMessagingSnapshot {

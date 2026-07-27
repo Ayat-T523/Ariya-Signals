@@ -16,6 +16,9 @@ import {
   markAlertReadDb,
   markAlertUnreadDb,
   markAllAlertsReadDb,
+  getHandlingStates,
+  setHandlingStateDb,
+  type HandlingState,
 } from '../lib/db'
 import { supabase } from '../lib/supabase'
 
@@ -96,11 +99,12 @@ export function AppProvider({ children }) {
       if (event === 'SIGNED_IN' && session?.user) {
         const userId = session.user.id
         void (async () => {
-          // Load profile + watchlist + read state in parallel; Supabase is source of truth.
-          const [profile, watchedIds, readIds] = await Promise.all([
+          // Load profile + watchlist + read state + handling state in parallel; Supabase is source of truth.
+          const [profile, watchedIds, readIds, handlingStatesRow] = await Promise.all([
             getUserProfile(userId),
             getWatchedCompetitorIds(userId),
             getReadAlertIds(userId),
+            getHandlingStates(userId),
           ])
 
           // New / incomplete users need the onboarding flow.
@@ -138,6 +142,11 @@ export function AppProvider({ children }) {
             setReadAlerts(new Set(readIds))
           }
 
+          // Hydrate triage/handling state from Supabase.
+          if (Object.keys(handlingStatesRow).length > 0) {
+            setHandlingStates(handlingStatesRow)
+          }
+
           // Migration: seed Supabase from localStorage for users who pre-date auth.
           void migrateLocalStorageToSupabase(userId)
         })()
@@ -163,6 +172,29 @@ export function AppProvider({ children }) {
   // Source of truth is read_alerts table in Supabase. Seeded on SIGNED_IN.
   // localStorage is no longer the source of truth (kept only for migration).
   const [readAlerts, setReadAlerts] = useState<Set<string>>(() => new Set())
+
+  // ── Alert triage/handling state (Phase 4.1) ──────────────────────────────
+  // Personal, Supabase-backed (alert_handling_state table) — same pattern as
+  // readAlerts above, not localStorage. Absence of a key means 'needs_triage'
+  // (the default); see getHandlingState below.
+  const [handlingStates, setHandlingStates] = useState<Record<string, HandlingState>>(() => ({}))
+
+  function getHandlingState(alertId: string): HandlingState {
+    return handlingStates[alertId] ?? 'needs_triage'
+  }
+
+  function setHandlingState(alertId: string, state: HandlingState) {
+    setHandlingStates((prev) => {
+      if (state === 'needs_triage') {
+        if (!(alertId in prev)) return prev
+        const next = { ...prev }
+        delete next[alertId]
+        return next
+      }
+      return { ...prev, [alertId]: state }
+    })
+    if (authUser) void setHandlingStateDb(authUser.id, alertId, state)
+  }
 
   // ── Saved alerts (Phase 3.1) ─────────────────────────────────────────────
   // Local-only for now, unlike readAlerts above -- there is no saved_alerts
@@ -429,6 +461,9 @@ export function AppProvider({ children }) {
         markAlertRead,
         markAlertUnread,
         markAllRead,
+        handlingStates,
+        getHandlingState,
+        setHandlingState,
         savedAlerts,
         toggleSavedAlert,
         unreadCount,
