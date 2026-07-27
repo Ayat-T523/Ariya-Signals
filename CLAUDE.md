@@ -70,7 +70,7 @@ are absent from the output rather than expecting zero.
 
 `GuidedTour` and `OnboardingModal` are rendered at the Layout level and sit above page content. The `AskModal` ("Ask Ariya", `/` shortcut key) is also Layout-level.
 
-> **Important:** The active nav is `src/components/shell/NavPanel.tsx`. `src/components/layout/Sidebar.tsx` is an alternate/legacy component that is **not wired into Layout.tsx** — edits to the sidebar appearance should go to `NavPanel.tsx`.
+> **Important:** The nav is `src/components/shell/NavPanel.tsx` — edits to nav appearance go there. (An earlier note here described a legacy `src/components/layout/Sidebar.tsx`; that file no longer exists.)
 
 ### Global state — `AppContext`
 
