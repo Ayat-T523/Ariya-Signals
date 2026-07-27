@@ -21,7 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Plus, Circle, PauseCircle, CheckCircle2, XCircle,
-  ChevronDown, ExternalLink, MessageSquareText, Inbox,
+  ChevronDown, ExternalLink, MessageSquareText, Inbox, AlertTriangle,
 } from 'lucide-react'
 import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -153,7 +153,11 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
   }
 
   return (
-    <div className="worklist-handle" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}>
+    <div
+      className="worklist-handle"
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }}
+    >
       <button
         type="button"
         className={`worklist-handle-trigger${open ? ' is-open' : ''}${current === 'in_progress' ? ' is-in-progress' : ''}`}
@@ -245,7 +249,7 @@ export default function WarRoom() {
   const watchedIds = Array.from(watchedCompetitors).sort()
   const filterIds = watchedIds.length > 0 ? watchedIds : undefined
 
-  const { data: liveData, isSuccess: liveDataLoaded, dataUpdatedAt } = useQuery({
+  const { data: liveData, isSuccess: liveDataLoaded, isError: liveDataFailed, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['war-room-live', watchedIds],
     queryFn: () => Promise.all([
       getRecentSignals(NARRATION_DAYS, filterIds),
@@ -445,7 +449,14 @@ export default function WarRoom() {
             </div>
           </div>
 
-          {showSkeleton ? (
+          {liveDataFailed ? (
+            <div className="digest-plate inf-raised worklist-empty">
+              <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
+              <h3>Couldn&rsquo;t load your worklist</h3>
+              <p>Check your connection and try again.</p>
+              <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: '12px' }} onClick={() => refetch()}>Retry</button>
+            </div>
+          ) : showSkeleton ? (
             <div className="digest-plate inf-raised worklist-plate" aria-busy="true" aria-label="Loading worklist">
               {[0, 1, 2].map((i) => (
                 <div className="worklist-row" key={i}>
