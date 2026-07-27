@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { buildWhyItMatters } from './lib/extractWhy.mjs'
 import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
+import { buildCleanHeadline } from './lib/buildCleanHeadline.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -355,6 +356,22 @@ for (const competitor of withCik) {
         name,
       )
 
+      // Round 2 R4: clean_headline via local Ollama — best-effort. A down/slow
+      // Ollama must never block ingestion of the underlying filing signal, so
+      // failures fall back to omitting the column entirely (see below), not
+      // to writing null — this is an upsert on re-runs, and an explicit null
+      // would clobber a clean_headline a previous, successful run already
+      // wrote for this same accession_number.
+      let cleanHeadline = null
+      try {
+        cleanHeadline = await buildCleanHeadline(
+          { headline, body_excerpt: bodyExcerpt, signal_type: signalType },
+          name,
+        )
+      } catch (e) {
+        errors.push(`${name} ${filing.accession} clean_headline: ${e.message}`)
+      }
+
       const { error } = await supabase
         .from('company_signals')
         .upsert(
@@ -368,6 +385,7 @@ for (const competitor of withCik) {
             source_url:       `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${filing.doc}`,
             accession_number: filing.accession,
             why_it_matters:   whyItMatters,
+            ...(cleanHeadline ? { clean_headline: cleanHeadline } : {}),
           },
           { onConflict: 'competitor_id,accession_number', ignoreDuplicates: false }
         )
