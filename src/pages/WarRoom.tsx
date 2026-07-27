@@ -164,6 +164,7 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
         type="button"
         className={`worklist-handle-trigger${open ? ' is-open' : ''}${current === 'in_progress' ? ' is-in-progress' : ''}`}
         aria-haspopup="menu" aria-expanded={open}
+        title="Update triage status"
         onClick={() => setOpen((v) => !v)}
       >
         <Icon size={13} aria-hidden="true" />
@@ -294,19 +295,45 @@ export default function WarRoom() {
   // scope for this worklist build.
   const allAlerts = useMemo(() => mapSignals(relevantSignals), [relevantSignals])
 
-  // "Needs you" = not already resolved, and either genuinely untouched or
-  // high-severity (war-room-redesign-spec.md §4/§8 — explicit rule, since the
-  // spec itself leaves this as an open question). Clearing this list, and the
-  // count below, is the job of the page.
+  // "Needs you" = not yet resolved (critique 2026-07-27, P0 fix). Originally
+  // this also required needs_triage-or-high-severity, which meant starting
+  // work on a non-high item ("in_progress" — literally "I'm on this")
+  // instantly dropped it from both the worklist and the hero count: a user
+  // who got interrupted mid-task would find no trace of it tomorrow unless
+  // it happened to be high-severity. With only four states, "not resolved"
+  // already means needs_triage or in_progress, so severity no longer gates
+  // membership at all — only handled/dismissed ever remove an item.
   function isNeedsYou(a: MappedAlert): boolean {
     const hs = handlingStates[a.id] ?? 'needs_triage'
-    if (hs === 'handled' || hs === 'dismissed') return false
-    return hs === 'needs_triage' || a.severity === 'high'
+    return hs !== 'handled' && hs !== 'dismissed'
   }
   const needsYouAlerts = allAlerts.filter(isNeedsYou)
-  const needsYouCount = needsYouAlerts.length
 
-  const worklistItems = [...needsYouAlerts]
+  // De-duplicate near-identical signals before filling the worklist's scarce
+  // 6-slot budget (critique 2026-07-27, P1): the same competitor filing
+  // (e.g. one 6-K's several exhibits — CEO letter, incoming-CEO letter,
+  // meeting notice) often lands as several company_signals rows sharing a
+  // competitor + date + type. Collapsing those to the single highest-severity
+  // representative is a worklist-display decision, not a data fix — nothing
+  // is deleted, Alerts still shows every row.
+  const dedupedNeedsYou = (() => {
+    const bestByKey = new Map<string, MappedAlert>()
+    const order: string[] = []
+    for (const a of needsYouAlerts) {
+      const key = `${a.competitorId}|${a.timestamp.slice(0, 10)}|${a.type}`
+      const existing = bestByKey.get(key)
+      if (!existing) { bestByKey.set(key, a); order.push(key); continue }
+      if ((SEVERITY_RANK[a.severity] ?? 0) > (SEVERITY_RANK[existing.severity] ?? 0)) bestByKey.set(key, a)
+    }
+    return order.map((key) => bestByKey.get(key)!)
+  })()
+  // The hero count reflects the same deduped set the worklist draws from —
+  // otherwise "N need you" could promise more distinct items than the
+  // worklist could ever actually show, repeating the P0 trust problem at
+  // one remove.
+  const needsYouCount = dedupedNeedsYou.length
+
+  const worklistItems = [...dedupedNeedsYou]
     .sort((a, b) => {
       if (sortMode === 'importance') {
         const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
@@ -426,7 +453,10 @@ export default function WarRoom() {
 
       {/* Glass stat bar */}
       <div className="stat-bar" data-tour="war-room">
-        <span className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}>
+        <span
+          className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}
+          title="Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items."
+        >
           <span className="num">{needsYouCount}</span> need{needsYouCount === 1 ? 's' : ''} you
         </span>
         <span className="stat-bar-sep" aria-hidden="true" />
