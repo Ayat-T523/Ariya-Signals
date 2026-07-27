@@ -25,6 +25,11 @@
 import { createSupabaseClient, loadAssetResolver } from './lib/signal-gate.mjs'
 
 const APPLY   = process.argv.includes('--apply')
+// Normally only rows with no inn are considered, which keeps the backfill
+// idempotent. --reresolve also re-evaluates rows that already carry an inn, so a
+// matching improvement (a lexicon addition, the §2.2 boundary rule) can correct
+// an earlier attribution. It proposes a change only where the result differs.
+const RERESOLVE = process.argv.includes('--reresolve')
 const sampleI = process.argv.indexOf('--sample')
 const SAMPLE  = sampleI !== -1 ? parseInt(process.argv[sampleI + 1], 10) : 25
 
@@ -56,12 +61,14 @@ async function main() {
   const resolver = await loadAssetResolver(supabase)
   console.log(`Resolver: ${resolver.size} terms loaded.\n`)
 
-  // Candidates: only rows that don't already carry an inn (idempotent).
-  const { data: rows, error } = await supabase
+  // Candidates: rows with no inn (idempotent), or every row under --reresolve.
+  let query = supabase
     .from('company_signals')
-    .select('id, signal_type, competitor_id, headline, body_excerpt')
-    .is('inn', null)
+    .select('id, signal_type, competitor_id, headline, body_excerpt, inn, asset_id')
+  if (!RERESOLVE) query = query.is('inn', null)
+  const { data: rows, error } = await query
   if (error) { console.error(`❌  load failed: ${error.message}`); process.exit(1) }
+  if (RERESOLVE) console.log('--reresolve: re-evaluating rows that already carry an inn.\n')
 
   const proposals = []
   const stats = {}   // signal_type → { scanned, matched, unmatched, skipped }
@@ -85,9 +92,17 @@ async function main() {
     const chosen = own ?? drugs[0]
     if (own && own !== drugs[0]) tiebroken++
 
+    // Under --reresolve, a row whose resolved inn already matches what is stored
+    // is not a change and must not be reported as one.
+    if (RERESOLVE && row.inn === chosen.inn && row.asset_id === chosen.assetId) {
+      st.matched++
+      continue
+    }
+
     st.matched++
     proposals.push({
       id: row.id,
+      previousInn: row.inn ?? null,
       signal_type: row.signal_type,
       competitor_id: row.competitor_id,
       headline: row.headline,
@@ -127,8 +142,9 @@ async function main() {
   console.log(`\nSample (${Math.min(SAMPLE, proposals.length)} of ${proposals.length}):`)
   for (const p of proposals.slice(0, SAMPLE)) {
     const flag = p.mismatch ? `  ⚠️ owner→${p.resolvedCompetitor}` : ''
+    const was  = p.previousInn ? `${p.previousInn} → ` : ''
     console.log(`  [${p.signal_type}] (${p.competitor_id}) "${trunc(p.headline, 60)}"`)
-    console.log(`      → inn=${p.inn}  asset_id=${p.assetId ?? 'NULL'}${flag}`)
+    console.log(`      → inn=${was}${p.inn}  asset_id=${p.assetId ?? 'NULL'}${flag}`)
   }
 
   if (mismatches.length) {

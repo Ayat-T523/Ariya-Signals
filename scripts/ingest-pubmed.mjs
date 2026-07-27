@@ -174,7 +174,16 @@ async function ingestDrug(supabase, drug, innToAssetId) {
     const abstract = (abstractMap[pmid] ?? '').trim()
     if (!title) { skipped++; continue }
 
-    const date      = parseSignalDate(s.pubdate)
+    // PubMed reports many pubdates as a bare year. Store the year as YYYY-01-01
+    // with date_precision 'year' so recency works, rather than dropping the date
+    // and scoring the paper as if it were ancient. Precision travels with the
+    // value so nothing claims a day we do not have.
+    const parsedDate = parseSignalDate(s.pubdate)
+    const yearOnly   = !parsedDate && /^\s*(\d{4})\s*$/.test(String(s.pubdate ?? ''))
+    const date       = parsedDate ?? (yearOnly ? `${String(s.pubdate).trim()}-01-01` : null)
+    const datePrecision = parsedDate
+      ? (/^\d{4}\s+[a-z]+\.?\s+\d{1,2}/i.test(String(s.pubdate)) ? 'day' : 'month')
+      : (yearOnly ? 'year' : null)
     const journal   = s.source ?? ''
     const authors   = (s.authors ?? []).map(a => a.name).slice(0, 3).join(', ')
     const doi       = (s.articleids ?? []).find(a => a.idtype === 'doi')?.value ?? ''
@@ -196,6 +205,7 @@ async function ingestDrug(supabase, drug, innToAssetId) {
       headline,
       body_excerpt:  bodyExcerpt,
       date,
+      date_precision: datePrecision,
       source_url:    sourceUrl,
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,

@@ -35,3 +35,22 @@ export function formatDateAbs(dateStr) {
     month: 'short', day: 'numeric', year: 'numeric',
   })
 }
+
+/**
+ * Absolute date rendered only as precisely as it is known (§4.6 / date_precision).
+ *
+ * Many publication dates are year-only at the source. Those are stored as
+ * YYYY-01-01 so recency scoring works, but rendering them as "Jan 1, 2026" would
+ * assert a day the source never gave. Show what is actually known.
+ */
+export function formatDateAtPrecision(
+  dateStr: string | null | undefined,
+  precision: 'day' | 'month' | 'year' | null | undefined,
+): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  if (precision === 'year')  return String(d.getUTCFullYear())
+  if (precision === 'month') return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
