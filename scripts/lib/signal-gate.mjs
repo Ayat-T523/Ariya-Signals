@@ -155,6 +155,61 @@ export async function loadLexicon(supabase) {
   return map
 }
 
+// ── Term matching (§2.2 stop-list and boundary rule) ──────────────────────────
+//
+// Matching used to be a bare substring test, which produced real false positives:
+// the generic term "hae" is contained in "Michael", "Rachael", "haemoglobin" and
+// "phaeochromocytoma", so any signal naming a Michael passed the HAE relevance
+// gate. Terms are now matched on word boundaries.
+
+/**
+ * Terms that must never match, however they appear (§2.2 stop-list). These are
+ * words a lexicon or generic list can plausibly contain but which carry no
+ * drug or disease meaning on their own.
+ */
+const STOP_LIST = new Set([
+  'ir', 'inc', 'llc', 'plc', 'ltd', 'corp', 'co',
+  'phase', 'study', 'trial', 'data', 'patient', 'patients',
+  'drug', 'therapy', 'treatment', 'disease', 'oral', 'dose',
+  'new', 'first', 'the', 'and', 'for', 'with',
+])
+
+/** Shortest term allowed to match at all. Below this, a token is noise. */
+const MIN_TERM_LENGTH = 3
+
+const boundaryCache = new Map()
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * True when `term` appears in `textLower` as a whole word.
+ *
+ * Boundaries are applied on each side only when the term itself starts or ends
+ * with a word character, so terms like "(rp)" or a leading hyphen still match.
+ */
+export function termMatches(textLower, term) {
+  if (!textLower || !term) return false
+  const t = term.toLowerCase().trim()
+  if (t.length < MIN_TERM_LENGTH) return false
+  if (STOP_LIST.has(t)) return false
+  let re = boundaryCache.get(t)
+  if (!re) {
+    const lead  = /^\w/.test(t) ? '\\b' : ''
+    const trail = /\w$/.test(t) ? '\\b' : ''
+    re = new RegExp(`${lead}${escapeRegex(t)}${trail}`, 'i')
+    boundaryCache.set(t, re)
+  }
+  return re.test(textLower)
+}
+
+/** True when a term is eligible to be indexed at all. */
+export function isMatchableTerm(term) {
+  const t = (term ?? '').toLowerCase().trim()
+  return t.length >= MIN_TERM_LENGTH && !STOP_LIST.has(t)
+}
+
 // ── Competitor resolution ─────────────────────────────────────────────────────
 
 /**
@@ -170,7 +225,7 @@ export function resolveCompetitor(textLower, termToCompetitor, sentinel = UNATTR
   let matched  = false
   let resolved = null
   for (const [term, competitorId] of termToCompetitor) {
-    if (textLower.includes(term)) {
+    if (termMatches(textLower, term)) {
       matched = true
       if (competitorId != null) { resolved = competitorId; break }
     }
@@ -261,7 +316,7 @@ export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED) {
   let matched = false
   let generic = null
   for (const [term, identity] of resolver) {
-    if (!textLower.includes(term)) continue
+    if (!termMatches(textLower, term)) continue
     matched = true
     if (identity.inn != null) {
       // Specific drug named — this is the strongest signal, take it immediately.

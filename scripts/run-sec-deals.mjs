@@ -35,7 +35,6 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 const SEC_USER_AGENT = 'AriyaSignals ayat.tayebulla@phamax.ch'
 const TIMEOUT_MS     = 20_000
 const LOOKBACK_DAYS  = 730  // 2 years
-const EXCERPT_LEN    = 500
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,15 +55,6 @@ async function fetchJson(url) {
   return r.json()
 }
 
-async function fetchText(url) {
-  const r = await fetch(url, {
-    headers: { 'User-Agent': SEC_USER_AGENT },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
-  if (!r.ok) return null
-  return r.text()
-}
-
 function classifyItems(itemsStr) {
   if (!itemsStr) return null
   const items = itemsStr.split(',')
@@ -72,129 +62,6 @@ function classifyItems(itemsStr) {
   if (items.some(i => i.trim() === '5.02'))                  return 'exec_change'
   if (items.some(i => i.trim() === '8.01'))                  return 'press_release'
   return null
-}
-
-// Strip HTML tags and decode common entities.
-// Removes iXBRL hidden-metadata blocks FIRST — these contain raw DEI values
-// (DocumentType, AmendmentFlag, CIK, PeriodOfReport) that produce garbage like
-// "8-K false 0001652130 0001652130 2024-10-24" when HTML tags are stripped but
-// text content is left. Affects all XBRL-inline 8-K filers (e.g. Intellia).
-function stripHtml(html) {
-  return html
-    // Remove iXBRL hidden metadata sections entirely (no readable content)
-    .replace(/<ix:hidden[\s\S]*?<\/ix:hidden>/gi, '')
-    // Remove inline DEI/XBRL value tags — their text content is raw numeric metadata
-    .replace(/<dei:[^>]*>[\s\S]*?<\/dei:[^>]*>/gi, '')
-    .replace(/<xbrli?:[^>]*>[\s\S]*?<\/xbrli?:[^>]*>/gi, '')
-    // Standard HTML strip + entity decode
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g,  ' ')
-    .replace(/&amp;/g,   '&')
-    .replace(/&lt;/g,    '<')
-    .replace(/&gt;/g,    '>')
-    .replace(/&quot;/g,  '"')
-    .replace(/&#160;/g,  ' ')
-    .replace(/\s+/g,     ' ')
-    .trim()
-}
-
-// Extract the first substantive paragraph after an "Item X.XX" heading.
-// After stripHtml the text is single-spaced, so we can't look for newlines.
-// Instead: find the item marker, then skip the section title by searching for
-// the next ". Capital" sentence boundary — avoids the old hardcoded +10 offset
-// that landed mid-word when the heading title varied in length.
-function extractExcerpt(text, itemNumber) {
-  const patterns = [
-    `Item ${itemNumber}.`,
-    `ITEM ${itemNumber}.`,
-    `Item ${itemNumber} `,
-  ]
-  for (const pat of patterns) {
-    const idx = text.indexOf(pat)
-    if (idx === -1) continue
-    const afterMarker = text.slice(idx + pat.length)
-    // Section title ends at the first ". Capital" (e.g. "Entry into a Material
-    // Definitive Agreement. On January 23..."). If none found, start right after.
-    const titleBreak = afterMarker.search(/\.\s+[A-Z]/)
-    const afterTitle  = titleBreak >= 0
-      ? afterMarker.slice(titleBreak + 1).trimStart()
-      : afterMarker.trimStart()
-    return afterTitle.slice(0, EXCERPT_LEN).replace(/\s+/g, ' ').trim()
-  }
-  return text.slice(0, EXCERPT_LEN).trim()
-}
-
-// Returns false for metadata rows (exhibit indexes, accession numbers, form codes)
-function isProseText(text) {
-  if (/\d{10}\s+\d{10}/.test(text))    return false  // dual CIK/accession
-  if (/exhibit\d+[_\-.]/i.test(text))  return false  // exhibit filename
-  if (/form\d*k[_\-]/i.test(text))     return false  // form code ref
-  const nonAlpha = (text.match(/[\d_]/g) ?? []).length
-  if (nonAlpha / text.length > 0.4)    return false  // >40% digits/underscores
-  const skip = /^(true|false|null)$/i
-  const proseWords = (text.match(/\b[A-Za-z]{4,}\b/g) ?? []).filter(w => !skip.test(w))
-  return proseWords.length >= 3
-}
-
-// Build a one-sentence headline from the excerpt; returns null when the
-// extracted candidate looks like filing metadata rather than readable prose
-function buildHeadline(excerpt) {
-  const match = excerpt.match(/^([^.!?]{20,200}[.!?])/)
-  const candidate = match
-    ? match[1].trim()
-    : (() => {
-        const MAX = 200
-        if (excerpt.length <= MAX) return excerpt.trim()
-        const cut = excerpt.lastIndexOf(' ', MAX)
-        return excerpt.slice(0, cut > 0 ? cut : MAX).trim() + '…'
-      })()
-  return isProseText(candidate) ? candidate : null
-}
-
-// ── Item-based title composition ──────────────────────────────────────────────
-
-const ITEM_DESCRIPTIONS = {
-  '1.01': 'Entry into a Material Definitive Agreement',
-  '2.01': 'Completion of Acquisition or Disposition of Assets',
-  '2.02': 'Results of Operations and Financial Condition',
-  '5.02': 'Departure/Appointment of Directors or Officers',
-  '7.01': 'Regulation FD Disclosure',
-  '8.01': 'Other Events',
-  '9.01': 'Financial Statements and Exhibits',
-}
-
-// Strip known leading artifacts from body_excerpt before attempting prose recovery.
-// The old extractExcerpt +10 offset left lowercase fragments like "ts.", "o a",
-// or "of Directors" at the start. This pattern removes them so the real sentence
-// can be found. Degrades gracefully when the artifact is absent.
-function recoverProseSentence(text) {
-  if (!text) return null
-  const stripped = text.replace(/^[a-z][a-z\s,;.]{0,30}\.\s*/, '').trim()
-  const match    = stripped.match(/^[A-Z][^.!?]{20,200}[.!?]/)
-  return match ? match[0].trim() : null
-}
-
-// Compose a readable headline from the structured items field.
-// For press-release items (8.01, 7.01): attempts to recover a real prose sentence
-// from body_excerpt first — real content wins over the generic description.
-// For all other item types: returns "<CompetitorName> — <Item Description>".
-// Guard: returns null for null/empty items (6-K rows — handled by Phase 4).
-function composeTitle(competitorName, items, bodyExcerpt) {
-  if (!items) return null
-  const itemCodes   = items.split(',').map(s => s.trim()).filter(Boolean)
-  if (!itemCodes.length) return null
-
-  const isPressRelease = itemCodes.some(c => c === '8.01' || c === '7.01')
-  if (isPressRelease && bodyExcerpt) {
-    const prose = recoverProseSentence(bodyExcerpt)
-    if (prose) return prose
-  }
-
-  // Priority order: deal/acquisition items first, then exec, then press/general
-  const priority = ['2.01', '1.01', '2.02', '5.02', '8.01', '7.01', '9.01']
-  const leadItem  = priority.find(c => itemCodes.includes(c)) ?? itemCodes[0]
-  const desc      = ITEM_DESCRIPTIONS[leadItem] ?? `SEC Filing (Item ${leadItem})`
-  return `${competitorName} — ${desc}`
 }
 
 // Text-heuristic classifier for forms that lack SEC item numbering (6-K, 20-F)
@@ -205,41 +72,6 @@ function classifyByText(text) {
   return 'press_release'
 }
 
-// ── Phase 4.1: Foreign-filer EX-99 adapter ───────────────────────────────────
-
-// Reconstruct the dashed accession number from the no-dash form.
-// "000139506426000177" → "0001395064-26-000177"
-function dashAccession(accNodash) {
-  return `${accNodash.slice(0, 10)}-${accNodash.slice(10, 12)}-${accNodash.slice(12)}`
-}
-
-// Fetch the EDGAR filing index for a 6-K and return the URL of the first
-// EX-99.1 press release exhibit, or null when no EX-99 is present (the filing
-// is a pure financial statement with no press release attached).
-async function fetchEx99Url(unpadded, accNodash) {
-  const dashed   = dashAccession(accNodash)
-  const indexUrl = `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${dashed}-index.htm`
-  const html     = await fetchText(indexUrl)
-  if (!html) return null
-
-  // Walk the filing index table rows and return the href of the first row
-  // whose type cell contains "EX-99" (covers EX-99.1, EX-99.2, EX-99, etc.).
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
-  let match
-  while ((match = rowRegex.exec(html)) !== null) {
-    const row = match[1]
-    if (!/EX-99/i.test(row)) continue
-    const hrefMatch = row.match(/href="([^"#]+\.htm[l]?)"/i)
-    if (hrefMatch) {
-      const filename = hrefMatch[1]
-      if (filename.startsWith('http')) return filename
-      // Relative path — strip any leading directory components the index may include
-      const base = filename.replace(/^.*\//, '')
-      return `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${base}`
-    }
-  }
-  return null
-}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
