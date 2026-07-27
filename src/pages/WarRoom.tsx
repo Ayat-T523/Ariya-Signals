@@ -44,7 +44,7 @@ import {
 } from '../lib/db'
 import { mapSignals, type MappedAlert } from '../lib/signalMapping'
 import { cleanSignalText, SIGNAL_FALLBACK } from '../lib/signalText'
-import { computeSeverity, summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
+import { summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
 import type { DbRecentSignal } from '../lib/db'
 
 /** Days window for the worklist + market weather — must match buildNarration.mjs. */
