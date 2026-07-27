@@ -61,6 +61,21 @@ export const IMPORTANCE_CONFIG = {
     maxPoints:  50,
   },
 
+  /**
+   * Recency for dates known only to the year (date_precision 'year').
+   *
+   * A year-only date is stored as YYYY-01-01, which for most of the year sits
+   * outside the 90-day window and would score zero — ranking a paper published
+   * this year as though it were ancient. "Published this year" is genuine recency
+   * information at the precision the source gave, so it earns credit on a coarser
+   * scale, deliberately capped below what a precisely-dated recent signal gets so
+   * a vague date can never outrank a sharp one.
+   */
+  coarseRecency: {
+    sameYearPoints: 30,
+    lastYearPoints: 12,
+  },
+
   /** Source count (precedence 3). Corroboration across independent sources. */
   sourceCount: {
     pointsPerExtraSource: 15,
@@ -98,6 +113,11 @@ export type ImportanceBand = 'act' | 'watch' | 'context'
 export interface ScorableSignal {
   signal_type?: string | null
   date?: string | null
+  /**
+   * How precisely `date` is known. A 'year' value is stored as YYYY-01-01 and
+   * must be scored on the coarse scale, not treated as a 1 January event.
+   */
+  date_precision?: 'day' | 'month' | 'year' | null
 }
 
 export interface ImportanceContext {
@@ -130,11 +150,31 @@ function daysBetween(from: Date, to: Date): number {
   return (to.getTime() - from.getTime()) / 86_400_000
 }
 
-/** Precedence 2: linear decay over the window; older than the window scores 0. */
-function recencyPoints(date: string | null | undefined, today: Date): number {
+/**
+ * Precedence 2: linear decay over the window; older than the window scores 0.
+ *
+ * A year-only date is scored on the coarse scale instead, because YYYY-01-01 is a
+ * storage artefact rather than the event's day: for most of the year it falls
+ * outside the window and would score zero, ranking a paper published this year as
+ * though it were ancient.
+ */
+function recencyPoints(
+  date: string | null | undefined,
+  today: Date,
+  precision?: 'day' | 'month' | 'year' | null,
+): number {
   if (!date) return 0
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return 0
+
+  if (precision === 'year') {
+    const { sameYearPoints, lastYearPoints } = IMPORTANCE_CONFIG.coarseRecency
+    const diff = today.getUTCFullYear() - parsed.getUTCFullYear()
+    if (diff <= 0) return sameYearPoints
+    if (diff === 1) return lastYearPoints
+    return 0
+  }
+
   const { windowDays, maxPoints } = IMPORTANCE_CONFIG.recency
   const age = daysBetween(parsed, today)
   if (age < 0) return maxPoints          // dated today or ahead: freshest
@@ -174,7 +214,7 @@ export function importanceBreakdown(
 ): ImportanceBreakdown {
   const arc = arcOf(s.signal_type)
   const arcPoints = arc ? IMPORTANCE_CONFIG.arcWeight[arc] : 0
-  const rec = recencyPoints(s.date, ctx.today)
+  const rec = recencyPoints(s.date, ctx.today, s.date_precision)
   const src = sourceCountPoints(ctx.sourceCount)
   const cat = catalystPoints(ctx.daysToCatalyst)
   const total = arcPoints + rec + src + cat

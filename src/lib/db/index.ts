@@ -153,6 +153,11 @@ export interface DbCompanySignal {
   data_source: string | null
   /** When the row was last taken from its source. Distinct from `date`, the event's own date. */
   created_at: string | null
+  /**
+   * How precisely `date` is known. Many publication dates are year-only at the
+   * source and are stored as YYYY-01-01, so rendering must not assert a day.
+   */
+  date_precision: 'day' | 'month' | 'year' | null
 }
 
 export async function getFinancialsByCompetitorId(competitorId: string): Promise<DbFinancialSnapshot[]> {
@@ -170,7 +175,7 @@ export async function getSignalsByCompetitorId(competitorId: string): Promise<Db
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .order('date', { ascending: false })
     .limit(20)
@@ -185,7 +190,7 @@ export async function getHtaSignalsByCompetitorId(competitorId: string): Promise
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .eq('signal_type', 'hta_decision')
     .order('date', { ascending: false })
@@ -234,6 +239,11 @@ export interface DbRecentSignal {
   data_source: string | null
   /** When the row was last taken from its source. Distinct from `date`, the event's own date. */
   created_at: string | null
+  /**
+   * How precisely `date` is known. Many publication dates are year-only at the
+   * source and are stored as YYYY-01-01, so rendering must not assert a day.
+   */
+  date_precision: 'day' | 'month' | 'year' | null
 }
 
 export async function getRecentSignals(limitDays: number, competitorIds?: string[]): Promise<DbRecentSignal[]> {
@@ -243,7 +253,7 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   let query = supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .gte('date', cutoffStr)
     .order('date', { ascending: false })
   if (competitorIds && competitorIds.length > 0) {
@@ -484,7 +494,7 @@ export async function getMessagingSignals(competitorId: string): Promise<DbCompa
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .eq('signal_type', 'messaging_shift')
     .order('date', { ascending: false })
