@@ -1510,6 +1510,18 @@
 .worklist-empty h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink-900); margin: 0 0 6px; }
 .worklist-empty p { font-family: var(--font-ui); font-size: 13px; color: var(--ink-600); margin: 0; }
 
+/* Resolving flash — acknowledges Handle -> handled/dismissed for the one
+   beat before the row actually leaves the list (see handleChange's comment
+   in WarRoom.tsx for why this isn't an exit animation). Background tint
+   only; layout stays identical so nothing shifts when it clears. */
+.worklist-row.is-resolving { background: var(--sage-050); animation: worklist-row-flash var(--dur-slow) var(--ease-standard); }
+@keyframes worklist-row-flash { from { background: var(--sage-100); } to { background: var(--sage-050); } }
+.worklist-row-resolved {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--sage-600);
+  flex-shrink: 0;
+}
+
 @media (max-width: 900px) {
   .worklist-row-top { flex-wrap: wrap; row-gap: 4px; }
   .worklist-row-time { margin-left: 0; }

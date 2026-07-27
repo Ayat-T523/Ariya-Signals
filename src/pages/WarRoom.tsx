@@ -18,6 +18,8 @@
  */
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
+import { fadeIn, REDUCED_MOTION } from '../lib/motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Plus, Circle, PauseCircle, CheckCircle2, XCircle,
@@ -169,7 +171,10 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
         <ChevronDown size={12} aria-hidden="true" />
       </button>
       {open && (
-        <div className="menu-glass is-light is-compact worklist-handle-menu" role="menu">
+        <motion.div
+          className="menu-glass is-light is-compact worklist-handle-menu" role="menu"
+          variants={fadeIn} initial="initial" animate="animate"
+        >
           {options.map((opt) => {
             const OptIcon = STATE_META[opt.state].icon
             return (
@@ -182,22 +187,23 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
               </div>
             )
           })}
-        </div>
+        </motion.div>
       )}
     </div>
   )
 }
 
 // ── Worklist row ────────────────────────────────────────────────────────────
-function WorklistRow({ alert, state, onStateChange, onInspect }: {
+function WorklistRow({ alert, state, resolving, onStateChange, onInspect }: {
   alert: MappedAlert
   state: HandlingState
+  resolving: boolean
   onStateChange: (state: HandlingState) => void
   onInspect: () => void
 }) {
   const competitor = competitorById(alert.competitorId)
   return (
-    <div className="worklist-row">
+    <div className={`worklist-row${resolving ? ' is-resolving' : ''}`}>
       <div className="worklist-row-top">
         <span className="worklist-row-sev"><SeverityDot sev={alert.severity} /> {severityLabel(alert.severity)}</span>
         <div className="worklist-row-competitor" title={competitor?.name ?? alert.competitorId}>
@@ -206,10 +212,16 @@ function WorklistRow({ alert, state, onStateChange, onInspect }: {
         </div>
         <span className="worklist-row-headline" title={decodeEntities(alert.headline)}>{decodeEntities(alert.headline)}</span>
         <span className="worklist-row-time">{relTimeShort(alert.timestamp)}</span>
-        <HandleMenu current={state} onChange={onStateChange} />
-        <button type="button" className="worklist-inspect-btn" title="Inspect" aria-label="Inspect" onClick={onInspect}>
-          <ExternalLink size={14} aria-hidden="true" />
-        </button>
+        {resolving ? (
+          <span className="worklist-row-resolved" aria-live="polite"><CheckCircle2 size={14} aria-hidden="true" /> Saved</span>
+        ) : (
+          <>
+            <HandleMenu current={state} onChange={onStateChange} />
+            <button type="button" className="worklist-inspect-btn" title="Inspect" aria-label="Inspect" onClick={onInspect}>
+              <ExternalLink size={14} aria-hidden="true" />
+            </button>
+          </>
+        )}
       </div>
 
       {alert.suggestedAction && (
@@ -245,6 +257,7 @@ export default function WarRoom() {
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
   const [inspecting, setInspecting] = useState<MappedAlert | null>(null)
+  const [resolvingIds, setResolvingIds] = useState<Set<string>>(() => new Set())
 
   const watchedIds = Array.from(watchedCompetitors).sort()
   const filterIds = watchedIds.length > 0 ? watchedIds : undefined
@@ -364,7 +377,25 @@ export default function WarRoom() {
     .slice(0, 3)
 
   function openInspect(alert: MappedAlert) { setInspecting(alert) }
-  function handleChange(id: string, state: HandlingState) { setHandlingState(id, state) }
+
+  // Resolving (handled/dismissed) removes a row from the worklist -- an
+  // instant vanish reads as data loss on a page whose whole premise is a
+  // trustworthy count. Deliberately NOT using AnimatePresence/exit
+  // animations for this: that exact approach (Phase 3.1, AlertGroups) let
+  // the rendered row outlive the data it was computed from and the group
+  // count and visible rows fell out of sync. Instead: hold the real state
+  // write for one short beat, during which the row (still driven by the
+  // OLD, still-accurate handling_state) naturally stays in the list with a
+  // "resolving" visual — count and rows can never disagree because nothing
+  // is rendered from stale data at any point.
+  function handleChange(id: string, state: HandlingState) {
+    if (state !== 'handled' && state !== 'dismissed') { setHandlingState(id, state); return }
+    setResolvingIds((prev) => new Set(prev).add(id))
+    setTimeout(() => {
+      setHandlingState(id, state)
+      setResolvingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+    }, REDUCED_MOTION ? 0 : 260)
+  }
 
   const showSkeleton = !loaded || !liveDataLoaded
 
@@ -475,6 +506,7 @@ export default function WarRoom() {
                   key={alert.id}
                   alert={alert}
                   state={getHandlingState(alert.id)}
+                  resolving={resolvingIds.has(alert.id)}
                   onStateChange={(s) => handleChange(alert.id, s)}
                   onInspect={() => openInspect(alert)}
                 />
