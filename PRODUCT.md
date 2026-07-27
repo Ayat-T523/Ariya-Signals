@@ -10,11 +10,17 @@ Vercel, Supabase-backed live data.
 
 ## Who it's for
 
-**David, Head of Competitive Intelligence at Pharma Inc** — and CI/medical-affairs analysts like
-him. He tracks HAE (hereditary angioedema) competitors around the launch of **Ekterly
-(sebetralstat)**: their trials, filings, label changes, leadership moves, deals, and market access.
-He needs to see what changed, judge why it matters for his asset, and inspect the evidence — fast,
-every morning, without babysitting a tool.
+**Any competitive-intelligence or medical-affairs analyst, at any pharma brand, tracking any
+asset.** There is no home asset and no fixed therapeutic area — a user from Company A tracking
+Drug A and a user from Company B tracking a rival Drug B are both first-class, equally-served
+users of the same product. **David, Head of Competitive Intelligence at Pharma Inc, tracking HAE
+(hereditary angioedema) around the launch of Ekterly (sebetralstat)**, is the current reference
+persona and the only asset with real backing data today — useful for grounding examples and
+demos, but **not** the product's fixed identity. `src/config/assets-config.ts` already lists 7
+assets across 3 indications (HAE, PNH, PBC), including "competitor products" entries explicitly
+so a user from a rival company can configure Ariya from their own perspective — more assets are
+coming, and every future decision should assume the catalog keeps growing, not that HAE is
+permanent.
 
 ## What it makes possible
 
@@ -23,7 +29,8 @@ see what changed → inspect the evidence → decide. It surfaces synthesized, p
 signals (from ClinicalTrials.gov, FDA/openFDA, SEC/EDGAR, PubMed, regulatory agencies) with a
 clean "what changed / why it matters" layer, and lets the analyst drill to the raw source in one
 click. The thing a neighboring tool can't truthfully claim: **every signal is traceable to a
-dated primary source, and the interpretation is specific to the user's asset — not generic.**
+dated primary source, and the interpretation is specific to the user's tracked asset — whichever
+one that is — not generic.**
 
 ## What future work must preserve
 
@@ -34,9 +41,18 @@ dated primary source, and the interpretation is specific to the user's asset —
   usage and the pricing surface.
 - **The serious analyst register.** No playful/consumer-AI tone, no decorative motion. See
   `DESIGN.md` (intelligent warmth, ≤320ms, no bounce).
-- **Asset-aware interpretation.** "Why it matters" and suggested actions reference the specific
-  competitor and the user's tracked asset (Ekterly/HAE) — never boilerplate.
-- **HAE/Ekterly domain context and terminology.**
+- **Asset-aware interpretation, genuinely — not just for Ekterly.** "Why it matters" and suggested
+  actions must reference whichever competitor and asset the *specific user* has tracked. As of
+  27 Jul 2026 this is only true in the config/onboarding layer (asset selection, competitor
+  watchlists, lexicon gating) — the AI-synthesized copy itself (`why_it_matters`, `suggested_action`
+  on `company_signals`) is currently one global value per signal, generated once against the HAE/
+  Ekterly context. A real per-asset synthesis cache table already exists for this
+  (`company_signal_asset_actions` — signal × asset → suggested_action) but is unpopulated and
+  unwired. Do not treat the current single-asset behavior as acceptable long-term; treat it as the
+  known gap between "designed for" and "actually built."
+- **No hardcoded HAE/Ekterly assumption in new code.** The demo dataset happens to be HAE today;
+  new frontend or pipeline work should read the user's tracked asset dynamically (`useConfig()`,
+  `assets-config.ts`) rather than assuming HAE terminology, competitors, or copy register.
 
 ## Design language
 
