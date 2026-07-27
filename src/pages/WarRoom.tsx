@@ -365,15 +365,15 @@ export default function WarRoom() {
   const showSkeleton = !loaded || !liveDataLoaded
 
   return (
-    <div data-page-pad style={{ padding: '20px 32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-page-pad className="war-room-page">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+      <div className="war-room-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--ink-600)' }}>
             {headerTimestamp(lastRefreshedAt)}
           </p>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, color: 'var(--ink-900)', lineHeight: 1.25 }}>
+          <h1 className="war-room-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--ink-900)', lineHeight: 1.25 }}>
             {greeting()}, {userData.user.name}.{' '}
             <span style={{ color: 'var(--ink-600)', fontWeight: 500 }}>Here&rsquo;s what needs you in {indication}.</span>
           </h1>

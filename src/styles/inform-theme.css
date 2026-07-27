@@ -1417,6 +1417,10 @@
 .alert-drawer-source-body { margin-top: var(--s-3); }
 
 /* ---------- War Room (Phase 4, Direction A) ---------- */
+.war-room-page { padding: 20px 32px; display: flex; flex-direction: column; gap: var(--s-4); }
+.war-room-title { font-size: 24px; }
+
+
 /* Stat bar — chrome, per the two-layer rule: glass, never neumorphic. The
    only glass surface on this page; everything below it is cream content. */
 .stat-bar {
@@ -1510,6 +1514,21 @@
   .worklist-row-top { flex-wrap: wrap; row-gap: 4px; }
   .worklist-row-time { margin-left: 0; }
   .worklist-handle { margin-left: 0; }
+}
+
+/* War Room's no-scroll budget (war-room-redesign-spec.md P1) is tighter at
+   1280x800 than at 1440x900 -- same content, denser spacing, not fewer
+   rows: hiding worklist items at the smaller of the two required viewports
+   would contradict the page's own "what needs you" promise. */
+@media (max-width: 1360px), (max-height: 850px) {
+  .war-room-page { padding: 12px 32px; gap: var(--s-2); }
+  .war-room-title { font-size: 20px; }
+  .stat-bar { padding: 6px var(--s-5); }
+  .worklist-row { padding: var(--s-2) var(--s-5); }
+  .mw-card.compact { padding: var(--s-3); gap: var(--s-2); }
+  .mw-card.compact .mw-row-implication { -webkit-line-clamp: 1; }
+  .mw-card.compact .mw-row { padding: 6px var(--s-2); }
+  .next-up-row { padding: 6px 0; }
 }
 
 /* Next up — condensed event rail row (rail width is fixed and narrow, so this
