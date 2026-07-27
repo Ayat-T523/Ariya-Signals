@@ -175,19 +175,23 @@
 .btn svg { width: 16px; height: 16px; stroke-width: 1.75; }
 
 /* primary */
+/* Resting fill is --indigo-600, not --indigo-500 (R2): white-on-500 measures
+   ~4.2:1, below the 4.5:1 AA floor for normal-weight 14px text. White-on-600
+   measures ~5.8:1. Hover/active stay on the same fill and differentiate via
+   brightness/shadow instead of a still-darker token that doesn't exist yet. */
 .btn-primary {
-  background: var(--indigo-500); color: #fff;
+  background: var(--indigo-600); color: #fff;
   box-shadow:
     0 1px 0 rgba(255,255,255,0.25) inset,
     0 6px 16px -6px rgba(42,118,244,0.55);
 }
-.btn-primary:hover { background: var(--indigo-600); transform: translateY(-1px); }
+.btn-primary:hover { filter: brightness(0.92); transform: translateY(-1px); }
 .btn-primary.is-pressed,
-.btn-primary:active { background: var(--indigo-600); transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);}
+.btn-primary:active { filter: brightness(0.85); transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);}
 .btn-primary.is-focus { outline: none; box-shadow: var(--ring-indigo), 0 6px 16px -6px rgba(42,118,244,0.55); }
 .btn-primary.is-loading { color: transparent; }
 .btn-primary[disabled], .btn-primary.is-disabled {
-  background: var(--indigo-500); opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none;
+  background: var(--indigo-600); opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none;
 }
 
 /* secondary (cream neumorphic) */
@@ -1264,7 +1268,11 @@
 .mw-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
 .mw-title-group { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .mw-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink-900); margin: 0; white-space: nowrap; }
-.mw-asset-chip { font-family: var(--font-ui); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: var(--r-sm); background: var(--indigo-100); color: var(--indigo-600); white-space: nowrap; }
+/* Background is --indigo-050, not --indigo-100 (R2): indigo-600-on-100
+   measures ~4.4:1, just under the 4.5:1 AA floor; indigo-600-on-050
+   measures ~5.3:1. Matches the tint+600-text pairing already used by
+   SeverityTag and the Competitors posture badge. */
+.mw-asset-chip { font-family: var(--font-ui); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: var(--r-sm); background: var(--indigo-050); color: var(--indigo-600); white-space: nowrap; }
 .mw-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage-600); flex-shrink: 0; }
 
 .mw-timeframe { display: inline-flex; gap: 2px; background: var(--cream-50); border-radius: var(--r-sm); padding: 3px; box-shadow: var(--neu-inset); flex-shrink: 0; }
