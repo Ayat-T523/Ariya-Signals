@@ -16,14 +16,15 @@
  * two-column "Cockpit" (dilutes the one-job focus) and railless
  * "Single-stream" (demotes orientation too far) per the spec's own comparison.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { fadeIn, REDUCED_MOTION } from '../lib/motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Plus, Circle, PauseCircle, CheckCircle2, XCircle,
-  ChevronDown, ExternalLink, MessageSquareText, Inbox, AlertTriangle,
+  ChevronUp, ChevronDown, ExternalLink, MessageSquareText, Inbox, AlertTriangle,
+  Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -195,16 +196,21 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
 }
 
 // ── Worklist row ────────────────────────────────────────────────────────────
-function WorklistRow({ alert, state, resolving, onStateChange, onInspect }: {
+function WorklistRow({ alert, state, resolving, rowRef, onStateChange, onInspect }: {
   alert: MappedAlert
   state: HandlingState
   resolving: boolean
+  rowRef: (el: HTMLDivElement | null) => void
   onStateChange: (state: HandlingState) => void
   onInspect: () => void
 }) {
   const competitor = competitorById(alert.competitorId)
   return (
-    <div className={`worklist-row${resolving ? ' is-resolving' : ''}`}>
+    <div
+      ref={rowRef}
+      tabIndex={0}
+      className={`worklist-row${resolving ? ' is-resolving' : ''}`}
+    >
       <div className="worklist-row-top">
         <span className="worklist-row-sev"><SeverityDot sev={alert.severity} /> {severityLabel(alert.severity)}</span>
         <div className="worklist-row-competitor" title={competitor?.name ?? alert.competitorId}>
@@ -214,7 +220,7 @@ function WorklistRow({ alert, state, resolving, onStateChange, onInspect }: {
         <span className="worklist-row-headline" title={decodeEntities(alert.headline)}>{decodeEntities(alert.headline)}</span>
         <span className="worklist-row-time">{relTimeShort(alert.timestamp)}</span>
         {resolving ? (
-          <span className="worklist-row-resolved" aria-live="polite"><CheckCircle2 size={14} aria-hidden="true" /> Saved</span>
+          <span className="worklist-row-resolved" aria-live="polite"><CheckCircle2 size={14} aria-hidden="true" /> Updated</span>
         ) : (
           <>
             <HandleMenu current={state} onChange={onStateChange} />
@@ -252,13 +258,21 @@ function NextUpRow({ event }: { event: NextUpEvent }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
-  const { openAskModal, watchedCompetitors, handlingStates, getHandlingState, setHandlingState } = useApp()
+  const {
+    openAskModal, watchedCompetitors, handlingStates, getHandlingState, setHandlingState,
+    savedAlerts, toggleSavedAlert,
+  } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
   const [inspecting, setInspecting] = useState<MappedAlert | null>(null)
   const [resolvingIds, setResolvingIds] = useState<Set<string>>(() => new Set())
+  // Keyboard triage (4.3): the roving-selected row when the drawer is closed.
+  // Synced with `inspecting` when the drawer opens/navigates so arrow keys mean
+  // the same thing whether the drawer is open or not.
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+  const rowRefs = useRef(new Map<string, HTMLDivElement>())
 
   const watchedIds = Array.from(watchedCompetitors).sort()
   const filterIds = watchedIds.length > 0 ? watchedIds : undefined
@@ -403,7 +417,30 @@ export default function WarRoom() {
     .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
     .slice(0, 3)
 
-  function openInspect(alert: MappedAlert) { setInspecting(alert) }
+  function openInspect(alert: MappedAlert) { setInspecting(alert); setFocusedId(alert.id) }
+
+  // Drawer prev/next (4.3) -- walks the same worklistItems order the list
+  // itself uses, so "next" always means what the visible list currently
+  // shows next, under whichever sort mode is active.
+  const drawerIndex = inspecting ? worklistItems.findIndex((a) => a.id === inspecting.id) : -1
+  function goToAdjacent(delta: 1 | -1) {
+    if (drawerIndex === -1) return
+    const next = worklistItems[drawerIndex + delta]
+    if (next) { setInspecting(next); setFocusedId(next.id) }
+  }
+
+  // Keyboard triage (4.3): E steps a signal forward one triage state --
+  // needs_triage -> in_progress -> handled. Dismiss stays menu-only (an
+  // exit, not a step in the normal advance sequence) so a stray keypress
+  // can't dismiss something by accident.
+  const ADVANCE_SEQUENCE: Record<HandlingState, HandlingState> = {
+    needs_triage: 'in_progress', in_progress: 'handled', handled: 'handled', dismissed: 'dismissed',
+  }
+  function advanceState(id: string) {
+    const current = getHandlingState(id)
+    const next = ADVANCE_SEQUENCE[current]
+    if (next !== current) handleChange(id, next)
+  }
 
   // Resolving (handled/dismissed) removes a row from the worklist -- an
   // instant vanish reads as data loss on a page whose whole premise is a
@@ -423,6 +460,49 @@ export default function WarRoom() {
       setResolvingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
     }, REDUCED_MOTION ? 0 : 260)
   }
+
+  // Keyboard triage (4.3), mirroring AlertsPage's established scheme so the
+  // same muscle memory (↑/↓ + E + S) works on both pages:
+  //   - Drawer open: ↑/↓ walk prev/next through the worklist, E advances the
+  //     open item's triage state, S toggles saved.
+  //   - Drawer closed: ↑/↓ move a roving selection through the worklist rows,
+  //     Enter opens Inspect for the selected row, E/S act on it directly --
+  //     full triage without ever touching the mouse.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+      if (target.closest('.menu-glass')) return // let an open Handle menu own its own keys
+
+      if (inspecting) {
+        if (e.key === 'ArrowUp')   { e.preventDefault(); goToAdjacent(-1) }
+        if (e.key === 'ArrowDown') { e.preventDefault(); goToAdjacent(1) }
+        if (e.key === 'e' || e.key === 'E') { e.preventDefault(); advanceState(inspecting.id) }
+        if (e.key === 's' || e.key === 'S') { e.preventDefault(); toggleSavedAlert(inspecting.id) }
+        return
+      }
+
+      if (worklistItems.length === 0) return
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const idx = focusedId ? worklistItems.findIndex((a) => a.id === focusedId) : -1
+        const nextIdx = e.key === 'ArrowDown'
+          ? Math.min(idx + 1, worklistItems.length - 1)
+          : Math.max(idx - 1, 0)
+        const next = worklistItems[idx === -1 && e.key === 'ArrowUp' ? 0 : nextIdx]
+        if (next) { setFocusedId(next.id); rowRefs.current.get(next.id)?.focus() }
+      }
+      if (e.key === 'Enter' && focusedId) {
+        e.preventDefault()
+        const alert = worklistItems.find((a) => a.id === focusedId)
+        if (alert) openInspect(alert)
+      }
+      if ((e.key === 'e' || e.key === 'E') && focusedId) { e.preventDefault(); advanceState(focusedId) }
+      if ((e.key === 's' || e.key === 'S') && focusedId) { e.preventDefault(); toggleSavedAlert(focusedId) }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [inspecting, focusedId, worklistItems, drawerIndex])
 
   const showSkeleton = !loaded || !liveDataLoaded
 
@@ -537,6 +617,7 @@ export default function WarRoom() {
                   alert={alert}
                   state={getHandlingState(alert.id)}
                   resolving={resolvingIds.has(alert.id)}
+                  rowRef={(el) => { if (el) rowRefs.current.set(alert.id, el); else rowRefs.current.delete(alert.id) }}
                   onStateChange={(s) => handleChange(alert.id, s)}
                   onInspect={() => openInspect(alert)}
                 />
@@ -594,7 +675,42 @@ export default function WarRoom() {
       </div>
 
       <SlideOver open={!!inspecting} onClose={() => setInspecting(null)} title="Signal detail">
-        {inspecting && <AlertDetail alert={inspecting} />}
+        {inspecting && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
+              <button
+                type="button" className="alert-row-action" title="Previous (↑)" aria-label="Previous signal"
+                disabled={drawerIndex <= 0}
+                onClick={() => goToAdjacent(-1)}
+                style={drawerIndex <= 0 ? { opacity: 0.35, cursor: 'default' } : undefined}
+              >
+                <ChevronUp size={14} aria-hidden="true" />
+              </button>
+              <button
+                type="button" className="alert-row-action" title="Next (↓)" aria-label="Next signal"
+                disabled={drawerIndex === -1 || drawerIndex >= worklistItems.length - 1}
+                onClick={() => goToAdjacent(1)}
+                style={drawerIndex === -1 || drawerIndex >= worklistItems.length - 1 ? { opacity: 0.35, cursor: 'default' } : undefined}
+              >
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
+                {drawerIndex + 1} of {worklistItems.length}
+              </span>
+            </div>
+            <AlertDetail alert={inspecting} />
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--cream-300)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button" className="btn btn-secondary btn-sm"
+                onClick={() => toggleSavedAlert(inspecting.id)}
+              >
+                {savedAlerts.has(inspecting.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                {savedAlerts.has(inspecting.id) ? 'Saved' : 'Save'}
+              </button>
+              <HandleMenu current={getHandlingState(inspecting.id)} onChange={(s) => handleChange(inspecting.id, s)} />
+            </div>
+          </>
+        )}
       </SlideOver>
     </div>
   )
