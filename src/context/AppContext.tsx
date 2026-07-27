@@ -19,7 +19,57 @@ import {
 } from '../lib/db'
 import { supabase } from '../lib/supabase'
 
-const AppContext = createContext(null)
+/**
+ * Everything the provider supplies.
+ *
+ * This exists because `createContext(null)` gave the context the type `null`, so
+ * every field destructured from useApp() inferred as `never` and any use of it
+ * ("watchedCompetitors.has(...)") was reported as an error. That single omission
+ * accounted for 32 false errors across 10 files. TypeScript checks this interface
+ * against the actual Provider value, so it cannot silently drift.
+ */
+export interface AppContextValue {
+  authUser: User | null
+  authLoading: boolean
+  watchedCompetitors: Set<string>
+  toggleWatch: (competitorId: string) => void
+  readAlerts: Set<string>
+  markAlertRead: (alertId: string) => void
+  markAlertUnread: (alertId: string) => void
+  markAllRead: (ids: string[]) => void
+  unreadCount: number
+  syncUnreadCount: (n: number) => void
+  onboardingComplete: boolean
+  showOnboarding: boolean
+  openOnboarding: () => void
+  closeOnboarding: () => void
+  completeOnboarding: (selectedAssets: any) => void
+  // Read from localStorage, which returns null when unset.
+  userRole: string | null
+  setUserRole: (role: string) => void
+  tourActive: boolean
+  startTour: () => void
+  endTour: (isComplete?: boolean, step?: number) => void
+  mobileNavOpen: boolean
+  openMobileNav: () => void
+  closeMobileNav: () => void
+  askModal: { open: boolean; source: string | null }
+  openAskModal: (source: any) => void
+  closeAskModal: () => void
+  aiClickLog: any[]
+  // Also localStorage-backed, so null until onboarding sets them. useConfig()
+  // already falls back to DEMO defaults, which is why this was never noticed.
+  userIndication: string | null
+  setUserIndication: (indication: string) => void
+  userAssetName: string | null
+  setUserAssetName: (name: string) => void
+  userAssetId: string | null
+  setUserAssetId: (id: string | null) => void
+  liveLexiconInns: string[] | null
+  resetWatchedCompetitors: (ids: string[]) => void
+}
+
+const AppContext = createContext<AppContextValue | null>(null)
 
 
 // Copies localStorage onboarding/watchlist/read-state into Supabase on first sign-in.
@@ -155,11 +205,12 @@ export function AppProvider({ children }) {
 
   // ── Competitor watch state ────────────────────────────────────────────────
   // Default: all three competitors are watched
-  const [watchedCompetitors, setWatchedCompetitors] = useState(() => {
+  const [watchedCompetitors, setWatchedCompetitors] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('pharma-inc-ciwarroom-watched')
+      // JSON.parse returns any, so the Set inferred as Set<unknown> without this.
       return stored
-        ? new Set(JSON.parse(stored))
+        ? new Set(JSON.parse(stored) as string[])
         : new Set(['takeda', 'biocryst', 'pharvaris'])
     } catch {
       return new Set(['takeda', 'biocryst', 'pharvaris'])
@@ -345,7 +396,7 @@ export function AppProvider({ children }) {
   const [askModal, setAskModal] = useState({ open: false, source: null })
 
   // Track which AI buttons were clicked (valuable feedback signal per §5)
-  const [aiClickLog, setAiClickLog] = useState([])
+  const [aiClickLog, setAiClickLog] = useState<Array<{ source: any; timestamp: string }>>([])
 
   // ── Persistence ───────────────────────────────────────────────────────────
   useEffect(() => {

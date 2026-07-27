@@ -7,6 +7,7 @@ import {
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair,
   FileSearch, ArrowRight, Link2, ExternalLink, Clock,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import { usePageLoad } from '../hooks/usePageLoad'
@@ -93,7 +94,15 @@ function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFo
 }
 
 // ── Event type config ─────────────────────────────────────────────────────────
-const EVENT_TYPE = {
+// Display-config lookups. Typed as Record<string, …> rather than as literals
+// because every read indexes them with a value that came from data and pairs the
+// lookup with a fallback, so a string key is the honest signature.
+type ChipCfg   = { label: string; bg: string; text: string; icon?: LucideIcon }
+type SwatchCfg = { bg: string; text: string }
+type CardCfg   = { label: string; labelColor: string; outerBg: string }
+type Annotation = { expect: string; surprise: string }
+
+const EVENT_TYPE: Record<string, ChipCfg> = {
   conference: { label: 'Conference', icon: Users,       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
   earnings:   { label: 'Earnings',   icon: DollarSign,  bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
   regulatory: { label: 'Regulatory', icon: Landmark,    bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
@@ -102,7 +111,7 @@ const EVENT_TYPE = {
 }
 
 // ── Report type config ────────────────────────────────────────────────────────
-const REPORT_TYPE = {
+const REPORT_TYPE: Record<string, ChipCfg> = {
   'earnings-call':    { label: 'Earnings call',    bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)', icon: Mic },
   'investor-day':     { label: 'Investor day',     bg: 'rgba(139,92,246,0.10)', text: '#5B21B6',            icon: TrendingUp },
   'analyst-report':   { label: 'Analyst report',   bg: 'rgba(245,158,11,0.10)', text: '#92500A',            icon: FileText },
@@ -110,7 +119,7 @@ const REPORT_TYPE = {
 }
 
 // ── Market type config ─────────────────────────────────────────────────────────
-const MARKET_TYPE = {
+const MARKET_TYPE: Record<string, ChipCfg> = {
   guideline:            { label: 'Guideline',         bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
   epidemiology:         { label: 'Epidemiology',       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
   advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A'            },
@@ -121,7 +130,7 @@ const MARKET_TYPE = {
 }
 
 // ── Deal type config ──────────────────────────────────────────────────────────
-const DEAL_TYPE_CFG = {
+const DEAL_TYPE_CFG: Record<string, SwatchCfg> = {
   'Manufacturing': { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
   'Distribution':  { bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
   'M&A':           { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
@@ -130,7 +139,7 @@ const DEAL_TYPE_CFG = {
 }
 
 // ── HTA status badge config ───────────────────────────────────────────────────
-const HTA_STATUS_CFG = {
+const HTA_STATUS_CFG: Record<string, SwatchCfg> = {
   'Under review':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
   'Horizon scan':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
   'Approved':               { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
@@ -140,7 +149,7 @@ const HTA_STATUS_CFG = {
 }
 
 // ── Signal card config ────────────────────────────────────────────────────────
-const SIGNAL_CARD_CFG = {
+const SIGNAL_CARD_CFG: Record<string, CardCfg> = {
   guideline:            { label: 'Guideline',          labelColor: '#10224A',  outerBg: 'rgba(16,34,74,0.15)'    },
   epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',  outerBg: 'rgba(0,85,187,0.09)'    },
   advocacy:             { label: 'Advocacy',            labelColor: '#B99CFC',  outerBg: 'rgba(185,156,252,0.30)' },
@@ -161,7 +170,7 @@ const SIGNAL_ITEM_TYPES = new Set(['guideline', 'epidemiology', 'advocacy', 'lau
 // ── Leadership-priority annotations ──────────────────────────────────────────
 const LEADERSHIP_TYPES = new Set(['conference', 'earnings', 'regulatory', 'investor', 'milestone'])
 
-const LEADERSHIP_ANNOTATIONS = {
+const LEADERSHIP_ANNOTATIONS: Record<string, Annotation> = {
   conference: {
     expect:   'Headline presentations centered on real-world evidence and dosing convenience narratives.',
     surprise: 'Unanticipated head-to-head efficacy data, new MoA claims, or unexpected competitor-led positioning.',
@@ -491,7 +500,7 @@ function KpiDealCard({ deal }) {
 }
 
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
-const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: number }) => JSX.Element; disabled?: boolean; disabledLabel?: string }> = [
+const TABS: Array<{ label: string; icon: LucideIcon; disabled?: boolean; disabledLabel?: string }> = [
   { label: 'Events',              icon: CalendarDays },
   { label: 'Market Developments', icon: TrendingUp   },
 ]
@@ -1190,10 +1199,12 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 // TAB 2: MARKET DEVELOPMENTS
 // ──────────────────────────────────────────────────────────────────────────────
 
-function formatMonthYear(dateStr) {
+function formatMonthYear(dateStr: string | null | undefined) {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
-  if (isNaN(d)) return dateStr
+  // isNaN(d) worked only because JS coerces a Date to a number; compare the
+  // timestamp explicitly.
+  if (isNaN(d.getTime())) return dateStr
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
@@ -1573,7 +1584,7 @@ function MarketSignalsPanel({ items }) {
 }
 
 // ── Market Development card type config ──────────────────────────────────────
-const MARKET_DEV_TYPE_CFG = {
+const MARKET_DEV_TYPE_CFG: Record<string, ChipCfg> = {
   deal:                 { label: 'Deal',             bg: 'rgba(42,118,244,0.15)',  text: '#2A76F4' },
   guideline:            { label: 'Guideline',         bg: 'rgba(73,160,120,0.15)', text: '#49A078' },
   hta:                  { label: 'HTA decision',      bg: 'rgba(185,156,252,0.15)',text: '#B99CFC' },
@@ -1864,11 +1875,12 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 // 'reports' intentionally absent — the tab was removed. A stale ?tab=reports
 // link resolves to undefined and falls back to Events rather than erroring.
-const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
+const TAB_NAME_TO_INDEX: Record<string, number> = { events: 0, market: 1 }
 
 export default function Portal() {
   const [searchParams] = useSearchParams()
-  const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
+  // .get() returns string | null, and obj[null] silently becomes obj["null"].
+  const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab') ?? '']
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? 0)
   const loaded = usePageLoad('portal')
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
