@@ -93,6 +93,26 @@ export function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date
        : 'low'
 }
 
+/**
+ * Canonical severity source (Round 2, R3). `ai_severity` is the AI-classified
+ * column on company_signals (62% populated as of 27 Jul 2026) — when present
+ * it wins outright; computeSeverity's heuristic only fills in for the rows
+ * the synthesis pipeline hasn't reached yet. This is the one place every
+ * surface (Alerts, War Room worklist/drawer, Market Weather) should call for
+ * a signal's severity, so the same signal can never disagree across pages.
+ *
+ * ai_severity is stored uppercase ('HIGH'/'MEDIUM'/'LOW') and 'CRITICAL' is
+ * a plausible future value even though the current pipeline never emits it —
+ * both collapse to the same 3 UI tiers computeSeverity already uses.
+ */
+export function resolveSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date = new Date()): 'high' | 'medium' | 'low' {
+  const ai = s.ai_severity?.trim().toLowerCase()
+  if (ai === 'critical' || ai === 'high') return 'high'
+  if (ai === 'medium') return 'medium'
+  if (ai === 'low') return 'low'
+  return computeSeverity(s, lexicon, today)
+}
+
 export interface SeverityBreakdown {
   total: number
   high: number
@@ -111,7 +131,7 @@ export interface SeverityBreakdown {
 export function summarizeSeverity(signals: DbRecentSignal[], lexicon: Lexicon, today: Date = new Date()): SeverityBreakdown {
   const result: SeverityBreakdown = { total: signals.length, high: 0, medium: 0, low: 0 }
   for (const s of signals) {
-    result[computeSeverity(s, lexicon, today)]++
+    result[resolveSeverity(s, lexicon, today)]++
   }
   return result
 }

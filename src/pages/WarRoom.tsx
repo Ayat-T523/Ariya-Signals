@@ -299,15 +299,14 @@ export default function WarRoom() {
   const readableSignals = recentLiveSignals.filter(isSignalReadable)
   const relevantSignals = readableSignals.filter((s) => watchedCompetitors.has(s.competitor_id ?? ''))
 
-  // Alert objects + severity come from the same mapSignal() pipeline the Alerts
-  // page and its drawer use (signalMapping.ts) — not the WarRoom-only
-  // computeSeverity() heuristic below — so a row's severity badge always
-  // matches what its own Inspect drawer shows. Market weather (below) keeps
-  // computeSeverity()/summarizeSeverity() as before: it's a different,
-  // pre-existing, asset/lexicon-aware severity read used across WarRoom and
-  // Competitors, and reconciling the two severity engines app-wide is out of
-  // scope for this worklist build.
-  const allAlerts = useMemo(() => mapSignals(relevantSignals), [relevantSignals])
+  // Alert objects + severity come from the same mapSignal() pipeline the
+  // Alerts page and its drawer use (signalMapping.ts) — so a row's severity
+  // badge always matches what its own Inspect drawer shows. As of Round 2 R3,
+  // mapSignal itself resolves severity via signalSeverity.ts's
+  // resolveSeverity() (ai_severity first, computeSeverity() fallback) — the
+  // same resolver Market Weather's summarizeSeverity() now calls internally,
+  // so the two engines this comment used to describe as separate are one.
+  const allAlerts = useMemo(() => mapSignals(relevantSignals, lexicon), [relevantSignals, lexicon])
 
   // "Needs you" = not yet resolved (critique 2026-07-27, P0 fix). Originally
   // this also required needs_triage-or-high-severity, which meant starting

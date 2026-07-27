@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bookmark, BookmarkCheck, Check, ChevronDown, ChevronUp, ExternalLink, Inbox, CheckCircle2, FilterX, AlertTriangle, Database } from 'lucide-react'
 import { analytics } from '../lib/analytics'
-import { useApp } from '../context/AppContext'
+import { useApp, useConfig } from '../context/AppContext'
 import { usePageLoad } from '../hooks/usePageLoad'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import FilterDropdown from '../components/ui/FilterDropdown'
@@ -281,6 +281,8 @@ function ErrorRows({ onRetry }: { onRetry: () => void }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function AlertsPage() {
   const { readAlerts, markAlertRead, markAlertUnread, savedAlerts, toggleSavedAlert, watchedCompetitors, syncUnreadCount } = useApp()
+  const { lexiconInns, lexiconTaTerms } = useConfig()
+  const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const loaded = usePageLoad('alerts')
 
   const [liveAlerts, setLiveAlerts] = useState<MappedAlert[]>([])
@@ -293,9 +295,9 @@ export default function AlertsPage() {
     setFetchError(null)
     const competitorIds = watchedCompetitors.size > 0 ? [...watchedCompetitors] : undefined
     getRecentSignals(180, competitorIds)
-      .then((signals) => { setLiveAlerts(mapSignals(signals)); setIsLoading(false) })
+      .then((signals) => { setLiveAlerts(mapSignals(signals, lexicon)); setIsLoading(false) })
       .catch((err) => { setFetchError(String(err)); setIsLoading(false) })
-  }, [watchedCompetitors])
+  }, [watchedCompetitors, lexicon])
 
   useEffect(() => { fetchSignals() }, [fetchSignals, retryKey])
 

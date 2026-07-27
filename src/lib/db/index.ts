@@ -231,6 +231,10 @@ export interface DbRecentSignal {
   clean_headline: string | null
   what_changed: string | null
   suggested_action: string | null
+  // AI-classified severity ('HIGH'/'MEDIUM'/'LOW', uppercase, or null when the
+  // synthesis pipeline hasn't reached this row yet) — see signalSeverity.ts's
+  // resolveSeverity(), the single place this gets normalized + falls back.
+  ai_severity: string | null
 }
 
 export async function getRecentSignals(limitDays: number, competitorIds?: string[]): Promise<DbRecentSignal[]> {
@@ -240,7 +244,7 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   let query = supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters, clean_headline, what_changed, suggested_action')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters, clean_headline, what_changed, suggested_action, ai_severity')
     .gte('date', cutoffStr)
     .order('date', { ascending: false })
   if (competitorIds && competitorIds.length > 0) {

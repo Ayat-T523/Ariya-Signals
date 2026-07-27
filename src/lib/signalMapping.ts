@@ -1,4 +1,5 @@
 import type { DbRecentSignal } from './db'
+import { resolveSeverity, type Lexicon } from './signalSeverity'
 
 // ── UI alert shape consumed by AlertCard ──────────────────────────────────────
 
@@ -33,23 +34,6 @@ const SIGNAL_TYPE_MAP: Record<string, string> = {
   messaging_shift:     'strategic-shift',   // Phase 5: product-page messaging drift
 }
 
-// Severity derived from signal_type — company_signals has no severity column.
-// 'critical' intentionally omitted: it exists in SEVERITY_RANK for future use
-// (manual escalation or a dedicated column) but no current signal_type maps to it.
-const SIGNAL_SEVERITY_MAP: Record<string, 'high' | 'medium' | 'low'> = {
-  exec_change:         'high',
-  label_update:        'high',
-  deal:                'medium',
-  hta_decision:        'medium',
-  trial_update:        'medium',
-  trial_status_change: 'medium',
-  press_release:       'low',
-  publication:         'low',
-  ir_rss:              'low',
-  earnings:            'low',
-  messaging_shift:     'high',
-}
-
 // Human-readable source label shown in the alert footer
 const SIGNAL_SOURCE_MAP: Record<string, string> = {
   trial_update:        'ClinicalTrials.gov',
@@ -67,7 +51,7 @@ const SIGNAL_SOURCE_MAP: Record<string, string> = {
 
 // ── Mapping function ──────────────────────────────────────────────────────────
 
-export function mapSignal(s: DbRecentSignal): MappedAlert {
+export function mapSignal(s: DbRecentSignal, lexicon: Lexicon, today: Date = new Date()): MappedAlert {
   // labelDiff is populated for signals that carry a body_excerpt describing
   // a change. previous is null because snapshots only store the content hash,
   // not the prior field values — the panel renders single-column in that case.
@@ -80,7 +64,12 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
     timestamp:    s.date ? `${s.date}T00:00:00Z` : new Date().toISOString(),
     competitorId: s.competitor_id,
     type:         SIGNAL_TYPE_MAP[s.signal_type] ?? s.signal_type,
-    severity:     SIGNAL_SEVERITY_MAP[s.signal_type] ?? 'low',
+    // Round 2 R3: ai_severity when the synthesis pipeline has classified this
+    // row, else the asset/lexicon-aware heuristic — never the old static
+    // signal_type→severity map, which ignored content and asset context
+    // entirely and could disagree with what Market Weather showed for the
+    // same signal.
+    severity:     resolveSeverity(s, lexicon, today),
     // clean_headline is the synthesized title (never a filename); s.headline is the
     // deterministically-normalized fallback from ingestion. accession_number is a raw
     // filing ID and must never render as a headline.
@@ -98,6 +87,6 @@ export function mapSignal(s: DbRecentSignal): MappedAlert {
   }
 }
 
-export function mapSignals(signals: DbRecentSignal[]): MappedAlert[] {
-  return signals.map(mapSignal)
+export function mapSignals(signals: DbRecentSignal[], lexicon: Lexicon, today: Date = new Date()): MappedAlert[] {
+  return signals.map((s) => mapSignal(s, lexicon, today))
 }
