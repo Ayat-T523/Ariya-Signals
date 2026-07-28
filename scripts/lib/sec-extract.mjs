@@ -8,6 +8,7 @@
  */
 
 import { qualityGate } from './signal-gate.mjs'
+import { decodeHtmlEntities } from './html-entities.mjs'
 
 const SEC_USER_AGENT = 'AriyaSignals ayat.tayebulla@phamax.ch'
 const TIMEOUT_MS     = 20_000
@@ -17,15 +18,19 @@ const RATE_MS        = 150
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 export function stripHtml(html) {
-  return html
+  const tagless = html
     .replace(/<ix:hidden[\s\S]*?<\/ix:hidden>/gi, '')
     .replace(/<dei:[^>]*>[\s\S]*?<\/dei:[^>]*>/gi, '')
     .replace(/<xbrli?:[^>]*>[\s\S]*?<\/xbrli?:[^>]*>/gi, '')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#160;/g, ' ')
-    .replace(/&#8220;/g, '"').replace(/&#8221;/g, '"').replace(/&#8217;/g, "'")
-    .replace(/\s+/g, ' ').trim()
+
+  // Decode only after tags are gone, so an escaped &lt;tag&gt; in the source
+  // cannot turn into a real tag that the stripper above would then eat. Collapse
+  // whitespace only after decoding, so a decoded &nbsp; collapses with the rest.
+  //
+  // This replaced a nine-entity hand-rolled chain, which let every other numeric
+  // reference reach the database as literal text ("DAWNZERA&#8482;").
+  return decodeHtmlEntities(tagless).replace(/\s+/g, ' ').trim()
 }
 
 export async function fetchText(url) {

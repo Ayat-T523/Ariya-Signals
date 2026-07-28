@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { refineSignalType } from '../_shared/signalType.ts'
+import { decodeHtmlEntities } from '../_shared/htmlEntities.ts'
 
 // ── Feed registry ─────────────────────────────────────────────────────────────
 //
@@ -136,7 +137,12 @@ function parseFeed(xml: string): FeedItem[] {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  // Decode only after tags are gone, so an escaped &lt;tag&gt; cannot become a
+  // real tag the stripper would then eat. Collapse whitespace last, so a decoded
+  // &nbsp; collapses with the rest. Decoding was missing entirely, which is how
+  // "(&#8220;FDA&#8221;)" reached the database as literal text.
+  const tagless = html.replace(/<[^>]+>/g, ' ')
+  return decodeHtmlEntities(tagless).replace(/\s+/g, ' ').trim()
 }
 
 function parseDateOnly(raw: string | null): string | null {
@@ -268,7 +274,10 @@ Deno.serve(async (_req: Request) => {
       }
 
       // D.ii–iii. Map and insert
-      const headline    = item.title.slice(0, 500)
+      // Decode before truncating, so a slice never lands inside an entity and
+      // leaves a fragment like "&#82" that can no longer be decoded. The title
+      // was previously used raw, with no decoding at any point.
+      const headline    = decodeHtmlEntities(item.title).slice(0, 500)
       const bodyExcerpt = stripHtml(item.description).slice(0, 400)
 
       const { error: insertErr } = await supabase.from('company_signals').insert({

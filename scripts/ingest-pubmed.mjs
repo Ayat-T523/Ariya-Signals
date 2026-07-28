@@ -25,6 +25,7 @@ import {
   writeIngestRun,
   loadInnToAssetId,
 } from './lib/signal-gate.mjs'
+import { decodeHtmlEntities, stripKnownHtmlTags } from './lib/html-entities.mjs'
 
 const DATA_SOURCE = 'pubmed'
 const SIGNAL_TYPE = 'publication'
@@ -192,11 +193,18 @@ async function ingestDrug(supabase, drug, innToAssetId) {
 
     if (await isDuplicate(supabase, sourceHash)) { skipped++; continue }
 
-    const headline = title.slice(0, 500)
+    // PubMed titles and abstracts carry HTML entities (Greek letters, primes,
+    // curly quotes). Decode before truncating, so a slice never lands inside an
+    // entity and leaves a fragment like "&#82" that can no longer be decoded.
+    // Decode, then strip the formatting tags decoding reveals (PubMed abstracts
+    // arrive with escaped <p> and <sub>), then truncate. Truncating last means a
+    // slice never lands inside an entity and leaves an undecodable "&#82".
+    const clean = (s) => stripKnownHtmlTags(decodeHtmlEntities(s))
+    const headline = clean(title).slice(0, 500)
     const bodyExcerpt = [
-      journal  ? `${journal}`         : null,
-      authors  ? `${authors}`         : null,
-      abstract ? abstract.slice(0, 200) : null,
+      journal  ? clean(journal)  : null,
+      authors  ? clean(authors)  : null,
+      abstract ? clean(abstract).slice(0, 200) : null,
     ].filter(Boolean).join(' | ').slice(0, 400)
 
     const { error } = await supabase.from('company_signals').insert({
