@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { FileText, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
-import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import { REDUCED_MOTION } from '../../../lib/motion'
 import { DEMO } from '../../../config/demo-config'
@@ -132,7 +131,9 @@ const INDICATION_SECTION_LABEL = {
 const COMP_ROWS_BY_TYPE = {
   'on-demand': [
     {
-      competitorId: 'pharma-inc', name: DEMO.companyLabel, drugLabel: `${DEMO.assetName} (${DEMO.assetGenericName})`, _labelIsDefault: true,
+      // `name` is a neutral own-side label: no company is stored for an account,
+      // and drugLabel below is replaced with the live asset name at render.
+      competitorId: 'pharma-inc', name: 'Your asset', drugLabel: `${DEMO.assetName} (${DEMO.assetGenericName})`, _labelIsDefault: true,
       threat: null, isOwn: true,
       bars: [{ sy: 2025, sq: 4, ey: 2026, eq: 2, phase: 'own' }],
       milestones: [{ y: 2026, q: 3, type: 'approval', label: 'US' }],
@@ -626,12 +627,9 @@ function AssetCard({ asset, competitorId }) {
       {/* Trial design */}
       <TrialDesignSection asset={asset} />
 
-      {/* Compare to our asset */}
-      <div>
-        <AIButton source={`pipeline-compare-${competitorId}-${asset.assetId}`}>
-          Compare to our asset
-        </AIButton>
-      </div>
+      {/* "Compare to our asset" is removed. It is both a paid feature and an AI
+          one, so it is out of scope for this package entirely. Do not rebuild it
+          here, deterministically or otherwise. */}
     </div>
   )
 }

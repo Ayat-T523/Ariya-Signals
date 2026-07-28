@@ -49,14 +49,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ─── Signature headline gradient ─────────────────────────────────────────── */
-.text-gradient {
-  background: var(--gradient-1);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
 /* ─── Card shadow ──────────────────────────────────────────────────────────── */
 .card-shadow {
   box-shadow: var(--shadow-floating);

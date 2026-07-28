@@ -2,7 +2,7 @@
  * WarRoom.tsx — iteration-4.
  *
  * UI matched to the reference image (ariya-signals-main prototype, WarRoom.jsx):
- *   greeting header, 3 KPI tiles with deltas/captions/links, Ask Ariya panel,
+ *   greeting header, 3 KPI tiles with deltas/captions/links,
  *   Market weather, Upcoming events, Weekly digest. Exact prototype palette
  *   (#0055BB blue / #050A44 navy). "Customise" button is visual-only (no edit mode).
  *
@@ -13,10 +13,10 @@ import { useState, useMemo, type ReactNode, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Search,
-  TrendingDown, TrendingUp, Pencil, Plus, ExternalLink,
+  ArrowRight, ArrowUpRight,
+  TrendingDown, TrendingUp, Pencil, ExternalLink,
 } from 'lucide-react'
-import { useApp, useConfig } from '../context/AppContext'
+import { useApp, useConfig, useAccountIdentity } from '../context/AppContext'
 import { importanceBand, bandToLegacyTier } from '../lib/deterministic/importance'
 import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic/provenance'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -25,7 +25,6 @@ import PaidGate from '../components/ui/PaidGate'
 import {
   competitorsData,
   eventsData,
-  userData,
 } from '../data/kalvista'
 import { DEMO } from '../config/demo-config'
 import {
@@ -72,6 +71,27 @@ type Lexicon = { inns: string[]; ta_terms: string[] }
 
 // Tags that indicate an asset is in HAE development (matches indication_tags column)
 const HAE_TAG_TERMS = ['hereditary angioedema', 'hae']
+
+/**
+ * Plain-language category words for the High importance tile caption.
+ *
+ * Keys are the display `type` values (TYPE_MAP output, which passes unmapped
+ * signal_types straight through). Every signal_type present in live data is
+ * covered: publication, press_release, exec_change, congress_abstract,
+ * regulatory_catalyst, hta_decision, deal, trial_update. An unrecognised type
+ * falls back to its own key rather than being dropped, so the caption stays
+ * truthful if a new type appears before this map is updated.
+ */
+const HIGH_CAPTION_LABEL: Record<string, string> = {
+  'regulatory_catalyst': 'regulatory',
+  'hta_decision':        'access',
+  'trial_update':        'trial',
+  'publication':         'publication',
+  'congress_abstract':   'congress',
+  'deal':                'deal',
+  'exec-move':           'leadership',
+  'exec_change':         'leadership',
+}
 
 // ── EMA calendar event gates ──────────────────────────────────────────────────
 // Gate 1 — event_type allowlist (COMP/HMPC/PDCO are irrelevant to HAE products)
@@ -270,6 +290,9 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
+  // Plain-language singular/plural is deliberately not attempted here: these read
+  // as category counts ("2 regulatory"), not sentences, which stays readable for a
+  // non-technical medical affairs user without inventing grammar rules.
   const TYPE_MAP: Record<string, string> = {
     deal:          'deal',
     press_release: 'publication',
@@ -799,7 +822,8 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
 
 // â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function WarRoom() {
-  const { unreadCount, readAlerts, openAskModal, watchedCompetitors } = useApp()
+  const { unreadCount, readAlerts, watchedCompetitors } = useApp()
+  const account = useAccountIdentity()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const navigate = useNavigate()
@@ -873,22 +897,39 @@ export default function WarRoom() {
     .slice(0, 5)
 
   // KPI metrics — derived from live signals only
-  const highUnread         = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high' && !readAlerts.has((a as unknown as Alert).id)).length
+  /**
+   * The signals behind the High importance tile.
+   *
+   * The tile's number and its caption MUST come from this one array. They used to
+   * come from two different populations: the number counted high-and-unread, the
+   * caption described all high signals regardless of read state, and the caption
+   * only ever named two of the seven categories. So the tile could read "1" above
+   * the words "No high-priority signals", which is exactly what it did.
+   */
+  const highUnreadItems    = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high' && !readAlerts.has((a as unknown as Alert).id))
+  const highUnread         = highUnreadItems.length
   const newThisWeek        = newSignalCount7d
   const pharvarisUnread    = liveDisplayItems.filter((a) => (a as unknown as Alert).competitorId === 'pharvaris' && !readAlerts.has((a as unknown as Alert).id)).length
   const trackedCompetitorCount = watchedCompetitors.size
   // Signals that mention clinical trial keywords (press releases with clinical content)
   const trialAlerts        = liveDisplayItems.filter((a) => CLINICAL_KW.test((a as unknown as Alert).headline ?? '')).length
   const commercialAlerts   = liveDisplayItems.filter((a) => ['exec-move', 'deal', 'earnings'].includes((a as unknown as Alert).type ?? '')).length
-  // High-severity breakdown for KPI tile caption
-  const highAlerts = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high')
-  const dealHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'deal').length
-  const execHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'exec-move').length
-  const highCaptionParts = [
-    dealHighCount > 0   ? `${dealHighCount} deal`      : '',
-    execHighCount > 0   ? `${execHighCount} exec`      : '',
-  ].filter(Boolean)
-  const highCaption = highCaptionParts.length > 0 ? highCaptionParts.join(' · ') + ' · review recommended' : 'No high-priority signals'
+  // Caption for the High importance tile, built from the SAME array as its number
+  // so the two can never disagree. Categories are counted generically from the
+  // signals present rather than from a hardcoded shortlist, so a category nobody
+  // thought to enumerate still gets described instead of vanishing.
+  const highCaption = (() => {
+    if (highUnreadItems.length === 0) return 'Nothing needs action right now'
+    const byType = new Map<string, number>()
+    for (const item of highUnreadItems) {
+      const label = (item as unknown as Alert).type || 'other'
+      byType.set(label, (byType.get(label) ?? 0) + 1)
+    }
+    const parts = [...byType.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([label, n]) => `${n} ${HIGH_CAPTION_LABEL[label] ?? label}`)
+    return `${parts.join(' · ')} · review recommended`
+  })()
 
   // Tracked competitors — watched set, sorted by most recent signal (no cap)
   const trackedCompetitors = competitorsData
@@ -976,7 +1017,10 @@ export default function WarRoom() {
             margin: 0, fontSize: '24px', fontWeight: 700,
             color: 'rgba(5,10,68,0.92)', lineHeight: 1.25,
           }}>
-            {greeting()}, {userData.user.name}.{' '}
+            {/* Greet by the signed-in account's own name, and omit the name entirely
+                when the account carries none. This used to read userData.user.name
+                from static data, greeting every visitor as "David". */}
+            {account.displayName ? `${greeting()}, ${account.displayName}.` : `${greeting()}.`}{' '}
             <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
               Here's the state of {indication}.
             </span>
@@ -993,22 +1037,9 @@ export default function WarRoom() {
           </p>
         </div>
 
-        {/* Ask Ariya + Customise buttons */}
+        {/* Customise button. The Ask Ariya CTA that sat here was removed with the
+            rest of the RAG chat feature (handoff index §2, frontend §2). */}
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0, paddingTop: '6px' }}>
-          <button
-            onClick={() => openAskModal('war-room-header-ask')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: 600,
-              background: '#0055BB', color: '#FFFFFF',
-              border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            <Plus size={13} strokeWidth={2.5} />
-            Ask Ariya
-          </button>
           {/* Customise — visual only (no edit-mode behaviour) */}
           <button
             type="button"
@@ -1160,55 +1191,9 @@ export default function WarRoom() {
             )}
           </Card>
 
-          {/* Ask Ariya panel */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Sparkles size={14} color="#0055BB" />
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-                Ask Ariya
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => openAskModal('war-room-ask-panel')}
-              aria-label={`Ask Ariya: What changed for ${assetName} this week?`}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '10px 14px', borderRadius: '10px',
-                background: '#FAFBFE',
-                border: '1px solid rgba(5,10,68,0.10)',
-                cursor: 'pointer', marginBottom: '12px',
-                width: '100%', textAlign: 'left', fontFamily: 'inherit',
-              }}
-            >
-              <Search size={14} color="rgba(5,10,68,0.50)" aria-hidden="true" />
-              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.55)' }}>
-                What changed for {assetName} this week?
-              </span>
-            </button>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {[
-                `Compare Pharvaris vs ${assetName} timeline`,
-                "Summarise Takeda's pediatric narrative",
-                'Draft IR talking points',
-              ].map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => openAskModal(`war-room-prompt-${prompt}`)}
-                  style={{
-                    padding: '6px 12px', borderRadius: '9999px',
-                    background: 'rgba(0,85,187,0.06)',
-                    color: '#0055BB',
-                    border: '1px solid rgba(0,85,187,0.18)',
-                    fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </Card>
+          {/* The Ask Ariya panel that sat here is removed: RAG chat is AI and is
+              excluded (handoff index §2, frontend §2). Frontend §6.1's War Room
+              composition does not include it either, so nothing replaces it. */}
         </div>
 
         {/* â”€â”€ RIGHT COLUMN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}

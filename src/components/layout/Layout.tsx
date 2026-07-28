@@ -1,11 +1,9 @@
-import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { fadeUp } from '../../lib/motion'
 import NavPanel from '../shell/NavPanel'
 import TopBar from '../shell/TopBar'
 import ContentColumn from '../shell/ContentColumn'
-import AskModal from '../ui/AskModal'
 import FeedbackWidget from '../ui/FeedbackWidget'
 import OnboardingModal from '../OnboardingModal'
 import TourBanner from '../TourBanner'
@@ -13,36 +11,14 @@ import { useApp } from '../../context/AppContext'
 import { useTour } from '../../hooks/useTour'
 import { ErrorBoundary, PageErrorFallback } from '../ErrorBoundary'
 
+// The "/" keyboard shortcut and its Escape handler lived here to drive the Ask
+// modal. Both are removed with the rest of the RAG chat feature (handoff index
+// §2, frontend §2). OnboardingModal and TourBanner own their own Escape keys.
+
 export default function Layout() {
-  const { askModal, closeAskModal, openAskModal, showOnboarding } = useApp()
+  const { showOnboarding } = useApp()
   useTour()
   const location = useLocation()
-
-  /**
-   * Keyboard shortcuts:
-   *   /     → open Ask modal (if not already typing in an input)
-   *   Esc   → close Ask modal
-   */
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
-      const isTyping =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-
-      if (e.key === '/' && !isTyping) {
-        e.preventDefault()
-        openAskModal('keyboard-shortcut-/')
-      }
-      if (e.key === 'Escape' && askModal.open) {
-        closeAskModal()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [askModal.open, closeAskModal, openAskModal])
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#152d61' }}>
@@ -97,11 +73,6 @@ export default function Layout() {
           </ErrorBoundary>
         </main>
       </ContentColumn>
-
-      {/* Ask Ariya modal — shared across all pages */}
-      {askModal.open && (
-        <AskModal onClose={closeAskModal} source={askModal.source} />
-      )}
 
       {/* Onboarding modal — shown on first visit or triggered from Admin */}
       {showOnboarding && <OnboardingModal />}

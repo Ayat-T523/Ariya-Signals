@@ -26,9 +26,8 @@ import {
   ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useApp, useConfig } from '../../context/AppContext'
+import { useApp, useConfig, useAccountIdentity } from '../../context/AppContext'
 import { signOut } from '../../lib/auth'
-import { userData } from '../../data/kalvista'
 import { REDUCED_MOTION } from '../../lib/motion'
 import { DEMO, APP_VERSION } from '../../config/demo-config'
 
@@ -62,7 +61,6 @@ const MONITOR: NavItemDef[] = [
 
 const DECIDE: NavItemDef[] = [
   { to: '/alerts', icon: Bell,     label: 'Alerts',    badge: true, tourId: 'nav-alerts' },
-  { to: '/ask',    icon: Sparkles, label: 'Ask Ariya', tourId: 'nav-ask' },
   {
     to: '/myspace', icon: User, label: 'My Space', end: true,
     subItems: [
@@ -159,9 +157,9 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           What is Ariya Signals?
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>
-          A competitive intelligence hub for {DEMO.companyLabel}'s {indication} franchise. It monitors the competitive
-          environment, tracks competitor pipeline and commercial moves, and delivers role-tailored
-          insights so you spend less time gathering and more time deciding.
+          A competitive intelligence hub for your {indication} franchise. It monitors the competitive
+          environment and tracks competitor pipeline, regulatory and commercial moves, showing the
+          source behind every signal so you can trace anything you act on.
         </p>
 
         <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--font-secondary)' }}>
@@ -471,8 +469,9 @@ export default function NavPanel() {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  const user    = userData.user
-  const company = userData.company
+  // Identity comes from the signed-in account, not from static data. See
+  // useAccountIdentity: there is no stored organisation, so none is shown.
+  const account = useAccountIdentity()
 
   function handleTakeTour() {
     setHelpOpen(false)
@@ -562,7 +561,7 @@ export default function NavPanel() {
           }}>
             {/* User avatar */}
             <div
-              title={`${user.name} · ${company}`}
+              title={[account.displayName, account.email].filter(Boolean).join(' · ') || 'Not signed in'}
               style={{
                 width: '36px', height: '36px', borderRadius: '50%',
                 flexShrink: 0,
@@ -579,14 +578,18 @@ export default function NavPanel() {
                   margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--bg-1)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
-                  {user.name}
+                  {account.displayName ?? (account.anonymous ? 'Not signed in' : 'Your account')}
                 </p>
-                <p style={{
-                  margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.70)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {company}
-                </p>
+                {/* The email, where the organisation line used to be. No company is
+                    stored for an account, so none is shown. */}
+                {account.email && (
+                  <p style={{
+                    margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.70)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {account.email}
+                  </p>
+                )}
               </div>
             )}
             {showExpanded && (

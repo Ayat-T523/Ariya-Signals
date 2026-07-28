@@ -1,24 +1,25 @@
 import { Link } from 'react-router-dom'
-import { Upload, FileText, ChevronLeft, File, SlidersHorizontal } from 'lucide-react'
+import { Upload, ChevronLeft, FolderOpen } from 'lucide-react'
 import { DEMO } from '../config/demo-config'
-import { useConfig } from '../context/AppContext'
 
 const CAPABILITY_REQUEST_URL = DEMO.capabilityRequestUrl
 
-const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  PDF:        { bg: 'rgba(225,29,72,0.08)',   text: '#C01041' },
-  Word:       { bg: 'rgba(0,85,187,0.08)',    text: '#0055BB' },
-  PowerPoint: { bg: 'rgba(245,158,11,0.10)',  text: '#92500A' },
-  Excel:      { bg: 'rgba(16,185,129,0.10)',  text: '#065F46' },
-}
+/**
+ * There is deliberately no document list here.
+ *
+ * This page used to render three invented documents ("Pharvaris EAACI 2026
+ * symposium deck.pdf", 4.2 MB, "Indexed") behind a small "3 documents ·
+ * illustrative" caption. Document upload is a full-product capability with no
+ * backing store in this build, so there is nothing those rows could be wired to
+ * and no honest way to show them: a file list is read as a record of files that
+ * exist. Fabricated filenames with fabricated sizes and index statuses are
+ * exactly the kind of plausible detail that survives being labelled.
+ *
+ * The empty state below says the true thing instead. When the capability ships,
+ * this is where the real list goes.
+ */
 
 export default function MyDocuments() {
-  const { assetName } = useConfig()
-  const MOCK_DOCUMENTS = [
-    { name: 'Pharvaris EAACI 2026 symposium deck.pdf',              type: 'PDF',        date: 'Apr 15, 2026', size: '4.2 MB', status: 'Indexed', icon: File },
-    { name: `Internal ${assetName} launch readiness brief.docx`,   type: 'Word',       date: 'Mar 28, 2026', size: '1.1 MB', status: 'Indexed', icon: FileText },
-    { name: 'BioCryst investor day slides - annotated.pptx',        type: 'PowerPoint', date: 'Mar 12, 2026', size: '8.7 MB', status: 'Indexed', icon: SlidersHorizontal },
-  ]
   return (
     <div style={{ padding: '28px 32px', maxWidth: '880px' }}>
 
@@ -56,91 +57,45 @@ export default function MyDocuments() {
         </p>
       </div>
 
-      {/* ── Mock document list ─────────────────────────────────────────────────── */}
+      {/* ── Document list: empty until the capability is enabled ───────────────── */}
       <section style={{
         background: '#FFFFFF', borderRadius: '16px',
         border: '1px solid rgba(5,10,68,0.08)',
         boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 4px 12px rgba(5,10,68,0.04)',
         marginBottom: '20px', overflow: 'hidden',
       }}>
-        {/* Section header */}
         <div style={{
           padding: '16px 24px',
           borderBottom: '1px solid rgba(5,10,68,0.06)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>
-              Indexed documents
-            </h2>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
-              3 documents · illustrative
-            </p>
-          </div>
-          <span style={{
-            padding: '4px 10px', borderRadius: '6px',
-            fontSize: '11px', fontWeight: 600,
-            background: 'rgba(73,160,120,0.12)', color: '#49a078',
-          }}>
-            All indexed
-          </span>
+          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>
+            Indexed documents
+          </h2>
         </div>
 
-        {/* Document rows */}
-        {MOCK_DOCUMENTS.map((doc, i) => {
-          const typeCfg = TYPE_COLORS[doc.type] ?? TYPE_COLORS.PDF
-          const DocIcon = doc.icon
-          return (
-            <div
-              key={i}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '14px 24px',
-                borderBottom: i < MOCK_DOCUMENTS.length - 1 ? '1px solid rgba(5,10,68,0.05)' : 'none',
-              }}
-            >
-              {/* Icon */}
-              <div style={{
-                width: '36px', height: '36px', borderRadius: '8px',
-                background: typeCfg.bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <DocIcon size={16} color={typeCfg.text} strokeWidth={1.5} />
-              </div>
-
-              {/* Name + meta */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.88)', lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {doc.name}
-                </p>
-                <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>
-                  {doc.date} · {doc.size}
-                </p>
-              </div>
-
-              {/* Type badge */}
-              <span style={{
-                padding: '3px 8px', borderRadius: '6px',
-                fontSize: '11px', fontWeight: 600,
-                background: typeCfg.bg, color: typeCfg.text,
-                flexShrink: 0,
-              }}>
-                {doc.type}
-              </span>
-
-              {/* Status badge */}
-              <span style={{
-                padding: '3px 8px', borderRadius: '6px',
-                fontSize: '11px', fontWeight: 600,
-                background: 'rgba(73,160,120,0.12)', color: '#49a078',
-                flexShrink: 0,
-              }}>
-                {doc.status}
-              </span>
-            </div>
-          )
-        })}
+        <div style={{
+          padding: '40px 24px', textAlign: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+        }}>
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '10px',
+            background: 'rgba(5,10,68,0.05)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <FolderOpen size={19} color="rgba(5,10,68,0.32)" strokeWidth={1.5} />
+          </div>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.62)' }}>
+            No documents yet
+          </p>
+          <p style={{
+            margin: 0, maxWidth: '400px',
+            fontSize: '13px', fontFamily: 'Inter, sans-serif',
+            color: 'rgba(5,10,68,0.45)', lineHeight: '1.6',
+          }}>
+            Once document upload is enabled for your organisation, the files you add
+            will be listed here with their indexing status.
+          </p>
+        </div>
       </section>
 
       {/* ── Upload area (disabled showcase) ────────────────────────────────────── */}

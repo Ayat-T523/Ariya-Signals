@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { analytics } from '../lib/analytics'
 import {
   CheckCheck, Circle,
-  ChevronDown, ChevronRight, Sparkles,
+  ChevronDown, ChevronRight,
   LayoutList, LayoutGrid,
   Layers,
   Database,
@@ -347,7 +347,7 @@ function AlertCard({ alert }) {
 
 // ── Theme cluster card ────────────────────────────────────────────────────────
 function ThemeCluster({ theme, clusterAlerts }) {
-  const { readAlerts, openAskModal } = useApp()
+  const { readAlerts } = useApp()
   const [expanded, setExpanded] = useState(false)
 
   const hasUnread = clusterAlerts.some((a) => !readAlerts.has(a.id))
@@ -446,31 +446,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
             ))}
           </div>
 
-          {/* Ask Ariya CTA */}
-          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => openAskModal(`theme:${theme.id}`)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '8px 18px', borderRadius: '9999px',
-                fontSize: '14px', fontWeight: 600,
-                background: '#050A44', color: '#FFFFFF',
-                border: 'none', cursor: 'pointer',
-                transition: 'transform 120ms ease, box-shadow 120ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5,10,68,0.25)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = ''
-                e.currentTarget.style.boxShadow = ''
-              }}
-            >
-              <Sparkles size={13} />
-              Ask Ariya about this theme
-            </button>
-          </div>
+          {/* The per-theme Ask Ariya CTA that sat here is removed: RAG chat is AI
+              and is excluded (handoff index §2, frontend §2). */}
 
         </div>
       )}

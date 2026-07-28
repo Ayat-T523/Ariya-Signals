@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import type { LexiconRow } from '../deterministic/lexicon'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -348,16 +349,23 @@ export function findAssetByCode(code: string, assets: DbAsset[]): DbAsset | unde
   )
 }
 
-// Returns the synonyms array from asset_lexicon for the given INN, or null if not found.
-export async function getLexiconByInn(inn: string): Promise<string[] | null> {
+// Every asset_lexicon row (inn + synonyms). The table is small reference data
+// (one row per tracked drug), so it is fetched whole and filtered client-side by
+// expandLexiconInns rather than queried per drug.
+export async function getAssetLexicon(): Promise<LexiconRow[] | null> {
   if (!supabase) return null
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('asset_lexicon')
-    .select('synonyms')
-    .eq('inn', inn.toLowerCase())
-    .maybeSingle()
-  return (data as { synonyms: string[] } | null)?.synonyms ?? null
+    .select('inn, brand_name, synonyms, competitor_id')
+    .order('inn')
+  if (error) throw error
+  return (data as LexiconRow[] | null) ?? null
 }
+
+// NOTE: there is deliberately no getLexiconByInn here. Returning one drug's
+// synonyms invited them to be used as a landscape list, which narrowed relevance
+// matching from 153 live signals to 40. Fetch the table with getAssetLexicon and
+// expand the config landscape with expandLexiconInns instead.
 
 // ── Per-user profile (user_profiles) ─────────────────────────────────────────
 

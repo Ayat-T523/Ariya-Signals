@@ -393,21 +393,9 @@ export function SkeletonPortalList({ count = 5 }: { count?: number }) {
   )
 }
 
-// ── Ask Ariya response text (AskModal) ────────────────────────────────────────
-export function SkeletonAskResponse() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <Skeleton height={13} width="98%" radius={4} />
-      <Skeleton height={13} width="85%" radius={4} />
-      <Skeleton height={13} width="92%" radius={4} />
-      <Skeleton height={13} width="78%" radius={4} />
-      <div style={{ height: '4px' }} />
-      <Skeleton height={13} width="95%" radius={4} />
-      <Skeleton height={13} width="88%" radius={4} />
-      <Skeleton height={13} width="65%" radius={4} />
-    </div>
-  )
-}
+// SkeletonAskResponse was the loading state for the Ask modal's streamed answer.
+// Removed with the RAG chat feature (handoff index §2, frontend §2); AskModal was
+// its only consumer.
 
 // ── Generic chart block ───────────────────────────────────────────────────────
 export function SkeletonChart({ height = 180 }: { height?: number }) {

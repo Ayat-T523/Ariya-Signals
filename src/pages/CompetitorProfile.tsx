@@ -8,7 +8,6 @@ import { ChevronLeft, Eye } from 'lucide-react'
 import { ExportButton } from '../components/ui/ExportButton'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
-import AIButton from '../components/ui/AIButton'
 import PipelineTab from '../components/competitor/tabs/PipelineTab'
 import CompanyTab from '../components/competitor/tabs/CompanyTab'
 import MessagingTab from '../components/competitor/tabs/MessagingTab'
@@ -153,9 +152,7 @@ export default function CompetitorProfile() {
               <Eye size={13} />
               Watching
             </button>
-            <AIButton source={`competitor-profile-${id}-summarize-for-me`}>
-              Summarise for me
-            </AIButton>
+            {/* The "Summarise for me" AI button is removed (handoff index §2). */}
           </div>
         </div>
 

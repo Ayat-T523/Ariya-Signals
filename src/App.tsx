@@ -19,7 +19,6 @@ const Competitors       = lazy(() => import('./pages/Competitors'))
 const CompetitorProfile = lazy(() => import('./pages/CompetitorProfile'))
 const Portal            = lazy(() => import('./pages/Portal'))
 const AlertsPage        = lazy(() => import('./pages/AlertsPage'))
-const Ask               = lazy(() => import('./pages/Ask'))
 const AdminPage         = lazy(() => import('./pages/AdminPage'))
 const MarketPerformance = lazy(() => import('./pages/MarketPerformance'))
 const PricingAndAccess  = lazy(() => import('./pages/PricingAndAccess'))
@@ -110,7 +109,6 @@ export default function App() {
                   <Route path="/myspace"              element={<><RouteTitle title="My Space" /><MySpace /></>} />
                   <Route path="/myspace/alerts"       element={<><RouteTitle title="Alert Preferences" /><MyAlerts /></>} />
                   <Route path="/myspace/documents"    element={<><RouteTitle title="My Documents" /><MyDocuments /></>} />
-                  <Route path="/ask"                  element={<><RouteTitle title="Ask Ariya" /><Ask /></>} />
                   <Route path="/admin"                element={<><RouteTitle title="Admin" /><AdminPage /></>} />
                   <Route path="*"                     element={<NotFoundState />} />
                 </Route>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { analytics } from '../../lib/analytics'
-import { DEMO } from '../../config/demo-config'
+import { useAccountIdentity } from '../../context/AppContext'
 
 type Stage = 'closed' | 'open' | 'submitting' | 'success'
 
@@ -16,6 +16,7 @@ export default function FeedbackWidget() {
   const [rating, setRating]   = useState<string | null>(null)
   const [comment, setComment] = useState('')
   const location  = useLocation()
+  const account   = useAccountIdentity()
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
@@ -44,8 +45,11 @@ export default function FeedbackWidget() {
         body: JSON.stringify({
           rating,
           comment: comment.trim(),
-          userEmail: DEMO.personaEmail,
-          organisation: DEMO.companyLabel,
+          // The signed-in account, or null when nobody is. This previously sent a
+          // fabricated identity (david@pharmainc.com / Pharma Inc) with every
+          // submission, which made feedback untraceable to its actual author.
+          // No organisation is sent because none is stored for an account.
+          userEmail: account.email,
           route: location.pathname,
           timestamp: new Date().toISOString(),
         }),
