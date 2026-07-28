@@ -1105,17 +1105,28 @@
 .signal-card.is-expanded .signal-expand svg { transform: rotate(180deg); }
 .signal-card.compact .signal-expand { display: none; }
 
-/* max-height transition, not the grid-template-rows 0fr/1fr trick: tried that
-   first (avoids animating a layout property) but verified in the browser that
-   the transition gets permanently stuck at 0px on the real element -- a fresh
-   clone with the same classes resolves fine, so it is specifically the
-   transition that breaks, not the static rule. max-height is a real,
-   long-proven pattern; the max-height value itself is set from the SignalCard
-   component's own measured scrollHeight (see SignalCard.tsx), not a guessed
-   constant, so it never clips a longer excerpt/WHY. */
-.signal-excerpt-wrap { max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard); }
-.signal-card.is-expanded .signal-excerpt-wrap { margin-top: var(--s-3); }
+/* grid-template-rows 0fr/1fr trick, per craft-floor's ban on animating
+   layout properties (max-height thrashes layout). An earlier attempt at
+   this got permanently stuck at 0px; root cause was never isolated at the
+   time, so the fix then was to fall back to max-height driven by a
+   JS-measured scrollHeight instead. Revisited: overflow:hidden belongs on
+   the grid ITEM (.signal-excerpt), not the grid CONTAINER (.signal-excerpt-
+   wrap itself) -- overflow:hidden on the container is what was blocking the
+   fr-unit row track from ever resizing past 0, since the container's own
+   box never grows when its overflow is clipped. Moving overflow to the
+   child and letting the container's height be driven purely by the grid
+   track means no JS height measurement is needed at all: removed
+   excerptHeight/excerptRef/useLayoutEffect from both SignalCard.tsx and
+   DigestFeed.tsx's DigestRow. */
+.signal-excerpt-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-standard); }
+.signal-card.is-expanded .signal-excerpt-wrap { grid-template-rows: 1fr; margin-top: var(--s-3); }
 .signal-excerpt {
+  /* Grid items default to min-height:auto, which floors their size at their
+     own min-content (padding included, since padding never shrinks below
+     its own value) -- that floor wins over the 0fr track and is exactly
+     what pinned this at ~24px (the top+bottom padding) instead of 0 in the
+     collapsed state. min-height:0 removes that floor. */
+  min-height: 0; overflow: hidden;
   background: var(--cream-50); box-shadow: var(--neu-inset); border-radius: var(--r-sm); padding: var(--s-3);
 }
 .signal-excerpt-quote {
@@ -1152,10 +1163,12 @@
 .digest-row .row-meta { flex-shrink: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-700); white-space: nowrap; }
 .digest-row .row-meta .time { font-family: var(--font-mono); }
 
-/* Same max-height approach as .signal-excerpt-wrap, see its comment above --
-   measured scrollHeight from DigestFeed.tsx, not a guessed constant. */
-.digest-expand-wrap { padding: 0 var(--s-5); max-height: 0; overflow: hidden; transition: max-height var(--dur-base) var(--ease-standard); }
-.digest-expand-wrap.is-open { padding-bottom: var(--s-2); }
+/* Same grid-template-rows approach as .signal-excerpt-wrap, see its comment
+   above. overflow:hidden lives on .signal-excerpt (the grid item), not here
+   (the grid container) -- .signal-excerpt already gets it from the rule
+   above, shared by both SignalCard and this component. */
+.digest-expand-wrap { display: grid; grid-template-rows: 0fr; padding: 0 var(--s-5); transition: grid-template-rows var(--dur-base) var(--ease-standard); }
+.digest-expand-wrap.is-open { grid-template-rows: 1fr; padding-bottom: var(--s-2); }
 .digest-expand-wrap .signal-excerpt { margin-bottom: var(--s-2); }
 
 .digest-footer {

@@ -1,7 +1,7 @@
 // InForm — Digest Feed, Variant A (per docs/design/component-references/
 // Signal Feed Variants.html): fewest boxes. One plate holds every competitor
 // group; entries are hairline rows, not individually-elevated cards.
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import CompetitorBadge from '../ui/CompetitorBadge'
@@ -10,15 +10,7 @@ import type { Signal } from './types'
 
 function DigestRow({ signal }: { signal: Signal }) {
   const [open, setOpen] = useState(false)
-  const [excerptHeight, setExcerptHeight] = useState(0)
-  const excerptRef = useRef<HTMLDivElement>(null)
   const canExpand = !!(signal.excerpt || signal.why)
-
-  // Measure after the DOM actually commits, not during render -- see the
-  // matching comment in SignalCard.tsx.
-  useLayoutEffect(() => {
-    if (open && excerptRef.current) setExcerptHeight(excerptRef.current.scrollHeight)
-  }, [open])
 
   return (
     <div>
@@ -37,8 +29,8 @@ function DigestRow({ signal }: { signal: Signal }) {
         </span>
       </button>
       {canExpand && (
-        <div className={`digest-expand-wrap${open ? ' is-open' : ''}`} style={{ maxHeight: open ? `${excerptHeight}px` : '0px' }}>
-          <div className="signal-excerpt" ref={excerptRef}>
+        <div className={`digest-expand-wrap${open ? ' is-open' : ''}`}>
+          <div className="signal-excerpt">
             {signal.excerpt && <p className="signal-excerpt-quote">&ldquo;{signal.excerpt}&rdquo;</p>}
             {signal.why && <p className="signal-excerpt-why"><strong>WHY — </strong>{signal.why}</p>}
           </div>
