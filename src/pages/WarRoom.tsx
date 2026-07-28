@@ -562,7 +562,7 @@ export default function WarRoom() {
             <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--ink-900)' }}>
               What needs you
             </h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="seg">
               {([
                 { value: 'importance', label: 'Importance' },
                 { value: 'recency', label: 'Recency' },
@@ -571,16 +571,11 @@ export default function WarRoom() {
                 return (
                   <button
                     key={opt.value}
+                    type="button"
+                    className={`seg-item${on ? ' is-active' : ''}`}
                     onClick={() => setSortMode(opt.value)}
                     aria-pressed={on}
-                    style={{
-                      padding: '4px 10px', borderRadius: 'var(--r-pill)',
-                      fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: on ? 700 : 500,
-                      background: on ? 'var(--navy-700)' : 'transparent',
-                      color: on ? '#FFFFFF' : 'var(--ink-600)',
-                      border: `1.5px solid ${on ? 'var(--navy-700)' : 'var(--cream-400)'}`,
-                      cursor: 'pointer',
-                    }}
+                    style={{ border: 'none', background: on ? undefined : 'transparent' }}
                   >
                     {opt.label}
                   </button>
