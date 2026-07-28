@@ -45,7 +45,7 @@ export default function Layout() {
   }, [askModal.open, closeAskModal, openAskModal])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#152d61' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--navy-700)' }}>
       {/* Skip to main content — visually hidden until focused (a11y) */}
       <a
         href="#main-content"

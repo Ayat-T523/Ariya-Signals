@@ -1,12 +1,16 @@
 /**
- * NavPanel.tsx — Ariya Signals v2 navigation panel.
- * Matches Figma node 23:595 (file IXHI4HJFuZpw5hPMrv7DVb).
+ * NavPanel.tsx — Ariya Signals InForm navigation panel (Round 2 follow-up).
  *
- * Collapsed: 64 px  |  Expanded: 208 px  |  Transition: 200 ms ease
- * Trigger: mouseenter / mouseleave on the panel itself
+ * Collapsed: 64 px  |  Expanded: 200 px  |  Transition: 200 ms ease
+ * Trigger: click the chevron toggle (kept on user request over the header
+ * comment's original mouseenter/mouseleave spec, which was never built).
  *
- * Active (collapsed): 40×40 white bg, blue icon
- * Active (expanded):  12×35 white left-tab + white card row
+ * Chrome layer per DESIGN.md's two-layer model, using the "signature deep
+ * surface" (navy-700) rather than glass: a static sidebar has nothing
+ * behind it to blur, so backdrop-filter glass would read as a flat
+ * rectangle. Active state is a translucent white highlight, never a solid
+ * content-layer block (that would blur the two-layer distinction) and
+ * never a colored border-left (craft-floor's side-tab ban).
  *
  * Footer (bottom): user avatar · compass (tour) · bell (alerts) · settings (admin) · help
  *
@@ -36,8 +40,11 @@ import { DEMO, APP_VERSION } from '../../config/demo-config'
 const W_COLLAPSED = 64
 const W_EXPANDED  = 200  // 12px padding each side + 176px items = 200px
 
-// Shell background — matches Figma outer bg
-const SHELL_BG = '#152d61'
+// Shell background — InForm's "signature deep surface" (DESIGN.md), the one
+// place in the two-layer model that's neither cream content nor glass chrome:
+// nav needs a strong dark anchor, and glass over a static sidebar with no
+// scrolling content behind it to blur reads as a flat rectangle, not glass.
+const SHELL_BG = 'var(--navy-700)'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SubItem  { to: string; label: string; disabled?: boolean }
@@ -133,14 +140,15 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
         aria-labelledby="help-modal-title"
         tabIndex={-1}
         onClick={e => e.stopPropagation()}
+        className="inf-raised-lg"
         style={{
-          background: 'var(--bg-1)', borderRadius: '20px',
+          borderRadius: 'var(--r-xl)',
           width: '100%', maxWidth: '600px',
           maxHeight: '85vh', overflowY: 'auto',
           padding: '36px 40px',
-          boxShadow: 'var(--shadow-overlay)',
           position: 'relative',
           outline: 'none',
+          fontFamily: 'var(--font-ui)',
         }}
       >
         <button
@@ -149,50 +157,46 @@ function HelpModal({ onClose, onTakeTour }: { onClose: () => void; onTakeTour: (
           style={{
             position: 'absolute', top: '16px', right: '16px',
             background: 'none', border: 'none', cursor: 'pointer',
-            padding: '6px', borderRadius: '8px', color: 'var(--font-secondary)',
+            padding: '6px', borderRadius: 'var(--r-sm)', color: 'var(--ink-600)',
           }}
         >
           <X size={18} />
         </button>
 
-        <h2 id="help-modal-title" style={{ margin: '0 0 10px', fontSize: '24px', fontWeight: 700, color: 'var(--font-bold)' }}>
+        <h2 id="help-modal-title" style={{ margin: '0 0 10px', fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 700, color: 'var(--ink-900)' }}>
           What is Ariya Signals?
         </h2>
-        <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 24px', fontSize: '14px', color: 'var(--ink-700)', lineHeight: 1.55 }}>
           A competitive intelligence hub for {DEMO.companyLabel}'s {indication} franchise. It monitors the competitive
           environment, tracks competitor pipeline and commercial moves, and delivers role-tailored
           insights so you spend less time gathering and more time deciding.
         </p>
 
-        <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--font-secondary)' }}>
+        <p style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)' }}>
           Sections
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {helpSections.map(s => (
             <div key={s.name}>
-              <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--font-bold)' }}>{s.name}</p>
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)', lineHeight: 1.55 }}>{s.description}</p>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: 'var(--ink-900)' }}>{s.name}</p>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-700)', lineHeight: 1.55 }}>{s.description}</p>
             </div>
           ))}
         </div>
 
-        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--font-secondary)', lineHeight: 1.5 }}>
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--cream-300)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-700)', lineHeight: 1.5 }}>
             New here, or want a quick refresher? Take the guided tour.
           </p>
           <button
             onClick={onTakeTour}
-            style={{
-              padding: '8px 16px', borderRadius: '9999px',
-              background: 'var(--dark-blue)', color: 'var(--bg-1)',
-              border: 'none', fontSize: '13px', fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-            }}
+            className="btn btn-primary btn-sm"
+            style={{ flexShrink: 0 }}
           >
             Take the tour
           </button>
         </div>
-        <p style={{ margin: '16px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.22)', textAlign: 'center', letterSpacing: '0.03em' }}>
+        <p style={{ margin: '16px 0 0', fontSize: '11px', color: 'var(--ink-500)', textAlign: 'center', letterSpacing: '0.03em' }}>
           {DEMO.appName} demo · {APP_VERSION}
         </p>
       </div>
@@ -225,7 +229,7 @@ function NavLogo() {
       <div>
         <p style={{
           margin: 0,
-          fontSize: '18px', fontWeight: 700,
+          fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-display)',
           color: '#FFFFFF',
           lineHeight: 1.2, letterSpacing: '-0.01em',
           whiteSpace: 'nowrap',
@@ -234,8 +238,8 @@ function NavLogo() {
         </p>
         <p style={{
           margin: 0,
-          fontSize: '16px',
-          color: 'rgba(255,255,255,0.70)',
+          fontSize: '16px', fontFamily: 'var(--font-ui)',
+          color: 'rgba(255,255,255,0.65)',
           lineHeight: 1, letterSpacing: '0.01em',
         }}>
           by phamax
@@ -250,10 +254,10 @@ function GroupLabel({ label }: { label: string }) {
   return (
     <p style={{
       margin: '12px 0 8px', padding: '0',
-      fontSize: '12px', fontWeight: 500,
-      fontFamily: 'Satoshi, sans-serif',
-      textTransform: 'uppercase', letterSpacing: '0.06em',
-      color: '#FFFFFF', whiteSpace: 'nowrap',
+      fontSize: '11px', fontWeight: 600,
+      fontFamily: 'var(--font-ui)',
+      textTransform: 'uppercase', letterSpacing: '0.08em',
+      color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap',
     }}>
       {label}
     </p>
@@ -281,17 +285,8 @@ function NavItem({ item, isExpanded, unreadCount }: {
           aria-label={item.label}
           aria-current={isActive ? 'page' : undefined}
           title={item.label}
-          style={{
-            position: 'relative',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '40px', height: '40px',
-            margin: '0 auto',
-            borderRadius: '8px',
-            background: isActive ? 'var(--bg-1)' : 'transparent',
-            color: isActive ? 'var(--blue-primary)' : '#FFFFFF',
-            textDecoration: 'none',
-            transition: 'background 150ms ease, color 150ms ease',
-          }}
+          className={`nav-item nav-item-collapsed${isActive ? ' is-active' : ''}`}
+          style={{ position: 'relative' }}
         >
           <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} />
           {item.badge && unreadCount > 0 && (
@@ -300,7 +295,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
               style={{
                 position: 'absolute', top: '7px', right: '7px',
                 width: '7px', height: '7px',
-                background: 'var(--status-red)', borderRadius: '50%',
+                background: 'var(--crimson-600)', borderRadius: '50%',
                 border: `1.5px solid ${SHELL_BG}`,
               }}
             />
@@ -316,19 +311,7 @@ function NavItem({ item, isExpanded, unreadCount }: {
           to={item.to}
           end={item.end}
           aria-current={isActive ? 'page' : undefined}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            height: '35px',
-            paddingLeft: '6px', paddingRight: '6px',
-            borderRadius: '6px',
-            background: isActive ? '#FFFFFF' : 'transparent',
-            color: isActive ? '#2A76F4' : '#FFFFFF',
-            textDecoration: 'none',
-            fontSize: '14px', fontWeight: isActive ? 500 : 400,
-            fontFamily: 'Satoshi, sans-serif',
-            whiteSpace: 'nowrap',
-            transition: 'background 150ms ease, color 150ms ease',
-          }}
+          className={`nav-item nav-item-expanded${isActive ? ' is-active' : ''}`}
         >
           <item.icon size={16} strokeWidth={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>
@@ -341,9 +324,9 @@ function NavItem({ item, isExpanded, unreadCount }: {
               transition={{ duration: 0.4 }}
               style={{
                 display: 'inline-block',
-                fontSize: '11px', fontWeight: 700,
-                background: 'var(--status-red)', color: 'var(--bg-1)',
-                borderRadius: '9999px', padding: '1px 6px',
+                fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700,
+                background: 'var(--crimson-600)', color: '#fff',
+                borderRadius: 'var(--r-pill)', padding: '1px 6px',
                 minWidth: '18px', textAlign: 'center', lineHeight: '1.6', flexShrink: 0,
               }}
             >
@@ -362,8 +345,8 @@ function NavItem({ item, isExpanded, unreadCount }: {
                   style={{
                     display: 'flex', alignItems: 'center',
                     height: '34px', paddingLeft: '55.5px', paddingRight: '12px',
-                    marginRight: '8px', borderRadius: '8px',
-                    fontSize: '14px', fontWeight: 300,
+                    marginRight: '8px', borderRadius: 'var(--r-sm)',
+                    fontFamily: 'var(--font-ui)', fontSize: '14px', fontWeight: 400,
                     color: 'rgba(255,255,255,0.28)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     cursor: 'not-allowed', userSelect: 'none',
@@ -382,13 +365,12 @@ function NavItem({ item, isExpanded, unreadCount }: {
                 style={{
                   display: 'flex', alignItems: 'center',
                   height: '34px', paddingLeft: '55.5px', paddingRight: '12px',
-                  marginRight: '8px', borderRadius: '8px',
-                  fontSize: '14px', fontWeight: subActive ? 700 : 300,
-                  color: '#FFFFFF',
-                  textDecoration: subActive ? 'underline' : 'none',
-                  textDecorationColor: 'rgba(255,255,255,0.65)',
+                  marginRight: '8px', borderRadius: 'var(--r-sm)',
+                  fontFamily: 'var(--font-ui)', fontSize: '14px', fontWeight: subActive ? 600 : 400,
+                  color: subActive ? '#fff' : 'rgba(255,255,255,0.55)',
+                  textDecoration: 'none',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  transition: 'color 150ms ease',
+                  transition: 'color var(--dur-fast) var(--ease-standard)',
                 }}
               >
                 {sub.label}
@@ -421,16 +403,16 @@ function FooterIconBtn({
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: '24px', height: '24px',
+        width: '28px', height: '28px',
         background: 'none', border: 'none', cursor: 'pointer',
-        color: 'rgba(255,255,255,0.75)',
-        borderRadius: '4px',
-        transition: 'color 150ms ease',
+        color: 'rgba(255,255,255,0.65)',
+        borderRadius: 'var(--r-xs)',
+        transition: 'color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard)',
         padding: '4px',
         boxSizing: 'content-box',
       }}
-      onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.90)' }}
-      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)' }}
+      onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; e.currentTarget.style.background = 'none' }}
     >
       <Icon size={16} strokeWidth={1.5} />
       {badge && (
@@ -439,7 +421,7 @@ function FooterIconBtn({
           style={{
             position: 'absolute', top: '3px', right: '3px',
             width: '6px', height: '6px',
-            background: 'var(--status-red)', borderRadius: '50%',
+            background: 'var(--crimson-600)', borderRadius: '50%',
             border: `1.5px solid ${SHELL_BG}`,
           }}
         />
@@ -501,11 +483,12 @@ export default function NavPanel() {
               style={{
                 position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '24px', height: '24px', background: 'none', border: 'none',
-                cursor: 'pointer', color: 'rgba(255,255,255,0.75)', borderRadius: '4px', padding: 0,
+                width: '26px', height: '26px', background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                cursor: 'pointer', color: 'rgba(255,255,255,0.80)', borderRadius: 'var(--r-pill)', padding: 0,
               }}
             >
-              <X size={16} strokeWidth={1.5} />
+              <X size={14} strokeWidth={2} />
             </button>
           ) : (
             <button
@@ -515,13 +498,15 @@ export default function NavPanel() {
               style={{
                 position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '24px', height: '24px', background: 'none', border: 'none',
-                cursor: 'pointer', color: 'rgba(255,255,255,0.75)', borderRadius: '4px', padding: 0, flexShrink: 0,
+                width: '26px', height: '26px', background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                cursor: 'pointer', color: 'rgba(255,255,255,0.80)', borderRadius: 'var(--r-pill)', padding: 0, flexShrink: 0,
+                transition: 'background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard)',
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.75)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.16)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.80)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
             >
-              {isExpanded ? <ChevronLeft size={16} strokeWidth={1.5} /> : <ChevronRight size={16} strokeWidth={1.5} />}
+              {isExpanded ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
             </button>
           )}
         </div>
@@ -576,13 +561,13 @@ export default function NavPanel() {
             {showExpanded && (
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
-                  margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--bg-1)',
+                  margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 600, color: '#fff',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {user.name}
                 </p>
                 <p style={{
-                  margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.70)',
+                  margin: 0, fontFamily: 'var(--font-ui)', fontSize: '11px', color: 'rgba(255,255,255,0.60)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {company}
@@ -644,7 +629,7 @@ export default function NavPanel() {
             height: '100vh',
             width: isMobile ? `${W_EXPANDED}px` : `${isExpanded ? W_EXPANDED : W_COLLAPSED}px`,
             transition: isMobile ? 'none' : 'width 200ms ease',
-            background: 'transparent',
+            background: SHELL_BG,
             display: 'flex', flexDirection: 'column',
             flexShrink: 0,
             zIndex: isMobile ? 200 : 40,

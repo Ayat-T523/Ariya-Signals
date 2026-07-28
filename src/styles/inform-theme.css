@@ -6,11 +6,16 @@
 /* Apply to a page's root element once that page is migrated to InForm.
    Deliberately NOT a bare `body{}` rule (see inform-tokens.css) — unmigrated
    pages must keep their existing look until they opt in per component/page. */
+/* Lighter/airier than the original cream-200 base (user feedback: page bg
+   read too strong/flat). Base is cream-50, lighter than cards' own cream-100
+   -- cards now separate from the page mainly via the strengthened shadow
+   rather than a page/card color step, with the gradient blooms kept subtle
+   enough not to reintroduce that flatness. */
 .inform-app-bg {
   background:
-    radial-gradient(1200px 800px at 20% -10%, #F4ECDE 0%, transparent 60%),
-    radial-gradient(900px 700px at 110% 30%, #F0E6D3 0%, transparent 55%),
-    var(--cream-200);
+    radial-gradient(1200px 800px at 20% -10%, #FAF4E9 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% 30%, #F8F0E2 0%, transparent 55%),
+    var(--cream-50);
   color: var(--ink-900);
   font: var(--t-body);
   -webkit-font-smoothing: antialiased;
@@ -712,15 +717,29 @@
   width: 22px; height: 22px; border-radius: 7px;
   background: linear-gradient(135deg, var(--navy-900), var(--navy-600));
 }
+/* Real NavPanel usage (src/components/shell/NavPanel.tsx) -- the sidebar
+   itself is the "signature deep surface" (navy-700), not cream, so this
+   recipe is a translucent-on-dark treatment rather than the light .sidebar
+   demo block above. is-active reads via a soft glass highlight + full-white
+   text, never a solid content-layer block (that would be a two-layer
+   violation: a "content" surface sitting inside chrome) and never a
+   colored border-left (craft-floor's ban on side-tab accents). */
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 8px; font: 500 13px var(--font-ui);
-  color: var(--ink-700); cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  border-radius: var(--r-sm);
+  color: rgba(255,255,255,0.55);
+  text-decoration: none; cursor: pointer;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 400;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
-.nav-item:hover { background: var(--cream-200);}
-.nav-item.is-active { background: var(--cream-50); color: var(--ink-900); box-shadow: var(--neu-raised);}
-.nav-item .count { margin-left: auto; font: 500 11px var(--font-ui); color: var(--ink-500);}
-.nav-item.is-active .count { color: var(--indigo-500);}
+.nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.90); }
+.nav-item.is-active { background: rgba(255,255,255,0.14); color: #fff; font-weight: 600; }
+.nav-item:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+.nav-item-collapsed { width: 40px; height: 40px; justify-content: center; margin: 0 auto; }
+.nav-item-expanded { height: 36px; padding: 0 10px; }
+.nav-item .count { margin-left: auto; font: 600 11px var(--font-mono); color: rgba(255,255,255,0.55); }
+.nav-item.is-active .count { color: var(--indigo-100); }
 
 /* Tooltip */
 .tt {
@@ -1306,9 +1325,13 @@
 .mw-section-label { font-family: var(--font-ui); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-600); margin-bottom: var(--s-2); }
 .mw-rows { display: flex; flex-direction: column; }
 .mw-row {
+  /* No border-radius here (was 8px): with a border-top divider on the same
+     box, the radius curved the divider's own corners -- a "line" that was
+     never quite straight. Row dividers stay flat rules; radius is reserved
+     for the outer card. */
   display: flex; flex-direction: column; gap: 4px;
   padding: var(--s-3) var(--s-2); margin: 0 calc(-1 * var(--s-2));
-  border-top: 1px solid var(--cream-300); border-radius: 8px; cursor: pointer;
+  border-top: 1px solid var(--cream-300); cursor: pointer;
   transition: background var(--dur-fast) var(--ease-standard);
 }
 .mw-row:first-child { border-top: 0; }
