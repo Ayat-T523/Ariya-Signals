@@ -21,9 +21,10 @@ const TIMEOUT_MS    = 60_000
 const SYSTEM_PROMPT = `You clean up headlines for a pharma competitive-intelligence signal feed. Given a raw headline and a source excerpt, decide:
 - If the raw headline is already a clear, factual, readable title (e.g. a journal article or genuine press-release title), output it as-is, only fixing obvious HTML-entity or spacing artifacts. Do not rewrite or embellish it.
 - If the raw headline is a generic filing placeholder (e.g. "SEC 6-K filing", "SEC 8-K filing") and the excerpt contains real, substantive news content, write ONE clean, factual, concise headline (max 20 words) using ONLY facts explicitly stated in the excerpt. Never invent, infer, or add any detail not present in the text.
+- If the raw headline is just a bare drug/product name or a few words with no excerpt to draw on (nothing that reads as an actual event or claim), respond with exactly: NONE -- a bare name is not a headline, even if it's the best available text.
 - If neither the headline nor the excerpt contains substantive news content (only SEC filing boilerplate, exhibit filenames, form numbers, or a table of contents), respond with exactly: NONE
 
-Respond with ONLY the headline text or the word NONE. No quotes, no explanation, no preamble.`
+Respond with ONLY the headline text or the word NONE. Never add a note, caveat, explanation, or preamble about your reasoning -- if you don't have a clean headline, the answer is NONE, not an explanation.`
 
 function buildUserPrompt(signal, competitorName) {
   return [
@@ -57,7 +58,12 @@ export async function buildCleanHeadline(signal, competitorName) {
   if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`)
 
   const { response } = await res.json()
-  const cleaned = (response ?? '').trim().replace(/^["']|["']$/g, '')
+  // Defensive second layer, independent of the prompt: models occasionally
+  // leak a trailing "(Note: ...)" meta-comment despite being told not to
+  // (observed in the R4 backfill) -- strip it rather than trust the prompt
+  // alone. A real headline never legitimately contains this pattern.
+  const withoutNote = (response ?? '').replace(/\n+\(Note:[\s\S]*$/i, '')
+  const cleaned = withoutNote.trim().replace(/^["']|["']$/g, '')
   if (!cleaned || cleaned.toUpperCase() === 'NONE') return null
   // Guard against the model echoing a refusal/preamble instead of a headline
   if (cleaned.length > 240) return null

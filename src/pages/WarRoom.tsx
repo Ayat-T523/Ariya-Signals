@@ -506,7 +506,7 @@ export default function WarRoom() {
   const showSkeleton = !loaded || !liveDataLoaded
 
   return (
-    <div data-page-pad className="war-room-page">
+    <div data-page-pad className="war-room-page inform-app-bg">
 
       {/* Header */}
       <div className="war-room-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>

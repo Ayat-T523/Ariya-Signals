@@ -414,7 +414,7 @@ export default function AlertsPage() {
     baseAlerts.length === 0 ? 'fresh' : (tab === 'Unread' && appliedChips.length === 0 && !query) ? 'caught-up' : 'no-results'
 
   return (
-    <div data-tour="alerts-page" style={{ padding: '20px 36px 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-tour="alerts-page" className="inform-app-bg" style={{ padding: '20px 36px 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
         {isLoading ? 'Loading signals…' : (

@@ -1317,7 +1317,7 @@ export default function Portal() {
   }, [])
 
   return (
-    <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-tour="intelligence-feed" className="inform-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Underline tab bar — sticky so it stays visible while scrolling events */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cream-100)' }}>
