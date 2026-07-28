@@ -18,8 +18,8 @@ export function Skeleton({ width = '100%', height = 14, radius = 6, style }: Ske
         borderRadius: radius,
         flexShrink: 0,
         background: REDUCED_MOTION
-          ? 'rgba(5,10,68,0.07)'
-          : 'linear-gradient(90deg, rgba(5,10,68,0.07) 25%, rgba(5,10,68,0.03) 50%, rgba(5,10,68,0.07) 75%)',
+          ? 'rgba(16,34,74,0.07)'
+          : 'linear-gradient(90deg, rgba(16,34,74,0.07) 25%, rgba(16,34,74,0.03) 50%, rgba(16,34,74,0.07) 75%)',
         backgroundSize: REDUCED_MOTION ? undefined : '200% 100%',
         animation: REDUCED_MOTION ? undefined : 'ariya-shimmer 1.6s ease-in-out infinite',
         ...style,
@@ -134,7 +134,7 @@ function SkeletonQuadrantCard({ tint }: { tint: string }) {
             <Skeleton height={12} width={50} radius={3} />
             <Skeleton height={14} width={60} radius={4} />
           </div>
-          <div style={{ width: '1px', height: '48px', background: 'rgba(5,10,68,0.06)', flexShrink: 0 }} />
+          <div style={{ width: '1px', height: '48px', background: 'rgba(16,34,74,0.06)', flexShrink: 0 }} />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
             <Skeleton height={12} width={60} radius={3} />
             <Skeleton height={14} width={40} radius={4} />
@@ -173,7 +173,7 @@ export function SkeletonMarketWeatherBody() {
           ))}
         </div>
       </div>
-      <div style={{ height: '1px', background: 'rgba(5,10,68,0.06)' }} />
+      <div style={{ height: '1px', background: 'rgba(16,34,74,0.06)' }} />
       <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <Skeleton height={12} width="45%" radius={4} />
         <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -249,10 +249,10 @@ function SkeletonCompetitorCard() {
   return (
     <div style={{
       background: '#FFFFFF',
-      border: '1px solid rgba(5,10,68,0.08)',
-      borderRadius: '20px',
+      border: '1px solid rgba(16,34,74,0.08)',
+      borderRadius: '16px',
       padding: '24px',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 8px 24px rgba(5,10,68,0.04)',
+      boxShadow: '0 1px 2px rgba(16,34,74,0.04), 0 8px 24px rgba(16,34,74,0.04)',
       display: 'flex', flexDirection: 'column',
     }}>
       <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -273,7 +273,7 @@ function SkeletonCompetitorCard() {
           </div>
         ))}
       </div>
-      <div style={{ borderTop: '1px solid rgba(5,10,68,0.06)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ borderTop: '1px solid rgba(16,34,74,0.06)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <Skeleton height={11} width="40%" radius={3} />
         <Skeleton height={13} width="90%" radius={4} />
         <Skeleton height={13} width="72%" radius={4} />
@@ -312,10 +312,10 @@ function SkeletonAlertCard() {
   return (
     <div style={{
       background: '#FFFFFF',
-      border: '1px solid rgba(5,10,68,0.08)',
+      border: '1px solid rgba(16,34,74,0.08)',
       borderRadius: '16px',
       padding: '18px 20px',
-      boxShadow: '0 1px 3px rgba(5,10,68,0.04)',
+      boxShadow: '0 1px 3px rgba(16,34,74,0.04)',
       display: 'flex', flexDirection: 'column', gap: '12px',
     }}>
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
@@ -347,31 +347,22 @@ export function SkeletonAlertList({ count = 5 }: { count?: number }) {
   )
 }
 
-// ── Portal event list (Intelligence portal page) ──────────────────────────────
-function SkeletonPortalEventCard() {
+// ── Portal feed row (Intelligence portal page) ────────────────────────────────
+// Matches FeedRow's compact single-line density (Portal.tsx), not the fuller
+// Thread-card shape this used to placeholder for.
+function SkeletonPortalFeedRow() {
   return (
     <div style={{
       background: '#ffffff',
       border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '12px',
-      padding: '0 16px',
+      borderLeft: '3px solid rgba(16,34,74,0.10)',
+      borderRadius: '8px',
+      padding: '10px 14px',
+      display: 'flex', alignItems: 'center', gap: '10px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px 0' }}>
-        <Skeleton width={36} height={36} radius="50%" style={{ flexShrink: 0 }} />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Skeleton height={14} width="55%" radius={4} />
-            <Skeleton height={22} width={90} radius={9999} />
-          </div>
-          <Skeleton height={13} width="80%" radius={4} />
-          <Skeleton height={13} width="60%" radius={4} />
-          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-            <Skeleton height={22} width={70} radius={4} />
-            <Skeleton height={22} width={90} radius={4} />
-          </div>
-        </div>
-        <Skeleton width={80} height={22} radius={9999} style={{ flexShrink: 0 }} />
-      </div>
+      <Skeleton height={20} width={48} radius={9999} style={{ flexShrink: 0 }} />
+      <Skeleton height={14} width="55%" radius={4} style={{ flex: 1 }} />
+      <Skeleton height={20} width={90} radius={4} style={{ flexShrink: 0 }} />
     </div>
   )
 }
@@ -384,11 +375,13 @@ export function SkeletonPortalList({ count = 5 }: { count?: number }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
         <Skeleton height={14} width={120} radius={4} />
-        <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+        <div style={{ flex: 1, height: '1px', background: 'rgba(16,34,74,0.07)' }} />
       </div>
-      {Array.from({ length: count }, (_, i) => (
-        <SkeletonPortalEventCard key={i} />
-      ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {Array.from({ length: count }, (_, i) => (
+          <SkeletonPortalFeedRow key={i} />
+        ))}
+      </div>
     </div>
   )
 }

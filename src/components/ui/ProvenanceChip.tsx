@@ -26,6 +26,15 @@ function relDate(iso: string | null | undefined): string | null {
   if (isNaN(d.getTime())) return null
   const days = Math.floor((Date.now() - d.getTime()) / 86400000)
   if (days === 0) return 'today'
+  // Feed rows now carry upcoming dates too (EMA calendar, conferences), not just
+  // past announcements, so a negative day count is a real case, not a fluke.
+  if (days < 0) {
+    const until = -days
+    if (until < 31) return `in ${until}d`
+    const mo = Math.floor(until / 30)
+    if (mo < 12) return `in ${mo}mo`
+    return `in ${Math.floor(mo / 12)}yr`
+  }
   if (days < 31)  return `${days}d ago`
   const mo = Math.floor(days / 30)
   if (mo < 12) return `${mo}mo ago`
@@ -49,24 +58,24 @@ export default function ProvenanceChip({ sourceLabel, sourceUrl, date, tier, las
       display: 'inline-flex',
       alignItems: 'center',
       gap: '3px',
-      fontSize: '11px',
+      fontSize: '12px',
       fontWeight: 500,
-      fontFamily: 'Inter, sans-serif',
-      color: isLive ? '#065F46' : 'rgba(5,10,68,0.50)',
+      fontFamily: 'Satoshi, sans-serif',
+      color: isLive ? '#065F46' : 'rgba(16,34,74,0.50)',
       padding: '2px 7px',
       borderRadius: '4px',
-      background: isLive ? 'rgba(16,185,129,0.12)' : 'rgba(5,10,68,0.04)',
-      border: isLive ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(5,10,68,0.09)',
+      background: isLive ? 'rgba(16,185,129,0.12)' : 'rgba(16,34,74,0.04)',
+      border: isLive ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(16,34,74,0.09)',
       whiteSpace: 'nowrap',
       lineHeight: '1.4',
       textDecoration: 'none',
     }}>
       {sourceLabel}
       {dateStr && (
-        <span style={{ color: 'rgba(5,10,68,0.30)' }}>&nbsp;·&nbsp;{dateStr}</span>
+        <span style={{ color: 'rgba(16,34,74,0.60)' }}>&nbsp;·&nbsp;{dateStr}</span>
       )}
       {tierInfo && (
-        <span title={tierInfo.meaning} style={{ color: 'rgba(5,10,68,0.30)', cursor: 'help' }}>
+        <span title={tierInfo.meaning} style={{ color: 'rgba(16,34,74,0.60)', cursor: 'help' }}>
           &nbsp;·&nbsp;{tierInfo.short}
         </span>
       )}

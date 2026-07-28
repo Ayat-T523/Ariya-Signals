@@ -3,8 +3,8 @@
  *
  * UI matched to the reference image (ariya-signals-main prototype, WarRoom.jsx):
  *   greeting header, 3 KPI tiles with deltas/captions/links,
- *   Market weather, Upcoming events, Weekly digest. Exact prototype palette
- *   (#0055BB blue / #050A44 navy). "Customise" button is visual-only (no edit mode).
+ *   Market weather, Upcoming events, Weekly digest. Signal Blue / Case Ink
+ *   palette (DESIGN.md tokens). "Customise" button is visual-only (no edit mode).
  *
  * Data from src/data/kalvista.ts. lucide-react icons only.
  */
@@ -14,7 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight, ArrowUpRight,
-  TrendingDown, TrendingUp, Pencil, ExternalLink,
+  TrendingDown, TrendingUp, Pencil, ExternalLink, ChevronDown,
 } from 'lucide-react'
 import { useApp, useConfig, useAccountIdentity } from '../context/AppContext'
 import { importanceBand, bandToLegacyTier } from '../lib/deterministic/importance'
@@ -22,6 +22,7 @@ import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import PaidGate from '../components/ui/PaidGate'
+import { KeyCatalystsCalendar, CAL_COMPS, type CalCell } from '../components/ui/KeyCatalystsCalendar'
 import {
   competitorsData,
   eventsData,
@@ -33,12 +34,14 @@ import {
   getRecentSignals,
   getMarketImplications,
   getAllAssets,
+  getTrialsForCalendarYear,
   type DbAsset,
   type DbSignalSummary,
   type DbRegulatoryCalendarEvent,
   type DbRecentSignal,
   type DbMarketImplication,
 } from '../lib/db'
+import { trialsToCalendarCells } from '../lib/trialsToGantt'
 import { cleanSignalText, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -240,10 +243,10 @@ type MergedEventItem = {
 // no card-edge accent. `high` is solid so it anchors a scan down the feed
 // harder than a border ever did; medium and low stay tinted so only the
 // signals that need triage carry weight. White on #C01041 is 6.2:1.
-const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
+export const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
   high:   { bg: '#C01041',               text: '#FFFFFF',            label: 'HIGH' },
   medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',            label: 'MED'  },
-  low:    { bg: 'rgba(5,10,68,0.06)',    text: 'rgba(5,10,68,0.70)', label: 'LOW'  },
+  low:    { bg: 'rgba(16,34,74,0.06)',    text: 'rgba(16,34,74,0.70)', label: 'LOW'  },
 }
 
 const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
@@ -266,9 +269,9 @@ function typeLabel(t: string) {
 }
 
 const POSTURE_STYLE: Record<string, { bg: string; text: string }> = {
-  'Incumbent to displace':           { bg: 'rgba(5,10,68,0.08)',    text: 'rgba(5,10,68,0.70)' },
-  'Adjacent oral competitor':        { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
-  'Adjacent injectable prophylaxis': { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
+  'Incumbent to displace':           { bg: 'rgba(16,34,74,0.08)',    text: 'rgba(16,34,74,0.70)' },
+  'Adjacent oral competitor':        { bg: 'rgba(42,118,244,0.10)',   text: '#2A76F4'             },
+  'Adjacent injectable prophylaxis': { bg: 'rgba(42,118,244,0.10)',   text: '#2A76F4'             },
   'Emerging direct threat':          { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
   'Emerging gene therapy':           { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
   'Emerging oral competitor':        { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
@@ -402,8 +405,8 @@ function Card({ children, padding = '20px 22px', style }: {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+      border: '1px solid rgba(16,34,74,0.08)',
+      boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
       padding,
       ...style,
     }}>
@@ -423,11 +426,11 @@ function CardHeader({ title, subtitle, right }: {
       gap: '12px', marginBottom: '14px',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.92)' }}>
           {title}
         </h2>
         {subtitle && (
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.60)' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
             {subtitle}
           </span>
         )}
@@ -442,7 +445,7 @@ function HeaderLink({ to, children }: { to: string; children: ReactNode }) {
     <Link
       to={to}
       style={{
-        fontSize: '12px', fontWeight: 600, color: 'rgba(5,10,68,0.55)',
+        fontSize: '12px', fontWeight: 600, color: 'rgba(16,34,74,0.60)',
         textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px',
       }}
     >
@@ -461,27 +464,27 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
   linkTo?: string
   linkLabel?: string
 }) {
-  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(5,10,68,0.50)'
+  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(16,34,74,0.50)'
   return (
     <div style={{
       background: '#FFFFFF',
       borderRadius: '14px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+      border: '1px solid rgba(16,34,74,0.08)',
+      boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
       padding: '14px 18px',
       display: 'flex', flexDirection: 'column',
       gap: '4px',
     }}>
       <p style={{
-        margin: 0, fontSize: '10px', fontWeight: 700,
+        margin: 0, fontSize: '12px', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'rgba(5,10,68,0.65)',
+        color: 'rgba(16,34,74,0.65)',
       }}>
         {label}
       </p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
         <span style={{
-          fontSize: '26px', fontWeight: 700, color: 'rgba(5,10,68,0.92)',
+          fontSize: '24px', fontWeight: 700, color: 'rgba(16,34,74,0.92)',
           fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
         }}>
           {value}
@@ -497,7 +500,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
         )}
       </div>
       {caption && (
-        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
           {caption}
         </p>
       )}
@@ -506,7 +509,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
           to={linkTo}
           style={{
             marginTop: '6px', fontSize: '12px', fontWeight: 600,
-            color: '#0055BB', textDecoration: 'none',
+            color: '#2A76F4', textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center', gap: '3px',
           }}
         >
@@ -526,27 +529,27 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '10px',
-      border: '1px solid rgba(5,10,68,0.06)',
+      border: '1px solid rgba(16,34,74,0.06)',
       padding: '12px 14px',
     }}>
       {/* Top row: chips left, age right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
         <span style={{
-          fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-          borderRadius: '9999px', background: 'rgba(5,10,68,0.06)',
-          color: 'rgba(5,10,68,0.60)',
+          fontSize: '12px', fontWeight: 600, padding: '2px 8px',
+          borderRadius: '9999px', background: 'rgba(16,34,74,0.06)',
+          color: 'rgba(16,34,74,0.60)',
         }}>
           {competitor?.name ?? alert.competitorId}
         </span>
         <span style={{
-          fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-          borderRadius: '9999px', background: 'rgba(0,85,187,0.08)',
-          color: '#0055BB',
+          fontSize: '12px', fontWeight: 600, padding: '2px 8px',
+          borderRadius: '9999px', background: 'rgba(42,118,244,0.08)',
+          color: '#2A76F4',
         }}>
           {typeLabel(alert.type)}
         </span>
         <span style={{
-          fontSize: '10px', fontWeight: 700, padding: '2px 7px',
+          fontSize: '12px', fontWeight: 700, padding: '2px 7px',
           borderRadius: '9999px', background: sevLabel.bg, color: sevLabel.text,
           letterSpacing: '0.04em',
         }}>
@@ -555,7 +558,7 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
       </div>
 
       {/* Headline */}
-      <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.92)', lineHeight: 1.35 }}>
+      <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: 'rgba(16,34,74,0.92)', lineHeight: 1.35 }}>
         {decodeEntities(alert.headline)}
       </p>
 
@@ -574,9 +577,9 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
 
       {/* WHY */}
       {alert.whyItMatters && (
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.62)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.62)', lineHeight: 1.5 }}>
           <strong style={{
-            fontSize: '10px', fontWeight: 700, color: 'rgba(5,10,68,0.65)',
+            fontSize: '12px', fontWeight: 700, color: 'rgba(16,34,74,0.65)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
             WHY —{' '}
@@ -602,7 +605,7 @@ function CompactCompetitorCard({
   haeAssetCount: number
   lexicon: Lexicon
 }) {
-  const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
+  const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(16,34,74,0.06)', text: 'rgba(16,34,74,0.60)' }
   const pipelineCount = haeAssetCount
 
   let lastSignal: string
@@ -650,8 +653,8 @@ function CompactCompetitorCard({
         textDecoration: 'none',
         background: '#FFFFFF',
         borderRadius: '14px',
-        border: '1px solid rgba(5,10,68,0.08)',
-        boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+        border: '1px solid rgba(16,34,74,0.08)',
+        boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
         padding: '16px 18px',
         display: 'flex', flexDirection: 'column', gap: '10px',
       }}
@@ -659,7 +662,7 @@ function CompactCompetitorCard({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <CompetitorBadge name={competitor.name} size={32} />
-        <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+        <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.92)' }}>
           {competitor.name}
         </p>
       </div>
@@ -669,7 +672,7 @@ function CompactCompetitorCard({
         <span style={{
           display: 'inline-block',
           padding: '2px 10px', borderRadius: '9999px',
-          fontSize: '11px', fontWeight: 600,
+          fontSize: '12px', fontWeight: 600,
           background: posture.bg, color: posture.text,
         }}>
           {competitor.strategicPosture}
@@ -678,8 +681,8 @@ function CompactCompetitorCard({
           title="Hand-authored editorial label — not computed from data"
           style={{
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 500,
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.40)',
+            fontSize: '12px', fontWeight: 500,
+            background: 'rgba(16,34,74,0.06)', color: 'rgba(16,34,74,0.60)',
             cursor: 'help', whiteSpace: 'nowrap',
           }}
         >
@@ -689,20 +692,20 @@ function CompactCompetitorCard({
 
       {/* Signal summary */}
       {activityIsLive && activityLabel && (
-        <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#10B981' }}>
+        <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#10B981' }}>
           {activityLabel}
         </p>
       )}
       {activityText ? (
         <p style={({
-          margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.60)',
+          margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.60)',
           lineHeight: 1.5,
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         } as CSSProperties)}>
           {activityText}
         </p>
       ) : (
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.35)', lineHeight: 1.5, fontStyle: 'italic' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.60)', lineHeight: 1.5, fontStyle: 'italic' }}>
           No recent signals in the last {NARRATION_DAYS} days
         </p>
       )}
@@ -711,21 +714,21 @@ function CompactCompetitorCard({
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         marginTop: '4px', paddingTop: '10px',
-        borderTop: '1px solid rgba(5,10,68,0.06)',
+        borderTop: '1px solid rgba(16,34,74,0.06)',
       }}>
         <div>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
+          <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
             Pipeline
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.85)' }}>
+          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 600, color: 'rgba(16,34,74,0.85)' }}>
             {pipelineCount} {pipelineCount === 1 ? 'asset' : 'assets'}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
+          <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
             Last signal
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.65)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(16,34,74,0.65)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             {isLive && (
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0, display: 'inline-block' }} />
             )}
@@ -743,20 +746,20 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
   const subtitle = event.expectedTopics?.[0] || event.note || ''
   return (
     <Link
-      to={`/intelligence?tab=events&event=${event.id}`}
+      to={`/intelligence?event=${event.id}`}
       style={{
         textDecoration: 'none',
         display: 'flex', alignItems: 'center', gap: '14px',
         padding: '10px 4px',
-        borderBottom: last ? 'none' : '1px solid rgba(5,10,68,0.06)',
+        borderBottom: last ? 'none' : '1px solid rgba(16,34,74,0.06)',
       }}
     >
       {/* Date block */}
       <div style={{ textAlign: 'center', minWidth: '36px' }}>
-        <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.85)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {day}
         </p>
-        <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(5,10,68,0.65)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(16,34,74,0.65)' }}>
           {month}
         </p>
       </div>
@@ -764,7 +767,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
       {/* Title + EMA chip + subtitle */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.88)',
+          margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(16,34,74,0.88)',
           lineHeight: 1.35,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
@@ -774,7 +777,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
           <span style={{
             display: 'inline-block', marginTop: '2px',
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em',
+            fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em',
             background: 'rgba(0,52,114,0.10)', color: '#003472',
           }}>
             EMA
@@ -784,15 +787,15 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
           <span style={{
             display: 'inline-block', marginTop: '2px',
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 600, letterSpacing: '0.03em',
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.55)',
+            fontSize: '12px', fontWeight: 600, letterSpacing: '0.03em',
+            background: 'rgba(16,34,74,0.06)', color: 'rgba(16,34,74,0.60)',
           }}>
             {SOURCE_TYPE_LABEL[event.sourceType]}
           </span>
         )}
         {subtitle && (
           <p style={{
-            margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.50)',
+            margin: '2px 0 0', fontSize: '12px', color: 'rgba(16,34,74,0.60)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {subtitle}
@@ -802,7 +805,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
 
       {/* Countdown + source link */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.65)', whiteSpace: 'nowrap' }}>
           {daysUntilLabel(event.date)}
         </span>
         {event.sourceUrl && (
@@ -810,7 +813,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
             type="button"
             title="View source"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(event.sourceUrl!, '_blank', 'noreferrer') }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(5,10,68,0.35)', display: 'inline-flex', alignItems: 'center' }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(16,34,74,0.60)', display: 'inline-flex', alignItems: 'center' }}
           >
             <ExternalLink size={10} />
           </button>
@@ -828,6 +831,10 @@ export default function WarRoom() {
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const navigate = useNavigate()
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
+  // Key catalysts calendar (§ IA reference doc, "what is coming") — collapsed
+  // by default under the Upcoming events rail; its trial-cell data is only
+  // fetched once the reader actually asks to see it.
+  const [showFullCalendar, setShowFullCalendar] = useState(false)
 
   // â”€â”€ Live data via React Query (stale-while-revalidate, 5-min background refresh) â”€â”€
   // Sorted for stable key comparison — refetches automatically when watchlist changes
@@ -851,6 +858,17 @@ export default function WarRoom() {
     refetchOnWindowFocus: true,
     refetchInterval: 5 * 60 * 1000,
   })
+
+  // Trial-derived calendar cells for the full catalyst heatmap — fetched only
+  // when the reader expands it, not on every War Room load.
+  const { data: trialCellsData } = useQuery({
+    queryKey: ['war-room-trial-cells'],
+    queryFn: () => getTrialsForCalendarYear(CAL_COMPS, 2026)
+      .then((calTrials) => trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>),
+    enabled: showFullCalendar,
+    staleTime: 5 * 60 * 1000,
+  })
+  const liveTrialCells = trialCellsData ?? {}
 
   const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
   const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
@@ -1008,24 +1026,24 @@ export default function WarRoom() {
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
-            margin: '0 0 4px', fontSize: '11px', fontWeight: 700,
-            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)',
+            margin: '0 0 4px', fontSize: '12px', fontWeight: 700,
+            letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)',
           }}>
             {headerTimestamp(lastRefreshedAt)}
           </p>
           <h1 style={{
             margin: 0, fontSize: '24px', fontWeight: 700,
-            color: 'rgba(5,10,68,0.92)', lineHeight: 1.25,
+            color: 'rgba(16,34,74,0.92)', lineHeight: 1.25,
           }}>
             {/* Greet by the signed-in account's own name, and omit the name entirely
                 when the account carries none. This used to read userData.user.name
                 from static data, greeting every visitor as "David". */}
             {account.displayName ? `${greeting()}, ${account.displayName}.` : `${greeting()}.`}{' '}
-            <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
+            <span style={{ color: 'rgba(16,34,74,0.60)', fontWeight: 600 }}>
               Here's the state of {indication}.
             </span>
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)' }}>
             {assetName} · {indication}
             {trackedCompetitors.length > 0 && (
               <>
@@ -1046,10 +1064,10 @@ export default function WarRoom() {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               padding: '7px 14px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: 600,
+              fontSize: '14px', fontWeight: 600,
               background: 'transparent',
-              color: 'rgba(5,10,68,0.65)',
-              border: '1.5px solid rgba(5,10,68,0.20)',
+              color: 'rgba(16,34,74,0.65)',
+              border: '1.5px solid rgba(16,34,74,0.20)',
               cursor: 'pointer',
               fontFamily: 'inherit',
             }}
@@ -1134,10 +1152,10 @@ export default function WarRoom() {
                         aria-pressed={on}
                         style={{
                           padding: '4px 10px', borderRadius: '9999px',
-                          fontSize: '11px', fontWeight: on ? 700 : 500,
-                          background: on ? '#050A44' : 'transparent',
-                          color: on ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                          border: `1.5px solid ${on ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
+                          fontSize: '12px', fontWeight: on ? 700 : 500,
+                          background: on ? '#10224A' : 'transparent',
+                          color: on ? '#FFFFFF' : 'rgba(16,34,74,0.55)',
+                          border: `1.5px solid ${on ? '#10224A' : 'rgba(16,34,74,0.15)'}`,
                           cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
@@ -1155,7 +1173,7 @@ export default function WarRoom() {
                   <CompactAlertCard key={alert.id} alert={alert} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   {!liveDataLoaded
                     ? 'Loading signals…'
                     : watchedCompetitors.size === 0
@@ -1183,9 +1201,9 @@ export default function WarRoom() {
                 ))}
               </div>
             ) : (
-              <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                 You're not tracking any competitors yet.{' '}
-                <a href="/competitors" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
+                <a href="/competitors" style={{ color: '#2A76F4', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
                 {' '}to add some to your watchlist.
               </p>
             )}
@@ -1214,9 +1232,9 @@ export default function WarRoom() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
                     padding: '2px 9px', borderRadius: '9999px',
-                    background: 'rgba(5,10,68,0.06)',
-                    fontSize: '10px', fontWeight: 700,
-                    color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
+                    background: 'rgba(16,34,74,0.06)',
+                    fontSize: '12px', fontWeight: 700,
+                    color: 'rgba(16,34,74,0.60)', letterSpacing: '0.05em',
                   }}>
                     30D
                   </span>
@@ -1235,7 +1253,7 @@ export default function WarRoom() {
                 <StatusIcon size={14} strokeWidth={2.5} />
                 {pressureStatus}
               </span>
-              <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+              <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
                 over the last 30 days
               </span>
             </div>
@@ -1243,9 +1261,9 @@ export default function WarRoom() {
             {/* What moved this week */}
             <div style={{ marginBottom: '14px' }}>
               <p style={{
-                margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
+                margin: '0 0 8px', fontSize: '12px', fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.10em',
-                color: 'rgba(5,10,68,0.65)',
+                color: 'rgba(16,34,74,0.65)',
               }}>
                 What moved this week
               </p>
@@ -1255,9 +1273,9 @@ export default function WarRoom() {
                     const cName = competitorById(item.competitorId)?.name ?? item.competitorId
                     return (
                       <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                        <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                          <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                        <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(16,34,74,0.60)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '14px', color: 'rgba(16,34,74,0.72)', lineHeight: 1.5 }}>
+                          <strong style={{ fontWeight: 700, color: 'rgba(16,34,74,0.88)' }}>{cName}</strong>
                           {' — '}{decodeEntities(item.text)}
                         </span>
                       </li>
@@ -1265,7 +1283,7 @@ export default function WarRoom() {
                   })}
                 </ul>
               ) : (
-                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: 0, fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   {watchedCompetitors.size === 0
                     ? 'Track competitors to see their weekly moves here.'
                     : 'No notable moves from your tracked competitors this week.'}
@@ -1281,14 +1299,14 @@ export default function WarRoom() {
             {/* Footer */}
             <div style={{
               marginTop: '14px', paddingTop: '12px',
-              borderTop: '1px solid rgba(5,10,68,0.06)',
+              borderTop: '1px solid rgba(16,34,74,0.06)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               gap: '10px',
             }}>
               <Link
                 to="/alerts"
                 style={{
-                  fontSize: '12px', fontWeight: 600, color: '#0055BB',
+                  fontSize: '12px', fontWeight: 600, color: '#2A76F4',
                   textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px',
                 }}
               >
@@ -1306,7 +1324,28 @@ export default function WarRoom() {
                   ? `${liveEventItems.length} from EMA`
                   : undefined
               }
-              right={<HeaderLink to="/intelligence?tab=events">All</HeaderLink>}
+              right={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button
+                    onClick={() => setShowFullCalendar((v) => !v)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '3px',
+                      fontSize: '12px', fontWeight: 600, color: 'rgba(16,34,74,0.60)',
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    }}
+                  >
+                    {showFullCalendar ? 'Hide full calendar' : 'View full calendar'}
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transform: showFullCalendar ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 150ms ease',
+                      }}
+                    />
+                  </button>
+                  <HeaderLink to="/intelligence">All</HeaderLink>
+                </div>
+              }
             />
             <div>
               {upcomingEvents.length > 0 ? (
@@ -1314,13 +1353,18 @@ export default function WarRoom() {
                   <EventRow key={e.id} event={e} last={i === upcomingEvents.length - 1} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   No upcoming events found.{' '}
-                  <a href="/intelligence?tab=events" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
+                  <a href="/intelligence" style={{ color: '#2A76F4', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
                   {' '}for the full calendar.
                 </p>
               )}
             </div>
+            {showFullCalendar && (
+              <div style={{ margin: '4px 0 12px' }}>
+                <KeyCatalystsCalendar count={eventsData.length} liveTrialCells={liveTrialCells} />
+              </div>
+            )}
           </Card>
 
           {/* Weekly digest */}
@@ -1335,9 +1379,9 @@ export default function WarRoom() {
                   const cName = competitorById(item.competitorId)?.name ?? item.competitorId
                   return (
                     <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                        <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(16,34,74,0.60)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '14px', color: 'rgba(16,34,74,0.72)', lineHeight: 1.5 }}>
+                        <strong style={{ fontWeight: 700, color: 'rgba(16,34,74,0.88)' }}>{cName}</strong>
                         {' — '}{item.text}
                       </span>
                     </li>
@@ -1345,7 +1389,7 @@ export default function WarRoom() {
                 })}
               </ul>
             ) : (
-              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                 No recent signals to summarise
               </p>
             )}

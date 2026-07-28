@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  CalendarDays, FileText, TrendingUp,
+  FileText, TrendingUp,
   MapPin, Users, ChevronRight, ChevronDown,
   Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair,
-  FileSearch, ArrowRight, Link2, ExternalLink, Clock,
+  FileSearch, ArrowRight, Link2, ExternalLink,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -14,9 +14,13 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonPortalList } from '../components/ui/Skeleton'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import TimelineStrip from '../components/ui/TimelineStrip'
+import { CAL_COMPS, type CalCell } from '../components/ui/KeyCatalystsCalendar'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { buildSourceLabel } from '../lib/transformers'
 import { tierOf, sourceNameOf, resolveCuratedSourceName, type AttributionTier } from '../lib/deterministic/provenance'
+import { THEMES, themeOf, type Theme } from '../lib/deterministic/facets'
+import { importanceBreakdown, compareByImportance, bandToLegacyTier } from '../lib/deterministic/importance'
+import { SEVERITY_LABEL } from './WarRoom'
 import { formatDateAbs } from '../utils/formatDate'
 import { DEMO } from '../config/demo-config'
 import { useApp, useConfig } from '../context/AppContext'
@@ -25,6 +29,72 @@ import { trialsToCalendarCells } from '../lib/trialsToGantt'
 
 // ── Reference date ────────────────────────────────────────────────────────────
 const TODAY = new Date()
+
+// ── Theme mapping (shape brief, confirmed) ────────────────────────────────────
+//
+// Every item on this feed is assigned a canonical signal_type so themeOf/arcOf/
+// importanceBreakdown score it exactly as a live company_signals row would. Only
+// company_signals rows carry a real signal_type; the other three sources this
+// page draws from (static conference/earnings events, the live EMA regulatory
+// calendar, live trial records) don't, so each is mapped to the signal_type it
+// is closest to in kind, confirmed with the product owner. 'advocacy' below was
+// the one genuinely uncertain call in that confirmation, not a confident read.
+const EVENT_TYPE_TO_SIGNAL_TYPE: Record<string, string> = {
+  conference: 'congress_abstract',
+  earnings:   'press_release',
+  investor:   'press_release',
+  regulatory: 'regulatory_catalyst',
+  milestone:  'trial_update',
+}
+
+const MARKET_TYPE_TO_SIGNAL_TYPE: Record<string, string> = {
+  guideline:            'hta_decision',
+  epidemiology:         'publication',
+  advocacy:             'publication', // least-bad fit; flag if this reads wrong live
+  payer:                'hta_decision',
+  deal:                 'deal',
+  hta:                  'hta_decision',
+  'launch-performance':  'press_release',
+}
+
+/** One item on the unified feed, tagged for theme grouping and importance sort. */
+interface FeedEntry {
+  id: string
+  date: string
+  signalType: string
+  theme: Theme | null
+  kind: 'event' | 'market'
+  raw: any
+}
+
+/** A minimal ScorableSignal for compareByImportance/importanceBreakdown. */
+function scorable(entry: Pick<FeedEntry, 'signalType' | 'date'>): { signal_type: string; date: string; date_precision: null } {
+  return { signal_type: entry.signalType, date: entry.date, date_precision: null }
+}
+
+/**
+ * Group feed entries by Theme (canonical THEMES order, empty sections omitted),
+ * sorted within each theme by the deterministic importance score. This is the
+ * same arc-then-recency ordering WarRoom and MyAlerts already use — Theme
+ * groups, importance orders within the group, matching the arc/theme split
+ * PRODUCT.md already defines.
+ */
+function groupByTheme(entries: FeedEntry[]): Array<{ theme: Theme; entries: FeedEntry[] }> {
+  const byTheme = new Map<Theme, FeedEntry[]>()
+  for (const entry of entries) {
+    if (!entry.theme) continue // unresolvable theme: honestly omitted, never guessed
+    if (!byTheme.has(entry.theme)) byTheme.set(entry.theme, [])
+    byTheme.get(entry.theme)!.push(entry)
+  }
+  return THEMES
+    .filter((theme) => byTheme.has(theme))
+    .map((theme) => ({
+      theme,
+      entries: byTheme.get(theme)!.sort((a, b) =>
+        compareByImportance(scorable(a), scorable(b), { today: TODAY })
+      ),
+    }))
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function competitorName(id) {
@@ -67,12 +137,36 @@ function buildCISignificance(_event: any, _indication: string): string | null {
   return null
 }
 
-function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFollowUp: string } | null {
+/**
+ * Regulatory why-relevant/actionable-follow-up context. Chips are the default
+ * display (§ card-content consistency pass); the full sentence each chip set
+ * was drawn from survives as a hover tooltip, so compressing to chips loses no
+ * information. Chips only exist for content that is either a fixed, small
+ * template enum (the 3 live EMA committee-subtype cases below) or authored
+ * per-record by a human curator (ciContext.whyChips/actionableChips on a
+ * curated events.json entry) — never derived from free ingested text, which
+ * would mean extracting keywords from prose no one wrote as tags.
+ */
+interface RegulatoryContext {
+  whyRelevant: string
+  actionableFollowUp: string
+  whyChips: string[]
+  actionableChips: string[]
+}
+
+function buildRegulatoryContext(event: any): RegulatoryContext | null {
   if (event.type !== 'regulatory') return null
   // Authored ciContext takes priority — fail-safe: only use when both fields present
   const ctx = (event as any).ciContext
   if (ctx?.whyRelevant && ctx?.actionableFollowUp) {
-    return { whyRelevant: ctx.whyRelevant, actionableFollowUp: ctx.actionableFollowUp }
+    return {
+      whyRelevant: ctx.whyRelevant,
+      actionableFollowUp: ctx.actionableFollowUp,
+      // Curated records authored before this pass may not carry chip tags yet;
+      // fall back to the sentence itself as a single chip rather than hiding it.
+      whyChips: ctx.whyChips ?? [ctx.whyRelevant],
+      actionableChips: ctx.actionableChips ?? [ctx.actionableFollowUp],
+    }
   }
   // Live EMA calendar events: template from committee subtype
   if ((event as any)._isLive) {
@@ -80,14 +174,20 @@ function buildRegulatoryContext(event: any): { whyRelevant: string; actionableFo
     if (sub === 'CHMP') return {
       whyRelevant: 'CHMP plenaries set the EU regulatory calendar. Decisions here affect HAE competitor approvals, label changes, and opinion renewals.',
       actionableFollowUp: 'Check EMA post-meeting outcomes for any HAE or angioedema INN mentions. Update competitor regulatory timelines if a new opinion is adopted.',
+      whyChips: ['Sets EU regulatory calendar', 'Affects competitor approvals & labels'],
+      actionableChips: ['Check post-meeting outcomes', 'Update timelines on new opinions'],
     }
     if (sub === 'PRAC') return {
       whyRelevant: 'PRAC meetings review post-market safety signals. A safety concern for an HAE competitor could shift prescribing behaviour or trigger label changes.',
       actionableFollowUp: 'Review PRAC meeting highlights for any HAE-class safety referrals. Flag to medical affairs if a competitor product is under review.',
+      whyChips: ['Reviews post-market safety signals', 'Could shift prescribing or labels'],
+      actionableChips: ['Review safety referrals', 'Flag to medical affairs'],
     }
     return {
       whyRelevant: 'This EMA agenda item references an HAE-relevant term, indicating it may affect competitor products or the treatment landscape.',
       actionableFollowUp: 'Review the published EMA meeting agenda for full context. Escalate to medical affairs if this relates to a direct competitor product.',
+      whyChips: ['HAE-relevant EMA agenda item'],
+      actionableChips: ['Review agenda', 'Escalate if competitor-relevant'],
     }
   }
   return null
@@ -103,8 +203,8 @@ type CardCfg   = { label: string; labelColor: string; outerBg: string }
 type Annotation = { expect: string; surprise: string }
 
 const EVENT_TYPE: Record<string, ChipCfg> = {
-  conference: { label: 'Conference', icon: Users,       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
-  earnings:   { label: 'Earnings',   icon: DollarSign,  bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
+  conference: { label: 'Conference', icon: Users,       bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4'            },
+  earnings:   { label: 'Earnings',   icon: DollarSign,  bg: 'rgba(16,34,74,0.07)',    text: 'rgba(16,34,74,0.55)' },
   regulatory: { label: 'Regulatory', icon: Landmark,    bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
   investor:   { label: 'Investor',   icon: TrendingUp,  bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
   milestone:  { label: 'Milestone',  icon: Star,        bg: 'rgba(225,29,72,0.10)',  text: '#C01041'            },
@@ -112,30 +212,30 @@ const EVENT_TYPE: Record<string, ChipCfg> = {
 
 // ── Report type config ────────────────────────────────────────────────────────
 const REPORT_TYPE: Record<string, ChipCfg> = {
-  'earnings-call':    { label: 'Earnings call',    bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)', icon: Mic },
+  'earnings-call':    { label: 'Earnings call',    bg: 'rgba(16,34,74,0.07)',    text: 'rgba(16,34,74,0.55)', icon: Mic },
   'investor-day':     { label: 'Investor day',     bg: 'rgba(139,92,246,0.10)', text: '#5B21B6',            icon: TrendingUp },
   'analyst-report':   { label: 'Analyst report',   bg: 'rgba(245,158,11,0.10)', text: '#92500A',            icon: FileText },
-  'earnings-digest':  { label: 'Earnings digest',  bg: 'rgba(0,85,187,0.10)',   text: '#0055BB',            icon: FileText },
+  'earnings-digest':  { label: 'Earnings digest',  bg: 'rgba(42,118,244,0.10)',   text: '#2A76F4',            icon: FileText },
 }
 
 // ── Market type config ─────────────────────────────────────────────────────────
 const MARKET_TYPE: Record<string, ChipCfg> = {
   guideline:            { label: 'Guideline',         bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
-  epidemiology:         { label: 'Epidemiology',       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
+  epidemiology:         { label: 'Epidemiology',       bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4'            },
   advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A'            },
   payer:                { label: 'Payer',              bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
-  deal:                 { label: 'Deal',               bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
+  deal:                 { label: 'Deal',               bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4'            },
   hta:                  { label: 'HTA decision',       bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
-  'launch-performance': { label: 'Launch Performance', bg: 'rgba(210,226,255,0.50)', text: '#0055BB'           },
+  'launch-performance': { label: 'Launch Performance', bg: 'rgba(210,226,255,0.50)', text: '#2A76F4'           },
 }
 
 // ── Deal type config ──────────────────────────────────────────────────────────
 const DEAL_TYPE_CFG: Record<string, SwatchCfg> = {
   'Manufacturing': { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
-  'Distribution':  { bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
+  'Distribution':  { bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4' },
   'M&A':           { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
   'Co-promote':    { bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
-  'Licensing':     { bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
+  'Licensing':     { bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4' },
 }
 
 // ── HTA status badge config ───────────────────────────────────────────────────
@@ -144,14 +244,14 @@ const HTA_STATUS_CFG: Record<string, SwatchCfg> = {
   'Horizon scan':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
   'Approved':               { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
   'Restricted':             { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
-  'Framework update':       { bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
+  'Framework update':       { bg: 'rgba(16,34,74,0.07)',    text: 'rgba(16,34,74,0.55)' },
   'Approved with discount': { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
 }
 
 // ── Signal card config ────────────────────────────────────────────────────────
 const SIGNAL_CARD_CFG: Record<string, CardCfg> = {
   guideline:            { label: 'Guideline',          labelColor: '#10224A',  outerBg: 'rgba(16,34,74,0.15)'    },
-  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',  outerBg: 'rgba(0,85,187,0.09)'    },
+  epidemiology:         { label: 'Epidemiology',        labelColor: '#2A76F4',  outerBg: 'rgba(42,118,244,0.09)'    },
   advocacy:             { label: 'Advocacy',            labelColor: '#B99CFC',  outerBg: 'rgba(185,156,252,0.30)' },
   'launch-performance': { label: 'Launch Performance',  labelColor: '#2A76F4',  outerBg: 'rgba(42,118,244,0.15)'  },
   payer:                { label: 'Payer',               labelColor: '#7C3AED',  outerBg: 'rgba(139,92,246,0.10)'  },
@@ -193,235 +293,19 @@ const LEADERSHIP_ANNOTATIONS: Record<string, Annotation> = {
   },
 }
 
-// ─── Key Catalysts Calendar — data ───────────────────────────────────────────
-
-const MONTHS_LABELS = [
-  'Jan 26','Feb 26','Mar 26','Apr 26','May 26','Jun 26',
-  'Jul 26','Aug 26','Sep 26','Oct 26','Nov 26','Dec 26',
-]
-
-// ── Calendar helpers — derived from events.json; no hardcoded dates ──────────
-
-const _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const _mi = (iso: string) => new Date(iso).getMonth()
-
-function _dateRange(s: string, e?: string | null): string {
-  const d = new Date(s); const mo = d.getMonth(); const sd = d.getDate()
-  return e ? `${_MO[mo]} ${sd}–${new Date(e).getDate()}` : `${_MO[mo]} ${sd}`
-}
-
-function _confShortName(title: string): string {
-  const parts = title.split(' ')
-  return (parts[1] === 'Global' || parts[1] === 'Americas') ? `${parts[0]} ${parts[1]}` : parts[0]
-}
-
-function _earningsLabels(title: string): string[] {
-  if (/all three/i.test(title)) return ['Q3 Earnings', '(All 3 cos.)']
-  const m = title.match(/^(\w+)\s+(Q\d)\s+(FY)?(\d{4})?/)
-  if (!m) return [title.split(' ').slice(0, 2).join(' ')]
-  const fy = (m[3] && m[4]) ? ` FY${String(m[4]).slice(2)}` : ''
-  return [`${m[1]} ${m[2]}${fy}`]
-}
-
-const CONF_DATA: Record<number, string[]> = {}
-;(eventsData as any[])
-  .filter(e => e.type === 'conference' && String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
-  .forEach(e => {
-    const mi = _mi(e.date)
-    CONF_DATA[mi] = [_confShortName(e.title), _dateRange(e.date, e.endDate), (e.location as string)?.split(',')[0] ?? '']
-  })
-
-const IR_DATA: Record<number, string[]> = {}
-;(eventsData as any[])
-  .filter(e => (e.type === 'earnings' || e.type === 'investor') && String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
-  .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  .forEach(e => {
-    const mi = _mi(e.date)
-    const labels = e.type === 'investor' ? ['Pharvaris', 'Inv. R&D Day'] : _earningsLabels(e.title)
-    IR_DATA[mi] = [...(IR_DATA[mi] ?? []), ...labels]
-  })
-
-type CalCellVariant = 'default' | 'yellow' | 'blue' | 'purple'
-interface CalCell { lines: string[]; v: CalCellVariant }
-
-const _CELL_PRI: Record<CalCellVariant, number> = { purple: 4, blue: 3, yellow: 2, default: 1 }
-
-function _calCell(e: any): CalCell | null {
-  if (e.type === 'conference')
-    return { lines: [_confShortName(e.title), _dateRange(e.date, e.endDate)], v: 'default' }
-  if (e.type === 'earnings')
-    return { lines: _earningsLabels(e.title), v: 'default' }
-  if (e.type === 'investor')
-    return { lines: ['Investor', 'R&D Day'], v: 'default' }
-  return null
-}
-
-const CAL_CELLS: Record<string, Record<number, CalCell>> = {}
-;(eventsData as any[])
-  .filter(e => String(e.date).startsWith('2026') && e.sourceType !== 'illustrative')
-  .forEach(e => {
-    const mi = _mi(e.date)
-    const cell = _calCell(e)
-    if (!cell) return
-    for (const id of (e.attendingCompetitors as string[]) ?? []) {
-      if (!CAL_CELLS[id]) CAL_CELLS[id] = {}
-      const cur = CAL_CELLS[id][mi]
-      if (!cur || _CELL_PRI[cell.v] > _CELL_PRI[cur.v]) CAL_CELLS[id][mi] = cell
-    }
-  })
-
-const CAL_ASSET: Record<string, string> = Object.fromEntries(
-  (competitorsData as any[]).map(c => [
-    c.id,
-    (c.marketedProducts?.[0]?.name ?? c.pipeline?.[0]?.name ?? '').split(' (')[0],
-  ])
-)
-
-const CELL_STYLE: Record<CalCellVariant, { bg: string; color: string }> = {
-  default: { bg: 'rgba(5,10,68,0.07)',  color: 'rgba(5,10,68,0.78)' },
-  yellow:  { bg: 'rgba(250,174,54,0.22)', color: '#8C5500'           },
-  blue:    { bg: 'rgba(42,118,244,0.14)', color: '#0055BB'           },
-  purple:  { bg: 'rgba(139,92,246,0.14)', color: '#5B21B6'           },
-}
-
-const CAL_COMPS = ['takeda','biocryst','pharvaris','csl-behring','ionis']
-
-const COL_W   = 86
-const FIRST_W = 92
-const MO_H    = 32
-const CONF_H  = 66
-const IR_H    = 66
-
-function CCell({ cell }: { cell: CalCell | undefined }) {
-  if (!cell) return null
-  const s = CELL_STYLE[cell.v]
-  return (
-    <div style={{
-      display: 'inline-flex', flexDirection: 'column', gap: '2px',
-      padding: '5px 7px', borderRadius: '6px',
-      background: s.bg, maxWidth: `${COL_W - 8}px`,
-    }}>
-      {cell.lines.map((ln, i) => (
-        <span key={i} style={{
-          display: 'block',
-          fontSize: i === 0 ? '11px' : '10px',
-          fontWeight: i === 0 ? 600 : 400,
-          color: s.color, lineHeight: '1.3',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        }}>{ln}</span>
-      ))}
-    </div>
-  )
-}
-
-function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTrialCells: Record<string, Record<number, CalCell>> }) {
-  const BG       = 'var(--bg-1)'
-  const DIV_H    = '1px solid rgba(5,10,68,0.07)'
-  const DIV_V    = '1px solid rgba(5,10,68,0.05)'
-  const DIV_FC   = '1px solid rgba(5,10,68,0.10)'
-  const THICK    = '2px solid rgba(5,10,68,0.10)'
-  const N        = MONTHS_LABELS.length
-
-  return (
-    <div style={{ background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px' }}>
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)' }}>{count} events</span>
-        </div>
-        <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'rgba(5,10,68,0.40)' }}>
-          Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov (live)
-        </p>
-      </div>
-
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', width: '100%', minWidth: `${FIRST_W + COL_W * N}px` }}>
-          <colgroup>
-            <col style={{ width: FIRST_W }} />
-            {MONTHS_LABELS.map((_, i) => <col key={i} style={{ width: COL_W }} />)}
-          </colgroup>
-          <thead>
-            {/* Month headers */}
-            <tr>
-              <th style={{ position: 'sticky', top: 0, left: 0, zIndex: 5, background: BG, height: MO_H, padding: 0, borderBottom: DIV_H, borderRight: DIV_FC }} />
-              {MONTHS_LABELS.map((mo, i) => (
-                <th key={mo} style={{
-                  position: 'sticky', top: 0, zIndex: 2,
-                  background: 'rgba(5,10,68,0.03)',
-                  height: MO_H, padding: '0 8px', textAlign: 'center',
-                  fontSize: '11px', fontWeight: 600, color: 'rgba(5,10,68,0.45)',
-                  borderBottom: DIV_H, borderRight: i < N - 1 ? DIV_V : 'none',
-                  whiteSpace: 'nowrap',
-                }}>{mo}</th>
-              ))}
-            </tr>
-            {/* Conferences */}
-            <tr>
-              <th style={{ position: 'sticky', top: MO_H, left: 0, zIndex: 5, background: BG, height: CONF_H, padding: '0 8px', textAlign: 'left', borderBottom: DIV_H, borderRight: DIV_FC, verticalAlign: 'middle' }}>
-                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)' }}>Conferences</span>
-              </th>
-              {MONTHS_LABELS.map((_, i) => {
-                const d = CONF_DATA[i]
-                return (
-                  <td key={i} style={{ position: 'sticky', top: MO_H, zIndex: 1, background: BG, height: CONF_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: DIV_H, borderRight: i < N - 1 ? DIV_V : 'none' }}>
-                    {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'rgba(5,10,68,0.40)', lineHeight: '1.5' }}>{ln}</div>
-                    ))}
-                  </td>
-                )
-              })}
-            </tr>
-            {/* IR Events */}
-            <tr>
-              <th style={{ position: 'sticky', top: MO_H + CONF_H, left: 0, zIndex: 5, background: BG, height: IR_H, padding: '0 8px', textAlign: 'left', borderBottom: THICK, borderRight: DIV_FC, verticalAlign: 'middle' }}>
-                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)' }}>IR Events</span>
-              </th>
-              {MONTHS_LABELS.map((_, i) => {
-                const d = IR_DATA[i]
-                return (
-                  <td key={i} style={{ position: 'sticky', top: MO_H + CONF_H, zIndex: 1, background: BG, height: IR_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: THICK, borderRight: i < N - 1 ? DIV_V : 'none' }}>
-                    {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'rgba(5,10,68,0.40)', lineHeight: '1.5' }}>{ln}</div>
-                    ))}
-                  </td>
-                )
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {CAL_COMPS.map((id, ri) => {
-              const comp = competitorsData.find((c) => c.id === id)
-              if (!comp) return null
-              const cells: Record<number, CalCell> = { ...(CAL_CELLS[id] || {}), ...(liveTrialCells[id] || {}) }
-              const isLast = ri === CAL_COMPS.length - 1
-              return (
-                <tr key={id}>
-                  <td style={{ position: 'sticky', left: 0, zIndex: 1, background: BG, padding: '8px', verticalAlign: 'middle', borderBottom: isLast ? 'none' : DIV_H, borderRight: DIV_FC }}>
-                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{comp.name}</p>
-                    <p style={{ margin: '1px 0 0', fontSize: '10px', color: 'rgba(5,10,68,0.38)', fontStyle: 'italic' }}>{CAL_ASSET[id]}</p>
-                  </td>
-                  {MONTHS_LABELS.map((_, mi) => (
-                    <td key={mi} style={{ padding: '4px 5px', verticalAlign: 'middle', borderBottom: isLast ? 'none' : DIV_H, borderRight: mi < N - 1 ? DIV_V : 'none' }}>
-                      <CCell cell={cells[mi]} />
-                    </td>
-                  ))}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
+// Key Catalysts Calendar (month × competitor heatmap) moved to its own shared
+// component, src/components/ui/KeyCatalystsCalendar.tsx, so both this page and
+// WarRoom.tsx can render it — it's landscape-scoped (all watched competitors),
+// so per the IA reference doc it belongs under War Room's "what is coming"
+// zone, not here.
 
 // ── Shared components ─────────────────────────────────────────────────────────
 function SectionLabel({ children }) {
   return (
     <p style={{
-      margin: '0 0 10px', fontSize: '11px', fontWeight: 700,
+      margin: '0 0 10px', fontSize: '12px', fontWeight: 700,
       textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'rgba(5,10,68,0.38)',
+      color: 'rgba(16,34,74,0.60)',
     }}>
       {children}
     </p>
@@ -435,7 +319,7 @@ function TypePill({ cfg }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: '4px',
       padding: '2px 9px', borderRadius: '9999px',
-      fontSize: '11px', fontWeight: 700,
+      fontSize: '12px', fontWeight: 700,
       background: cfg.bg, color: cfg.text,
     }}>
       {Icon && <Icon size={10} />}
@@ -452,7 +336,7 @@ function daysUntil(dateStr) {
 
 function KpiCountdownCard({ event }) {
   const days = daysUntil(event.date)
-  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
+  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(16,34,74,0.07)', text: 'rgba(16,34,74,0.55)', icon: null }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -499,79 +383,8 @@ function KpiDealCard({ deal }) {
   )
 }
 
-// ── Tab bar (underline style) ─────────────────────────────────────────────────
-const TABS: Array<{ label: string; icon: LucideIcon; disabled?: boolean; disabledLabel?: string }> = [
-  { label: 'Events',              icon: CalendarDays },
-  { label: 'Market Developments', icon: TrendingUp   },
-]
-
-// Earnings Filings removed: every reports.json record is isIllustrative, and
-// signal_type 'earnings' is declared but never ingested, so the tab had no real
-// content to show. It returns when an earnings source lands.
-const TAB_COUNTS = [eventsData.length, marketData.length]
-
-function TabBar({ active, onChange }) {
-  return (
-    <div style={{
-      display: 'flex',
-      padding: '0 36px',
-      borderBottom: '1px solid #708090',
-    }}>
-      {TABS.map(({ label, icon: TabIcon, disabled, disabledLabel }, i) => {
-        const isActive = active === i
-        return (
-          <button
-            key={label}
-            onClick={disabled ? undefined : () => onChange(i)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '6px 12px',
-              fontSize: '14px', fontWeight: isActive ? 500 : 400,
-              fontFamily: 'Satoshi, sans-serif',
-              color: disabled ? 'rgba(112,128,144,0.55)' : isActive ? '#10224a' : '#434c5b',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: isActive ? '4px solid #10224a' : '3px solid transparent',
-              marginBottom: '-1px',
-              cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
-              transition: 'color 150ms ease, border-color 150ms ease',
-              opacity: disabled ? 0.7 : 1,
-            }}
-          >
-            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} />}
-            {label}
-            {disabledLabel ? (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                padding: '1px 7px', borderRadius: '9999px',
-                background: 'rgba(112,128,144,0.15)',
-                color: 'rgba(112,128,144,0.70)',
-                fontSize: '10px', fontWeight: 600,
-                fontFamily: 'Satoshi, sans-serif', lineHeight: 1,
-              }}>
-                <Clock size={9} />
-                {disabledLabel}
-              </span>
-            ) : (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: '22px', height: '18px', padding: '0 4px',
-                borderRadius: '4px',
-                background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
-                color: isActive ? '#10224a' : '#434c5b',
-                fontSize: '12px', fontWeight: 500,
-                fontFamily: 'Satoshi, sans-serif',
-                lineHeight: 1,
-              }}>
-                {String(TAB_COUNTS[i]).padStart(2, '0')}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+// TabBar removed: Events and Market Developments merged into one theme-grouped
+// feed (shape brief), so there is no second view left to switch between.
 
 // ──────────────────────────────────────────────────────────────────────────────
 // TAB 1: EVENTS
@@ -641,7 +454,7 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
         {groups.map((group, gi) => (
           <div key={group.name} style={{ display: 'flex', alignItems: 'flex-start' }}>
             {gi > 0 && (
-              <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(5,10,68,0.12)', margin: '0 8px', flexShrink: 0 }} />
+              <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(16,34,74,0.12)', margin: '0 8px', flexShrink: 0 }} />
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* Month label — left-aligned, sticky on horizontal scroll */}
@@ -665,15 +478,23 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
                   const EventIcon  = typeCfg?.icon ?? null
                   const letter     = DAY_LTRS[date.getUTCDay()]
                   const num        = String(date.getUTCDate()).padStart(2, '0')
+                  const fullDateLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })
                   return (
                     <div
                       key={str}
                       data-today={isToday ? 'true' : undefined}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={isToday ? `${fullDateLabel} (today)` : fullDateLabel}
                       onClick={() => onDateSelect(isSelected ? null : str)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDateSelect(isSelected ? null : str) }
+                      }}
                       style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                         padding: isToday ? '8px 4px' : '6px 4px',
-                        borderRadius: '10px',
+                        borderRadius: '12px',
                         height: isToday ? '100px' : '91px',
                         width: isToday ? '52px' : '42px',
                         border: isSelected ? '1.5px solid #2A76F4' : isToday ? '1.5px solid rgba(16,34,74,0.22)' : '1px solid rgba(210,226,255,1)',
@@ -724,9 +545,21 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
   )
 }
 
-function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
+function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations, signalType }: {
+  event: any; pastVariant?: boolean; cardRef?: (node: HTMLDivElement | null) => void
+  flashing?: boolean; showAnnotations?: boolean
+  /** Canonical signal_type for importance scoring (theme mapping, §layout step). */
+  signalType?: string
+}) {
   const { indication } = useConfig()
   const past = Boolean(pastVariant)
+  // Importance badge: same score WarRoom/MyAlerts already compute, reusing their
+  // exact SEVERITY_LABEL colors rather than inventing a second visual language
+  // for "this matters" on this page.
+  const band = signalType
+    ? bandToLegacyTier(importanceBreakdown({ signal_type: signalType, date: event.date, date_precision: null }, { today: TODAY }).band)
+    : null
+  const sevCfg = band ? SEVERITY_LABEL[band] : null
   const isMultiDay = Boolean(event.endDate)
   const dateLabel = isMultiDay
     ? `${formatDateAbs(event.date)} – ${formatDateAbs(event.endDate)}`
@@ -734,7 +567,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const locationStr = event.location && event.location !== 'Virtual'
     ? ` · ${event.location}`
     : event.location === 'Virtual' ? ' · Virtual' : ''
-  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
+  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(16,34,74,0.07)', text: 'rgba(16,34,74,0.55)', icon: null }
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
   const annotations = showAnnotations ? (LEADERSHIP_ANNOTATIONS[event.type] ?? null) : null
@@ -768,18 +601,29 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             padding: '2px 9px', borderRadius: '9999px',
-            fontSize: '11px', fontWeight: 700,
+            fontSize: '12px', fontWeight: 700,
             background: typeCfg.bg, color: typeCfg.text,
             whiteSpace: 'nowrap',
           }}>
             {TypeIcon && <TypeIcon size={10} />}
             {typeCfg.label}
           </span>
+          {sevCfg && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '12px', fontWeight: 700,
+              background: sevCfg.bg, color: sevCfg.text,
+              whiteSpace: 'nowrap',
+            }}>
+              {sevCfg.label}
+            </span>
+          )}
           {(event as any)._isLive && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
               padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700,
+              fontSize: '12px', fontWeight: 700,
               background: 'rgba(16,185,129,0.12)', color: '#065F46',
               whiteSpace: 'nowrap',
             }}>
@@ -791,7 +635,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
             <span style={{
               display: 'inline-flex', alignItems: 'center',
               padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700,
+              fontSize: '12px', fontWeight: 700,
               background: 'rgba(245,158,11,0.12)', color: '#92400E',
               whiteSpace: 'nowrap',
             }}>
@@ -802,8 +646,8 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
             <span style={{
               display: 'inline-flex', alignItems: 'center',
               padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 600,
-              background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.50)',
+              fontSize: '12px', fontWeight: 600,
+              background: 'rgba(16,34,74,0.07)', color: 'rgba(16,34,74,0.60)',
               whiteSpace: 'nowrap',
             }}>
               {durationDays}-day event
@@ -821,11 +665,11 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               rel="noreferrer"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
-                fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)',
+                fontSize: '12px', fontWeight: 500, color: 'rgba(16,34,74,0.60)',
                 textDecoration: 'none', whiteSpace: 'nowrap',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#0055BB')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(5,10,68,0.45)')}
+              onMouseEnter={e => (e.currentTarget.style.color = '#2A76F4')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(16,34,74,0.45)')}
             >
               {sourceName ?? 'View source'} <ExternalLink size={10} />
             </a>
@@ -834,14 +678,14 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       </div>
 
       {/* Row 2: title */}
-      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
+      <p style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
         {event.title}
-        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(5,10,68,0.40)' }}>(past)</span>}
+        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'rgba(16,34,74,0.60)' }}>(past)</span>}
       </p>
 
       {/* Row 2b: CI significance — only when no note is present */}
       {ciSignificance && (
-        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.58)', lineHeight: '1.55' }}>
+        <p style={{ margin: 0, fontSize: '14px', color: 'rgba(16,34,74,0.60)', lineHeight: '1.55' }}>
           {ciSignificance}
         </p>
       )}
@@ -859,7 +703,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {/* Row 4: Expected topics */}
       {event.expectedTopics?.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
             Expected topics
           </p>
           <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
@@ -870,24 +714,46 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         </div>
       )}
 
-      {/* Row 4b: Regulatory context — why relevant + actionable follow up */}
+      {/* Row 4b: Regulatory context — why relevant + actionable follow up, as
+          chips (§ card-content consistency pass). Each chip group carries the
+          full original sentence as a title tooltip, so nothing is lost versus
+          the prior two-paragraph layout — only the default, scannable view
+          changes. */}
       {regulatoryCtx && (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <div style={{ flex: 1, minWidth: 0 }} title={regulatoryCtx.whyRelevant}>
+            <p style={{ margin: '0 0 3px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
               Why this is relevant
             </p>
-            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
-              {regulatoryCtx.whyRelevant}
-            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {regulatoryCtx.whyChips.map((chip, i) => (
+                <span key={i} style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '3px 9px', borderRadius: '9999px',
+                  fontSize: '12px', fontWeight: 500, lineHeight: '1.4',
+                  background: 'rgba(42,118,244,0.08)', color: '#2A76F4',
+                }}>
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.40)' }}>
+          <div style={{ flex: 1, minWidth: 0 }} title={regulatoryCtx.actionableFollowUp}>
+            <p style={{ margin: '0 0 3px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
               Actionable follow up
             </p>
-            <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
-              {regulatoryCtx.actionableFollowUp}
-            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {regulatoryCtx.actionableChips.map((chip, i) => (
+                <span key={i} style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '3px 9px', borderRadius: '9999px',
+                  fontSize: '12px', fontWeight: 500, lineHeight: '1.4',
+                  background: 'rgba(16,34,74,0.08)', color: '#10224A',
+                }}>
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -899,8 +765,8 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           padding: '6px 10px', borderRadius: '6px',
           background: 'rgba(42,118,244,0.08)',
         }}>
-          <AlertCircle size={12} color='#0055BB' style={{ marginTop: '3px', flexShrink: 0 }} />
-          <span style={{ fontSize: '12px', color: '#0055BB', lineHeight: '1.5' }}>
+          <AlertCircle size={12} color='#2A76F4' style={{ marginTop: '3px', flexShrink: 0 }} />
+          <span style={{ fontSize: '12px', color: '#2A76F4', lineHeight: '1.5' }}>
             {noteText}
           </span>
         </div>
@@ -929,75 +795,492 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
 // Event type is carried by the labeled type chip inside EventCard (colour, icon,
 // and word together) — it does not need a second encoding on the card edge.
 
-function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
+// ── Compact "Feed row" density ────────────────────────────────────────────────
+//
+// §5 card DNA for this page calls for a distinct, denser row: left importance
+// accent, headline, full provenance, no interpretive paragraph — never the
+// full Thread-card fidelity EventCard/MarketDevCard render. Band is carried by
+// the HIGH/MED/LOW pill rather than a literal colored left border: a solid
+// side accent is a named AI-generated-UI tell (design hook, side-tab rule),
+// and it would only be repeating what the pill already says legibly. No Theme
+// chip per row either: the section header already carries theme, so repeating
+// it per card would just be redundant weight at this density. No Relation
+// badge (direct/indirect): the only candidate data, competitors.json's
+// 8-value strategicPosture field, is an editorial category ("Emerging oral
+// competitor", "Adjacent injectable prophylaxis"), not a real binary —
+// building one would mean inventing a judgment call this product does not
+// make.
+//
+// Metadata that only deals/HTA-payer items and attendee/topic-bearing events
+// carry (parties, deal value, agency/outcome, attending badges, expected
+// topics) has no other home in the product yet (the Entity view that's meant
+// to own per-asset detail isn't built), so nothing is dropped: rows that carry
+// it get a click-to-expand affordance that reveals the existing full
+// EventCard/MarketDevCard beneath the compact line, reusing their rendering
+// as-is rather than duplicating that logic a second time.
+
+/** Index of the first entry worth auto-expanding as a hint, or -1 if none. */
+function firstExpandableIndex(entries: FeedEntry[], showAnnotations: boolean): number {
+  return entries.findIndex((e) => feedRowHasMore(e, showAnnotations))
+}
+
+/** Whether this entry has content beyond the compact line worth expanding for. */
+function feedRowHasMore(entry: FeedEntry, showAnnotations: boolean): boolean {
+  if (entry.kind === 'event') {
+    const raw = entry.raw as any
+    if ((raw.attendingCompetitors?.length ?? 0) > 0) return true
+    if ((raw.expectedTopics?.length ?? 0) > 0) return true
+    if (raw.note) return true
+    if (buildRegulatoryContext(raw)) return true
+    if (showAnnotations && LEADERSHIP_ANNOTATIONS[raw.type]) return true
+    return false
+  }
+  const item = entry.raw as any
+  if (item.summary) return true
+  if (item.type === 'deal' || item.type === 'hta' || item.type === 'payer') return true
+  return false
+}
+
+/** Fields shared by every visual density (row, tile, …) rendered from a FeedEntry. */
+function feedEntryFields(entry: FeedEntry) {
+  const isEvent = entry.kind === 'event'
+  const raw = entry.raw as any
+  const headline: string = isEvent ? raw.title : raw.headline
+  const isIllustrative = raw.sourceType === 'illustrative'
+  const isLive = Boolean(raw._isLive)
+  const rawSourceUrl: string | null = isEvent ? (raw.sourceUrl ?? null) : (raw._sourceUrl ?? raw.sourceUrl ?? null)
+  const sourceUrl = isIllustrative ? null : rawSourceUrl
+  const sourceLabel: string | null = isEvent
+    ? (isLive ? 'EMA' : resolveCuratedSourceName(raw.sourceType, sourceUrl))
+    : (raw._sourceLabel ?? resolveCuratedSourceName(raw.sourceType, sourceUrl))
+  const lastRefreshed: string | null = isEvent ? null : (raw._lastRefreshed ?? null)
+  const tier = tierOf(entry.signalType)
+  const band = bandToLegacyTier(
+    importanceBreakdown({ signal_type: entry.signalType, date: entry.date, date_precision: null }, { today: TODAY }).band
+  )
+  return { isEvent, raw, headline, isIllustrative, isLive, sourceUrl, sourceLabel, lastRefreshed, tier, sevCfg: SEVERITY_LABEL[band] }
+}
+
+function FeedRow({ entry, cardRef, flashing, showAnnotations, defaultExpanded }: {
+  entry: FeedEntry
+  cardRef: (node: HTMLDivElement | null) => void
+  flashing: boolean
+  showAnnotations: boolean
+  /** Opened on first render as a discoverability hint — the row still collapses on click. */
+  defaultExpanded?: boolean
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false)
+
+  useEffect(() => {
+    if (flashing) setExpanded(true)
+  }, [flashing])
+
+  const hasMore = feedRowHasMore(entry, showAnnotations)
+  const past = new Date(entry.date) < TODAY
+  const { isEvent, raw, headline, isIllustrative, isLive, sourceUrl, sourceLabel, lastRefreshed, tier, sevCfg } = feedEntryFields(entry)
+
+  function toggle() {
+    if (hasMore) setExpanded((v) => !v)
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        background: '#ffffff',
+        border: '1px solid rgba(210,226,255,1)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        opacity: past && !expanded ? 0.75 : 1,
+        scrollMarginTop: '80px',
+      }}
+    >
+      <div
+        role={hasMore ? 'button' : undefined}
+        tabIndex={hasMore ? 0 : undefined}
+        aria-expanded={hasMore ? expanded : undefined}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (hasMore && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle() }
+        }}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: '10px',
+          padding: '10px 14px',
+          cursor: hasMore ? 'pointer' : 'default',
+          background: flashing ? 'rgba(42,118,244,0.06)' : 'transparent',
+          transition: 'background 350ms ease',
+        }}
+      >
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginTop: '2px',
+          padding: '2px 8px', borderRadius: '9999px',
+          fontSize: '12px', fontWeight: 700,
+          background: sevCfg.bg, color: sevCfg.text,
+          whiteSpace: 'nowrap',
+        }}>
+          {sevCfg.label}
+        </span>
+
+        {/* No truncation: the full headline always renders, wrapping to as
+            many lines as it needs, rather than clipping with an ellipsis. */}
+        <p style={{
+          flex: 1, minWidth: 0, margin: 0,
+          fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)',
+          fontFamily: 'Satoshi, sans-serif', lineHeight: '1.4',
+        }}>
+          {headline}
+        </p>
+
+        {isIllustrative && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginTop: '2px',
+            padding: '2px 8px', borderRadius: '9999px',
+            fontSize: '12px', fontWeight: 700,
+            background: 'rgba(245,158,11,0.12)', color: '#92400E',
+            whiteSpace: 'nowrap',
+          }}>
+            Illustrative
+          </span>
+        )}
+
+        <div style={{ flexShrink: 0, marginTop: '2px' }} onClick={(e) => e.stopPropagation()}>
+          {(sourceUrl || sourceLabel) ? (
+            <ProvenanceChip
+              sourceLabel={sourceLabel ?? (sourceUrl ? 'View source' : '')}
+              sourceUrl={sourceUrl}
+              date={entry.date}
+              tier={tier}
+              lastRefreshed={lastRefreshed}
+              isLive={isLive}
+            />
+          ) : (
+            <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+              {formatDateAbs(entry.date)}
+            </span>
+          )}
+        </div>
+
+        {hasMore && (
+          <ChevronDown
+            size={14}
+            style={{
+              flexShrink: 0, marginTop: '4px', color: 'rgba(16,34,74,0.60)',
+              transform: expanded ? 'rotate(180deg)' : 'none',
+              transition: 'transform 150ms ease',
+            }}
+          />
+        )}
+      </div>
+
+      {expanded && hasMore && (
+        <div style={{ borderTop: '1px solid rgba(16,34,74,0.08)' }}>
+          {isEvent ? (
+            <EventCard
+              event={raw}
+              pastVariant={past}
+              showAnnotations={showAnnotations}
+              signalType={entry.signalType}
+            />
+          ) : (
+            <MarketDevCard item={raw} signalType={entry.signalType} />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Grid-density comparison tile (§ nested-grid discussion). Same data adapter
+ * as FeedRow (feedEntryFields, feedRowHasMore) — only the shell differs: a
+ * fixed-height tile with a 3-line clamped headline instead of a single
+ * truncated line. An expanded tile spans the full grid width (gridColumn:
+ * '1 / -1') rather than rendering the full EventCard/MarketDevCard squeezed
+ * into a ~220px column.
+ */
+function FeedTile({ entry, cardRef, flashing, showAnnotations, defaultExpanded }: {
+  entry: FeedEntry
+  cardRef: (node: HTMLDivElement | null) => void
+  flashing: boolean
+  showAnnotations: boolean
+  defaultExpanded?: boolean
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false)
+
+  useEffect(() => {
+    if (flashing) setExpanded(true)
+  }, [flashing])
+
+  const hasMore = feedRowHasMore(entry, showAnnotations)
+  const past = new Date(entry.date) < TODAY
+  const { isEvent, raw, headline, isIllustrative, isLive, sourceUrl, sourceLabel, lastRefreshed, tier, sevCfg } = feedEntryFields(entry)
+
+  function toggle() {
+    if (hasMore) setExpanded((v) => !v)
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        background: '#ffffff',
+        border: '1px solid rgba(210,226,255,1)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        opacity: past && !expanded ? 0.75 : 1,
+        scrollMarginTop: '80px',
+        gridColumn: expanded ? '1 / -1' : undefined,
+      }}
+    >
+      <div
+        role={hasMore ? 'button' : undefined}
+        tabIndex={hasMore ? 0 : undefined}
+        aria-expanded={hasMore ? expanded : undefined}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (hasMore && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle() }
+        }}
+        style={{
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          padding: '12px 14px',
+          // No fixed height: the tile grows to fit the full headline rather
+          // than clamping it, so nothing is ever hidden by default.
+          cursor: hasMore ? 'pointer' : 'default',
+          background: flashing ? 'rgba(42,118,244,0.06)' : 'transparent',
+          transition: 'background 350ms ease',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+            padding: '2px 8px', borderRadius: '9999px',
+            fontSize: '12px', fontWeight: 700,
+            background: sevCfg.bg, color: sevCfg.text,
+            whiteSpace: 'nowrap',
+          }}>
+            {sevCfg.label}
+          </span>
+          {isIllustrative && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '12px', fontWeight: 700,
+              background: 'rgba(245,158,11,0.12)', color: '#92400E',
+              whiteSpace: 'nowrap',
+            }}>
+              Illustrative
+            </span>
+          )}
+          {hasMore && (
+            <ChevronDown
+              size={14}
+              style={{
+                flexShrink: 0, marginLeft: 'auto', color: 'rgba(16,34,74,0.60)',
+                transform: expanded ? 'rotate(180deg)' : 'none',
+                transition: 'transform 150ms ease',
+              }}
+            />
+          )}
+        </div>
+
+        {/* No truncation: full headline always renders, tile grows to fit. */}
+        <p style={{
+          margin: 0,
+          fontSize: '14px', fontWeight: 600, color: 'var(--font-primary)',
+          fontFamily: 'Satoshi, sans-serif', lineHeight: '1.4',
+        }}>
+          {headline}
+        </p>
+
+        <div onClick={(e) => e.stopPropagation()}>
+          {(sourceUrl || sourceLabel) ? (
+            <ProvenanceChip
+              sourceLabel={sourceLabel ?? (sourceUrl ? 'View source' : '')}
+              sourceUrl={sourceUrl}
+              date={entry.date}
+              tier={tier}
+              lastRefreshed={lastRefreshed}
+              isLive={isLive}
+            />
+          ) : (
+            <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+              {formatDateAbs(entry.date)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {expanded && hasMore && (
+        <div style={{ borderTop: '1px solid rgba(16,34,74,0.08)' }}>
+          {isEvent ? (
+            <EventCard
+              event={raw}
+              pastVariant={past}
+              showAnnotations={showAnnotations}
+              signalType={entry.signalType}
+            />
+          ) : (
+            <MarketDevCard item={raw} signalType={entry.signalType} />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The unified, theme-grouped Intelligence Feed body.
+ *
+ * Replaces the old EventsTab/MarketTab split. Every item from all four
+ * sources (static events.json, the live EMA regulatory calendar, static
+ * market-developments.json, and now the FULL live company_signals set — see
+ * the fix in Portal()'s fetch below) is tagged with a canonical signal_type,
+ * grouped into THEMES-ordered sections, and sorted within each section by the
+ * same deterministic importance score WarRoom/MyAlerts already use.
+ *
+ * WeekStrip (date filter) and the optional catalyst-calendar heatmap remain
+ * page-level widgets over the whole unified list, not tied to either former
+ * tab. The "leadership priority" annotation toggle survives unchanged; it is
+ * an orthogonal display option, not a competing organizing facet, so it was
+ * never one of the ad hoc filters Theme grouping supersedes.
+ */
+function IntelligenceFeedBody({ liveCalendarEvents, liveTrialCells, liveSignals }: {
+  liveCalendarEvents: DbRegulatoryCalendarEvent[]
+  liveTrialCells: Record<string, Record<number, CalCell>>
+  liveSignals: DbRecentSignal[]
+}) {
   const { watchedCompetitors } = useApp()
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
-  const [viewFilter, setViewFilter]         = useState('all')
-  const [flashedId, setFlashedId]           = useState(null)
-  const [showCatalysts, setShowCatalysts]   = useState(false)
-  const [upcomingOpen, setUpcomingOpen]     = useState(true)
-  const [pastOpen, setPastOpen]             = useState(true)
-  const [selectedDate, setSelectedDate]     = useState<string | null>(null)
+  const [viewFilter, setViewFilter]       = useState('all')
+  // Grid prototype (§ nested-grid discussion) — a comparison toggle, not a
+  // shipped decision. List stays the default per the reading-measure trade-off
+  // flagged against the grid; this exists so it can be judged live, side by
+  // side, against real data rather than a mockup.
+  const [density, setDensity]             = useState<'list' | 'grid'>('list')
+  const [flashedId, setFlashedId]         = useState<string | null>(null)
+  // Past signals default to collapsed behind a "Recent" fold in any section
+  // that also has upcoming ones — the whole point is that what's still ahead
+  // shouldn't compete for attention with what's already happened. Themes in
+  // this set have had their Recent fold explicitly opened by the reader.
+  const [expandedRecent, setExpandedRecent] = useState<Set<Theme>>(new Set())
+  const [selectedDate, setSelectedDate]   = useState<string | null>(null)
   const cardRefs = useRef(new Map())
 
-  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
-  const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
-
-  // Map live EMA calendar events to local event shape
-  const mappedCalendarEvents = liveCalendarEvents.map((row) => ({
-    id: `reg-${row.id}`,
-    date: row.start_date ?? '',
-    endDate: row.end_date ?? undefined,
-    type: 'regulatory',
-    title: row.title ?? 'EMA Committee Meeting',
-    location: 'Amsterdam, Netherlands (EMA)',
-    attendingCompetitors: [] as string[],
-    expectedTopics: [] as string[],
-    _isLive: true as const,
-    _emaSubtype: row.event_type,
-  }))
-
-  const allEvents = [...(eventsData as any[]), ...mappedCalendarEvents]
+  // ── Source 1: static conference/earnings/investor/regulatory/milestone events ──
+  const staticEventEntries: FeedEntry[] = (eventsData as any[])
     .filter((e) => e.date)
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => ({
+      id: e.id, date: e.date,
+      signalType: EVENT_TYPE_TO_SIGNAL_TYPE[e.type] ?? e.type,
+      theme: themeOf(EVENT_TYPE_TO_SIGNAL_TYPE[e.type] ?? null),
+      kind: 'event' as const, raw: e,
+    }))
 
-  const filtered = allEvents.filter((e) => {
-    if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has(e.type)) return false
+  // ── Source 2: live EMA regulatory calendar ──────────────────────────────────
+  const calendarEntries: FeedEntry[] = liveCalendarEvents
+    .filter((row) => row.start_date)
+    .map((row) => {
+      const raw = {
+        id: `reg-${row.id}`,
+        date: row.start_date ?? '',
+        endDate: row.end_date ?? undefined,
+        type: 'regulatory',
+        title: row.title ?? 'EMA Committee Meeting',
+        location: 'Amsterdam, Netherlands (EMA)',
+        attendingCompetitors: [] as string[],
+        expectedTopics: [] as string[],
+        _isLive: true as const,
+        _emaSubtype: row.event_type,
+      }
+      return { id: raw.id, date: raw.date, signalType: 'regulatory_catalyst', theme: themeOf('regulatory_catalyst'), kind: 'event' as const, raw }
+    })
+
+  // ── Source 3: static market-developments.json (guideline/epi/advocacy/payer/deal/hta/launch) ──
+  const staticMarketEntries: FeedEntry[] = (marketData as any[])
+    .filter((m) => m.date)
+    .map((m) => {
+      const signalType = MARKET_TYPE_TO_SIGNAL_TYPE[m.type] ?? m.type
+      return { id: m.id, date: m.date, signalType, theme: themeOf(signalType), kind: 'market' as const, raw: m }
+    })
+
+  // ── Source 4: live company_signals, ALL signal types, watched competitors only ──
+  // This used to be filtered to signal_type === 'deal' before storage (Portal()'s
+  // fetch effect), which is the reason this page never had a Theme facet: most of
+  // the data Theme needs to slice was thrown away before it reached this
+  // component. Portal() now keeps every type; this only scopes to the watchlist.
+  const liveSignalEntries: FeedEntry[] = liveSignals
+    .filter((row) => watchedCompetitors.has(row.competitor_id ?? ''))
+    .map((row) => {
+      const raw = {
+        id: `sig-${row.id}`,
+        date: row.date ?? '',
+        type: row.signal_type,
+        headline: row.headline ?? '(no headline)',
+        summary: row.body_excerpt ? decodeEntities(row.body_excerpt) : '',
+        parties: [competitorName(row.competitor_id)],
+        _isLive: true as const,
+        _sourceLabel: sourceNameOf(row.data_source) ?? undefined,
+        _sourceUrl: row.source_url ?? null,
+        _lastRefreshed: row.created_at ?? null,
+      }
+      return { id: raw.id, date: raw.date, signalType: row.signal_type, theme: themeOf(row.signal_type), kind: 'market' as const, raw }
+    })
+
+  const allEntries = [...staticEventEntries, ...calendarEntries, ...staticMarketEntries, ...liveSignalEntries]
+    .filter((e) => e.date)
+
+  // ── Filters that apply across the whole unified list (page-level, not per-theme) ──
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
+  const oldestAllowedTs = TODAY.getTime() - NINETY_DAYS_MS
+
+  const filteredEntries = allEntries.filter((e) => {
+    if (viewFilter === 'leadership' && e.kind === 'event' && !LEADERSHIP_TYPES.has((e.raw as any).type)) return false
     if (selectedDate && e.date.substring(0, 10) !== selectedDate) return false
-    // EMA regulatory events have no attendingCompetitors — always show.
-    // Congress/conference events only show if a watched competitor is attending.
-    const comps = (e.attendingCompetitors as string[] | undefined) ?? []
-    if (comps.length > 0 && !comps.some((id: string) => watchedCompetitors.has(id))) return false
-    return true
+    // Watchlist scoping for event-kind items with named attendees (congress/
+    // conference). EMA calendar rows and market-kind items are already scoped
+    // above (EMA has no attendees; live signals are pre-filtered to watched).
+    if (e.kind === 'event') {
+      const comps = ((e.raw as any).attendingCompetitors as string[] | undefined) ?? []
+      if (comps.length > 0 && !comps.some((id: string) => watchedCompetitors.has(id))) return false
+    }
+    const ts = new Date(e.date).getTime()
+    return ts >= oldestAllowedTs || ts >= TODAY.getTime() // keep all upcoming + last 90 days past
   })
 
-  const upcoming = filtered
-    .filter((e) => new Date(e.date) >= TODAY)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const sections = groupByTheme(filteredEntries)
+  // Grid's whole point is spending horizontal space list deliberately doesn't
+  // (list is pinned to the 800px reading measure prose rows were tuned for).
+  const contentMaxWidth = density === 'grid' ? '1200px' : '800px'
 
-  const past = filtered
-    .filter((e) => {
-      const ts = new Date(e.date).getTime()
-      return ts < TODAY.getTime() && ts >= pastCutoffTs
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // WeekStrip needs a flat {date, type} list across everything, including future
+  // items, so its 90-day dot markers are unaffected by the theme/date filters above.
+  const weekStripEvents = allEntries.map((e) => ({
+    date: e.date,
+    type: e.kind === 'event' ? (e.raw as any).type : e.signalType,
+  }))
 
-  function jumpToEvent(eventId) {
-    const node = cardRefs.current.get(eventId)
+  function jumpToEntry(entryId: string) {
+    const node = cardRefs.current.get(entryId)
     if (node?.scrollIntoView) node.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    setFlashedId(eventId)
+    setFlashedId(entryId)
     setTimeout(() => setFlashedId(null), 1000)
   }
 
-  function setCardRef(id, node) {
+  function setCardRef(id: string, node: HTMLDivElement | null) {
     if (node) cardRefs.current.set(id, node)
     else cardRefs.current.delete(id)
   }
 
   useEffect(() => {
     if (!eventFromUrl) return
-    const handle = setTimeout(() => jumpToEvent(eventFromUrl), 120)
+    // A deep link into a past-dated entry needs its theme's Recent fold opened
+    // first — otherwise the row isn't in the DOM yet to scroll to or flash.
+    const target = filteredEntries.find((e) => e.id === eventFromUrl)
+    if (target?.theme && new Date(target.date).getTime() < TODAY.getTime()) {
+      setExpandedRecent((prev) => new Set(prev).add(target.theme as Theme))
+    }
+    const handle = setTimeout(() => jumpToEntry(eventFromUrl), 120)
     return () => clearTimeout(handle)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventFromUrl])
@@ -1010,70 +1293,81 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* ── VIEW filter bar + catalyst toggle ──────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{
-            fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
-            fontFamily: 'Satoshi, sans-serif',
-          }}>
-            View:
+      {/* ── VIEW filter bar ──────────────────────────────────────────────────── */}
+      {/* The "View key catalyst events" toggle and KeyCatalystsCalendar heatmap
+          that sat here are removed: per the frontend doc, "upcoming catalysts" is
+          named for War Room (§6.1, compact rail — already built as EventRow) and
+          the Entity view (§6.3, per-asset), never for Intelligence Feed (§6.2).
+          KeyCatalystsCalendar itself is left defined, unused, for now — where it
+          belongs (War Room, Entity view, both, or neither) is still open. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{
+          fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)', whiteSpace: 'nowrap',
+          fontFamily: 'Satoshi, sans-serif',
+        }}>
+          View:
+        </span>
+        <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
+          {VIEW_OPTS.map(opt => {
+            const isAct = viewFilter === opt.value
+            return (
+              <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
+                padding: '4px 12px', borderRadius: '16px',
+                background: isAct ? '#10224a' : 'transparent',
+                color: isAct ? '#ffffff' : '#434c5b',
+                border: 'none', cursor: 'pointer',
+                fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
+                whiteSpace: 'nowrap', transition: 'all 120ms ease',
+              }}>
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Grid-density comparison toggle (§ nested-grid discussion) — a
+            prototype to judge against the list live, not a shipped choice.
+            Deliberately quieter styling than the View control above it. */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif', whiteSpace: 'nowrap' }}>
+            Layout (prototype):
           </span>
-          <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
-            {VIEW_OPTS.map(opt => {
-              const isAct = viewFilter === opt.value
+          <div style={{ display: 'inline-flex', gap: '2px', border: '1px solid rgba(16,34,74,0.12)', borderRadius: '12px', padding: '2px' }}>
+            {(['list', 'grid'] as const).map((opt) => {
+              const isAct = density === opt
               return (
-                <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
-                  padding: '4px 12px', borderRadius: '16px',
-                  background: isAct ? '#10224a' : 'transparent',
-                  color: isAct ? '#ffffff' : '#434c5b',
+                <button key={opt} onClick={() => setDensity(opt)} style={{
+                  padding: '3px 10px', borderRadius: '12px',
+                  background: isAct ? 'rgba(16,34,74,0.08)' : 'transparent',
+                  color: isAct ? '#10224a' : 'rgba(16,34,74,0.45)',
                   border: 'none', cursor: 'pointer',
-                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                  whiteSpace: 'nowrap', transition: 'all 120ms ease',
+                  fontSize: '12px', fontWeight: isAct ? 600 : 400, fontFamily: 'Satoshi, sans-serif',
+                  whiteSpace: 'nowrap', textTransform: 'capitalize',
                 }}>
-                  {opt.label}
+                  {opt}
                 </button>
               )
             })}
           </div>
         </div>
-
-        {/* View / Hide key catalyst events — back in filter bar */}
-        <button
-          onClick={() => setShowCatalysts(v => !v)}
-          style={{
-            background: 'none', border: 'none', padding: '0 0 2px',
-            borderBottom: '1px dashed rgba(5,10,68,0.35)',
-            cursor: 'pointer', fontSize: '12px',
-            fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
-            whiteSpace: 'nowrap', flexShrink: 0,
-          }}
-        >
-          {showCatalysts ? 'Hide key catalyst events' : 'View key catalyst events'}
-        </button>
       </div>
 
       {/* ── Calendar strip ──────────────────────────────────────────────────── */}
-      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} allEvents={allEvents} />
+      <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} allEvents={weekStripEvents} />
 
       {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
-        <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif' }}>
           Showing 90 days · scroll to navigate
         </span>
       </div>
-
-      {/* ── Key catalyst calendar — opens between strip and cards ───────────── */}
-      {showCatalysts && (
-        <KeyCatalystsCalendar count={allEvents.length} liveTrialCells={liveTrialCells} />
-      )}
 
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
       {selectedDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
-            Showing events on{' '}
+            Showing signals on{' '}
             <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
           </span>
           <button
@@ -1082,8 +1376,8 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
               padding: '2px 10px', borderRadius: '9999px',
               fontSize: '12px', fontWeight: 600,
               background: 'transparent',
-              color: 'rgba(5,10,68,0.50)',
-              border: '1px solid rgba(5,10,68,0.15)',
+              color: 'rgba(16,34,74,0.60)',
+              border: '1px solid rgba(16,34,74,0.15)',
               cursor: 'pointer',
             }}
           >
@@ -1092,102 +1386,127 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
         </div>
       )}
 
-      {/* ── Sections ─────────────────────────────────────────────────────────── */}
-      {upcoming.length === 0 && past.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontFamily: 'Satoshi, sans-serif' }}>
-          No events found
+      {/* ── Theme sections ───────────────────────────────────────────────────── */}
+      {/* Constrained to a reading measure (~800px, centered) so card body text
+          stays near the 65-75ch floor rather than the 130-150ch it ran at full
+          column width (1080px measured). WeekStrip above keeps the full column
+          width it needs; only the card content is constrained. Grid mode gets
+          a wider measure (1200px) since its whole point is spending horizontal
+          space list mode deliberately doesn't — list keeps the 800px reading
+          measure the single-column prose rows were tuned for. */}
+      {sections.length === 0 ? (
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif', maxWidth: contentMaxWidth, margin: '0 auto' }}>
+          {watchedCompetitors.size === 0
+            ? "You're not tracking any competitors yet — add some to see signals here."
+            : 'Nothing to show for your watched competitors right now.'}
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: contentMaxWidth, margin: '0 auto', width: '100%' }}>
+          {sections.map(({ theme, entries }) => {
+            const showAnnotations = viewFilter === 'leadership'
+            const nowTs = TODAY.getTime()
+            // Upcoming/Recent split so a daily-triage read isn't spent scrolling
+            // past signals already lived through to reach what's still ahead.
+            // Each half stays importance-sorted internally (groupByTheme already
+            // sorted `entries`; filtering here preserves that relative order).
+            const upcoming = entries.filter((e) => new Date(e.date).getTime() >= nowTs)
+            const past = entries.filter((e) => new Date(e.date).getTime() < nowTs)
+            const isMixed = upcoming.length > 0 && past.length > 0
+            const upcomingHintIdx = firstExpandableIndex(upcoming, showAnnotations)
+            const pastHintIdx = firstExpandableIndex(past, showAnnotations)
 
-          {/* ── Upcoming ────────────────────────────────────────────────────── */}
-          {upcoming.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
-
-              {/* Section header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <button
-                  onClick={() => setUpcomingOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
-                >
-                  <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
+            // Grid mode uses FeedTile in a CSS grid; list mode keeps FeedRow in a
+            // single flex column. Both read the same rows/hint index — only the
+            // shell differs (§ nested-grid comparison).
+            function renderGroup(rows: FeedEntry[], hintIdx: number) {
+              const common = (entry: FeedEntry, i: number) => ({
+                entry,
+                cardRef: (node: HTMLDivElement | null) => setCardRef(entry.id, node),
+                flashing: flashedId === entry.id,
+                showAnnotations,
+                defaultExpanded: i === hintIdx,
+              })
+              if (density === 'grid') {
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '8px' }}>
+                    {rows.map((entry, i) => <FeedTile key={entry.id} {...common(entry, i)} />)}
                   </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
-                    Upcoming · {upcoming.length} events
-                  </span>
-                </button>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-              </div>
-
-              {/* Cards — always full width */}
-              {upcomingOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {upcoming.map((e) => {
-                    return (
-                      <div key={(e as any).id} style={{
-                        background: '#ffffff',
-                        border: '1px solid rgba(210,226,255,1)',
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                      }}>
-                        <EventCard
-                          event={e}
-                          cardRef={(node) => setCardRef((e as any).id, node)}
-                          flashing={flashedId === (e as any).id}
-                          showAnnotations={viewFilter === 'leadership'}
-                        />
-                      </div>
-                    )
-                  })}
+                )
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {rows.map((entry, i) => <FeedRow key={entry.id} {...common(entry, i)} />)}
                 </div>
-              )}
+              )
+            }
 
-            </div>
-          )}
+            return (
+              <div key={theme} style={{ display: 'flex', flexDirection: 'column' }}>
 
-          {/* ── Past ─────────────────────────────────────────────────────────── */}
-          {past.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <button
-                  onClick={() => setPastOpen(v => !v)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0', flexShrink: 0 }}
-                >
-                  <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
-                    <ChevronDown size={14} color='rgba(5,10,68,0.40)' strokeWidth={2} />
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
-                    Past · last 90 days · {past.length} {past.length === 1 ? 'event' : 'events'}
+                {/* Section header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(16,34,74,0.60)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                    {theme} · {entries.length}
                   </span>
-                </button>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
-              </div>
-              {pastOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {past.map((e) => {
-                    return (
-                      <div key={(e as any).id} style={{
-                        background: '#ffffff',
-                        border: '1px solid rgba(210,226,255,1)',
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                      }}>
-                        <EventCard
-                          event={e}
-                          pastVariant
-                          cardRef={(node) => setCardRef((e as any).id, node)}
-                          flashing={flashedId === (e as any).id}
-                          showAnnotations={viewFilter === 'leadership'}
-                        />
-                      </div>
-                    )
-                  })}
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(16,34,74,0.07)' }} />
                 </div>
-              )}
-            </div>
-          )}
 
+                {/* Rows — split into Upcoming/Recent only when a section actually
+                    mixes both; a section that's all one or the other (most
+                    Evidence/Regulatory sections) stays a flat list. */}
+                {isMixed ? (
+                  <>
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif' }}>
+                        Upcoming · {upcoming.length}
+                      </span>
+                      {renderGroup(upcoming, upcomingHintIdx)}
+                    </div>
+                    <div>
+                      {/* Past defaults to collapsed behind this fold — a real
+                          hide, not just a lower scroll position, so a past
+                          signal never competes with what's still ahead unless
+                          the reader deliberately asks for it. */}
+                      <button
+                        onClick={() => setExpandedRecent((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(theme)) next.delete(theme); else next.add(theme)
+                          return next
+                        })}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px', width: '100%',
+                          background: 'transparent', border: 'none', padding: 0, marginBottom: '6px',
+                          cursor: 'pointer', textAlign: 'left',
+                        }}
+                        aria-expanded={expandedRecent.has(theme)}
+                      >
+                        <span style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif' }}>
+                          Recent · {past.length}
+                        </span>
+                        {!expandedRecent.has(theme) && (
+                          <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)', fontFamily: 'Satoshi, sans-serif' }}>
+                            — click to show
+                          </span>
+                        )}
+                        <ChevronDown
+                          size={13}
+                          style={{
+                            color: 'rgba(16,34,74,0.60)',
+                            transform: expandedRecent.has(theme) ? 'rotate(180deg)' : 'none',
+                            transition: 'transform 150ms ease',
+                          }}
+                        />
+                      </button>
+                      {expandedRecent.has(theme) && renderGroup(past, pastHintIdx)}
+                    </div>
+                  </>
+                ) : (
+                  renderGroup(entries, upcoming.length > 0 ? upcomingHintIdx : pastHintIdx)
+                )}
+
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -1250,7 +1569,7 @@ function DealsPanel({ deals }) {
   function SortIcon({ k }: { k: string }) {
     const active = sortKey === k
     return (
-      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'rgba(5,10,68,0.35)', marginLeft: '4px' }}>
+      <span style={{ fontSize: '12px', color: active ? 'var(--font-primary)' : 'rgba(16,34,74,0.35)', marginLeft: '4px' }}>
         {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
       </span>
     )
@@ -1273,7 +1592,7 @@ function DealsPanel({ deals }) {
     }}>
       {/* Panel header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Satoshi, sans-serif' }}>
           Deals &amp; Partnership
         </span>
         <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{deals.length} deals</span>
@@ -1398,7 +1717,7 @@ function flagEmojiToIso(emoji: string): string {
 // ── HTA & Payer access panel ──────────────────────────────────────────────────
 function HtaStatusBadge({ status }) {
   if (!status) return null
-  const cfg = HTA_STATUS_CFG[status] || { bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
+  const cfg = HTA_STATUS_CFG[status] || { bg: 'rgba(16,34,74,0.07)', text: 'rgba(16,34,74,0.55)' }
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
@@ -1424,7 +1743,7 @@ function HtaPayerPanel({ items }) {
     }}>
       {/* Header */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>HTA &amp; Payer access</span>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Satoshi, sans-serif' }}>HTA &amp; Payer access</span>
         <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>by market</span>
       </div>
       {/* Scrollable cards */}
@@ -1444,7 +1763,7 @@ function HtaPayerPanel({ items }) {
                   ? <img src={`https://flagcdn.com/20x15/${flagEmojiToIso(item.flagEmoji ?? '')}.png`} alt={item.country ?? ''} style={{ width: 20, height: 15, flexShrink: 0, marginTop: 3, borderRadius: 2 }} />
                   : <span style={{ fontSize: '14px', lineHeight: '20px', flexShrink: 0 }}>🌍</span>}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.country}: {item.agencyShort ?? item.agency}
                   </span>
                   {item.productLabel && (
@@ -1466,14 +1785,14 @@ function HtaPayerPanel({ items }) {
             )}
             {/* Footer */}
             {item.initiatedDate && (
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal' }}>
+              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal' }}>
                 Assessment initiated {item.initiatedDate}
               </p>
             )}
           </div>
         ))}
         {items.length === 0 && (
-          <p style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'rgba(5,10,68,0.35)' }}>
+          <p style={{ textAlign: 'center', padding: '32px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)' }}>
             No HTA or payer items available.
           </p>
         )}
@@ -1484,7 +1803,7 @@ function HtaPayerPanel({ items }) {
 
 // ── Market Signals panel ──────────────────────────────────────────────────────
 function SignalCard({ item }) {
-  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.65)', outerBg: 'rgba(5,10,68,0.05)' }
+  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(16,34,74,0.65)', outerBg: 'rgba(16,34,74,0.05)' }
   return (
     <div style={{
       background: cfg.outerBg,
@@ -1493,7 +1812,7 @@ function SignalCard({ item }) {
       display: 'flex', flexDirection: 'column', gap: '10px',
       height: '100%', boxSizing: 'border-box',
     }}>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: cfg.labelColor, lineHeight: 'normal', whiteSpace: 'nowrap' }}>
+      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: cfg.labelColor, lineHeight: 'normal', whiteSpace: 'nowrap' }}>
         {cfg.label}
       </p>
       <div style={{
@@ -1536,7 +1855,7 @@ function MarketSignalsPanel({ items }) {
     }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>Market Signals</span>
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Satoshi, sans-serif' }}>Market Signals</span>
         <button style={{
           background: 'none', border: 'none', padding: '0 0 4px', cursor: 'pointer',
           fontSize: '12px', color: '#434343', borderBottom: '1px dashed #434343',
@@ -1569,7 +1888,7 @@ function MarketSignalsPanel({ items }) {
       </div>
       {/* 3-column flex grid */}
       {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
+        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)' }}>
           No signals match the current filter.
         </p>
       ) : (
@@ -1592,17 +1911,25 @@ const MARKET_DEV_TYPE_CFG: Record<string, ChipCfg> = {
   advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
   payer:                { label: 'Payer',              bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
   'launch-performance': { label: 'Launch Performance', bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' },
+  // Live company_signals types now reach this page too (the theme-facet fix,
+  // §layout step): these carry the raw signal_type as item.type, so they need
+  // labels here or they'd render as literal strings like "regulatory_catalyst".
+  publication:          { label: 'Publication',       bg: 'rgba(16,34,74,0.15)',   text: '#10224A' },
+  congress_abstract:    { label: 'Congress',           bg: 'rgba(42,118,244,0.09)',   text: '#2A76F4' },
+  regulatory_catalyst:  { label: 'Regulatory',         bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
+  trial_update:         { label: 'Trial update',       bg: 'rgba(225,29,72,0.10)',  text: '#C01041' },
+  exec_change:          { label: 'Leadership',         bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
+  press_release:        { label: 'Press release',      bg: 'rgba(16,34,74,0.07)',    text: 'rgba(16,34,74,0.55)' },
 }
 
-const MARKET_FILTER_TABS = [
-  { value: 'all',  label: 'All'           },
-  { value: 'deal', label: 'Deals'         },
-  { value: 'hta',  label: 'HTA decisions' },
-]
 
-
-function MarketDevCard({ item }) {
-  const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'rgba(5,10,68,0.07)', text: '#10224A' }
+function MarketDevCard({ item, signalType }: { item: any; signalType?: string }) {
+  const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'rgba(16,34,74,0.07)', text: '#10224A' }
+  // Same importance badge as EventCard, same SEVERITY_LABEL colors as WarRoom.
+  const band = signalType
+    ? bandToLegacyTier(importanceBreakdown({ signal_type: signalType, date: item.date, date_precision: null }, { today: TODAY }).band)
+    : null
+  const sevCfg = band ? SEVERITY_LABEL[band] : null
 
   const badgeName: string = (() => {
     if (item.type === 'deal')  return item.parties?.[0] ?? ''
@@ -1653,6 +1980,17 @@ function MarketDevCard({ item }) {
           }}>
             {typeCfg.label}
           </span>
+          {sevCfg && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '2px 8px', borderRadius: '9999px',
+              fontSize: '12px', fontWeight: 700,
+              background: sevCfg.bg, color: sevCfg.text,
+              whiteSpace: 'nowrap',
+            }}>
+              {sevCfg.label}
+            </span>
+          )}
           {(srcUrl || srcLabel) && (
             <ProvenanceChip
               sourceLabel={resolvedLabel}
@@ -1672,7 +2010,7 @@ function MarketDevCard({ item }) {
       {/* Row 2: competitor badge + title */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
         {badgeName && <div style={{ flexShrink: 0 }}><CompetitorBadge name={badgeName} size={24} /></div>}
-        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
+        <p style={{ margin: 0, fontSize: '20px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.4' }}>
           {item.headline}
         </p>
       </div>
@@ -1689,7 +2027,7 @@ function MarketDevCard({ item }) {
       {/* Divider + metadata (deals and HTA / payer only) */}
       {hasMetadata && (
         <>
-          <div style={{ height: '1px', background: 'rgba(5,10,68,0.08)', flexShrink: 0 }} />
+          <div style={{ height: '1px', background: 'rgba(16,34,74,0.08)', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
 
             {item.type === 'deal' && (
@@ -1765,140 +2103,34 @@ function MarketDevCard({ item }) {
   )
 }
 
-function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
-  const { watchedCompetitors } = useApp()
-  const [activeFilter, setActiveFilter] = useState('all')
-  const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
-
-  // Map live company_signals deals to market-dev card format — scoped to watched competitors
-  const liveDealItems = liveDeals.filter(row => watchedCompetitors.has(row.competitor_id ?? '')).map((row) => ({
-    id: `sig-${row.id}`,
-    date: row.date ?? '',
-    type: 'deal' as const,
-    headline: row.headline ?? '(no headline)',
-    summary: row.body_excerpt ? decodeEntities(row.body_excerpt) : '',
-    parties: [competitorName(row.competitor_id)],
-    dealType: 'Press Release',
-    _isLive: true as const,
-    // §4.7: prefer the recorded pipeline over a hardcoded label.
-    _sourceLabel: sourceNameOf(row.data_source) ?? 'SEC EDGAR',
-    _sourceUrl: row.source_url ?? null,
-    _lastRefreshed: row.created_at ?? null,
-  }))
-
-  const sorted = [...(marketData as any[]), ...liveDealItems]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-  const filtered = activeFilter === 'all'
-    ? sorted
-    : activeFilter === 'deal'
-    ? sorted.filter((m: any) => m.type === 'deal')
-    : sorted.filter((m: any) => m.type === 'hta' || m.type === 'payer')
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-      {/* Filter row + view toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
-            Filter by:
-          </span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px' }}>
-            {MARKET_FILTER_TABS.map(tab => {
-              const isActive = activeFilter === tab.value
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveFilter(tab.value)}
-                  style={{
-                    padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
-                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
-                    background: isActive ? '#10224A' : 'transparent',
-                    color: isActive ? '#FFFFFF' : '#434c5b',
-                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                    transition: 'all 120ms ease',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Feed / Landscape toggle */}
-        <div style={{ display: 'inline-flex', padding: '3px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', gap: '2px' }}>
-          {(['feed', 'landscape'] as const).map(mode => {
-            const isActive = viewMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                style={{
-                  padding: '4px 12px', borderRadius: '16px',
-                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                  background: isActive ? '#10224A' : 'transparent',
-                  color: isActive ? '#FFFFFF' : '#434c5b',
-                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                  transition: 'all 120ms ease',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {mode}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Card list — Feed (1 col) or Landscape (2-col grid) */}
-      {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)' }}>
-          No market developments match the current filter.
-        </p>
-      ) : (
-        <div style={viewMode === 'landscape'
-          ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }
-          : { display: 'flex', flexDirection: 'column', gap: '12px' }
-        }>
-          {filtered.map(item => (
-            <MarketDevCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
-
-    </div>
-  )
-}
+// MarketTab removed: folded into IntelligenceFeedBody above. Its "Deals / HTA
+// decisions" filter is superseded by Theme grouping (Deals and BD vs Market
+// access are now separate sections, not a manual toggle over one list). The
+// feed/landscape 2-col grid toggle is dropped rather than threaded through 8
+// theme sections of mixed card kinds, where a 2-col grid would read uneven; it
+// was a page-internal convenience, not a named requirement anywhere in scope.
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-// 'reports' intentionally absent — the tab was removed. A stale ?tab=reports
-// link resolves to undefined and falls back to Events rather than erroring.
-const TAB_NAME_TO_INDEX: Record<string, number> = { events: 0, market: 1 }
+// The old ?tab=events/?tab=market split is gone (theme sections replaced the
+// two-tab structure); a stale bookmark with either param is simply ignored
+// rather than erroring, the same graceful-degrade already used for ?tab=reports.
 
 export default function Portal() {
-  const [searchParams] = useSearchParams()
-  // .get() returns string | null, and obj[null] silently becomes obj["null"].
-  const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab') ?? '']
-  const [activeTab, setActiveTab] = useState(tabFromUrl ?? 0)
   const loaded = usePageLoad('portal')
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
-  const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
+  const [liveSignals, setLiveSignals] = useState<DbRecentSignal[]>([])
   const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
-
-  useEffect(() => {
-    if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabFromUrl])
 
   useEffect(() => {
     Promise.all([getRegulatoryCalendar(), getRecentSignals(365), getTrialsForCalendarYear(CAL_COMPS, 2026)])
       .then(([calendar, signals, calTrials]) => {
         setLiveCalendarEvents(calendar)
-        setLiveDeals(signals.filter((s) => s.signal_type === 'deal' && isQualityHeadline(s.headline)))
+        // Used to keep only signal_type === 'deal' before storage — the reason
+        // this page never had a working Theme facet, since most of what Theme
+        // needs to slice was discarded here before it ever reached the UI.
+        // Every type now reaches the unified feed; isQualityHeadline still
+        // gates on headline quality regardless of type.
+        setLiveSignals(signals.filter((s) => isQualityHeadline(s.headline)))
         setLiveTrialCells(trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>)
       })
       .catch(() => {})
@@ -1906,13 +2138,6 @@ export default function Portal() {
 
   return (
     <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
-
-      {/* Underline tab bar — sticky so it stays visible while scrolling events */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-1)' }}>
-        <TabBar active={activeTab} onChange={setActiveTab} />
-      </div>
-
-      {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>
         {!loaded ? (
           <SkeletonPortalList />
@@ -1921,8 +2146,11 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
+            <IntelligenceFeedBody
+              liveCalendarEvents={liveCalendarEvents}
+              liveTrialCells={liveTrialCells}
+              liveSignals={liveSignals}
+            />
           </motion.div>
         )}
       </div>

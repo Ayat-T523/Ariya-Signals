@@ -29,11 +29,7 @@ function buildSteps(assetName: string, indication: string): TourStep[] {
     },
     {
       route: '/intelligence',
-      text: `A rolling calendar of regulatory, clinical, and commercial events across the ${indication} landscape. Switch to Leadership priority to see only the events that require your attention.`,
-    },
-    {
-      route: '/intelligence?tab=market',
-      text: `${indication} deal activity and HTA decisions in one place. Use the Deals and HTA filters to focus on what matters for your role.`,
+      text: `Every regulatory, clinical, and commercial signal across the ${indication} landscape, grouped by theme so you can go straight to what you're tracking. Switch to Leadership priority to see only the events that require your attention.`,
     },
     {
       route: '/alerts',
