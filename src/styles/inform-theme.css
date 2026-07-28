@@ -980,14 +980,13 @@
    standalone --bg-*/--primary/--text-* names or its outdated teal accent.
    ========================================================== */
 
-/* ---------- Shared neumorphic recipes (R1 / R2) ---------- */
-/* Named to match the reference-kit convention. Individual components below
-   mostly write their own background/shadow/radius directly (so a hover state
-   can change just the shadow); these two are for plain containers like
-   DigestFeed's plate and MarketWeather's card that do not need their own
-   hover recipe. */
-.inf-raised { background: var(--cream-100); box-shadow: var(--neu-raised); border-radius: var(--r-lg); }
-.inf-raised-lg { background: var(--cream-100); box-shadow: var(--neu-raised-strong); border-radius: var(--r-lg); }
+/* The base "raised plate" recipe used to live here as a CSS class
+   (.inf-raised, later renamed .neu-plate). Round 2 R5: that selector was
+   reproducibly, silently dropped from both the Vite dev and production
+   builds by some tool in the chain, regardless of name or position in this
+   file -- reduced to NEU_PLATE_STYLE, an inline-style constant in
+   components/inform/primitives.tsx, instead. .inf-raised-lg (below, near
+   .mw-card) is unaffected and still works as a real class. */
 
 /* ---------- KPI Card ---------- */
 .kpi-card {
@@ -1261,6 +1260,7 @@
 /* State (mood) -> Section A: evidence per competitor -> Section B: one
    synthesized implication. B is always a single indigo-accented takeaway,
    never one bullet per competitor. Content surface: neu-raised-lg (R2). */
+.inf-raised-lg { background: var(--cream-100); box-shadow: var(--neu-raised-strong); border-radius: var(--r-lg); }
 .mw-card { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5); outline: none; }
 .mw-card.compact { padding: var(--s-4); gap: var(--s-3); }
 .mw-card:focus-visible { box-shadow: var(--neu-raised-strong), var(--ring-indigo); }
@@ -1619,3 +1619,4 @@
 .next-up-date .month { display: block; font-family: var(--font-ui); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-600); margin-top: 2px; }
 .next-up-title { flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink-900); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .next-up-countdown { font-family: var(--font-mono); font-size: 11px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
+

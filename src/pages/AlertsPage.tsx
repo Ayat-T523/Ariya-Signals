@@ -27,7 +27,7 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import SlideOver from '../components/ui/SlideOver'
-import { SeverityDot, severityLabel } from '../components/inform/primitives'
+import { SeverityDot, severityLabel, NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { FeedFilterBar, type FeedTab, type SortMode, type AppliedChip } from '../components/inform/FeedFilterBar'
 import { AlertDetail } from '../components/inform/AlertDetail'
 import competitorsData from '../data/competitors.json'
@@ -172,7 +172,7 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
   }))
 
   return (
-    <div className="digest-plate inf-raised">
+    <div className="digest-plate" style={NEU_PLATE_STYLE}>
       {groups.map((g) => {
         const worstSev = g.items.reduce((worst, a) => (SEVERITY_RANK[a.severity] > SEVERITY_RANK[worst] ? a.severity : worst), 'low')
         const isExpanded = expanded.has(g.id)
@@ -218,7 +218,7 @@ function Skel({ w, h, r = 6, style }: { w: string | number; h: number; r?: numbe
 }
 function LoadingRows() {
   return (
-    <div className="digest-plate inf-raised" aria-busy="true" aria-label="Loading signals">
+    <div className="digest-plate" style={NEU_PLATE_STYLE} aria-busy="true" aria-label="Loading signals">
       {[3, 2].map((rows, gi) => (
         <div className="digest-group" key={gi}>
           <div className="digest-group-hd">
@@ -251,7 +251,7 @@ function EmptyRows({ variant, onShowAll, onClearFilters }: {
   }[variant]
   const Icon = copy.icon
   return (
-    <div className="digest-plate inf-raised signal-feed-empty">
+    <div className="digest-plate signal-feed-empty" style={NEU_PLATE_STYLE}>
       <div className="icon-circle"><Icon size={26} aria-hidden="true" /></div>
       <h3>{copy.heading}</h3>
       <p>{copy.body}</p>
@@ -269,7 +269,7 @@ function EmptyRows({ variant, onShowAll, onClearFilters }: {
 }
 function ErrorRows({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="digest-plate inf-raised signal-feed-empty">
+    <div className="digest-plate signal-feed-empty" style={NEU_PLATE_STYLE}>
       <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
       <h3>Couldn&rsquo;t load your signals</h3>
       <p>Check your connection and try again.</p>

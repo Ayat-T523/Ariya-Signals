@@ -1,22 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  CalendarDays, FileText, TrendingUp,
-  MapPin, Users, ChevronRight, ChevronDown,
-  Mic, DollarSign, FlaskConical, Landmark, Star, AlertCircle, Crosshair,
-  FileSearch, ArrowRight, Link2, ExternalLink, Clock,
+  CalendarDays, TrendingUp,
+  Users, ChevronDown,
+  DollarSign, Landmark, Star, AlertCircle,
+  ExternalLink, Clock,
 } from 'lucide-react'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonPortalList } from '../components/ui/Skeleton'
-import FilterDropdown from '../components/ui/FilterDropdown'
-import TimelineStrip from '../components/ui/TimelineStrip'
+import EmptyState from '../components/ui/EmptyState'
+import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
-import { DEMO } from '../config/demo-config'
 import { useApp, useConfig } from '../context/AppContext'
 import { getRegulatoryCalendar, getRecentSignals, getTrialsForCalendarYear, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
 import { trialsToCalendarCells } from '../lib/trialsToGantt'
@@ -40,12 +39,6 @@ function decodeEntities(str: string): string {
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
-}
-
-
-function isPast(dateStr) {
-  const d = new Date(dateStr)
-  return d < TODAY
 }
 
 
@@ -104,70 +97,19 @@ function getEventAnnotation(event: any): EventAnnotation | null {
 }
 
 // ── Event type config ─────────────────────────────────────────────────────────
+// DESIGN.md doesn't define a categorical event-type palette (only functional-state
+// meanings: sage/amber/terra/crimson/indigo). Mapped by nearest fit: conference is
+// purely informational (indigo); earnings is neutral reporting (ink-muted);
+// regulatory reads as official/approval-adjacent (sage); investor days are
+// forward-looking/worth-watching (amber); milestones (readouts, filings) are the
+// highest-attention event type (terra).
 const EVENT_TYPE = {
-  conference: { label: 'Conference', icon: Users,       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
-  earnings:   { label: 'Earnings',   icon: DollarSign,  bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
-  regulatory: { label: 'Regulatory', icon: Landmark,    bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
-  investor:   { label: 'Investor',   icon: TrendingUp,  bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
-  milestone:  { label: 'Milestone',  icon: Star,        bg: 'rgba(225,29,72,0.10)',  text: '#C01041'            },
+  conference: { label: 'Conference', icon: Users,      bg: 'var(--indigo-050)', text: 'var(--indigo-600)' },
+  earnings:   { label: 'Earnings',   icon: DollarSign, bg: 'var(--cream-200)',  text: 'var(--ink-700)'    },
+  regulatory: { label: 'Regulatory', icon: Landmark,   bg: 'var(--sage-050)',   text: 'var(--sage-600)'   },
+  investor:   { label: 'Investor',   icon: TrendingUp, bg: 'var(--amber-050)',  text: 'var(--amber-800)'  },
+  milestone:  { label: 'Milestone',  icon: Star,       bg: 'var(--terra-050)', text: 'var(--terra-600)'  },
 }
-
-// ── Report type config ────────────────────────────────────────────────────────
-const REPORT_TYPE = {
-  'earnings-call':    { label: 'Earnings call',    bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)', icon: Mic },
-  'investor-day':     { label: 'Investor day',     bg: 'rgba(139,92,246,0.10)', text: '#5B21B6',            icon: TrendingUp },
-  'analyst-report':   { label: 'Analyst report',   bg: 'rgba(245,158,11,0.10)', text: '#92500A',            icon: FileText },
-  'earnings-digest':  { label: 'Earnings digest',  bg: 'rgba(0,85,187,0.10)',   text: '#0055BB',            icon: FileText },
-}
-
-// ── Market type config ─────────────────────────────────────────────────────────
-const MARKET_TYPE = {
-  guideline:            { label: 'Guideline',         bg: 'rgba(16,185,129,0.10)', text: '#065F46'            },
-  epidemiology:         { label: 'Epidemiology',       bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
-  advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A'            },
-  payer:                { label: 'Payer',              bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
-  deal:                 { label: 'Deal',               bg: 'rgba(0,85,187,0.09)',   text: '#0055BB'            },
-  hta:                  { label: 'HTA decision',       bg: 'rgba(139,92,246,0.10)', text: '#5B21B6'            },
-  'launch-performance': { label: 'Launch Performance', bg: 'rgba(210,226,255,0.50)', text: '#0055BB'           },
-}
-
-// ── Deal type config ──────────────────────────────────────────────────────────
-const DEAL_TYPE_CFG = {
-  'Manufacturing': { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
-  'Distribution':  { bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
-  'M&A':           { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
-  'Co-promote':    { bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
-  'Licensing':     { bg: 'rgba(0,85,187,0.09)',   text: '#0055BB' },
-}
-
-// ── HTA status badge config ───────────────────────────────────────────────────
-const HTA_STATUS_CFG = {
-  'Under review':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
-  'Horizon scan':           { bg: 'rgba(250,174,54,0.15)',  text: '#FAAE36' },
-  'Approved':               { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
-  'Restricted':             { bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
-  'Framework update':       { bg: 'rgba(5,10,68,0.07)',    text: 'rgba(5,10,68,0.55)' },
-  'Approved with discount': { bg: 'rgba(16,185,129,0.10)', text: '#065F46' },
-}
-
-// ── Signal card config ────────────────────────────────────────────────────────
-const SIGNAL_CARD_CFG = {
-  guideline:            { label: 'Guideline',          labelColor: '#10224A',  outerBg: 'rgba(16,34,74,0.15)'    },
-  epidemiology:         { label: 'Epidemiology',        labelColor: '#0055BB',  outerBg: 'rgba(0,85,187,0.09)'    },
-  advocacy:             { label: 'Advocacy',            labelColor: '#B99CFC',  outerBg: 'rgba(185,156,252,0.30)' },
-  'launch-performance': { label: 'Launch Performance',  labelColor: '#2A76F4',  outerBg: 'rgba(42,118,244,0.15)'  },
-  payer:                { label: 'Payer',               labelColor: '#7C3AED',  outerBg: 'rgba(139,92,246,0.10)'  },
-}
-
-const SIGNAL_FILTER_TABS = [
-  { value: 'all',                label: 'All'               },
-  { value: 'guideline',          label: 'Guidelines'        },
-  { value: 'epidemiology',       label: 'Epidemiology'      },
-  { value: 'advocacy',           label: 'Advocacy'          },
-  { value: 'launch-performance', label: 'Launch performance' },
-]
-
-const SIGNAL_ITEM_TYPES = new Set(['guideline', 'epidemiology', 'advocacy', 'launch-performance'])
 
 // ── Leadership-priority filter ───────────────────────────────────────────────
 // "Leadership priority" stays a view filter over these event types — the expect/surprise
@@ -259,11 +201,13 @@ const CAL_ASSET: Record<string, string> = Object.fromEntries(
   ])
 )
 
+// Same "no purple in DESIGN.md" constraint as EVENT_TYPE above — terra stands in
+// as the fourth distinct hue for the live-trial-cell variant.
 const CELL_STYLE: Record<CalCellVariant, { bg: string; color: string }> = {
-  default: { bg: 'rgba(5,10,68,0.07)',  color: 'rgba(5,10,68,0.78)' },
-  yellow:  { bg: 'rgba(250,174,54,0.22)', color: '#8C5500'           },
-  blue:    { bg: 'rgba(42,118,244,0.14)', color: '#0055BB'           },
-  purple:  { bg: 'rgba(139,92,246,0.14)', color: '#5B21B6'           },
+  default: { bg: 'var(--cream-200)',  color: 'var(--ink-800)'   },
+  yellow:  { bg: 'var(--amber-050)',  color: 'var(--amber-800)' },
+  blue:    { bg: 'var(--indigo-050)', color: 'var(--indigo-600)' },
+  purple:  { bg: 'var(--terra-050)',  color: 'var(--terra-600)' },
 }
 
 const CAL_COMPS = ['takeda','biocryst','pharvaris','csl-behring','ionis']
@@ -280,7 +224,7 @@ function CCell({ cell }: { cell: CalCell | undefined }) {
   return (
     <div style={{
       display: 'inline-flex', flexDirection: 'column', gap: '2px',
-      padding: '5px 7px', borderRadius: '6px',
+      padding: '5px 7px', borderRadius: 'var(--r-xs)',
       background: s.bg, maxWidth: `${COL_W - 8}px`,
     }}>
       {cell.lines.map((ln, i) => (
@@ -297,19 +241,19 @@ function CCell({ cell }: { cell: CalCell | undefined }) {
 }
 
 function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTrialCells: Record<string, Record<number, CalCell>> }) {
-  const BG       = 'var(--bg-1)'
-  const DIV_H    = '1px solid rgba(5,10,68,0.07)'
-  const DIV_V    = '1px solid rgba(5,10,68,0.05)'
-  const DIV_FC   = '1px solid rgba(5,10,68,0.10)'
-  const THICK    = '2px solid rgba(5,10,68,0.10)'
+  const BG       = 'var(--cream-100)'
+  const DIV_H    = '1px solid var(--cream-300)'
+  const DIV_V    = '1px solid var(--cream-200)'
+  const DIV_FC   = '1px solid var(--cream-400)'
+  const THICK    = '2px solid var(--cream-400)'
   const N        = MONTHS_LABELS.length
 
   return (
-    <div style={{ background: BG, border: '1.8px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '16px' }}>
+    <div style={{ background: BG, boxShadow: 'var(--neu-raised)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
       <div style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.85)' }}>Key catalysts</span>
-          <span style={{ fontSize: '12px', color: 'var(--ink-600)' }}>{count} events</span>
+          <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--ink-900)' }}>Key catalysts</span>
+          <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)' }}>{count} events</span>
         </div>
         <p style={{ margin: '3px 0 0', fontSize: '11px', color: 'var(--ink-600)' }}>
           Conference dates: official congress sites · Earnings dates: company IR · Milestones: ClinicalTrials.gov (live)
@@ -329,9 +273,9 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
               {MONTHS_LABELS.map((mo, i) => (
                 <th key={mo} style={{
                   position: 'sticky', top: 0, zIndex: 2,
-                  background: 'rgba(5,10,68,0.03)',
+                  background: 'var(--cream-200)',
                   height: MO_H, padding: '0 8px', textAlign: 'center',
-                  fontSize: '11px', fontWeight: 600, color: 'rgba(5,10,68,0.45)',
+                  fontSize: '11px', fontWeight: 600, color: 'var(--ink-600)',
                   borderBottom: DIV_H, borderRight: i < N - 1 ? DIV_V : 'none',
                   whiteSpace: 'nowrap',
                 }}>{mo}</th>
@@ -340,14 +284,14 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
             {/* Conferences */}
             <tr>
               <th style={{ position: 'sticky', top: MO_H, left: 0, zIndex: 5, background: BG, height: CONF_H, padding: '0 8px', textAlign: 'left', borderBottom: DIV_H, borderRight: DIV_FC, verticalAlign: 'middle' }}>
-                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)' }}>Conferences</span>
+                <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ink-600)' }}>Conferences</span>
               </th>
               {MONTHS_LABELS.map((_, i) => {
                 const d = CONF_DATA[i]
                 return (
                   <td key={i} style={{ position: 'sticky', top: MO_H, zIndex: 1, background: BG, height: CONF_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: DIV_H, borderRight: i < N - 1 ? DIV_V : 'none' }}>
                     {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
+                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'var(--ink-900)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
                     ))}
                   </td>
                 )
@@ -356,14 +300,14 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
             {/* IR Events */}
             <tr>
               <th style={{ position: 'sticky', top: MO_H + CONF_H, left: 0, zIndex: 5, background: BG, height: IR_H, padding: '0 8px', textAlign: 'left', borderBottom: THICK, borderRight: DIV_FC, verticalAlign: 'middle' }}>
-                <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)' }}>IR Events</span>
+                <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ink-600)' }}>IR Events</span>
               </th>
               {MONTHS_LABELS.map((_, i) => {
                 const d = IR_DATA[i]
                 return (
                   <td key={i} style={{ position: 'sticky', top: MO_H + CONF_H, zIndex: 1, background: BG, height: IR_H, padding: '6px 8px', verticalAlign: 'middle', borderBottom: THICK, borderRight: i < N - 1 ? DIV_V : 'none' }}>
                     {d && d.map((ln, li) => (
-                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'rgba(5,10,68,0.80)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
+                      <div key={li} style={{ fontSize: li === 0 ? '11px' : '10px', fontWeight: li === 0 ? 600 : 400, color: li === 0 ? 'var(--ink-900)' : 'var(--ink-600)', lineHeight: '1.5' }}>{ln}</div>
                     ))}
                   </td>
                 )
@@ -379,7 +323,7 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
               return (
                 <tr key={id}>
                   <td style={{ position: 'sticky', left: 0, zIndex: 1, background: BG, padding: '8px', verticalAlign: 'middle', borderBottom: isLast ? 'none' : DIV_H, borderRight: DIV_FC }}>
-                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{comp.name}</p>
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{comp.name}</p>
                     <p style={{ margin: '1px 0 0', fontSize: '10px', color: 'var(--ink-600)', fontStyle: 'italic' }}>{CAL_ASSET[id]}</p>
                   </td>
                   {MONTHS_LABELS.map((_, mi) => (
@@ -397,90 +341,6 @@ function KeyCatalystsCalendar({ count, liveTrialCells }: { count: number; liveTr
   )
 }
 
-// ── Shared components ─────────────────────────────────────────────────────────
-function SectionLabel({ children }) {
-  return (
-    <p style={{
-      margin: '0 0 10px', fontSize: '11px', fontWeight: 700,
-      textTransform: 'uppercase', letterSpacing: '0.10em',
-      color: 'var(--ink-600)',
-    }}>
-      {children}
-    </p>
-  )
-}
-
-function TypePill({ cfg }) {
-  if (!cfg) return null
-  const Icon = cfg.icon
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '4px',
-      padding: '2px 9px', borderRadius: '9999px',
-      fontSize: '11px', fontWeight: 700,
-      background: cfg.bg, color: cfg.text,
-    }}>
-      {Icon && <Icon size={10} />}
-      {cfg.label}
-    </span>
-  )
-}
-
-// ── KPI countdown helpers ─────────────────────────────────────────────────────
-function daysUntil(dateStr) {
-  const diff = new Date(dateStr).getTime() - TODAY.getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
-}
-
-function KpiCountdownCard({ event }) {
-  const days = daysUntil(event.date)
-  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-          {days}
-        </span>
-        <span style={{ fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400, alignSelf: 'flex-end', paddingBottom: '5px' }}>days</span>
-      </div>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
-        {event.title}
-      </p>
-      <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
-        {typeCfg.label}
-      </p>
-    </div>
-  )
-}
-
-function KpiDealCard({ deal }) {
-  if (!deal) return null
-  const displayValue = deal.dealKpiDisplay ?? deal.dealValue ?? '—'
-  const unit = deal.dealKpiUnit ?? null
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Crosshair size={14} color='var(--font-secondary)' />
-        <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--font-primary)', lineHeight: 1 }}>
-          {displayValue}
-        </span>
-        {unit && (
-          <span style={{ fontSize: '14px', color: 'var(--font-secondary)', fontWeight: 400, alignSelf: 'flex-end', paddingBottom: '5px' }}>
-            {unit}
-          </span>
-        )}
-      </div>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', lineHeight: '1.3' }}>
-        {(deal.parties || []).join(' × ')}
-      </p>
-      <p style={{ margin: 0, fontSize: '12px', color: 'var(--font-secondary)' }}>
-        Deal
-      </p>
-    </div>
-  )
-}
-
 // ── Tab bar (underline style) ─────────────────────────────────────────────────
 const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: number }) => JSX.Element; disabled?: boolean; disabledLabel?: string }> = [
   { label: 'Events',              icon: CalendarDays },
@@ -491,56 +351,41 @@ const TAB_COUNTS = [eventsData.length, marketData.length]
 
 function TabBar({ active, onChange }) {
   return (
-    <div style={{
-      display: 'flex',
-      padding: '0 36px',
-      borderBottom: '1px solid #708090',
-    }}>
+    <div className="tabs-line" style={{ padding: '0 36px', background: 'var(--cream-100)' }}>
       {TABS.map(({ label, icon: TabIcon, disabled, disabledLabel }, i) => {
         const isActive = active === i
         return (
           <button
             key={label}
+            type="button"
+            className={`tab${isActive ? ' is-active' : ''}`}
             onClick={disabled ? undefined : () => onChange(i)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '6px 12px',
-              fontSize: '14px', fontWeight: isActive ? 500 : 400,
-              fontFamily: 'Satoshi, sans-serif',
-              color: disabled ? 'rgba(112,128,144,0.55)' : isActive ? '#10224a' : '#434c5b',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: isActive ? '4px solid #10224a' : '3px solid transparent',
-              marginBottom: '-1px',
               cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
-              transition: 'color 150ms ease, border-color 150ms ease',
-              opacity: disabled ? 0.7 : 1,
+              opacity: disabled ? 0.55 : 1,
             }}
           >
-            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} />}
+            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} aria-hidden="true" />}
             {label}
             {disabledLabel ? (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
-                padding: '1px 7px', borderRadius: '9999px',
-                background: 'rgba(112,128,144,0.15)',
-                color: 'rgba(112,128,144,0.70)',
-                fontSize: '10px', fontWeight: 600,
-                fontFamily: 'Satoshi, sans-serif', lineHeight: 1,
+                padding: '1px 7px', borderRadius: 'var(--r-pill)',
+                background: 'var(--cream-300)', color: 'var(--ink-600)',
+                fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ui)', lineHeight: 1,
               }}>
-                <Clock size={9} />
+                <Clock size={9} aria-hidden="true" />
                 {disabledLabel}
               </span>
             ) : (
-              <span style={{
+              <span className="num" style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 minWidth: '22px', height: '18px', padding: '0 4px',
-                borderRadius: '4px',
-                background: isActive ? 'rgba(16,34,74,0.15)' : 'rgba(112,128,144,0.30)',
-                color: isActive ? '#10224a' : '#434c5b',
-                fontSize: '12px', fontWeight: 500,
-                fontFamily: 'Satoshi, sans-serif',
-                lineHeight: 1,
+                borderRadius: 'var(--r-xs)',
+                background: isActive ? 'var(--indigo-050)' : 'var(--cream-300)',
+                color: isActive ? 'var(--indigo-600)' : 'var(--ink-700)',
+                fontSize: '12px', fontWeight: 500, lineHeight: 1,
               }}>
                 {String(TAB_COUNTS[i]).padStart(2, '0')}
               </span>
@@ -589,14 +434,14 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
     else last.days.push(day)
   })
 
-  // Vibrant badge backgrounds for the 20×20 date-strip dot
-  // (EVENT_TYPE.bg uses rgba at 7–10% — too transparent to read at small size)
+  // More saturated than EVENT_TYPE.bg (its 050-tints read too faint at 20×20px) —
+  // one step up the same tonal ramp per type, still within DESIGN.md's palette.
   const STRIP_BADGE_BG: Record<string, string> = {
-    conference: '#DBEAFE',  // blue-100
-    earnings:   '#E2E8F0',  // slate-200
-    regulatory: '#D1FAE5',  // green-100
-    investor:   '#EDE9FE',  // violet-100
-    milestone:  '#FFE4E6',  // rose-100
+    conference: 'var(--indigo-100)',
+    earnings:   'var(--cream-300)',
+    regulatory: 'var(--sage-100)',
+    investor:   'var(--amber-100)',
+    milestone:  'var(--terra-100)',
   }
 
   // Centre today in the strip on mount
@@ -620,7 +465,7 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
         {groups.map((group, gi) => (
           <div key={group.name} style={{ display: 'flex', alignItems: 'flex-start' }}>
             {gi > 0 && (
-              <div style={{ width: '1px', alignSelf: 'stretch', background: 'rgba(5,10,68,0.12)', margin: '0 8px', flexShrink: 0 }} />
+              <div style={{ width: '1px', alignSelf: 'stretch', background: 'var(--cream-400)', margin: '0 8px', flexShrink: 0 }} />
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* Month label — left-aligned, sticky on horizontal scroll */}
@@ -628,8 +473,8 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
                 position: 'sticky', left: '4px', zIndex: 1,
                 display: 'block',
                 fontSize: '14px', fontWeight: 700,
-                fontFamily: 'Satoshi, sans-serif',
-                color: '#434c5b', lineHeight: '20px',
+                fontFamily: 'var(--font-display)',
+                color: 'var(--ink-800)', lineHeight: '20px',
                 whiteSpace: 'nowrap', paddingRight: '8px',
               }}>
                 {group.name}
@@ -652,34 +497,34 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
                       style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                         padding: isToday ? '8px 4px' : '6px 4px',
-                        borderRadius: '10px',
+                        borderRadius: 'var(--r-md)',
                         height: isToday ? '100px' : '91px',
                         width: isToday ? '52px' : '42px',
-                        border: isSelected ? '1.5px solid #2A76F4' : isToday ? '1.5px solid rgba(16,34,74,0.22)' : '1px solid rgba(210,226,255,1)',
-                        background: isSelected ? 'rgba(42,118,244,0.08)' : isToday ? '#f0f5ff' : '#ffffff',
-                        opacity: isPast && !isToday && !isSelected ? 0.3 : 1,
+                        background: isSelected ? 'var(--indigo-050)' : 'var(--cream-100)',
+                        boxShadow: isSelected
+                          ? 'var(--neu-raised), 0 0 0 1.5px var(--indigo-500)'
+                          : isToday ? 'var(--neu-raised-strong)' : 'var(--neu-raised)',
+                        opacity: isPast && !isToday && !isSelected ? 0.4 : 1,
                         flexShrink: 0,
                         boxSizing: 'border-box',
                         cursor: 'pointer',
-                        boxShadow: isToday ? '0 4px 14px rgba(16,34,74,0.14), 0 2px 4px rgba(16,34,74,0.08)' : 'none',
-                        transition: 'border 120ms ease, background 120ms ease',
+                        transition: 'box-shadow var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard)',
                       }}
                     >
-                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: isSelected ? '#2A76F4' : '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: isSelected ? 'var(--indigo-600)' : 'var(--ink-700)', lineHeight: '18px', whiteSpace: 'nowrap' }}>
                         {letter}
                       </span>
                       <div style={{
                         width: isToday ? '36px' : '32px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '4px', borderRadius: '8px',
-                        background: isSelected ? '#2A76F4' : isToday ? '#10224a' : 'rgba(112,128,144,0.15)',
+                        padding: '4px', borderRadius: 'var(--r-sm)',
+                        background: isSelected ? 'var(--indigo-500)' : isToday ? 'var(--navy-700)' : 'var(--cream-300)',
                       }}>
-                        <span style={{
+                        <span className="num" style={{
                           display: 'block', width: '100%',
                           fontSize: isToday ? '14px' : '13px',
-                          fontFamily: 'Satoshi, sans-serif',
                           fontWeight: isToday || isSelected ? 700 : 500,
-                          color: isSelected || isToday ? '#ffffff' : '#434c5b',
+                          color: isSelected || isToday ? '#ffffff' : 'var(--ink-700)',
                           lineHeight: isToday ? '21px' : '19px',
                           textAlign: 'center',
                         }}>
@@ -688,7 +533,7 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
                       </div>
                       {typeCfg && EventIcon && evtType && (
                         <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: STRIP_BADGE_BG[evtType] ?? typeCfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <EventIcon size={10} color={typeCfg.text} strokeWidth={2} />
+                          <EventIcon size={10} color={typeCfg.text} strokeWidth={2} aria-hidden="true" />
                         </div>
                       )}
                     </div>
@@ -713,7 +558,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
   const locationStr = event.location && event.location !== 'Virtual'
     ? ` · ${event.location}`
     : event.location === 'Virtual' ? ' · Virtual' : ''
-  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)', icon: null }
+  const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'var(--cream-300)', text: 'var(--ink-600)', icon: null }
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
   const annotation = getEventAnnotation(event)
@@ -733,7 +578,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         padding: '14px 16px',
         display: 'flex', flexDirection: 'column', gap: '10px',
         opacity: past ? 0.65 : 1,
-        background: flashing ? 'rgba(42,118,244,0.04)' : 'transparent',
+        background: flashing ? 'var(--indigo-050)' : 'transparent',
         transition: 'background 350ms ease',
         scrollMarginTop: '80px',
       }}
@@ -743,32 +588,32 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '2px 9px', borderRadius: '9999px',
-            fontSize: '11px', fontWeight: 700,
+            padding: '2px 9px', borderRadius: 'var(--r-pill)',
+            fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ui)',
             background: typeCfg.bg, color: typeCfg.text,
             whiteSpace: 'nowrap',
           }}>
-            {TypeIcon && <TypeIcon size={10} />}
+            {TypeIcon && <TypeIcon size={10} aria-hidden="true" />}
             {typeCfg.label}
           </span>
           {(event as any)._isLive && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: '4px',
-              padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700,
-              background: 'rgba(16,185,129,0.12)', color: '#065F46',
+              padding: '2px 8px', borderRadius: 'var(--r-pill)',
+              fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-ui)',
+              background: 'var(--sage-050)', color: 'var(--sage-600)',
               whiteSpace: 'nowrap',
             }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--sage-600)', display: 'inline-block', flexShrink: 0 }} />
               EMA
             </span>
           )}
           {(event as any).sourceType === 'illustrative' && (
             <span style={{
               display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 700,
-              background: 'rgba(245,158,11,0.12)', color: '#92400E',
+              padding: '2px 8px', borderRadius: 'var(--r-pill)',
+              fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-ui)',
+              background: 'var(--amber-050)', color: 'var(--amber-800)',
               whiteSpace: 'nowrap',
             }}>
               Illustrative
@@ -777,9 +622,9 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           {durationDays && durationDays > 1 && (
             <span style={{
               display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: '9999px',
-              fontSize: '10px', fontWeight: 600,
-              background: 'rgba(5,10,68,0.07)', color: 'rgba(5,10,68,0.50)',
+              padding: '2px 8px', borderRadius: 'var(--r-pill)',
+              fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ui)',
+              background: 'var(--cream-300)', color: 'var(--ink-600)',
               whiteSpace: 'nowrap',
             }}>
               {durationDays}-day event
@@ -787,7 +632,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontSize: '12px', color: 'var(--font-secondary)', whiteSpace: 'nowrap' }}>
+          <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
             {dateLabel}{isVirtualLoc ? '' : locationStr}
           </span>
           {showSource && (
@@ -797,27 +642,27 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
               rel="noreferrer"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
-                fontSize: '11px', fontWeight: 500, color: 'rgba(5,10,68,0.45)',
+                fontSize: '11px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-600)',
                 textDecoration: 'none', whiteSpace: 'nowrap',
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#0055BB')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(5,10,68,0.45)')}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--indigo-600)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-600)')}
             >
-              Source <ExternalLink size={10} />
+              Source <ExternalLink size={10} aria-hidden="true" />
             </a>
           )}
         </div>
       </div>
 
       {/* Row 2: title */}
-      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--font-primary)', lineHeight: '1.4' }}>
+      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--ink-900)', lineHeight: '1.4' }}>
         {event.title}
         {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'var(--ink-600)' }}>(past)</span>}
       </p>
 
       {/* Row 2b: CI significance — only when no note is present */}
       {ciSignificance && (
-        <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.58)', lineHeight: '1.55' }}>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-700)', lineHeight: '1.55' }}>
           {ciSignificance}
         </p>
       )}
@@ -825,7 +670,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {/* Row 3: Attending badges */}
       {event.attendingCompetitors?.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '12px', color: 'var(--font-secondary)', fontWeight: 500 }}>Attending</span>
+          <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontWeight: 500 }}>Attending</span>
           {event.attendingCompetitors.map((id) => (
             <CompetitorBadge key={id} name={competitorName(id)} size={18} />
           ))}
@@ -840,7 +685,7 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
           </p>
           <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
             {event.expectedTopics.map((topic, i) => (
-              <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>{topic}</li>
+              <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{topic}</li>
             ))}
           </ul>
         </div>
@@ -855,25 +700,25 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {annotation?.whyRelevant && (
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{
-            flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px',
-            background: isIllustrative ? 'rgba(245,158,11,0.08)' : 'rgba(42,118,244,0.06)',
+            flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)',
+            background: isIllustrative ? 'var(--amber-050)' : 'var(--indigo-050)',
           }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? '#92500A' : 'var(--ink-600)' }}>
+            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
               Why this is relevant{isIllustrative ? ' · Illustrative' : ''}
             </p>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
               {annotation.whyRelevant}
             </p>
           </div>
           {annotation.actionableFollowUp && (
             <div style={{
-              flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px',
-              background: isIllustrative ? 'rgba(245,158,11,0.08)' : 'rgba(16,34,74,0.06)',
+              flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)',
+              background: isIllustrative ? 'var(--amber-050)' : 'var(--cream-200)',
             }}>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? '#92500A' : 'var(--ink-600)' }}>
+              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
                 Actionable follow-up{isIllustrative ? ' · Illustrative' : ''}
               </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
                 {annotation.actionableFollowUp}
               </p>
             </div>
@@ -885,11 +730,11 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {noteText && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: '6px',
-          padding: '6px 10px', borderRadius: '6px',
-          background: 'rgba(42,118,244,0.08)',
+          padding: '6px 10px', borderRadius: 'var(--r-xs)',
+          background: 'var(--indigo-050)',
         }}>
-          <AlertCircle size={12} color='#0055BB' style={{ marginTop: '3px', flexShrink: 0 }} />
-          <span style={{ fontSize: '12px', color: '#0055BB', lineHeight: '1.5' }}>
+          <AlertCircle size={12} color='var(--indigo-600)' style={{ marginTop: '3px', flexShrink: 0 }} aria-hidden="true" />
+          <span style={{ fontSize: '12px', color: 'var(--indigo-600)', lineHeight: '1.5' }}>
             {noteText}
           </span>
         </div>
@@ -901,21 +746,21 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
       {showAnnotations && (annotation?.expect || annotation?.surprise) && (
         <div style={{ display: 'flex', gap: '8px' }}>
           {annotation?.expect && (
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(42,118,244,0.06)' }}>
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--indigo-050)' }}>
               <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
                 What we expect
               </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
                 {annotation.expect}
               </p>
             </div>
           )}
           {annotation?.surprise && (
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(16,34,74,0.06)' }}>
+            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--cream-200)' }}>
               <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
                 What would surprise us
               </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--font-primary)' }}>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
                 {annotation.surprise}
               </p>
             </div>
@@ -925,14 +770,6 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
 
     </div>
   )
-}
-
-const EVENT_LEFT_BORDER: Record<string, string> = {
-  conference: '#0055BB',
-  earnings:   '#94A3B8',
-  regulatory: '#10B981',
-  investor:   '#8B5CF6',
-  milestone:  '#EF4444',
 }
 
 function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
@@ -1020,38 +857,35 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{
             fontSize: '12px', fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap',
-            fontFamily: 'Satoshi, sans-serif',
+            letterSpacing: '0.08em', color: 'var(--ink-600)', whiteSpace: 'nowrap',
+            fontFamily: 'var(--font-ui)',
           }}>
             View:
           </span>
-          <div style={{ display: 'inline-flex', gap: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', padding: '3px' }}>
-            {VIEW_OPTS.map(opt => {
-              const isAct = viewFilter === opt.value
-              return (
-                <button key={opt.value} onClick={() => setViewFilter(opt.value)} style={{
-                  padding: '4px 12px', borderRadius: '16px',
-                  background: isAct ? '#10224a' : 'transparent',
-                  color: isAct ? '#ffffff' : '#434c5b',
-                  border: 'none', cursor: 'pointer',
-                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                  whiteSpace: 'nowrap', transition: 'all 120ms ease',
-                }}>
-                  {opt.label}
-                </button>
-              )
-            })}
+          <div className="seg">
+            {VIEW_OPTS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`seg-item${viewFilter === opt.value ? ' is-active' : ''}`}
+                onClick={() => setViewFilter(opt.value)}
+                style={{ border: 'none', background: viewFilter === opt.value ? undefined : 'transparent' }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* View / Hide key catalyst events — back in filter bar */}
         <button
+          type="button"
           onClick={() => setShowCatalysts(v => !v)}
           style={{
             background: 'none', border: 'none', padding: '0 0 2px',
-            borderBottom: '1px dashed var(--ink-600)',
+            borderBottom: '1px dashed var(--ink-400)',
             cursor: 'pointer', fontSize: '12px',
-            fontFamily: 'Satoshi, sans-serif', color: 'rgba(5,10,68,0.55)',
+            fontFamily: 'var(--font-ui)', color: 'var(--ink-600)',
             whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
@@ -1064,7 +898,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 
       {/* ── "Showing 90 days" text (right-aligned, below strip) ────────────── */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-12px' }}>
-        <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>
+        <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontFamily: 'var(--font-ui)' }}>
           Showing 90 days · scroll to navigate
         </span>
       </div>
@@ -1077,18 +911,19 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
       {/* ── Date filter indicator ─────────────────────────────────────────── */}
       {selectedDate && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#434c5b' }}>
+          <span style={{ fontSize: '14px', fontFamily: 'var(--font-ui)', color: 'var(--ink-800)' }}>
             Showing events on{' '}
             <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
           </span>
           <button
+            type="button"
             onClick={() => setSelectedDate(null)}
             style={{
-              padding: '2px 10px', borderRadius: '9999px',
-              fontSize: '12px', fontWeight: 600,
+              padding: '2px 10px', borderRadius: 'var(--r-pill)',
+              fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-ui)',
               background: 'transparent',
-              color: 'rgba(5,10,68,0.50)',
-              border: '1px solid rgba(5,10,68,0.15)',
+              color: 'var(--ink-600)',
+              border: '1px solid var(--cream-400)',
               cursor: 'pointer',
             }}
           >
@@ -1099,9 +934,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 
       {/* ── Sections ─────────────────────────────────────────────────────────── */}
       {upcoming.length === 0 && past.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)', fontFamily: 'Satoshi, sans-serif' }}>
-          No events found
-        </p>
+        <EmptyState message="No events found." />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
 
@@ -1118,35 +951,27 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                   <div style={{ transform: upcomingOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
                     <ChevronDown size={14} color='var(--ink-600)' strokeWidth={2} />
                   </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' }}>
                     Upcoming · {upcoming.length} events
                   </span>
                 </button>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
               </div>
 
-              {/* Cards — always full width */}
+              {/* Cards — always full width. Type pill (inside EventCard) is the sole
+                  color signal, per craft-floor's ban on colored border accents. */}
               {upcomingOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {upcoming.map((e) => {
-                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
-                    return (
-                      <div key={(e as any).id} style={{
-                        background: '#ffffff',
-                        border: '1px solid rgba(210,226,255,1)',
-                        borderLeft: `3px solid ${leftColor}`,
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                      }}>
-                        <EventCard
-                          event={e}
-                          cardRef={(node) => setCardRef((e as any).id, node)}
-                          flashing={flashedId === (e as any).id}
-                          showAnnotations={viewFilter === 'leadership'}
-                        />
-                      </div>
-                    )
-                  })}
+                  {upcoming.map((e) => (
+                    <div key={(e as any).id} style={{ ...NEU_PLATE_STYLE, overflow: 'hidden' }}>
+                      <EventCard
+                        event={e}
+                        cardRef={(node) => setCardRef((e as any).id, node)}
+                        flashing={flashedId === (e as any).id}
+                        showAnnotations={viewFilter === 'leadership'}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -1164,34 +989,25 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                   <div style={{ transform: pastOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms ease', flexShrink: 0, display: 'flex' }}>
                     <ChevronDown size={14} color='var(--ink-600)' strokeWidth={2} />
                   </div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'rgba(5,10,68,0.45)', whiteSpace: 'nowrap', fontFamily: 'Satoshi, sans-serif' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', color: 'var(--ink-600)', whiteSpace: 'nowrap', fontFamily: 'var(--font-ui)' }}>
                     Past · last 90 days · {past.length} {past.length === 1 ? 'event' : 'events'}
                   </span>
                 </button>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(5,10,68,0.07)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
               </div>
               {pastOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {past.map((e) => {
-                    const leftColor = EVENT_LEFT_BORDER[(e as any).type] ?? '#94A3B8'
-                    return (
-                      <div key={(e as any).id} style={{
-                        background: '#ffffff',
-                        border: '1px solid rgba(210,226,255,1)',
-                        borderLeft: `3px solid ${leftColor}`,
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                      }}>
-                        <EventCard
-                          event={e}
-                          pastVariant
-                          cardRef={(node) => setCardRef((e as any).id, node)}
-                          flashing={flashedId === (e as any).id}
-                          showAnnotations={viewFilter === 'leadership'}
-                        />
-                      </div>
-                    )
-                  })}
+                  {past.map((e) => (
+                    <div key={(e as any).id} style={{ ...NEU_PLATE_STYLE, overflow: 'hidden' }}>
+                      <EventCard
+                        event={e}
+                        pastVariant
+                        cardRef={(node) => setCardRef((e as any).id, node)}
+                        flashing={flashedId === (e as any).id}
+                        showAnnotations={viewFilter === 'leadership'}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1215,390 +1031,21 @@ function formatMonthYear(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
-// ── Deals & Partnership panel ─────────────────────────────────────────────────
-function DealsPanel({ deals }) {
-  const [sortKey, setSortKey] = useState('date')
-  const [sortDir, setSortDir] = useState('desc')
-  const [expandedIds, setExpandedIds] = useState(() => new Set())
-
-  function toggleSort(key) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir(key === 'date' ? 'desc' : 'asc') }
-  }
-
-  function toggleExpand(id) {
-    setExpandedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  function sortValue(deal, key) {
-    if (key === 'date')    return new Date(deal.date).getTime() || 0
-    if (key === 'value')   return deal.dealValue ?? ''
-    if (key === 'type')    return deal.dealType ?? ''
-    if (key === 'parties') return (deal.parties || []).join(' ')
-    return ''
-  }
-
-  const sorted = [...deals].sort((a, b) => {
-    const av = sortValue(a, sortKey)
-    const bv = sortValue(b, sortKey)
-    if (av < bv) return sortDir === 'asc' ? -1 : 1
-    if (av > bv) return sortDir === 'asc' ? 1 : -1
-    return 0
-  })
-
-  const TYPE_W = 144
-  const VAL_W  = 144
-  const DATE_W = 76
-
-  function SortIcon({ k }: { k: string }) {
-    const active = sortKey === k
-    return (
-      <span style={{ fontSize: '9px', color: active ? 'var(--font-primary)' : 'var(--ink-600)', marginLeft: '4px' }}>
-        {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-      </span>
-    )
-  }
-
-  const colBtn: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', background: 'none', border: 'none',
-    cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px',
-  }
-
-  return (
-    <div style={{
-      flex: '0 0 58%', minWidth: 0,
-      background: '#FFFFFF',
-      border: '1.8px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '16px',
-      overflow: 'hidden',
-    }}>
-      {/* Panel header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>
-          Deals &amp; Partnership
-        </span>
-        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>{deals.length} deals</span>
-      </div>
-
-      {/* Table area */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Column headers */}
-        <div style={{
-          display: 'flex', alignItems: 'center', flexShrink: 0,
-          background: '#FFFFFF', borderBottom: '1px solid rgba(191,214,254,1)', borderRadius: '4px',
-        }}>
-          <button onClick={() => toggleSort('parties')} style={{ ...colBtn, flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Parties</span>
-            <SortIcon k="parties" />
-          </button>
-          <button onClick={() => toggleSort('type')} style={{ ...colBtn, width: TYPE_W, flexShrink: 0 }}>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Type</span>
-            <SortIcon k="type" />
-          </button>
-          <button onClick={() => toggleSort('value')} style={{ ...colBtn, width: VAL_W, flexShrink: 0 }}>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Value</span>
-            <SortIcon k="value" />
-          </button>
-          <button onClick={() => toggleSort('date')} style={{ ...colBtn, width: DATE_W, flexShrink: 0 }}>
-            <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)' }}>Date</span>
-            <SortIcon k="date" />
-          </button>
-        </div>
-
-        {/* Scrollable rows */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {sorted.map((deal) => {
-            const isExpanded = expandedIds.has(deal.id)
-            const typeCfg = DEAL_TYPE_CFG[deal.dealType] || { bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' }
-            const partiesLabel = (deal.parties || []).join(' & ')
-            const dateLabel = formatMonthYear(deal.date)
-            const valueLabel = (() => {
-              const v = deal.dealValue ?? ''
-              const m = v.match(/\$[\d,.]+[KMBkm]?/)
-              return m ? m[0] : (v.slice(0, 8) || '—')
-            })()
-            return (
-              <div key={deal.id} style={{ display: 'flex', alignItems: 'flex-start', borderBottom: '1px solid rgba(191,214,254,1)', padding: '8px 0' }}>
-                {/* Parties + content */}
-                <div style={{ flex: 1, minWidth: 0, padding: '4px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                        <CompetitorBadge name={(deal.parties ?? [''])[0]} size={20} />
-                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '18px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {partiesLabel}
-                        </p>
-                      </div>
-                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#2B2A2A', lineHeight: '21px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {deal.headline}
-                      </p>
-                    </div>
-                    <p style={{
-                      margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-                      color: 'var(--font-primary)', lineHeight: '21px',
-                      display: isExpanded ? 'block' : '-webkit-box',
-                      WebkitLineClamp: isExpanded ? undefined : 3,
-                      WebkitBoxOrient: isExpanded ? undefined : 'vertical',
-                      overflow: isExpanded ? 'visible' : 'hidden',
-                    }}>
-                      {deal.summary}
-                    </p>
-                    <div style={{ padding: '4px 0' }}>
-                      <button
-                        onClick={() => toggleExpand(deal.id)}
-                        style={{
-                          background: 'none', border: 'none', padding: '0 0 1px', cursor: 'pointer',
-                          fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-                          color: '#10224A', lineHeight: '21px',
-                          borderBottom: '1px dashed #10224A',
-                        }}
-                      >
-                        {isExpanded ? 'Collapse relevance note' : 'Expand relevance note'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {/* Type */}
-                <div style={{ width: TYPE_W, flexShrink: 0, padding: '4px 8px' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center',
-                    padding: '4px 8px', borderRadius: '8px',
-                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-                    background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
-                  }}>
-                    {deal.dealType ?? 'Deal'}
-                  </span>
-                </div>
-                {/* Value */}
-                <div style={{ width: VAL_W, flexShrink: 0, padding: '4px 8px', fontSize: '14px', fontWeight: 700, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', fontVariantNumeric: 'tabular-nums' }}>
-                  {valueLabel}
-                </div>
-                {/* Date */}
-                <div style={{ width: DATE_W, flexShrink: 0, padding: '4px 12px 4px 8px', fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#03070F', lineHeight: '21px' }}>
-                  {dateLabel}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Flag emoji → ISO 3166-1 alpha-2 code (e.g. "🇬🇧" → "gb") ─────────────────
-function flagEmojiToIso(emoji: string): string {
-  if (!emoji) return ''
-  const codePoints = [...emoji].map(c => c.codePointAt(0) ?? 0)
-  const letters = codePoints
-    .filter(cp => cp >= 127462 && cp <= 127487)
-    .map(cp => String.fromCharCode(cp - 127397))
-  return letters.join('').toLowerCase()
-}
-
-// ── HTA & Payer access panel ──────────────────────────────────────────────────
-function HtaStatusBadge({ status }) {
-  if (!status) return null
-  const cfg = HTA_STATUS_CFG[status] || { bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      padding: '4px 8px', borderRadius: '8px',
-      fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-      background: cfg.bg, color: cfg.text, whiteSpace: 'nowrap', flexShrink: 0,
-    }}>
-      {status}
-    </span>
-  )
-}
-
-function HtaPayerPanel({ items }) {
-  return (
-    <div style={{
-      flex: 1, minWidth: 0,
-      background: '#FFFFFF',
-      border: '1.086px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '16px',
-      overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>HTA &amp; Payer access</span>
-        <span style={{ fontSize: '12px', color: 'rgba(174,169,177,1)' }}>by market</span>
-      </div>
-      {/* Scrollable cards */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {items.map((item) => (
-          <div key={item.id} style={{
-            background: '#FFFFFF',
-            border: '1.8px solid rgba(210,226,255,1)',
-            borderRadius: '8px',
-            padding: '8px',
-            display: 'flex', flexDirection: 'column', gap: '12px',
-          }}>
-            {/* Top row: flag + country/product + badge */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '4px', flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
-                {flagEmojiToIso(item.flagEmoji ?? '')
-                  ? <img src={`https://flagcdn.com/20x15/${flagEmojiToIso(item.flagEmoji ?? '')}.png`} alt={item.country ?? ''} style={{ width: 20, height: 15, flexShrink: 0, marginTop: 3, borderRadius: 2 }} />
-                  : <span style={{ fontSize: '14px', lineHeight: '20px', flexShrink: 0 }}>🌍</span>}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.country}: {item.agencyShort ?? item.agency}
-                  </span>
-                  {item.productLabel && (
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px', whiteSpace: 'nowrap' }}>
-                      {item.productLabel}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <HtaStatusBadge status={item.htaStatusBadge} />
-            </div>
-            {/* Description box */}
-            {item.summary && (
-              <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px' }}>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
-                  {item.summary}
-                </p>
-              </div>
-            )}
-            {/* Footer */}
-            {item.initiatedDate && (
-              <p style={{ margin: 0, fontSize: '12px', fontWeight: 400, fontFamily: 'Inter, sans-serif', color: 'var(--font-primary)', lineHeight: 'normal' }}>
-                Assessment initiated {item.initiatedDate}
-              </p>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <p style={{ textAlign: 'center', padding: '32px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
-            No HTA or payer items available.
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Market Signals panel ──────────────────────────────────────────────────────
-function SignalCard({ item }) {
-  const cfg = SIGNAL_CARD_CFG[item.type] || { label: item.type, labelColor: 'rgba(5,10,68,0.65)', outerBg: 'rgba(5,10,68,0.05)' }
-  return (
-    <div style={{
-      background: cfg.outerBg,
-      borderRadius: '16px',
-      padding: '10px',
-      display: 'flex', flexDirection: 'column', gap: '10px',
-      height: '100%', boxSizing: 'border-box',
-    }}>
-      <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Inter, sans-serif', color: cfg.labelColor, lineHeight: 'normal', whiteSpace: 'nowrap' }}>
-        {cfg.label}
-      </p>
-      <div style={{
-        background: '#FFFFFF',
-        borderRadius: '16px',
-        padding: '8px',
-        display: 'flex', flexDirection: 'column', gap: '12px',
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
-            {item.headline}
-          </p>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-primary)', lineHeight: '21px' }}>
-            {item.summary}
-          </p>
-        </div>
-        <p style={{ margin: 0, fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: 'var(--font-secondary)', lineHeight: '18px', textAlign: 'right' }}>
-          {formatMonthYear(item.date)}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function MarketSignalsPanel({ items }) {
-  const [activeFilter, setActiveFilter] = useState('all')
-
-  const filtered = activeFilter === 'all'
-    ? items
-    : items.filter(i => i.type === activeFilter)
-
-  return (
-    <div style={{
-      marginTop: '24px',
-      background: '#FFFFFF',
-      border: '1.8px solid rgba(210,226,255,1)',
-      borderRadius: '16px',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: '16px',
-    }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--font-primary)', fontFamily: 'Inter, sans-serif' }}>Market Signals</span>
-        <button style={{
-          background: 'none', border: 'none', padding: '0 0 4px', cursor: 'pointer',
-          fontSize: '12px', color: '#434343', borderBottom: '1px dashed #434343',
-          fontFamily: 'inherit', lineHeight: 'normal',
-        }}>
-          View full competitor list
-        </button>
-      </div>
-      {/* Filter pill tabs */}
-      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', flexWrap: 'wrap', flexShrink: 0, alignSelf: 'flex-start' }}>
-        {SIGNAL_FILTER_TABS.map(tab => {
-          const isActive = activeFilter === tab.value
-          return (
-            <button
-              key={tab.value}
-              onClick={() => setActiveFilter(tab.value)}
-              style={{
-                padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
-                fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif',
-                background: isActive ? '#10224A' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--font-primary)',
-                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                transition: 'all 120ms ease',
-              }}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
-      {/* 3-column flex grid */}
-      {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
-          No signals match the current filter.
-        </p>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-          {filtered.map(item => (
-            <SignalCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Market Development card type config ──────────────────────────────────────
+// Same constraint as EVENT_TYPE: DESIGN.md defines no categorical palette, only
+// functional-state meanings. Nearest fit: deal/launch-performance (commercial
+// action) and payer (financial/reimbursement) share indigo; guideline reads as
+// official/approved (sage); hta stands in for the missing purple with terra;
+// epidemiology is neutral background context (ink-muted); advocacy keeps its
+// original amber (attention/awareness).
 const MARKET_DEV_TYPE_CFG = {
-  deal:                 { label: 'Deal',             bg: 'rgba(42,118,244,0.15)',  text: '#2A76F4' },
-  guideline:            { label: 'Guideline',         bg: 'rgba(73,160,120,0.15)', text: '#49A078' },
-  hta:                  { label: 'HTA decision',      bg: 'rgba(185,156,252,0.15)',text: '#B99CFC' },
-  epidemiology:         { label: 'Epidemiology',       bg: 'rgba(16,34,74,0.15)',   text: '#10224A' },
-  advocacy:             { label: 'Advocacy',           bg: 'rgba(245,158,11,0.10)', text: '#92500A' },
-  payer:                { label: 'Payer',              bg: 'rgba(139,92,246,0.10)', text: '#5B21B6' },
-  'launch-performance': { label: 'Launch Performance', bg: 'rgba(42,118,244,0.15)', text: '#2A76F4' },
+  deal:                 { label: 'Deal',             bg: 'var(--indigo-050)', text: 'var(--indigo-600)' },
+  guideline:            { label: 'Guideline',         bg: 'var(--sage-050)',   text: 'var(--sage-600)'   },
+  hta:                  { label: 'HTA decision',      bg: 'var(--terra-050)',  text: 'var(--terra-600)'  },
+  epidemiology:         { label: 'Epidemiology',       bg: 'var(--cream-300)',  text: 'var(--ink-800)'    },
+  advocacy:             { label: 'Advocacy',           bg: 'var(--amber-050)', text: 'var(--amber-800)'  },
+  payer:                { label: 'Payer',              bg: 'var(--indigo-100)', text: 'var(--indigo-600)' },
+  'launch-performance': { label: 'Launch Performance', bg: 'var(--indigo-050)', text: 'var(--indigo-600)' },
 }
 
 const MARKET_FILTER_TABS = [
@@ -1609,7 +1056,7 @@ const MARKET_FILTER_TABS = [
 
 
 function MarketDevCard({ item }) {
-  const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'rgba(5,10,68,0.07)', text: '#10224A' }
+  const typeCfg = MARKET_DEV_TYPE_CFG[item.type] || { label: item.type, bg: 'var(--cream-300)', text: 'var(--ink-800)' }
 
   const badgeName: string = (() => {
     if (item.type === 'deal')  return item.parties?.[0] ?? ''
@@ -1628,9 +1075,7 @@ function MarketDevCard({ item }) {
 
   return (
     <div style={{
-      background: '#ffffff',
-      border: '1px solid rgba(210,226,255,1)',
-      borderRadius: '12px',
+      ...NEU_PLATE_STYLE,
       padding: '12px 16px',
       display: 'flex', flexDirection: 'column', gap: '12px',
     }}>
@@ -1640,8 +1085,8 @@ function MarketDevCard({ item }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            padding: '4px 8px', borderRadius: '8px',
-            fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', lineHeight: '18px',
+            padding: '4px 8px', borderRadius: 'var(--r-sm)',
+            fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', lineHeight: '18px',
             background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
           }}>
             {typeCfg.label}
@@ -1655,7 +1100,7 @@ function MarketDevCard({ item }) {
             />
           )}
         </div>
-        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#708090', lineHeight: '18px', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-600)', lineHeight: '18px', whiteSpace: 'nowrap' }}>
           {formatDateAbs(item.date)}
         </span>
       </div>
@@ -1663,15 +1108,15 @@ function MarketDevCard({ item }) {
       {/* Row 2: competitor badge + title */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flexShrink: 0 }}>
         {badgeName && <div style={{ flexShrink: 0 }}><CompetitorBadge name={badgeName} size={24} /></div>}
-        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '1.45' }}>
+        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '1.45' }}>
           {item.headline}
         </p>
       </div>
 
       {/* Row 3: blue extract box */}
       {item.summary && (
-        <div style={{ background: 'rgba(42,118,244,0.15)', borderRadius: '8px', padding: '4px 8px', flexShrink: 0 }}>
-          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+        <div style={{ background: 'var(--indigo-050)', borderRadius: 'var(--r-sm)', padding: '4px 8px', flexShrink: 0 }}>
+          <p style={{ margin: 0, fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
             {item.summary}
           </p>
         </div>
@@ -1680,23 +1125,23 @@ function MarketDevCard({ item }) {
       {/* Divider + metadata (deals and HTA / payer only) */}
       {hasMetadata && (
         <>
-          <div style={{ height: '1px', background: 'rgba(5,10,68,0.08)', flexShrink: 0 }} />
+          <div style={{ height: '1px', background: 'var(--cream-300)', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
 
             {item.type === 'deal' && (
               <>
                 {item.parties && item.parties.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Parties:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Parties:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.parties.join(' • ')}
                     </span>
                   </div>
                 )}
                 {item.dealValue && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Deal value:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Deal value:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.dealValue}
                     </span>
                   </div>
@@ -1708,40 +1153,40 @@ function MarketDevCard({ item }) {
               <>
                 {(item.agency || item.agencyShort) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Agency:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Agency:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.agency ?? item.agencyShort}
                     </span>
                   </div>
                 )}
                 {item.outcome && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Outcome:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Outcome:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.outcome}
                     </span>
                   </div>
                 )}
                 {item.timeToReimbursement && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Time to reimbursement:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Time to reimbursement:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.timeToReimbursement}
                     </span>
                   </div>
                 )}
                 {!item.outcome && item.htaStatusBadge && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Status:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Status:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.htaStatusBadge}
                     </span>
                   </div>
                 )}
                 {!item.outcome && item.initiatedDate && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '18px', whiteSpace: 'nowrap' }}>Assessment initiated:</span>
-                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '18px', whiteSpace: 'nowrap' }}>Assessment initiated:</span>
+                    <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px' }}>
                       {item.initiatedDate}
                     </span>
                   </div>
@@ -1790,62 +1235,43 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
       {/* Filter row + view toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', color: '#434c5b', lineHeight: '21px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '14px', fontWeight: 400, fontFamily: 'var(--font-ui)', color: 'var(--ink-800)', lineHeight: '21px', whiteSpace: 'nowrap' }}>
             Filter by:
           </span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', padding: '4px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px' }}>
-            {MARKET_FILTER_TABS.map(tab => {
-              const isActive = activeFilter === tab.value
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveFilter(tab.value)}
-                  style={{
-                    padding: '4px 8px', borderRadius: isActive ? '16px' : '12px',
-                    fontSize: '14px', fontWeight: 400, fontFamily: 'Satoshi, sans-serif', lineHeight: '21px',
-                    background: isActive ? '#10224A' : 'transparent',
-                    color: isActive ? '#FFFFFF' : '#434c5b',
-                    border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                    transition: 'all 120ms ease',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
+          <div className="seg">
+            {MARKET_FILTER_TABS.map(tab => (
+              <button
+                key={tab.value}
+                type="button"
+                className={`seg-item${activeFilter === tab.value ? ' is-active' : ''}`}
+                onClick={() => setActiveFilter(tab.value)}
+                style={{ border: 'none', background: activeFilter === tab.value ? undefined : 'transparent' }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Feed / Landscape toggle */}
-        <div style={{ display: 'inline-flex', padding: '3px', border: '1px solid rgba(210,226,255,1)', borderRadius: '16px', gap: '2px' }}>
-          {(['feed', 'landscape'] as const).map(mode => {
-            const isActive = viewMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                style={{
-                  padding: '4px 12px', borderRadius: '16px',
-                  fontSize: '14px', fontFamily: 'Satoshi, sans-serif',
-                  background: isActive ? '#10224A' : 'transparent',
-                  color: isActive ? '#FFFFFF' : '#434c5b',
-                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                  transition: 'all 120ms ease',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {mode}
-              </button>
-            )
-          })}
+        <div className="seg">
+          {(['feed', 'landscape'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              className={`seg-item${viewMode === mode ? ' is-active' : ''}`}
+              onClick={() => setViewMode(mode)}
+              style={{ border: 'none', background: viewMode === mode ? undefined : 'transparent', textTransform: 'capitalize' }}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Card list — Feed (1 col) or Landscape (2-col grid) */}
       {filtered.length === 0 ? (
-        <p style={{ textAlign: 'center', padding: '40px 0', fontSize: '13px', color: 'var(--ink-600)' }}>
-          No market developments match the current filter.
-        </p>
+        <EmptyState message="No market developments match the current filter." />
       ) : (
         <div style={viewMode === 'landscape'
           ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }
@@ -1894,7 +1320,7 @@ export default function Portal() {
     <div data-tour="intelligence-feed" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Underline tab bar — sticky so it stays visible while scrolling events */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-1)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cream-100)' }}>
         <TabBar active={activeTab} onChange={setActiveTab} />
       </div>
 

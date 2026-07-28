@@ -31,7 +31,7 @@ import CompetitorBadge from '../components/ui/CompetitorBadge'
 import SlideOver from '../components/ui/SlideOver'
 import { AlertDetail } from '../components/inform/AlertDetail'
 import { MarketWeather } from '../components/inform/MarketWeather'
-import { SeverityDot, severityLabel } from '../components/inform/primitives'
+import { SeverityDot, severityLabel, NEU_PLATE_STYLE } from '../components/inform/primitives'
 import type { WeatherRow, WeatherState } from '../components/inform/types'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
@@ -590,14 +590,14 @@ export default function WarRoom() {
           </div>
 
           {liveDataFailed ? (
-            <div className="digest-plate inf-raised worklist-empty">
+            <div className="digest-plate worklist-empty" style={NEU_PLATE_STYLE}>
               <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
               <h3>Couldn&rsquo;t load your worklist</h3>
               <p>Check your connection and try again.</p>
               <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: '12px' }} onClick={() => refetch()}>Retry</button>
             </div>
           ) : showSkeleton ? (
-            <div className="digest-plate inf-raised worklist-plate" aria-busy="true" aria-label="Loading worklist">
+            <div className="digest-plate worklist-plate" style={NEU_PLATE_STYLE} aria-busy="true" aria-label="Loading worklist">
               {[0, 1, 2].map((i) => (
                 <div className="worklist-row" key={i}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -609,7 +609,7 @@ export default function WarRoom() {
               ))}
             </div>
           ) : worklistItems.length > 0 ? (
-            <div className="digest-plate inf-raised worklist-plate">
+            <div className="digest-plate worklist-plate" style={NEU_PLATE_STYLE}>
               {worklistItems.map((alert) => (
                 <WorklistRow
                   key={alert.id}
@@ -623,7 +623,7 @@ export default function WarRoom() {
               ))}
             </div>
           ) : (
-            <div className="digest-plate inf-raised worklist-empty">
+            <div className="digest-plate worklist-empty" style={NEU_PLATE_STYLE}>
               <div className="icon-circle"><Inbox size={26} aria-hidden="true" /></div>
               <h3>You&rsquo;re caught up</h3>
               <p>
@@ -657,7 +657,7 @@ export default function WarRoom() {
             />
           </div>
 
-          <div className="digest-plate inf-raised" style={{ padding: '16px 18px' }}>
+          <div className="digest-plate" style={{ ...NEU_PLATE_STYLE, padding: '16px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '4px' }}>
               <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--ink-900)' }}>Next up</h2>
               <Link to="/intelligence?tab=events" style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>All</Link>

@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import CompetitorBadge from '../ui/CompetitorBadge'
-import { SeverityDot, DotSep } from './primitives'
+import { SeverityDot, DotSep, NEU_PLATE_STYLE } from './primitives'
 import type { Signal } from './types'
 
 function DigestRow({ signal }: { signal: Signal }) {
@@ -62,7 +62,7 @@ export function DigestFeed({ signals, openFeedTo, emptyMessage }: {
 
   if (groups.length === 0) {
     return (
-      <div className="digest-plate inf-raised" style={{ padding: 'var(--s-8) var(--s-6)', textAlign: 'center' }}>
+      <div className="digest-plate" style={{ ...NEU_PLATE_STYLE, padding: 'var(--s-8) var(--s-6)', textAlign: 'center' }}>
         <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: 'var(--ink-900)', fontFamily: 'var(--font-ui)' }}>
           {emptyMessage ?? 'No signals match this filter'}
         </p>
@@ -78,7 +78,7 @@ export function DigestFeed({ signals, openFeedTo, emptyMessage }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
-      <div className="digest-plate inf-raised">
+      <div className="digest-plate" style={NEU_PLATE_STYLE}>
         {groups.map(g => (
           <div className="digest-group" key={g.competitor}>
             <div className="digest-group-hd">

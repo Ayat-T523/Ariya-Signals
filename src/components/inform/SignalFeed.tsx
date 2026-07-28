@@ -5,6 +5,7 @@
 // that visibility choice belongs to the page composing this, not here.
 import { Inbox, CheckCircle2, FilterX, AlertTriangle } from 'lucide-react'
 import { DigestFeed } from './DigestFeed'
+import { NEU_PLATE_STYLE } from './primitives'
 import type { Signal } from './types'
 
 export type EmptyVariant = 'fresh' | 'caught-up' | 'no-results'
@@ -33,7 +34,7 @@ function Skel({ w, h, r = 6, style }: { w: string | number; h: number; r?: numbe
 
 function LoadingSkeleton() {
   return (
-    <div className="digest-plate inf-raised" aria-busy="true" aria-label="Loading signals">
+    <div className="digest-plate" style={NEU_PLATE_STYLE} aria-busy="true" aria-label="Loading signals">
       {[3, 4].map((rows, gi) => (
         <div className="digest-group" key={gi}>
           <div className="digest-group-hd">
@@ -58,7 +59,7 @@ function EmptyBox({ variant, action }: { variant: EmptyVariant; action?: { label
   const copy = EMPTY_COPY[variant]
   const Icon = copy.icon
   return (
-    <div className="digest-plate inf-raised signal-feed-empty">
+    <div className="digest-plate signal-feed-empty" style={NEU_PLATE_STYLE}>
       <div className="icon-circle"><Icon size={26} aria-hidden="true" /></div>
       <h3>{copy.heading}</h3>
       <p>{copy.body}</p>
@@ -73,7 +74,7 @@ function EmptyBox({ variant, action }: { variant: EmptyVariant; action?: { label
 
 function ErrorBox({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="digest-plate inf-raised signal-feed-empty">
+    <div className="digest-plate signal-feed-empty" style={NEU_PLATE_STYLE}>
       <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
       <h3>Couldn&rsquo;t load your feed</h3>
       <p>{message}</p>

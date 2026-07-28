@@ -42,3 +42,15 @@ export function SeverityTag({ sev }: { sev: Severity }) {
 export function DotSep() {
   return <span aria-hidden="true" style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.5, flexShrink: 0 }} />
 }
+
+// Inline equivalent of the .inf-raised/.inf-raised-lg CSS recipes (cream-100
+// neumorphic plain container, per DESIGN.md's content layer). Not a CSS
+// class: those two selectors were reproducibly, silently dropped from both
+// the Vite dev and production builds by some tool in the chain (Tailwind
+// v4's Vite plugin / Lightning CSS were the suspects; never fully isolated
+// despite renaming, repositioning, and de-duplicating the rules) whenever
+// they existed as any 3-property-only class in this stylesheet region —
+// even after eliminating every selector-prefix and adjacency relationship
+// tried. Inline styles sidestep the bug entirely. See git history on this
+// file (Round 2 R5) for the failed CSS-only attempts if this needs revisiting.
+export const NEU_PLATE_STYLE: React.CSSProperties = { background: 'var(--cream-100)', boxShadow: 'var(--neu-raised)', borderRadius: 'var(--r-lg)' }
