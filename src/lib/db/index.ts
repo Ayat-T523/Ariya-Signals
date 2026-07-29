@@ -279,14 +279,21 @@ export interface DbMarketImplication {
   content: string
   display_order: number
   period_label: string | null
+  created_at: string
 }
 
-export async function getMarketImplications(): Promise<DbMarketImplication[]> {
+/** @param days Freshness window -- implications older than this are excluded, not just
+ *  sorted last. Default 7 matches their own stored `period_label` ("last 7 days"): showing
+ *  a stale implication as current would misrepresent it, and Ariya's provenance/freshness
+ *  promise (PRODUCT.md) is load-bearing, not decorative. */
+export async function getMarketImplications(days = 7): Promise<DbMarketImplication[]> {
   if (!supabase) return []
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString()
   const { data } = await supabase
     .from('market_intelligence')
-    .select('id, type, content, display_order, period_label')
+    .select('id, type, content, display_order, period_label, created_at')
     .eq('active', true)
+    .gte('created_at', cutoff)
     .order('display_order', { ascending: true })
   return data ?? []
 }

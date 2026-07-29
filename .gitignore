@@ -39,3 +39,8 @@ Icon\r
 # .impeccable/config.json (shared detector ignores) is tracked.
 .impeccable/config.local.json
 .impeccable/hook.cache.json
+.impeccable/critique/
+.impeccable/live/
+
+# Supabase CLI local state (project ref, cached versions) — machine-specific
+supabase/.temp/

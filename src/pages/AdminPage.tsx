@@ -146,7 +146,7 @@ export default function AdminPage() {
           Admin — CI War Room configuration
         </h1>
         <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.45)' }}>
-          Prototype configuration panel. In production, this is managed by Phamax at onboarding.
+          Prototype configuration panel. In production, this is managed at onboarding.
         </p>
       </div>
 

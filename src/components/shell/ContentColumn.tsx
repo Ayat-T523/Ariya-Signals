@@ -1,6 +1,12 @@
 /**
- * ContentColumn.tsx — White rounded card that floats on the navy background.
- * Matches Figma node 23:654 (file IXHI4HJFuZpw5hPMrv7DVb).
+ * ContentColumn.tsx — Clean Clinical: flat, edge-to-edge content column.
+ *
+ * Predates InForm -- was a "white rounded card floating on a navy background"
+ * (margin + 32px radius + heavy drop shadow), which made sense when the
+ * shell background was navy. Under Clean Clinical the shell is flat white
+ * and content fills the column right up to the nav's own 1px border, so
+ * none of that survives: no margin, no radius, no shadow (see DESIGN.md's
+ * "one material layer" / --r-flat-content).
  *
  * Rules:
  *   - No raw hex (RGBA exempt)
@@ -19,15 +25,10 @@ export default function ContentColumn({ children }: ContentColumnProps) {
       style={{
         flex: 1,
         minWidth: 0,
-        marginTop: '12px',
-        marginRight: '12px',
-        marginBottom: '12px',
-        height: 'calc(100vh - 24px)',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: 'var(--bg-1)',
-        borderRadius: '32px',
-        boxShadow: '0px 8px 12px 18px rgba(0,0,0,0.15), 0px 4px 4px 0px rgba(0,0,0,0.5)',
+        background: 'var(--white)',
         overflow: 'hidden',
       }}
     >

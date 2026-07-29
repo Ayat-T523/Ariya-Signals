@@ -54,3 +54,9 @@ export function DotSep() {
 // tried. Inline styles sidestep the bug entirely. See git history on this
 // file (Round 2 R5) for the failed CSS-only attempts if this needs revisiting.
 export const NEU_PLATE_STYLE: React.CSSProperties = { background: 'var(--cream-100)', boxShadow: 'var(--neu-raised)', borderRadius: 'var(--r-lg)' }
+
+// Clean Clinical replacement for NEU_PLATE_STYLE: flat white surface, 1px
+// neutral border, no resting shadow, no corner radius (see DESIGN.md's "One
+// material layer" -- content-area containers are sharp-cornered, not just
+// flat). Also sidesteps the .inf-raised silent-drop build bug by staying inline.
+export const FLAT_CARD_STYLE: React.CSSProperties = { background: 'var(--white)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-flat-content)' }

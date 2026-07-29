@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { analytics } from './lib/analytics'
 import { AppProvider, useApp } from './context/AppContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import Loader from './components/atoms/Loader'
+import KokonutLoader from './components/kokonutui/loader'
 import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
@@ -54,7 +54,7 @@ function PageLoader() {
       justifyContent: 'center',
       height: '100vh',
     }}>
-      <Loader size="lg" label="Loading page…" />
+      <KokonutLoader size="md" />
     </div>
   )
 }
@@ -112,7 +112,7 @@ export default function App() {
                   <Route path="/myspace"              element={<><RouteTitle title="My Space" /><MySpace /></>} />
                   <Route path="/myspace/alerts"       element={<><RouteTitle title="Alert Preferences" /><MyAlerts /></>} />
                   <Route path="/myspace/documents"    element={<><RouteTitle title="My Documents" /><MyDocuments /></>} />
-                  <Route path="/ask"                  element={<><RouteTitle title="Ask Ariya" /><Ask /></>} />
+                  <Route path="/ask"                  element={<><RouteTitle title="Ask InForm" /><Ask /></>} />
                   <Route path="/admin"                element={<><RouteTitle title="Admin" /><AdminPage /></>} />
                   <Route path="*"                     element={<NotFoundState />} />
                 </Route>

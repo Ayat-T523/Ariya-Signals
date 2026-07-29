@@ -301,7 +301,7 @@ export default function SignInPage() {
 
         <div style={{ position: 'absolute', bottom: '20px', textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: '10px', color: '#9ca3af' }}>
-            © 2026 phamax. All Rights Reserved.
+            © 2026 InForm. All Rights Reserved.
           </p>
         </div>
       </div>

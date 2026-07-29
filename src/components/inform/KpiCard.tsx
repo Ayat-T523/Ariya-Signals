@@ -2,7 +2,10 @@
 // Three scannability-tuned variants share one shell: delta, breakdown, sparkline.
 // The value is the hero; one support row, one action, per card.
 import { Link } from 'react-router-dom'
-import { ArrowUp, ArrowDown, ArrowRight, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { ArrowUp } from '../animate-ui/icons/arrow-up'
+import { ArrowDown } from '../animate-ui/icons/arrow-down'
+import { ArrowRight } from '../animate-ui/icons/arrow-right'
 import type { KpiDatum, DeltaTone } from './types'
 
 const DELTA_ICON: Record<DeltaTone, typeof ArrowUp> = { up: ArrowUp, down: ArrowDown, flat: ArrowRight }
@@ -48,7 +51,7 @@ export function KpiCard({ kpi, compact = false }: { kpi: KpiDatum; compact?: boo
         )
       ) : kpi.sparkline && kpi.sparkline.length > 1 && !compact ? (
         <div className="kpi-spark">
-          <Sparkline points={kpi.sparkline} color={kpi.deltaTone === 'down' ? 'var(--crimson-600)' : kpi.deltaTone === 'flat' ? 'var(--ink-500)' : 'var(--sage-600)'} />
+          <Sparkline points={kpi.sparkline} color={kpi.deltaTone === 'down' ? 'var(--crimson-600)' : kpi.deltaTone === 'flat' ? 'var(--neutral-500)' : 'var(--sage-600)'} />
         </div>
       ) : kpi.breakdown && kpi.breakdown.length > 0 ? (
         <span className="kpi-support">
@@ -65,7 +68,7 @@ export function KpiCard({ kpi, compact = false }: { kpi: KpiDatum; compact?: boo
         <span className="kpi-support">
           {kpi.delta && kpi.deltaTone && (
             <span className={`kpi-delta ${kpi.deltaTone}`}>
-              {(() => { const Icon = DELTA_ICON[kpi.deltaTone!]; return <Icon size={13} aria-hidden="true" /> })()}
+              {(() => { const Icon = DELTA_ICON[kpi.deltaTone!]; return <Icon size={13} aria-hidden="true" animateOnHover /> })()}
               {kpi.delta}
             </span>
           )}

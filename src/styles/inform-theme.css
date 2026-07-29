@@ -6,17 +6,13 @@
 /* Apply to a page's root element once that page is migrated to InForm.
    Deliberately NOT a bare `body{}` rule (see inform-tokens.css) — unmigrated
    pages must keep their existing look until they opt in per component/page. */
-/* Lighter/airier than the original cream-200 base (user feedback: page bg
-   read too strong/flat). Base is cream-50, lighter than cards' own cream-100
-   -- cards now separate from the page mainly via the strengthened shadow
-   rather than a page/card color step, with the gradient blooms kept subtle
-   enough not to reintroduce that flatness. */
+/* Clean Clinical: flat near-white page canvas, no gradient bloom (that was
+   the warm-cream "Analyst's Desk" world's texture, retired per DESIGN.md).
+   Cards separate from the page via a 1px border, not a color/shadow step --
+   see FLAT_CARD_STYLE in components/inform/primitives.tsx. */
 .inform-app-bg {
-  background:
-    radial-gradient(1200px 800px at 20% -10%, #FAF4E9 0%, transparent 60%),
-    radial-gradient(900px 700px at 110% 30%, #F8F0E2 0%, transparent 55%),
-    var(--cream-50);
-  color: var(--ink-900);
+  background: var(--neutral-50);
+  color: var(--neutral-900);
   font: var(--t-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -190,7 +186,7 @@
     0 1px 0 rgba(255,255,255,0.25) inset,
     0 6px 16px -6px rgba(42,118,244,0.55);
 }
-.btn-primary:hover { filter: brightness(0.92); transform: translateY(-1px); }
+.btn-primary:hover { filter: brightness(0.92); }
 .btn-primary.is-pressed,
 .btn-primary:active { filter: brightness(0.85); transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);}
 .btn-primary.is-focus { outline: none; box-shadow: var(--ring-indigo), 0 6px 16px -6px rgba(42,118,244,0.55); }
@@ -204,7 +200,7 @@
   background: var(--cream-100); color: var(--ink-900);
   box-shadow: var(--neu-raised);
 }
-.btn-secondary:hover { background: var(--cream-50); transform: translateY(-1px); box-shadow: var(--neu-raised-strong);}
+.btn-secondary:hover { background: var(--cream-50); box-shadow: var(--neu-raised-strong);}
 .btn-secondary.is-pressed,
 .btn-secondary:active { box-shadow: var(--neu-pressed); background: var(--cream-100);}
 .btn-secondary.is-focus { outline: none; box-shadow: var(--neu-raised), var(--ring-indigo); }
@@ -225,7 +221,7 @@
   background: var(--crimson-600); color: #fff;
   box-shadow: 0 6px 16px -6px rgba(216,0,39,0.5);
 }
-.btn-danger:hover { background: #b80020; transform: translateY(-1px);}
+.btn-danger:hover { background: #b80020; }
 .btn-danger.is-pressed,
 .btn-danger:active { box-shadow: inset 0 2px 6px rgba(0,0,0,0.25); transform: none;}
 .btn-danger[disabled], .btn-danger.is-disabled { opacity: 0.4; cursor: not-allowed;}
@@ -374,17 +370,17 @@
 .opt-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px;}
 .opt-row .descr { font: var(--t-caption); color: var(--ink-600); }
 
-/* Segmented */
+/* Segmented — Clean Clinical: flat bordered track, indigo-tinted active pill. */
 .seg {
-  display: inline-flex; background: var(--cream-200); border-radius: var(--r-pill);
-  padding: 3px; box-shadow: var(--neu-inset); gap: 2px;
+  display: inline-flex; background: var(--neutral-100); border: 1px solid var(--border-default); border-radius: var(--r-pill);
+  padding: 3px; gap: 2px;
 }
 .seg .seg-item {
   padding: 7px 14px; border-radius: var(--r-pill); font: 500 13px/1 var(--font-ui);
-  color: var(--ink-700); cursor: pointer; transition: all .12s;
+  color: var(--neutral-700); cursor: pointer; transition: all .12s;
 }
-.seg .seg-item.is-active { background: var(--cream-50); color: var(--ink-900); box-shadow: var(--neu-raised);}
-.seg .seg-item:not(.is-active):hover { color: var(--ink-900);}
+.seg .seg-item.is-active { background: var(--white); color: var(--indigo-600); }
+.seg .seg-item:not(.is-active):hover { color: var(--neutral-900);}
 
 /* Slider */
 .slider-wrap { position: relative; padding: 10px 0; }
@@ -717,29 +713,44 @@
   width: 22px; height: 22px; border-radius: 7px;
   background: linear-gradient(135deg, var(--navy-900), var(--navy-600));
 }
-/* Real NavPanel usage (src/components/shell/NavPanel.tsx) -- the sidebar
-   itself is the "signature deep surface" (navy-700), not cream, so this
-   recipe is a translucent-on-dark treatment rather than the light .sidebar
-   demo block above. is-active reads via a soft glass highlight + full-white
-   text, never a solid content-layer block (that would be a two-layer
-   violation: a "content" surface sitting inside chrome) and never a
-   colored border-left (craft-floor's ban on side-tab accents). */
+/* Real NavPanel usage (src/components/shell/NavPanel.tsx) -- Clean Clinical:
+   the sidebar is a flat near-white surface, not the navy "signature deep
+   surface" the prior direction used. is-active reads via an indigo-tinted
+   fill + indigo text, never a solid dark block and never a colored
+   border-left (craft-floor's ban on side-tab accents). */
 .nav-item {
   display: flex; align-items: center; gap: 12px;
-  border-radius: var(--r-sm);
-  color: rgba(255,255,255,0.55);
+  border-radius: var(--r-flat-control);
+  color: var(--neutral-600);
   text-decoration: none; cursor: pointer;
   font-family: var(--font-ui); font-size: 14px; font-weight: 400;
   white-space: nowrap;
   transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
-.nav-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.90); }
-.nav-item.is-active { background: rgba(255,255,255,0.14); color: #fff; font-weight: 600; }
+.nav-item:hover { background: var(--neutral-100); color: var(--neutral-900); }
+.nav-item.is-active { background: var(--indigo-050); color: var(--indigo-600); font-weight: 600; }
 .nav-item:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
 .nav-item-collapsed { width: 40px; height: 40px; justify-content: center; margin: 0 auto; }
 .nav-item-expanded { height: 36px; padding: 0 10px; }
-.nav-item .count { margin-left: auto; font: 600 11px var(--font-mono); color: rgba(255,255,255,0.55); }
-.nav-item.is-active .count { color: var(--indigo-100); }
+.nav-item .count { margin-left: auto; font: 600 11px var(--font-mono); color: var(--neutral-500); }
+.nav-item.is-active .count { color: var(--indigo-600); }
+
+/* Floating edge-boundary toggle: shadcn Button's outline variant supplies the
+   base hover/focus/active animation; this only layers the indigo accent that
+   distinguishes it from a plain outline button (critique 2026-07-28). */
+.nav-edge-chevron:hover { color: var(--indigo-600); border-color: var(--indigo-500); }
+
+/* Animate UI Sidebar's own collapsed-width rule (group-data-[collapsible=icon]:w-*)
+   relies on native CSS nesting + :is()/:where() for its extra specificity —
+   confirmed via direct cascade inspection that this doesn't reliably win
+   against the base w-(--sidebar-width) utility in this app's build, leaving
+   the rail stuck at the expanded width with a dead gap where labels used to
+   render. Force it directly off the library's own data-slot markers instead
+   of depending on that nesting-specificity chain. */
+[data-slot='sidebar'][data-collapsible='icon'] [data-slot='sidebar-gap'],
+[data-slot='sidebar'][data-collapsible='icon'] [data-slot='sidebar-container'] {
+  width: var(--sidebar-width-icon) !important;
+}
 
 /* Tooltip */
 .tt {
@@ -1008,42 +1019,49 @@
    .mw-card) is unaffected and still works as a real class. */
 
 /* ---------- KPI Card ---------- */
+/* Migrated to Clean Clinical (critique 2026-07-29) -- was still on the
+   pre-migration neumorphic recipe (cream fill, --neu-raised emboss, --r-lg).
+   Kokonut UI has no actual KPI/stat-card component to swap in instead
+   (checked: no kpi-card slug; apple-activity-card is a fitness-ring widget
+   with hardcoded neon colors; tweet-card/"X Card" is a literal social-media
+   post, no numeric/label structure at all) -- this component's own
+   delta/sparkline/breakdown structure was already sound, just needed the
+   surface and color migration the rest of the app already got. */
 .kpi-card {
   display: flex; flex-direction: column; gap: var(--s-3);
   padding: var(--s-5);
-  border-radius: var(--r-lg);
-  background: var(--cream-100);
-  box-shadow: var(--neu-raised);
+  border-radius: var(--r-flat-content);
+  background: var(--white);
+  border: 1px solid var(--border-default);
   text-decoration: none; color: inherit;
   outline: none;
-  transition: box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  transition: border-color var(--dur-fast) var(--ease-standard);
 }
 .kpi-card.is-linkable { cursor: pointer; }
-.kpi-card.is-linkable:hover { box-shadow: var(--neu-raised-strong); transform: translateY(-1px); }
-.kpi-card.is-linkable:active { transform: translateY(0); }
-.kpi-card:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); }
+.kpi-card.is-linkable:hover { border-color: var(--indigo-500); }
+.kpi-card:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
 .kpi-card.compact { padding: var(--s-4); gap: var(--s-2); }
 
 .kpi-label {
   font-family: var(--font-ui); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-600);
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-600);
 }
 .kpi-value {
   font-family: var(--font-mono); font-size: 32px; font-weight: 600;
-  color: var(--ink-900); line-height: 1.05; font-variant-numeric: tabular-nums;
+  color: var(--neutral-900); line-height: 1.05; font-variant-numeric: tabular-nums;
 }
 .kpi-card.compact .kpi-value { font-size: 22px; }
-.kpi-value.is-empty { color: var(--ink-600); }
-.kpi-value.is-error { color: var(--ink-500); }
+.kpi-value.is-empty { color: var(--neutral-600); }
+.kpi-value.is-error { color: var(--neutral-500); }
 
 .kpi-support {
-  font-family: var(--font-ui); font-size: 13px; color: var(--ink-700);
+  font-family: var(--font-ui); font-size: 13px; color: var(--neutral-700);
   display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; min-height: 20px;
 }
 .kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-weight: 600; font-size: 13px; }
 .kpi-delta.up { color: var(--sage-600); }
 .kpi-delta.down { color: var(--crimson-600); }
-.kpi-delta.flat { color: var(--ink-600); }
+.kpi-delta.flat { color: var(--neutral-600); }
 
 .kpi-breakdown { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .kpi-breakdown .seg { display: inline-flex; align-items: center; gap: 5px; }
@@ -1053,7 +1071,7 @@
 .kpi-spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
 .kpi-footer { font-family: var(--font-ui); font-size: 12px; font-weight: 500; color: var(--indigo-600); display: inline-flex; align-items: center; gap: 4px; }
-.kpi-footer.is-muted { color: var(--ink-600); }
+.kpi-footer.is-muted { color: var(--neutral-600); }
 .kpi-footer svg { transition: transform var(--dur-fast) var(--ease-standard); }
 .kpi-card.is-linkable:hover .kpi-footer svg { transform: translateX(2px); }
 
@@ -1291,11 +1309,12 @@
 /* ---------- Market Weather ---------- */
 /* State (mood) -> Section A: evidence per competitor -> Section B: one
    synthesized implication. B is always a single indigo-accented takeaway,
-   never one bullet per competitor. Content surface: neu-raised-lg (R2). */
-.inf-raised-lg { background: var(--cream-100); box-shadow: var(--neu-raised-strong); border-radius: var(--r-lg); }
+   never one bullet per competitor. Content surface: flat white + border,
+   Clean Clinical (was neu-raised-lg). */
+.inf-raised-lg { background: var(--white); border: 1px solid var(--border-default); border-radius: var(--r-flat-content); }
 .mw-card { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5); outline: none; }
 .mw-card.compact { padding: var(--s-4); gap: var(--s-3); }
-.mw-card:focus-visible { box-shadow: var(--neu-raised-strong), var(--ring-indigo); }
+.mw-card:focus-visible { box-shadow: var(--ring-indigo); }
 
 .mw-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); flex-wrap: wrap; }
 .mw-title-group { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
@@ -1509,27 +1528,35 @@
 .alert-drawer-source-body { margin-top: var(--s-3); }
 
 /* ---------- War Room (Phase 4, Direction A) ---------- */
-.war-room-page { padding: 20px 32px; display: flex; flex-direction: column; gap: var(--s-4); }
+/* Reading-focus gutter, not decorative page padding: 32px horizontal keeps
+   headline text and the stat bar off the nav border and viewport edge; 24px
+   vertical is lighter since the header/stat bar already separate visually
+   from TopBar. Horizontal value matches the tight-viewport override below
+   so the side margin never jumps between breakpoints, only vertical does. */
+.war-room-page { padding: 18px 32px 24px; display: flex; flex-direction: column; gap: var(--s-2); }
 .war-room-title { font-size: 24px; }
 
 
-/* Stat bar — chrome, per the two-layer rule: glass, never neumorphic. The
-   only glass surface on this page; everything below it is cream content. */
+/* Stat bar — Clean Clinical flat chrome: white surface, 1px border, no
+   glass blur/emboss (see DESIGN.md's "one material layer"). */
 .stat-bar {
   display: flex; align-items: center; flex-wrap: wrap;
   gap: var(--s-2) var(--s-5);
-  padding: var(--s-3) var(--s-5);
-  border-radius: var(--r-lg);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(20px) saturate(1.1);
-  backdrop-filter: blur(20px) saturate(1.1);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  padding: var(--s-2) var(--s-5);
+  border-radius: var(--r-flat-content);
+  background: var(--white);
+  border: 1px solid var(--border-default);
 }
-.stat-bar-item { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-size: 13px; color: var(--ink-700); white-space: nowrap; }
-.stat-bar-item .num { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--ink-900); }
-.stat-bar-item.is-urgent .num { color: var(--crimson-600); }
-.stat-bar-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-500); opacity: 0.6; flex-shrink: 0; }
+.stat-bar-item { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-size: 13px; color: var(--neutral-700); white-space: nowrap; }
+.stat-bar-item .num { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--neutral-900); }
+/* Bolder pass (2026-07-29): the "needs you" count is the page's single most
+   action-driving number -- the whole worklist-is-the-spine thesis hangs on
+   it -- but it read at the same weight as every other stat. Give it the
+   type-scale conviction its role earns (a step under the page's own H1, so
+   hierarchy stays intact) instead of matching the quieter stats beside it. */
+.stat-bar-item.is-urgent { gap: 7px; }
+.stat-bar-item.is-urgent .num { font-size: 20px; color: var(--crimson-600); }
+.stat-bar-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--neutral-500); opacity: 0.6; flex-shrink: 0; }
 .stat-bar-link { margin-left: auto; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--indigo-600); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; padding: 4px 2px; }
 .stat-bar-link:hover { text-decoration: underline; }
 .stat-bar-link:focus-visible { box-shadow: var(--ring-indigo); outline: none; border-radius: 4px; }
@@ -1546,7 +1573,7 @@
 .worklist-row {
   display: flex; flex-direction: column; gap: 4px;
   padding: var(--s-3) var(--s-5);
-  border-top: 1px solid var(--cream-300);
+  border-top: 1px solid var(--border-default);
   outline: none;
 }
 .worklist-row:first-child { border-top: 0; }
@@ -1554,26 +1581,30 @@
    Up/Down) and gain real DOM focus, not just a visual highlight, so this
    uses the same ring every other focusable element in the app already
    uses instead of inventing a second "selected" language. */
-.worklist-row:focus-visible { box-shadow: var(--ring-indigo); border-radius: var(--r-sm); }
+.worklist-row:focus-visible { box-shadow: var(--ring-indigo); border-radius: var(--r-flat-control); }
 .worklist-row-top { display: flex; align-items: center; gap: var(--s-2); min-height: 24px; }
 .worklist-row-sev {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--font-mono); font-size: 11px; font-weight: 700;
   letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--ink-600); flex-shrink: 0;
+  color: var(--neutral-600); flex-shrink: 0;
 }
 .worklist-row-competitor { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; max-width: 140px; }
-.worklist-row-competitor .name { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.worklist-row-competitor .name { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--neutral-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Own line below the meta row (never truncated) -- keeps the meta row
+   (severity, competitor, time, actions) a single consistent line regardless
+   of headline length, instead of squeezing everything onto one row and
+   ellipsizing whichever headline happened to be longest. */
 .worklist-row-headline {
-  flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: var(--ink-900);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: var(--neutral-900);
+  line-height: 1.4;
 }
-.worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
+.worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--neutral-600); white-space: nowrap; flex-shrink: 0; margin-left: auto; }
 .worklist-row-action-line {
   display: flex; align-items: flex-start; gap: 5px;
   font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600); line-height: 1.4;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding-left: calc(10px + 5px); /* aligns under the headline, past the severity dot+label */
+  margin: 0; /* the row's own flex `gap` provides consistent spacing between meta row / headline / action line */
 }
 .worklist-row-action-line svg { flex-shrink: 0; width: 12px; height: 12px; margin-top: 2px; color: var(--indigo-500); }
 .worklist-row-action-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1581,27 +1612,64 @@
 /* Handle control — trigger + menu-glass dropdown, reusing the existing glass
    menu component rather than inventing a second dropdown language. */
 .worklist-handle { position: relative; margin-left: auto; flex-shrink: 0; }
-.worklist-handle-trigger {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; border-radius: var(--r-pill);
-  background: var(--cream-100); box-shadow: var(--neu-raised);
-  border: 0; cursor: pointer;
-  font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--ink-800);
-  transition: box-shadow var(--dur-fast) var(--ease-standard);
-}
+/* Base interaction (hover/active/focus/transition) comes from shadcn Button's
+   own "outline" variant now (critique 2026-07-28) -- this class only adds the
+   pill shape and the semantic in-progress color Button has no opinion on. */
+.worklist-handle-trigger { border-radius: var(--r-pill); font-family: var(--font-ui); font-size: 11px; }
 .worklist-handle-trigger.is-in-progress { color: var(--amber-800); }
-.worklist-handle-trigger:hover { box-shadow: var(--neu-raised-strong); }
-.worklist-handle-trigger:active, .worklist-handle-trigger.is-open { box-shadow: var(--neu-pressed); }
-.worklist-handle-trigger:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); outline: none; }
 .worklist-handle-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; width: 200px; }
 .worklist-inspect-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: var(--r-sm); flex-shrink: 0;
-  background: none; border: 0; cursor: pointer; color: var(--ink-500);
+  width: 26px; height: 26px; border-radius: var(--r-flat-control); flex-shrink: 0;
+  background: none; border: 0; cursor: pointer; color: var(--neutral-500);
   transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
-.worklist-inspect-btn:hover { background: var(--cream-200); color: var(--ink-900); }
+.worklist-inspect-btn:hover { background: var(--neutral-100); color: var(--neutral-900); }
 .worklist-inspect-btn:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
+
+/* Worklist situation card (critique 2026-07-28) — Radix Accordion's own
+   measured-height animation, not the grid-template-rows 0fr/1fr trick used
+   elsewhere: direct measurement testing this session found that trick
+   settles at a content-dependent floor instead of true 0 in this app's
+   current environment, even with min-height:0 present (see Portal.tsx's
+   EventDigestRow comment). Radix exposes the real measured height as
+   --radix-accordion-content-height, so this animates from a genuine 0.
+   (Was built on Collapsible originally; swapped to the real Accordion
+   primitive per the user's explicit ask -- variable name changed too.) */
+.worklist-situation-wrap { overflow: hidden; }
+.worklist-situation-wrap[data-state='open'] { animation: worklist-situation-open var(--dur-base) var(--ease-standard); }
+.worklist-situation-wrap[data-state='closed'] { animation: worklist-situation-close var(--dur-base) var(--ease-standard); }
+@keyframes worklist-situation-open { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
+@keyframes worklist-situation-close { from { height: var(--radix-accordion-content-height); } to { height: 0; } }
+
+/* Target the AccordionItem's own data-state, not the trigger's -- the trigger
+   is asChild-nested inside TooltipTrigger (also asChild), and both Radix
+   primitives write a data-state attribute to the same DOM node; Tooltip's
+   wins, so the trigger element's own data-state reflects hover, not expand. */
+[data-slot='accordion-item'][data-state='open'] .worklist-situation-trigger svg { color: var(--indigo-600); }
+
+/* Distinct visual identity from the plain white rail cards: indigo tint +
+   sparkle header, not a colored border-left (craft-floor's side-tab ban). */
+.worklist-situation-card {
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--indigo-050);
+  border-radius: var(--r-flat-control);
+}
+.worklist-situation-hd {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--indigo-600);
+  margin: 0 0 6px;
+}
+.worklist-situation-why { margin: 0 0 8px; font-family: var(--font-ui); font-size: 13px; line-height: 1.55; color: var(--neutral-900); }
+.worklist-situation-why:last-child { margin-bottom: 0; }
+.worklist-situation-action {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 0; padding-top: 8px; border-top: 1px solid rgba(42,118,244,0.15);
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.5; color: var(--indigo-600);
+}
+.worklist-situation-action svg { flex-shrink: 0; margin-top: 2px; color: var(--indigo-500); }
 
 .worklist-empty { text-align: center; padding: var(--s-8) var(--s-5); }
 .worklist-empty .icon-circle { margin: 0 auto var(--s-3); }
@@ -1633,26 +1701,40 @@
 @media (max-width: 1360px), (max-height: 850px) {
   .war-room-page { padding: 12px 32px; gap: var(--s-2); }
   .war-room-title { font-size: 20px; }
-  .stat-bar { padding: 6px var(--s-5); }
-  .worklist-row { padding: var(--s-2) var(--s-5); }
-  .mw-card.compact { padding: var(--s-3); gap: var(--s-2); }
+  .stat-bar { padding: 4px var(--s-5); }
+  .worklist-row { padding: 6px var(--s-5); }
+  .mw-card.compact { padding: var(--s-2); gap: var(--s-2); }
   .mw-card.compact .mw-row-implication { -webkit-line-clamp: 1; }
   .mw-card.compact .mw-row { padding: 6px var(--s-2); }
-  .next-up-row { padding: 6px 0; }
+  .next-up-card { padding: 3px var(--s-2); flex-basis: 180px; }
 }
 
-/* Next up — condensed event rail row (rail width is fixed and narrow, so this
-   is deliberately terser than the full Intelligence Feed event card). */
-.next-up-row {
-  display: flex; align-items: center; gap: var(--s-3);
-  padding: var(--s-3) 0;
-  border-top: 1px solid var(--cream-300);
-  text-decoration: none;
+/* Next up — horizontal scroll-snap carousel (critique 2026-07-28), replacing
+   the old narrow-rail vertical list now that the tile spans full width. */
+.next-up-scroller {
+  display: flex; gap: var(--s-2);
+  overflow-x: auto; scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 2px;
 }
-.next-up-row:first-child { border-top: 0; }
-.next-up-date { text-align: center; min-width: 34px; flex-shrink: 0; }
-.next-up-date .day { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--ink-900); line-height: 1; }
-.next-up-date .month { display: block; font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink-600); margin-top: 2px; }
-.next-up-title { flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink-900); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.next-up-countdown { font-family: var(--font-mono); font-size: 11px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
+.next-up-scroller::-webkit-scrollbar { display: none; }
+.next-up-card {
+  display: flex; align-items: center; gap: var(--s-2);
+  flex: 0 0 190px; scroll-snap-align: start;
+  padding: 6px var(--s-2);
+  border: 1px solid var(--border-default); border-radius: var(--r-flat-control);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+}
+.next-up-card:hover { border-color: var(--indigo-500); background: var(--indigo-050); }
+.next-up-card-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.next-up-date { text-align: center; min-width: 30px; flex-shrink: 0; }
+/* Bolder pass (2026-07-29): the date is the one piece of information this
+   card exists to surface at a glance -- it read at the same quiet weight as
+   its own metadata. Widen the gap between the numeral and the label instead
+   of bumping everything, so the card gets a real peak, not just bigger text. */
+.next-up-date .day { display: block; font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: var(--ink-900); line-height: 1; }
+.next-up-date .month { display: block; font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-600); margin-top: 2px; }
+.next-up-title { min-width: 0; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-900); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-up-countdown { font-family: var(--font-mono); font-size: 10px; color: var(--ink-600); white-space: nowrap; }
 

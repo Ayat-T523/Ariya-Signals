@@ -387,7 +387,12 @@ export function AppProvider({ children }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // ── AI modal state ────────────────────────────────────────────────────────
-  const [askModal, setAskModal] = useState({ open: false, source: null })
+  // `question`, when present, is the literal text the user asked (typed into
+  // Ask InForm's chat input, or a specific question card) -- AskModal answers
+  // that exact question via Ollama instead of the generic recent-activity
+  // briefing it falls back to when a trigger has no specific question (e.g.
+  // War Room's header "Ask InForm" button).
+  const [askModal, setAskModal] = useState({ open: false, source: null, question: null })
 
   // Track which AI buttons were clicked (valuable feedback signal per §5)
   const [aiClickLog, setAiClickLog] = useState([])
@@ -440,14 +445,14 @@ export function AppProvider({ children }) {
     if (authUser) void markAllAlertsReadDb(authUser.id, ids)
   }
 
-  function openAskModal(source) {
-    const entry = { source, timestamp: new Date().toISOString() }
+  function openAskModal(source, question = null) {
+    const entry = { source, question, timestamp: new Date().toISOString() }
     setAiClickLog((prev) => [...prev, entry])
-    setAskModal({ open: true, source })
+    setAskModal({ open: true, source, question })
   }
 
   function closeAskModal() {
-    setAskModal({ open: false, source: null })
+    setAskModal({ open: false, source: null, question: null })
   }
 
   return (

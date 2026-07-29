@@ -31,7 +31,7 @@ export default function InformKit() {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<FeedTab>('All')
   const [sortMode, setSortMode] = useState<SortMode>('importance')
-  const [timeframe, setTimeframe] = useState<'30D' | '90D'>('30D')
+  const [timeframe, setTimeframe] = useState<'7D' | '30D' | '90D'>('30D')
 
   return (
     <div className="inform-app-bg" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>

@@ -45,7 +45,7 @@ export default function Layout() {
   }, [askModal.open, closeAskModal, openAskModal])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--navy-700)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--white)' }}>
       {/* Skip to main content — visually hidden until focused (a11y) */}
       <a
         href="#main-content"
@@ -77,7 +77,7 @@ export default function Layout() {
           id="main-content"
           className="flex-1"
           style={{
-            background: '#F7F8FC',
+            background: 'var(--neutral-50)',
             overflowY: 'auto',
             minHeight: 0,
           }}
@@ -98,10 +98,13 @@ export default function Layout() {
         </main>
       </ContentColumn>
 
-      {/* Ask Ariya modal — shared across all pages */}
-      {askModal.open && (
-        <AskModal onClose={closeAskModal} source={askModal.source} />
-      )}
+      {/* Ask InForm modal — shared across all pages */}
+      <AskModal
+        open={askModal.open}
+        onOpenChange={(open) => { if (!open) closeAskModal() }}
+        source={askModal.source}
+        question={askModal.question}
+      />
 
       {/* Onboarding modal — shown on first visit or triggered from Admin */}
       {showOnboarding && <OnboardingModal />}

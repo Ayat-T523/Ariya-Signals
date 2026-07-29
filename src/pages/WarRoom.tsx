@@ -4,9 +4,10 @@
  * THESIS: "What needs me right now, and what should I do about it?" replaces
  * "what changed in HAE?" — the worklist is the spine; everything else recedes
  * to a condensed rail or a link, not a scroll.
- * OWN-WORLD: InForm — one glass stat bar (chrome) over a neumorphic cream
- * worklist plate (content); Signal Indigo marks synthesized text and links
- * only; severity reads as text + dot, never a colored border.
+ * OWN-WORLD: Clean Clinical — one flat white stat bar (chrome) over a flat
+ * bordered worklist plate (content), no neumorphic emboss; Signal Indigo
+ * marks synthesized text and links only; severity reads as text + dot,
+ * never a colored border.
  * STORY: David lands, sees what needs him and how much pressure is building,
  * scans up to six worklist rows, handles or inspects, and is done.
  * FIRST VIEWPORT: header -> glass stat bar -> two-column grid (worklist spine
@@ -21,18 +22,37 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { fadeIn, REDUCED_MOTION } from '../lib/motion'
 import { Link } from 'react-router-dom'
-import {
-  ArrowRight, Plus, Circle, PauseCircle, CheckCircle2, XCircle,
-  ChevronUp, ChevronDown, ExternalLink, MessageSquareText, Inbox, AlertTriangle,
-  Bookmark, BookmarkCheck,
-} from 'lucide-react'
+// Icons: animate-ui's Lucide-sourced, motion-wrapped set where available
+// (critique 2026-07-28 -- "for all icons, use animate UI"), plain lucide-react
+// for the handful animate-ui's registry doesn't carry (Circle, PauseCircle,
+// Inbox, AlertTriangle, Bookmark, BookmarkCheck -- confirmed absent via
+// registry.json, same check as NavPanel.tsx).
+import { Circle, PauseCircle, Inbox, AlertTriangle, Bookmark, BookmarkCheck } from 'lucide-react'
+import { ArrowRight } from '../components/animate-ui/icons/arrow-right'
+import { Plus } from '../components/animate-ui/icons/plus'
+import { CircleCheckBig as CheckCircle2 } from '../components/animate-ui/icons/circle-check-big'
+import { CircleX as XCircle } from '../components/animate-ui/icons/circle-x'
+import { ChevronUp } from '../components/animate-ui/icons/chevron-up'
+import { ChevronDown } from '../components/animate-ui/icons/chevron-down'
+import { ChevronLeft } from '../components/animate-ui/icons/chevron-left'
+import { ChevronRight } from '../components/animate-ui/icons/chevron-right'
+import { ExternalLink } from '../components/animate-ui/icons/external-link'
+import { MessageSquareText } from '../components/animate-ui/icons/message-square-text'
+import { Sparkles } from '../components/animate-ui/icons/sparkles'
 import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import SlideOver from '../components/ui/SlideOver'
 import { AlertDetail } from '../components/inform/AlertDetail'
 import { MarketWeather } from '../components/inform/MarketWeather'
-import { SeverityDot, severityLabel, NEU_PLATE_STYLE } from '../components/inform/primitives'
+import { SeverityDot, severityLabel, severityText, FLAT_CARD_STYLE } from '../components/inform/primitives'
 import type { WeatherRow, WeatherState } from '../components/inform/types'
+import { Accordion, AccordionItem } from '../components/shadcn/ui/accordion'
+import { Accordion as AccordionPrimitive } from 'radix-ui'
+import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
+import { Button } from '../components/shadcn/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/animate-ui/components/radix/tooltip'
+import { CountingNumber } from '../components/animate-ui/primitives/texts/counting-number'
+import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import {
@@ -161,17 +181,19 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }}
     >
-      <button
+      <Button
         type="button"
-        className={`worklist-handle-trigger${open ? ' is-open' : ''}${current === 'in_progress' ? ' is-in-progress' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`worklist-handle-trigger${current === 'in_progress' ? ' is-in-progress' : ''}`}
         aria-haspopup="menu" aria-expanded={open}
         title="Update triage status"
         onClick={() => setOpen((v) => !v)}
       >
         <Icon size={13} aria-hidden="true" />
         {meta.label}
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
+        <ChevronDown size={12} aria-hidden="true" animateOnHover />
+      </Button>
       {open && (
         <motion.div
           className="menu-glass is-light is-compact worklist-handle-menu" role="menu"
@@ -196,6 +218,15 @@ function HandleMenu({ current, onChange }: { current: HandlingState; onChange: (
 }
 
 // ── Worklist row ────────────────────────────────────────────────────────────
+// Collapsed: severity + competitor + time + headline (never truncated) --
+// the scan layer. Expanded: a decorated "situation" card carrying
+// whyItMatters + suggestedAction together, the synthesis layer, on shadcn's
+// Collapsible (critique 2026-07-28). Only rows with real synthesized content
+// get the expand affordance at all -- an empty decorated card would be worse
+// than no card. Given its own visual identity (indigo tint, sparkle header)
+// per that note, distinct from the plain white Market Weather / Next Up
+// cards -- but no colored border-left (craft-floor's side-tab ban), so the
+// distinction comes from fill + iconography, not an accent bar.
 function WorklistRow({ alert, state, resolving, rowRef, onStateChange, onInspect }: {
   alert: MappedAlert
   state: HandlingState
@@ -205,57 +236,132 @@ function WorklistRow({ alert, state, resolving, rowRef, onStateChange, onInspect
   onInspect: () => void
 }) {
   const competitor = competitorById(alert.competitorId)
+  const hasSituation = Boolean(alert.whyItMatters || alert.suggestedAction)
+
   return (
-    <div
-      ref={rowRef}
-      tabIndex={0}
-      className={`worklist-row${resolving ? ' is-resolving' : ''}`}
-    >
-      <div className="worklist-row-top">
-        <span className="worklist-row-sev"><SeverityDot sev={alert.severity} /> {severityLabel(alert.severity)}</span>
-        <div className="worklist-row-competitor" title={competitor?.name ?? alert.competitorId}>
-          <CompetitorBadge name={competitor?.name ?? alert.competitorId} id={alert.competitorId} size={18} />
-          <span className="name">{competitor?.name ?? alert.competitorId}</span>
+    <AccordionItem value={alert.id} className="worklist-accordion-item border-b-0">
+      <div
+        ref={rowRef}
+        tabIndex={0}
+        className={`worklist-row${resolving ? ' is-resolving' : ''}`}
+      >
+        <div className="worklist-row-top">
+          <span className="worklist-row-sev" style={{ color: severityText(alert.severity) }}><SeverityDot sev={alert.severity} /> {severityLabel(alert.severity)}</span>
+          <div className="worklist-row-competitor" title={competitor?.name ?? alert.competitorId}>
+            <CompetitorBadge name={competitor?.name ?? alert.competitorId} id={alert.competitorId} size={18} />
+            <span className="name">{competitor?.name ?? alert.competitorId}</span>
+          </div>
+          <span className="worklist-row-time">{relTimeShort(alert.timestamp)}</span>
+          {resolving ? (
+            <span className="worklist-row-resolved" aria-live="polite"><CheckCircle2 size={14} aria-hidden="true" animate="path" /> Updated</span>
+          ) : (
+            <>
+              <HandleMenu current={state} onChange={onStateChange} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon-xs" aria-label="Inspect" onClick={onInspect}>
+                    <ExternalLink size={14} aria-hidden="true" animateOnHover />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Inspect</TooltipContent>
+              </Tooltip>
+              {hasSituation && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AccordionPrimitive.Trigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className="worklist-situation-trigger"
+                        aria-label="Why this needs you"
+                      >
+                        <Sparkles size={14} aria-hidden="true" animateOnHover />
+                      </Button>
+                    </AccordionPrimitive.Trigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Why this needs you</TooltipContent>
+                </Tooltip>
+              )}
+            </>
+          )}
         </div>
-        <span className="worklist-row-headline" title={decodeEntities(alert.headline)}>{decodeEntities(alert.headline)}</span>
-        <span className="worklist-row-time">{relTimeShort(alert.timestamp)}</span>
-        {resolving ? (
-          <span className="worklist-row-resolved" aria-live="polite"><CheckCircle2 size={14} aria-hidden="true" /> Updated</span>
-        ) : (
-          <>
-            <HandleMenu current={state} onChange={onStateChange} />
-            <button type="button" className="worklist-inspect-btn" title="Inspect" aria-label="Inspect" onClick={onInspect}>
-              <ExternalLink size={14} aria-hidden="true" />
-            </button>
-          </>
+
+        <p className="worklist-row-headline">{decodeEntities(alert.headline)}</p>
+
+        {hasSituation && (
+          <AccordionPrimitive.Content className="worklist-situation-wrap">
+            <div className="worklist-situation-card">
+              <div className="worklist-situation-hd">
+                <Sparkles size={12} aria-hidden="true" animate="path" />
+                Why this needs you
+              </div>
+              {alert.whyItMatters && <p className="worklist-situation-why">{alert.whyItMatters}</p>}
+              {alert.suggestedAction && (
+                <p className="worklist-situation-action">
+                  <MessageSquareText size={13} aria-hidden="true" animateOnHover />
+                  <span>{alert.suggestedAction}</span>
+                </p>
+              )}
+            </div>
+          </AccordionPrimitive.Content>
         )}
       </div>
+    </AccordionItem>
+  )
+}
 
-      {alert.suggestedAction && (
-        <p className="worklist-row-action-line" title={alert.suggestedAction}>
-          <MessageSquareText aria-hidden="true" />
-          <span>{alert.suggestedAction}</span>
+// ── Next up carousel (critique 2026-07-28: widened from a narrow rail list to
+// a full-width horizontal scroller so Kokonut UI's Carousel Cards mechanic --
+// scroll-snap row + chevron buttons -- actually has room to show 3+ cards at
+// once; a single-card-peek carousel in a 360px rail wasn't worth the chevrons
+// it'd need for just 2 events. Cards stay compact (date + title + countdown,
+// no imagery) to keep the strip inside the page's no-scroll budget. ─────────
+function NextUpCard({ event }: { event: NextUpEvent }) {
+  const { day, month } = dayMonthParts(event.date)
+  return (
+    <Link to={`/intelligence?tab=events&event=${event.id}`} className="next-up-card">
+      <div className="next-up-date">
+        <span className="day">{day}</span>
+        <span className="month">{month}</span>
+      </div>
+      <div className="next-up-card-body">
+        <span className="next-up-title">{event.title}</span>
+        <span className="next-up-countdown">{daysUntilLabel(event.date)}</span>
+      </div>
+    </Link>
+  )
+}
+
+function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  function scrollBy(dir: 1 | -1) { scrollRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' }) }
+  return (
+    <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '5px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>Next up</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Button type="button" variant="outline" size="icon-xs" aria-label="Scroll left" onClick={() => scrollBy(-1)}>
+            <ChevronLeft size={13} aria-hidden="true" animateOnHover />
+          </Button>
+          <Button type="button" variant="outline" size="icon-xs" aria-label="Scroll right" onClick={() => scrollBy(1)}>
+            <ChevronRight size={13} aria-hidden="true" animateOnHover />
+          </Button>
+          <Link to="/intelligence?tab=events" style={{ marginLeft: '6px', fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>All</Link>
+        </div>
+      </div>
+      {events.length > 0 ? (
+        <div ref={scrollRef} className="next-up-scroller">
+          {events.map((e) => <NextUpCard key={e.id} event={e} />)}
+        </div>
+      ) : (
+        <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)', fontStyle: 'italic' }}>
+          No upcoming events found.
         </p>
       )}
     </div>
   )
 }
-
-// ── Next up row (condensed) ──────────────────────────────────────────────────
-function NextUpRow({ event }: { event: NextUpEvent }) {
-  const { day, month } = dayMonthParts(event.date)
-  return (
-    <Link to={`/intelligence?tab=events&event=${event.id}`} className="next-up-row">
-      <div className="next-up-date">
-        <span className="day">{day}</span>
-        <span className="month">{month}</span>
-      </div>
-      <span className="next-up-title">{event.title}</span>
-      <span className="next-up-countdown">{daysUntilLabel(event.date)}</span>
-    </Link>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const {
@@ -273,6 +379,7 @@ export default function WarRoom() {
   // the same thing whether the drawer is open or not.
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  const [weatherWindow, setWeatherWindow] = useState<7 | 30 | 90>(90)
 
   const watchedIds = Array.from(watchedCompetitors).sort()
   const filterIds = watchedIds.length > 0 ? watchedIds : undefined
@@ -282,7 +389,7 @@ export default function WarRoom() {
     queryFn: () => Promise.all([
       getRecentSignals(NARRATION_DAYS, filterIds),
       getRegulatoryCalendar(),
-      getMarketImplications(),
+      getMarketImplications(NARRATION_DAYS),
     ]).then(([recent, calendar, implications]) => ({ recent, calendar, implications })),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -346,15 +453,42 @@ export default function WarRoom() {
   // one remove.
   const needsYouCount = dedupedNeedsYou.length
 
-  const worklistItems = [...dedupedNeedsYou]
-    .sort((a, b) => {
-      if (sortMode === 'importance') {
-        const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
-        if (sevDiff !== 0) return sevDiff
+  function sortComparator(a: MappedAlert, b: MappedAlert): number {
+    if (sortMode === 'importance') {
+      const sevDiff = (SEVERITY_RANK[b.severity] ?? 0) - (SEVERITY_RANK[a.severity] ?? 0)
+      if (sevDiff !== 0) return sevDiff
+    }
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  }
+  const sortedNeedsYou = [...dedupedNeedsYou].sort(sortComparator)
+
+  // Cap any single competitor at 2 of the worklist's 6 slots (feedback
+  // 2026-07-28): a pure severity/recency sort let one competitor with
+  // several high-severity items crowd out every other tracked competitor
+  // entirely -- "Takeda most active" in the stat bar with zero Takeda rows
+  // visible below it undermined trust in the list. Two passes over the
+  // already-sorted list preserve rank within each: fill up to the cap per
+  // competitor first, then backfill remaining slots from the overflow
+  // (ignoring the cap) so the list never shows fewer than 6 rows just
+  // because too few competitors have activity. Final re-sort restores the
+  // chosen display order across the now-diverse selection.
+  const WORKLIST_SIZE = 6
+  const PER_COMPETITOR_CAP = 2
+  const worklistItems = (() => {
+    const capped: MappedAlert[] = []
+    const overflow: MappedAlert[] = []
+    const countByCompetitor = new Map<string, number>()
+    for (const a of sortedNeedsYou) {
+      const count = countByCompetitor.get(a.competitorId) ?? 0
+      if (count < PER_COMPETITOR_CAP) {
+        capped.push(a)
+        countByCompetitor.set(a.competitorId, count + 1)
+      } else {
+        overflow.push(a)
       }
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    })
-    .slice(0, 6)
+    }
+    return [...capped, ...overflow].slice(0, WORKLIST_SIZE).sort(sortComparator)
+  })()
   const hiddenCount = Math.max(0, needsYouCount - worklistItems.length)
 
   // Most-active tracked competitor — highest relevant-signal count in the window.
@@ -365,24 +499,30 @@ export default function WarRoom() {
 
   const signalVolume = relevantSignals.length // total in the window; read/unread state lives on the Alerts page, not here
 
-  // Market weather — same pressure computation as before Phase 4 (unchanged).
-  const weatherSeverity = summarizeSeverity(recentLiveSignals, lexicon, new Date())
+  // Market weather — windowed to whatever the card's own 7D/30D/90D toggle
+  // selects (critique 2026-07-28), not hardcoded to the page's NARRATION_DAYS.
+  // Both signals and implications are fetched once at the max (90d) and
+  // filtered client-side per window, same pattern the rest of the page
+  // already uses for relevantSignals -- avoids a refetch on every toggle.
+  const weatherCutoffDate = new Date(); weatherCutoffDate.setDate(weatherCutoffDate.getDate() - weatherWindow)
+  const weatherCutoff = weatherCutoffDate.toISOString().slice(0, 10)
+
+  const windowedMarketSignals = recentLiveSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
+  const weatherSeverity = summarizeSeverity(windowedMarketSignals, lexicon, new Date())
   const pressureState: WeatherState =
     weatherSeverity.high >= 2 ? 'pressure'
     : (weatherSeverity.high >= 1 || weatherSeverity.medium >= 3) ? 'stable'
     : 'clearing'
-  const pressureQualifier = `over the last ${NARRATION_DAYS} days`
+  const pressureQualifier = `over the last ${weatherWindow} days`
 
-  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const cutoff7d = sevenDaysAgo.toISOString().slice(0, 10)
-  const weeklySignalsByCompetitor = new Map<string, DbRecentSignal[]>()
-  for (const s of relevantSignals) {
-    if (s.date === null || s.date < cutoff7d) continue
-    const arr = weeklySignalsByCompetitor.get(s.competitor_id) ?? []
+  const windowedRelevantSignals = relevantSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
+  const windowedSignalsByCompetitor = new Map<string, DbRecentSignal[]>()
+  for (const s of windowedRelevantSignals) {
+    const arr = windowedSignalsByCompetitor.get(s.competitor_id) ?? []
     arr.push(s)
-    weeklySignalsByCompetitor.set(s.competitor_id, arr)
+    windowedSignalsByCompetitor.set(s.competitor_id, arr)
   }
-  const weatherRows: WeatherRow[] = [...weeklySignalsByCompetitor.entries()]
+  const weatherRows: WeatherRow[] = [...windowedSignalsByCompetitor.entries()]
     .slice(0, 5)
     .map(([competitorId, sigs]) => {
       const name = competitorById(competitorId)?.name ?? competitorId
@@ -394,11 +534,12 @@ export default function WarRoom() {
         competitorId,
         count: sigs.length,
         severity: worst,
-        summary: top ? decodeEntities(cleanSignalText(top)) : 'New activity this week.',
+        summary: top ? decodeEntities(cleanSignalText(top)) : `New activity in the last ${weatherWindow} days.`,
       }
     })
 
-  const weatherImplications = marketImplications.slice(0, 3).map((imp) => decodeEntities(imp.content))
+  const windowedImplications = marketImplications.filter((imp) => imp.created_at >= weatherCutoffDate.toISOString())
+  const weatherImplications = windowedImplications.slice(0, 3).map((imp) => decodeEntities(imp.content))
 
   // Upcoming events — merged live EMA calendar + static eventsData, condensed to 3.
   const nowStr = new Date().toISOString().slice(0, 10)
@@ -414,7 +555,7 @@ export default function WarRoom() {
     .map((e) => ({ id: e.id, date: e.date, title: e.title, sourceUrl: e.sourceUrl }))
   const upcomingEvents = [...liveEventItems, ...staticEventItems]
     .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-    .slice(0, 3)
+    .slice(0, 8) // horizontally scrollable now (critique 2026-07-28), not vertically listed -- no longer height-constrained the way the old rail list was
 
   function openInspect(alert: MappedAlert) { setInspecting(alert); setFocusedId(alert.id) }
 
@@ -511,35 +652,39 @@ export default function WarRoom() {
       {/* Header */}
       <div className="war-room-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--ink-600)' }}>
+          <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--neutral-600)' }}>
             {headerTimestamp(lastRefreshedAt)}
           </p>
-          <h1 className="war-room-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--ink-900)', lineHeight: 1.25 }}>
+          <h1 className="war-room-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--neutral-900)', lineHeight: 1.25 }}>
             {greeting()}, {userData.user.name}.{' '}
-            <span style={{ color: 'var(--ink-600)', fontWeight: 500 }}>Here&rsquo;s what needs you in {indication}.</span>
+            <span style={{ color: 'var(--neutral-600)', fontWeight: 500 }}>Here&rsquo;s what needs you in {indication}.</span>
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={() => openAskModal('war-room-header-ask')}
-          className="btn btn-primary btn-sm"
-          style={{ flexShrink: 0, marginTop: '4px' }}
-        >
-          <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
-          Ask Ariya
-        </button>
+        <Shine asChild enableOnHover color="#ffffff" opacity={0.45} duration={700}>
+          <Button
+            type="button"
+            onClick={() => openAskModal('war-room-header-ask')}
+            size="sm"
+            style={{ flexShrink: 0, marginTop: '4px' }}
+          >
+            <Plus size={14} strokeWidth={2.5} aria-hidden="true" animateOnHover />
+            Ask InForm
+          </Button>
+        </Shine>
       </div>
 
       {/* Glass stat bar */}
       <div className="stat-bar" data-tour="war-room">
-        <span
-          className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}
-          title="Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items."
-        >
-          <span className="num">{needsYouCount}</span> need{needsYouCount === 1 ? 's' : ''} you
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}>
+              <span className="num"><CountingNumber number={needsYouCount} /></span> need{needsYouCount === 1 ? 's' : ''} you
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items.</TooltipContent>
+        </Tooltip>
         <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num">{signalVolume}</span> signals · {NARRATION_DAYS}d</span>
+        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} /></span> signals · {NARRATION_DAYS}d</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
           Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
@@ -550,49 +695,47 @@ export default function WarRoom() {
             <span className="stat-bar-item">{mostActiveName} most active</span>
           </>
         )}
-        <Link to="/alerts" className="stat-bar-link">Open Alerts <ArrowRight size={11} aria-hidden="true" /></Link>
+        <Link to="/alerts" className="stat-bar-link">Open Alerts <ArrowRight size={11} aria-hidden="true" animateOnHover /></Link>
       </div>
 
-      {/* Two-column grid: worklist spine + rail */}
-      <div data-war-room-grid style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', gap: '20px', alignItems: 'flex-start' }}>
+      {/* Bento grid: worklist + weather side by side, Next up widened to a
+          full-width carousel row underneath (critique 2026-07-28) — needs
+          the width to show 3+ event cards, which a 360px rail column can't. */}
+      <div
+        data-war-room-grid
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) 360px',
+          gridTemplateRows: 'auto auto',
+          gridTemplateAreas: '"worklist weather" "nextup nextup"',
+          gap: '10px',
+          alignItems: 'start',
+        }}
+      >
 
-        {/* LEFT — worklist */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
+        {/* WORKLIST tile — dominant */}
+        <div style={{ gridArea: 'worklist', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--ink-900)' }}>
-              What needs you
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--neutral-900)' }}>
+              What needs your attention
             </h2>
-            <div className="seg">
-              {([
-                { value: 'importance', label: 'Importance' },
-                { value: 'recency', label: 'Recency' },
-              ] as const).map((opt) => {
-                const on = sortMode === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={`seg-item${on ? ' is-active' : ''}`}
-                    onClick={() => setSortMode(opt.value)}
-                    aria-pressed={on}
-                    style={{ border: 'none', background: on ? undefined : 'transparent' }}
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+            <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as 'importance' | 'recency')}>
+              <TabsList aria-label="Sort worklist by" style={{ height: '26px', padding: '2px' }}>
+                <TabsTrigger value="importance" style={{ fontSize: '12px', padding: '0 10px' }}>Importance</TabsTrigger>
+                <TabsTrigger value="recency" style={{ fontSize: '12px', padding: '0 10px' }}>Recency</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {liveDataFailed ? (
-            <div className="digest-plate worklist-empty" style={NEU_PLATE_STYLE}>
+            <div className="digest-plate worklist-empty" style={FLAT_CARD_STYLE}>
               <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
               <h3>Couldn&rsquo;t load your worklist</h3>
               <p>Check your connection and try again.</p>
-              <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: '12px' }} onClick={() => refetch()}>Retry</button>
+              <Button type="button" size="sm" style={{ marginTop: '12px' }} onClick={() => refetch()}>Retry</Button>
             </div>
           ) : showSkeleton ? (
-            <div className="digest-plate worklist-plate" style={NEU_PLATE_STYLE} aria-busy="true" aria-label="Loading worklist">
+            <div className="digest-plate worklist-plate" style={FLAT_CARD_STYLE} aria-busy="true" aria-label="Loading worklist">
               {[0, 1, 2].map((i) => (
                 <div className="worklist-row" key={i}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -604,21 +747,23 @@ export default function WarRoom() {
               ))}
             </div>
           ) : worklistItems.length > 0 ? (
-            <div className="digest-plate worklist-plate" style={NEU_PLATE_STYLE}>
-              {worklistItems.map((alert) => (
-                <WorklistRow
-                  key={alert.id}
-                  alert={alert}
-                  state={getHandlingState(alert.id)}
-                  resolving={resolvingIds.has(alert.id)}
-                  rowRef={(el) => { if (el) rowRefs.current.set(alert.id, el); else rowRefs.current.delete(alert.id) }}
-                  onStateChange={(s) => handleChange(alert.id, s)}
-                  onInspect={() => openInspect(alert)}
-                />
-              ))}
+            <div className="digest-plate worklist-plate" style={FLAT_CARD_STYLE}>
+              <Accordion type="multiple">
+                {worklistItems.map((alert) => (
+                  <WorklistRow
+                    key={alert.id}
+                    alert={alert}
+                    state={getHandlingState(alert.id)}
+                    resolving={resolvingIds.has(alert.id)}
+                    rowRef={(el) => { if (el) rowRefs.current.set(alert.id, el); else rowRefs.current.delete(alert.id) }}
+                    onStateChange={(s) => handleChange(alert.id, s)}
+                    onInspect={() => openInspect(alert)}
+                  />
+                ))}
+              </Accordion>
             </div>
           ) : (
-            <div className="digest-plate worklist-empty" style={NEU_PLATE_STYLE}>
+            <div className="digest-plate worklist-empty" style={FLAT_CARD_STYLE}>
               <div className="icon-circle"><Inbox size={26} aria-hidden="true" /></div>
               <h3>You&rsquo;re caught up</h3>
               <p>
@@ -635,36 +780,26 @@ export default function WarRoom() {
           )}
         </div>
 
-        {/* RIGHT — rail */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-          <div className="inf-raised-lg">
-            <MarketWeather
-              asset={assetName}
-              isLive={liveDataLoaded}
-              state={pressureState}
-              qualifier={pressureQualifier}
-              timeframe="90D"
-              rows={weatherRows}
-              rowsEmptyMessage={watchedCompetitors.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.'}
-              implications={weatherImplications}
-              readMoreTo="/alerts"
-              compact
-            />
-          </div>
+        {/* WEATHER tile */}
+        <div className="inf-raised-lg" style={{ gridArea: 'weather', minWidth: 0 }}>
+          <MarketWeather
+            asset={assetName}
+            isLive={liveDataLoaded}
+            state={pressureState}
+            qualifier={pressureQualifier}
+            timeframe={(`${weatherWindow}D` as '7D' | '30D' | '90D')}
+            onTimeframeChange={(tf) => setWeatherWindow(Number(tf.slice(0, -1)) as 7 | 30 | 90)}
+            rows={weatherRows}
+            rowsEmptyMessage={watchedCompetitors.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.'}
+            implications={weatherImplications}
+            readMoreTo="/alerts"
+            compact
+          />
+        </div>
 
-          <div className="digest-plate" style={{ ...NEU_PLATE_STYLE, padding: '16px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--ink-900)' }}>Next up</h2>
-              <Link to="/intelligence?tab=events" style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>All</Link>
-            </div>
-            {upcomingEvents.length > 0 ? (
-              upcomingEvents.map((e) => <NextUpRow key={e.id} event={e} />)
-            ) : (
-              <p style={{ margin: '8px 0 0', fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
-                No upcoming events found.
-              </p>
-            )}
-          </div>
+        {/* NEXT UP — full-width horizontal carousel, spans both columns */}
+        <div style={{ gridArea: 'nextup', minWidth: 0 }}>
+          <NextUpCarousel events={upcomingEvents} />
         </div>
       </div>
 
@@ -672,35 +807,33 @@ export default function WarRoom() {
         {inspecting && (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
-              <button
-                type="button" className="alert-row-action" title="Previous (↑)" aria-label="Previous signal"
+              <Button
+                type="button" variant="ghost" size="icon-xs" title="Previous (↑)" aria-label="Previous signal"
                 disabled={drawerIndex <= 0}
                 onClick={() => goToAdjacent(-1)}
-                style={drawerIndex <= 0 ? { opacity: 0.35, cursor: 'default' } : undefined}
               >
-                <ChevronUp size={14} aria-hidden="true" />
-              </button>
-              <button
-                type="button" className="alert-row-action" title="Next (↓)" aria-label="Next signal"
+                <ChevronUp size={14} aria-hidden="true" animateOnHover />
+              </Button>
+              <Button
+                type="button" variant="ghost" size="icon-xs" title="Next (↓)" aria-label="Next signal"
                 disabled={drawerIndex === -1 || drawerIndex >= worklistItems.length - 1}
                 onClick={() => goToAdjacent(1)}
-                style={drawerIndex === -1 || drawerIndex >= worklistItems.length - 1 ? { opacity: 0.35, cursor: 'default' } : undefined}
               >
-                <ChevronDown size={14} aria-hidden="true" />
-              </button>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
+                <ChevronDown size={14} aria-hidden="true" animateOnHover />
+              </Button>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', color: 'var(--neutral-600)' }}>
                 {drawerIndex + 1} of {worklistItems.length}
               </span>
             </div>
             <AlertDetail alert={inspecting} />
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--cream-300)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button" className="btn btn-secondary btn-sm"
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Button
+                type="button" variant="secondary" size="sm"
                 onClick={() => toggleSavedAlert(inspecting.id)}
               >
                 {savedAlerts.has(inspecting.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                 {savedAlerts.has(inspecting.id) ? 'Saved' : 'Save'}
-              </button>
+              </Button>
               <HandleMenu current={getHandlingState(inspecting.id)} onChange={(s) => handleChange(inspecting.id, s)} />
             </div>
           </>

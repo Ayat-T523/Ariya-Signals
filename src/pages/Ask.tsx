@@ -51,7 +51,7 @@ function QuestionCard({ question, category, onOpen, index }) {
       {/* Separator — matches project standard */}
       <div style={{ height: '1px', background: 'rgba(5,10,68,0.06)' }} />
 
-      {/* Footer: category tag + Try Prompt */}
+      {/* Footer: category tag + Ask */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '11px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.50)' }}>
           {category}
@@ -61,7 +61,7 @@ function QuestionCard({ question, category, onOpen, index }) {
           onClick={() => {
             const promptId = `ask-q-${category.toLowerCase().replace(/\s+/g, '-')}-${index}`
             analytics.ariya_prompt_clicked(promptId, question)
-            onOpen(promptId)
+            onOpen(promptId, question)
           }}
           style={{
             padding: '3px 8px',
@@ -70,7 +70,7 @@ function QuestionCard({ question, category, onOpen, index }) {
             color: '#FFFFFF', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
-          Try Prompt
+          Ask
         </button>
       </div>
     </div>
@@ -79,26 +79,43 @@ function QuestionCard({ question, category, onOpen, index }) {
 
 // ── Chat input — Figma 1697-43844 ─────────────────────────────────────────────
 function ChatInput({ onOpen }) {
+  const [value, setValue] = useState('')
+
+  function submit() {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    analytics.ariya_prompt_clicked('ask-page-input', trimmed)
+    onOpen('ask-page-input', trimmed)
+    setValue('')
+  }
+
   return (
     <div
-      onClick={() => onOpen('ask-page-input')}
       style={{
         background: '#FFFFFF',
         border: '0.8px solid #2A76F4',
         borderRadius: '16px',
         padding: '12px 18px',
-        cursor: 'text',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
         boxShadow: '0px 0px 36px rgba(42,118,244,0.20), 0px 0px 4px rgba(42,118,244,0.35)',
       }}
     >
-      {/* Row 1: placeholder text */}
+      {/* Row 1: text input */}
       <div style={{ padding: '6px 0' }}>
-        <p style={{ margin: 0, fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#7F7F7F', lineHeight: '21px' }}>
-          Start interacting by typing or speaking here...
-        </p>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+          placeholder="Ask about your competitive landscape..."
+          style={{
+            width: '100%', margin: 0, padding: 0,
+            border: 'none', outline: 'none', background: 'transparent',
+            fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#10224A', lineHeight: '21px',
+          }}
+        />
       </div>
 
       {/* Row 2: source controls + action buttons */}
@@ -120,7 +137,7 @@ function ChatInput({ onOpen }) {
           }}>
             <Sparkles size={12} color="#2A76F4" strokeWidth={1.5} />
             <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#2A76F4', lineHeight: '21px' }}>
-              Ariya Signals
+              InForm
             </span>
           </div>
         </div>
@@ -132,10 +149,16 @@ function ChatInput({ onOpen }) {
           }}>
             <Mic size={15} color="rgba(5,10,68,0.45)" />
           </button>
-          <button type="button" style={{
-            width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: '#2A76F4', border: 'none', cursor: 'pointer', borderRadius: '6px',
-          }}>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!value.trim()}
+            style={{
+              width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: '#2A76F4', border: 'none', cursor: 'pointer', borderRadius: '6px',
+              opacity: value.trim() ? 1 : 0.4,
+            }}
+          >
             <Send size={12} color="#FFFFFF" />
           </button>
         </div>
@@ -189,7 +212,7 @@ export default function Ask() {
 
       {/* Description */}
       <p style={{ margin: '0 0 24px', fontSize: '14px', fontFamily: 'Inter, sans-serif', color: '#434c5b', lineHeight: '1.5' }}>
-        Ask anything about your competitive landscape — illustrative in this prototype.
+        Ask anything about your competitive landscape.
       </p>
 
       {/* Chat input */}
@@ -244,9 +267,8 @@ export default function Ask() {
       }}>
         <Sparkles size={14} color="#2A76F4" strokeWidth={1.5} style={{ marginTop: '2px', flexShrink: 0 }} />
         <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#434c5b', lineHeight: '1.55' }}>
-          <strong style={{ fontWeight: 600, color: '#2A76F4' }}>AI summary (illustrative).</strong>
-          {' '}Answers are grounded in your curated CI data and analyst-reviewed sources.
-          All content shown here is illustrative.
+          <strong style={{ fontWeight: 600, color: '#2A76F4' }}>How this works.</strong>
+          {' '}Answers are generated locally by {DEMO.appName}'s AI, grounded in your tracked competitor signals.
         </p>
       </div>
 

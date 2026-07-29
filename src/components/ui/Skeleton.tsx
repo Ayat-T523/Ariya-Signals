@@ -394,7 +394,7 @@ export function SkeletonPortalList({ count = 5 }: { count?: number }) {
   )
 }
 
-// ── Ask Ariya response text (AskModal) ────────────────────────────────────────
+// ── Ask InForm response text (AskModal) ────────────────────────────────────────
 export function SkeletonAskResponse() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

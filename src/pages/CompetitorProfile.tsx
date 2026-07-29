@@ -5,6 +5,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useCompetitorSupabase } from '../hooks/useCompetitorSupabase'
 
 import { ChevronLeft, Eye } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
 import { ExportButton } from '../components/ui/ExportButton'
 import NotFoundState from '../components/ui/NotFoundState'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
@@ -24,57 +25,25 @@ const TABS = [
 ]
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
-function TabBar({ activeTab, onChange, competitorId }) {
-  function handleKeyDown(e: React.KeyboardEvent, i: number) {
-    if (e.key === 'ArrowRight') { e.preventDefault(); onChange((i + 1) % TABS.length) }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); onChange((i - 1 + TABS.length) % TABS.length) }
-    if (e.key === 'Home')       { e.preventDefault(); onChange(0) }
-    if (e.key === 'End')        { e.preventDefault(); onChange(TABS.length - 1) }
-  }
+function TabBar({ activeTab, onChange, competitorId }: { activeTab: number; onChange: (i: number) => void; competitorId?: string }) {
   return (
-    <div
-      role="tablist"
-      aria-label="Competitor profile sections"
-      style={{
-        display: 'flex',
-        padding: '0 36px',
-        borderBottom: '2px solid rgba(5,10,68,0.06)',
-      }}
-    >
-      {TABS.map((tab, i) => {
-        const isActive = activeTab === i
-        return (
-          <button
-            key={tab.label}
-            id={tab.id}
-            role="tab"
-            aria-selected={isActive}
-            aria-controls={tab.panelId}
-            tabIndex={isActive ? 0 : -1}
-            onClick={() => {
-              onChange(i)
-              analytics.competitor_tab_viewed(tab.label, competitorId)
-            }}
-            onKeyDown={(e) => handleKeyDown(e, i)}
-            style={{
-              padding: '10px 20px',
-              fontSize: '14px',
-              fontFamily: 'Satoshi, sans-serif',
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? '#434c5b' : 'rgba(5,10,68,0.55)',
-              background: 'none',
-              border: 'none',
-              borderBottom: isActive ? '2px solid #434c5b' : '2px solid transparent',
-              marginBottom: '-2px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'color 150ms ease',
-            }}
-          >
-            {tab.label}
-          </button>
-        )
-      })}
+    <div style={{ padding: '10px 36px 12px' }}>
+      <Tabs
+        value={String(activeTab)}
+        onValueChange={(v) => {
+          const i = Number(v)
+          onChange(i)
+          analytics.competitor_tab_viewed(TABS[i].label, competitorId)
+        }}
+      >
+        <TabsList aria-label="Competitor profile sections" style={{ height: '34px' }}>
+          {TABS.map((tab, i) => (
+            <TabsTrigger key={tab.label} value={String(i)} id={tab.id} aria-controls={tab.panelId} style={{ fontSize: '13px', padding: '0 14px' }}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
     </div>
   )
 }

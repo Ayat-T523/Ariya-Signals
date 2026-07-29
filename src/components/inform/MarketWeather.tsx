@@ -7,6 +7,7 @@ import { TrendingUp, ArrowRight, TrendingDown, AlertTriangle } from 'lucide-reac
 import CompetitorBadge from '../ui/CompetitorBadge'
 import { SeverityDot } from './primitives'
 import type { WeatherRow, WeatherState } from './types'
+import { Tabs, TabsList, TabsTrigger } from '../animate-ui/components/radix/tabs'
 
 const STATE_META: Record<WeatherState, { label: string; icon: typeof TrendingUp; color: string }> = {
   clearing: { label: 'Clearing', icon: TrendingUp, color: 'var(--sage-600)' },
@@ -20,8 +21,8 @@ export interface MarketWeatherProps {
   isLive?: boolean
   state: WeatherState
   qualifier: string
-  timeframe: '30D' | '90D'
-  onTimeframeChange?: (tf: '30D' | '90D') => void
+  timeframe: '7D' | '30D' | '90D'
+  onTimeframeChange?: (tf: '7D' | '30D' | '90D') => void
   rows: WeatherRow[]
   rowsEmptyMessage?: string
   /** Single takeaway. Use `implications` instead to show a short capped list (e.g. the War
@@ -51,13 +52,15 @@ export function MarketWeather({
           {isLive && <span className="mw-live-dot" title="Live data" />}
         </div>
         {onTimeframeChange && (
-          <div className="mw-timeframe" role="tablist" aria-label="Timeframe">
-            {(['30D', '90D'] as const).map(tf => (
-              <button key={tf} type="button" role="tab" aria-selected={timeframe === tf} className={timeframe === tf ? 'active' : ''} onClick={() => onTimeframeChange(tf)}>
-                {tf}
-              </button>
-            ))}
-          </div>
+          <Tabs value={timeframe} onValueChange={(v) => onTimeframeChange(v as '7D' | '30D' | '90D')}>
+            <TabsList aria-label="Timeframe" style={{ height: '26px', padding: '2px' }}>
+              {(['7D', '30D', '90D'] as const).map(tf => (
+                <TabsTrigger key={tf} value={tf} style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 600, padding: '0 8px' }}>
+                  {tf}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         )}
       </div>
 
@@ -68,7 +71,7 @@ export function MarketWeather({
       </div>
 
       <div>
-        <div className="mw-section-label">What moved this week</div>
+        <div className="mw-section-label">What moved in {timeframe.toLowerCase()}</div>
         {rows.length === 0 ? (
           <div className="mw-empty"><p>{rowsEmptyMessage ?? 'Not enough signal yet — check back as data builds.'}</p></div>
         ) : (

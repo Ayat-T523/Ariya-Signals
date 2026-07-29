@@ -3,7 +3,7 @@
  * Matches Figma node 77:1956 (file IXHI4HJFuZpw5hPMrv7DVb).
  *
  * Layout:
- *   [page title 32px Satoshi Medium] [stats row 14px]   [Ask Ariya CTA →]
+ *   [page title 32px Satoshi Medium] [stats row 14px]   [Ask InForm CTA →]
  *   [illustrative data ribbon]
  *
  * Rules:
@@ -25,7 +25,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/market-performance':  'Market Performance',
   '/pricing':             'Pricing and Access',
   '/alerts':              'Alerts',
-  '/ask':                 'Ask Ariya',
+  '/ask':                 'Ask InForm',
   '/myspace':             'My Space',
   '/myspace/alerts':      'My Alerts',
   '/myspace/documents':   'My Documents',
@@ -35,7 +35,7 @@ const PAGE_TITLES: Record<string, string> = {
 function getPageTitle(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
   if (pathname.startsWith('/competitors/')) return 'Competitor Profile'
-  return 'Ariya Signals'
+  return 'InForm'
 }
 
 // ── Per-page subtitle stats (hard-coded from demo snapshot 2026-04-21) ────────
@@ -77,12 +77,12 @@ function StaticAskButton({ onClick }: { onClick: () => void }) {
         flexShrink: 0,
       }}
     >
-      Ask Ariya
+      Ask InForm
     </button>
   )
 }
 
-function AskAriyaButton({ onClick }: { onClick: () => void }) {
+function AskInFormButton({ onClick }: { onClick: () => void }) {
   return <StaticAskButton onClick={onClick} />
 }
 
@@ -110,9 +110,9 @@ export default function TopBar() {
   // War Room renders its own greeting header in-page — suppress the global title row
   const isWarRoom = location.pathname === '/'
 
-  // On the Ask Ariya page itself, the Ask Ariya button is redundant
+  // On the Ask InForm page itself, the Ask InForm button is redundant
   const isAskPage     = location.pathname === '/ask'
-  // My Space is a settings/config screen — Ask Ariya not needed there
+  // My Space is a settings/config screen — Ask InForm not needed there
   const isMySpacePage = location.pathname === '/myspace'
 
   const pageSubtitle = getPageSubtitle(location.pathname, assetName, indication, watchedCompetitors.size)
@@ -172,9 +172,9 @@ export default function TopBar() {
             )}
           </div>
 
-          {/* Right — Ask Ariya CTA (hidden on Ask page and My Space) */}
+          {/* Right — Ask InForm CTA (hidden on Ask page and My Space) */}
           {!isAskPage && !isMySpacePage && (
-            <AskAriyaButton onClick={() => navigate('/ask')} />
+            <AskInFormButton onClick={() => navigate('/ask')} />
           )}
         </div>
       )}

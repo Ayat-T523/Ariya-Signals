@@ -1,0 +1,67 @@
+/* ==========================================================
+   shadcn/Radix/Tremor/Animate UI/Kokonut UI — token bridge
+
+   These registries expect a standard set of CSS variable names
+   (--background, --primary, --radius, etc.) and reference them via
+   Tailwind v4 utility classes (bg-primary, text-muted-foreground) and
+   raw var() calls. Rather than accept each registry's own default
+   palette, every value here points at the existing Clean Clinical
+   tokens in inform-tokens.css (see DESIGN.md) -- so components pulled
+   from these registries render in-system from the moment they're
+   added, not in generic shadcn zinc/slate.
+
+   Radius is intentionally uniform at 4px (--r-flat-control) here --
+   that's correct for the controls this bridge mostly serves (buttons,
+   inputs, badges). Content-level surfaces (Card, Table, Sidebar panel)
+   should override to 0 (--r-flat-content) per DESIGN.md's "content
+   area is sharp-cornered, not just flat" rule -- add rounded-none (or
+   the component's own radius prop) at the call site, not here.
+   ========================================================== */
+
+@theme inline {
+  --color-background: var(--white);
+  --color-foreground: var(--neutral-900);
+
+  --color-card: var(--white);
+  --color-card-foreground: var(--neutral-900);
+  --color-popover: var(--white);
+  --color-popover-foreground: var(--neutral-900);
+
+  --color-primary: var(--indigo-600);
+  --color-primary-foreground: var(--white);
+
+  --color-secondary: var(--neutral-100);
+  --color-secondary-foreground: var(--neutral-900);
+
+  --color-muted: var(--neutral-100);
+  --color-muted-foreground: var(--neutral-600);
+
+  --color-accent: var(--indigo-050);
+  --color-accent-foreground: var(--indigo-600);
+
+  --color-destructive: var(--crimson-600);
+  --color-destructive-foreground: var(--white);
+
+  --color-border: var(--border-default);
+  --color-input: var(--neutral-300);
+  --color-ring: var(--indigo-500);
+
+  --radius: 4px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-mono);
+
+  /* Animate UI / shadcn Sidebar */
+  --color-sidebar: var(--white);
+  --color-sidebar-foreground: var(--neutral-600);
+  --color-sidebar-primary: var(--indigo-600);
+  --color-sidebar-primary-foreground: var(--white);
+  --color-sidebar-accent: var(--indigo-050);
+  --color-sidebar-accent-foreground: var(--indigo-600);
+  --color-sidebar-border: var(--border-default);
+  --color-sidebar-ring: var(--indigo-500);
+}

@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { REDUCED_MOTION } from '../lib/motion'
 import {
   CalendarDays, TrendingUp,
   Users, ChevronDown,
   DollarSign, Landmark, Star, AlertCircle,
   ExternalLink, Clock,
 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import { usePageLoad } from '../hooks/usePageLoad'
@@ -349,50 +351,44 @@ const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: numb
 
 const TAB_COUNTS = [eventsData.length, marketData.length]
 
-function TabBar({ active, onChange }) {
+function TabBar({ active, onChange }: { active: number; onChange: (i: number) => void }) {
   return (
-    <div className="tabs-line" style={{ padding: '0 36px', background: 'var(--cream-100)' }}>
-      {TABS.map(({ label, icon: TabIcon, disabled, disabledLabel }, i) => {
-        const isActive = active === i
-        return (
-          <button
-            key={label}
-            type="button"
-            className={`tab${isActive ? ' is-active' : ''}`}
-            onClick={disabled ? undefined : () => onChange(i)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
-              opacity: disabled ? 0.55 : 1,
-            }}
-          >
-            {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} aria-hidden="true" />}
-            {label}
-            {disabledLabel ? (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                padding: '1px 7px', borderRadius: 'var(--r-pill)',
-                background: 'var(--cream-300)', color: 'var(--ink-600)',
-                fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ui)', lineHeight: 1,
-              }}>
-                <Clock size={9} aria-hidden="true" />
-                {disabledLabel}
-              </span>
-            ) : (
-              <span className="num" style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: '22px', height: '18px', padding: '0 4px',
-                borderRadius: 'var(--r-xs)',
-                background: isActive ? 'var(--indigo-050)' : 'var(--cream-300)',
-                color: isActive ? 'var(--indigo-600)' : 'var(--ink-700)',
-                fontSize: '12px', fontWeight: 500, lineHeight: 1,
-              }}>
-                {String(TAB_COUNTS[i]).padStart(2, '0')}
-              </span>
-            )}
-          </button>
-        )
-      })}
+    <div style={{ padding: '10px 36px' }}>
+      <Tabs value={String(active)} onValueChange={(v) => onChange(Number(v))}>
+        <TabsList aria-label="Intelligence feed section" style={{ height: '34px' }}>
+          {TABS.map(({ label, icon: TabIcon, disabled, disabledLabel }, i) => {
+            const isActive = active === i
+            return (
+              <TabsTrigger key={label} value={String(i)} disabled={disabled} style={{ gap: '6px', padding: '0 14px', fontSize: '13px' }}>
+                {TabIcon && <TabIcon size={14} strokeWidth={isActive ? 2 : 1.5} aria-hidden="true" />}
+                {label}
+                {disabledLabel ? (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                    padding: '1px 7px', borderRadius: 'var(--r-pill)',
+                    background: 'var(--neutral-100)', color: 'var(--neutral-600)',
+                    fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ui)', lineHeight: 1,
+                  }}>
+                    <Clock size={9} aria-hidden="true" />
+                    {disabledLabel}
+                  </span>
+                ) : (
+                  <span className="num" style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: '22px', height: '18px', padding: '0 4px',
+                    borderRadius: 'var(--r-xs)',
+                    background: isActive ? 'var(--indigo-050)' : 'var(--neutral-100)',
+                    color: isActive ? 'var(--indigo-600)' : 'var(--neutral-600)',
+                    fontSize: '12px', fontWeight: 500, lineHeight: 1,
+                  }}>
+                    {String(TAB_COUNTS[i]).padStart(2, '0')}
+                  </span>
+                )}
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+      </Tabs>
     </div>
   )
 }
@@ -548,16 +544,53 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
   )
 }
 
-function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
+// ── Grouped daily digest (critique 2026-07-28) ───────────────────────────────
+// Replaces the old one-full-card-per-event list: a plate of hairline rows,
+// grouped under a bold day heading, same shell as DigestFeed's competitor-
+// grouped variant (.digest-plate/.digest-group/.digest-row in inform-theme.css)
+// — reusing that visual pattern rather than inventing a second "grouped list"
+// language. A row shows only what's needed to scan and decide whether to open
+// it; everything EventCard used to always render (CI significance, attending
+// badges, expected topics, annotations, notes) moves into the expand-in-place
+// body below it.
+//
+// The expand mechanic is framer-motion (AnimatePresence + animate to
+// height:'auto'), NOT DigestRow's `.digest-expand-wrap` CSS grid-template-rows
+// 0fr/1fr trick. Direct measurement (disabling the transition and forcing
+// reflow, then testing the same CSS classes in complete isolation outside
+// React) showed that trick does not reliably collapse to 0 in this app's
+// current environment even with min-height:0 present on the grid item — it
+// settles at a content-dependent floor instead (e.g. ~32px for this
+// component's content, ~24px for DigestRow's). That may be worth revisiting
+// for DigestRow/SignalCard too, but wasn't re-litigated here; framer-motion's
+// height:'auto' animation is a proven, already-used-elsewhere (SlideOver)
+// dependency that measures real content height itself instead of depending on
+// this CSS-only technique.
+
+function dayLabel(dateStr: string, todayStr: string): string {
+  const diffDays = Math.round((new Date(`${dateStr}T00:00:00Z`).getTime() - new Date(`${todayStr}T00:00:00Z`).getTime()) / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Tomorrow'
+  if (diffDays === -1) return 'Yesterday'
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+function groupByDay(events: any[]): { dateStr: string; label: string; events: any[] }[] {
+  const todayStr = TODAY.toISOString().substring(0, 10)
+  const order: string[] = []
+  const map = new Map<string, any[]>()
+  for (const e of events) {
+    const key = e.date.substring(0, 10)
+    if (!map.has(key)) { map.set(key, []); order.push(key) }
+    map.get(key)!.push(e)
+  }
+  return order.map((dateStr) => ({ dateStr, label: dayLabel(dateStr, todayStr), events: map.get(dateStr)! }))
+}
+
+function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations, isOpen, onToggle }) {
   const { indication } = useConfig()
   const past = Boolean(pastVariant)
   const isMultiDay = Boolean(event.endDate)
-  const dateLabel = isMultiDay
-    ? `${formatDateAbs(event.date)} – ${formatDateAbs(event.endDate)}`
-    : formatDateAbs(event.date)
-  const locationStr = event.location && event.location !== 'Virtual'
-    ? ` · ${event.location}`
-    : event.location === 'Virtual' ? ' · Virtual' : ''
   const typeCfg = EVENT_TYPE[event.type] || { label: event.type, bg: 'var(--cream-300)', text: 'var(--ink-600)', icon: null }
   const TypeIcon = typeCfg.icon
   const noteText = (event as any).note ?? null
@@ -567,207 +600,163 @@ function EventCard({ event, pastVariant, cardRef, flashing, showAnnotations }) {
     ? Math.round((new Date(event.endDate).getTime() - new Date(event.date).getTime()) / 86400000) + 1
     : null
   const isVirtualLoc = /^(Virtual|Online|Broadcast)$/i.test(((event as any).location ?? '').trim())
+  const locationStr = event.location && !isVirtualLoc ? event.location : event.location === 'Virtual' ? 'Virtual' : null
   const sourceUrl    = (event as any).sourceUrl ?? null
   const isIllustrative = (event as any).sourceType === 'illustrative'
   const showSource   = Boolean(sourceUrl && !isIllustrative)
+  const attending: string[] = event.attendingCompetitors ?? []
+
+  const hasExpandableContent = Boolean(
+    ciSignificance || annotation?.whyRelevant || noteText || attending.length > 0 ||
+    event.expectedTopics?.length > 0 || (showAnnotations && (annotation?.expect || annotation?.surprise))
+  )
 
   return (
-    <div
-      ref={cardRef}
-      style={{
-        padding: '14px 16px',
-        display: 'flex', flexDirection: 'column', gap: '10px',
-        opacity: past ? 0.65 : 1,
-        background: flashing ? 'var(--indigo-050)' : 'transparent',
-        transition: 'background 350ms ease',
-        scrollMarginTop: '80px',
-      }}
-    >
-      {/* Row 1: type pill (left) + live/illustrative badge + date/location (right) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '2px 9px', borderRadius: 'var(--r-pill)',
-            fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ui)',
-            background: typeCfg.bg, color: typeCfg.text,
-            whiteSpace: 'nowrap',
-          }}>
-            {TypeIcon && <TypeIcon size={10} aria-hidden="true" />}
-            {typeCfg.label}
-          </span>
+    <div ref={cardRef} style={{ scrollMarginTop: '80px', background: flashing ? 'var(--indigo-050)' : 'transparent', transition: 'background 350ms ease' }}>
+      <button
+        type="button"
+        className="digest-row"
+        aria-expanded={hasExpandableContent ? isOpen : undefined}
+        onClick={() => hasExpandableContent && onToggle()}
+        style={{ cursor: hasExpandableContent ? 'pointer' : 'default', opacity: past ? 0.65 : 1 }}
+      >
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+          padding: '2px 8px', borderRadius: 'var(--r-pill)',
+          fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-ui)',
+          background: typeCfg.bg, color: typeCfg.text, whiteSpace: 'nowrap',
+        }}>
+          {TypeIcon && <TypeIcon size={9} aria-hidden="true" />}
+          {typeCfg.label}
+        </span>
+
+        <span className="headline">{event.title}</span>
+
+        <span className="row-meta">
+          {durationDays && durationDays > 1 && <span>{durationDays}d</span>}
           {(event as any)._isLive && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '4px',
-              padding: '2px 8px', borderRadius: 'var(--r-pill)',
-              fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-ui)',
-              background: 'var(--sage-050)', color: 'var(--sage-600)',
-              whiteSpace: 'nowrap',
-            }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--sage-600)', fontWeight: 700 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--sage-600)', display: 'inline-block', flexShrink: 0 }} />
               EMA
             </span>
           )}
-          {(event as any).sourceType === 'illustrative' && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: 'var(--r-pill)',
-              fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-ui)',
-              background: 'var(--amber-050)', color: 'var(--amber-800)',
-              whiteSpace: 'nowrap',
-            }}>
-              Illustrative
+          {isIllustrative && <span style={{ color: 'var(--amber-800)', fontWeight: 600 }}>Illustrative</span>}
+          {attending.length > 0 && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+              {attending.slice(0, 3).map((id) => <CompetitorBadge key={id} name={competitorName(id)} size={16} />)}
+              {attending.length > 3 && <span style={{ fontSize: '11px' }}>+{attending.length - 3}</span>}
             </span>
           )}
-          {durationDays && durationDays > 1 && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              padding: '2px 8px', borderRadius: 'var(--r-pill)',
-              fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ui)',
-              background: 'var(--cream-300)', color: 'var(--ink-600)',
-              whiteSpace: 'nowrap',
-            }}>
-              {durationDays}-day event
-            </span>
+          {hasExpandableContent && (
+            <ChevronDown size={12} strokeWidth={2} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease', flexShrink: 0 }} aria-hidden="true" />
           )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', whiteSpace: 'nowrap' }}>
-            {dateLabel}{isVirtualLoc ? '' : locationStr}
-          </span>
-          {showSource && (
-            <a
-              href={sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                fontSize: '11px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-600)',
-                textDecoration: 'none', whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--indigo-600)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-600)')}
+        </span>
+      </button>
+
+      {hasExpandableContent && (
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              key="content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: REDUCED_MOTION ? 0 : 0.2, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: 'hidden', margin: '0 var(--s-5)' }}
             >
-              Source <ExternalLink size={10} aria-hidden="true" />
-            </a>
-          )}
-        </div>
-      </div>
+          <div className="signal-excerpt" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-3)', marginBottom: 'var(--s-2)' }}>
 
-      {/* Row 2: title */}
-      <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--ink-900)', lineHeight: '1.4' }}>
-        {event.title}
-        {past && <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 400, color: 'var(--ink-600)' }}>(past)</span>}
-      </p>
+            {/* Date/location/source — the info the dense row omits */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)' }}>
+                {isMultiDay ? `${formatDateAbs(event.date)} – ${formatDateAbs(event.endDate)}` : formatDateAbs(event.date)}
+                {locationStr ? ` · ${locationStr}` : ''}
+              </span>
+              {showSource && (
+                <a
+                  href={sourceUrl} target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', fontWeight: 500, fontFamily: 'var(--font-ui)', color: 'var(--ink-600)', textDecoration: 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--indigo-600)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-600)')}
+                >
+                  Source <ExternalLink size={10} aria-hidden="true" />
+                </a>
+              )}
+            </div>
 
-      {/* Row 2b: CI significance — only when no note is present */}
-      {ciSignificance && (
-        <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-700)', lineHeight: '1.55' }}>
-          {ciSignificance}
-        </p>
-      )}
+            {ciSignificance && (
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink-700)', lineHeight: '1.55' }}>{ciSignificance}</p>
+            )}
 
-      {/* Row 3: Attending badges */}
-      {event.attendingCompetitors?.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontWeight: 500 }}>Attending</span>
-          {event.attendingCompetitors.map((id) => (
-            <CompetitorBadge key={id} name={competitorName(id)} size={18} />
-          ))}
-        </div>
-      )}
+            {attending.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', color: 'var(--ink-600)', fontWeight: 500 }}>Attending</span>
+                {attending.map((id) => <CompetitorBadge key={id} name={competitorName(id)} size={18} />)}
+              </div>
+            )}
 
-      {/* Row 4: Expected topics */}
-      {event.expectedTopics?.length > 0 && (
-        <div>
-          <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-            Expected topics
-          </p>
-          <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
-            {event.expectedTopics.map((topic, i) => (
-              <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{topic}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+            {event.expectedTopics?.length > 0 && (
+              <div>
+                <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
+                  Expected topics
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '16px', listStyleType: 'disc' }}>
+                  {event.expectedTopics.map((topic, i) => (
+                    <li key={i} style={{ fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{topic}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-      {/* Row 4b: Synthesized annotation — why relevant, + actionable follow-up when present.
-          Body text matches Expected Topics (14px) — this is the product's stated differentiator
-          (asset-aware "why it matters"), not a footnote, so it shouldn't read smaller than a plain
-          topic list. Illustrative/hypothetical events get an amber tint + inline "· Illustrative"
-          tag on the label itself, so the register reads correctly at the point of reading, not
-          only via the disconnected Row 1 pill (critique 2026-07-26, P1). */}
-      {annotation?.whyRelevant && (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <div style={{
-            flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)',
-            background: isIllustrative ? 'var(--amber-050)' : 'var(--indigo-050)',
-          }}>
-            <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
-              Why this is relevant{isIllustrative ? ' · Illustrative' : ''}
-            </p>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
-              {annotation.whyRelevant}
-            </p>
+            {/* Synthesized annotation — why relevant, + actionable follow-up when present. */}
+            {annotation?.whyRelevant && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: isIllustrative ? 'var(--amber-050)' : 'var(--indigo-050)' }}>
+                  <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
+                    Why this is relevant{isIllustrative ? ' · Illustrative' : ''}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{annotation.whyRelevant}</p>
+                </div>
+                {annotation.actionableFollowUp && (
+                  <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: isIllustrative ? 'var(--amber-050)' : 'var(--cream-200)' }}>
+                    <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
+                      Actionable follow-up{isIllustrative ? ' · Illustrative' : ''}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{annotation.actionableFollowUp}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {noteText && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', padding: '6px 10px', borderRadius: 'var(--r-xs)', background: 'var(--indigo-050)' }}>
+                <AlertCircle size={12} color="var(--indigo-600)" style={{ marginTop: '3px', flexShrink: 0 }} aria-hidden="true" />
+                <span style={{ fontSize: '12px', color: 'var(--indigo-600)', lineHeight: '1.5' }}>{noteText}</span>
+              </div>
+            )}
+
+            {showAnnotations && (annotation?.expect || annotation?.surprise) && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {annotation?.expect && (
+                  <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--indigo-050)' }}>
+                    <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>What we expect</p>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{annotation.expect}</p>
+                  </div>
+                )}
+                {annotation?.surprise && (
+                  <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--cream-200)' }}>
+                    <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>What would surprise us</p>
+                    <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>{annotation.surprise}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
-          {annotation.actionableFollowUp && (
-            <div style={{
-              flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)',
-              background: isIllustrative ? 'var(--amber-050)' : 'var(--cream-200)',
-            }}>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: isIllustrative ? 'var(--amber-800)' : 'var(--ink-600)' }}>
-                Actionable follow-up{isIllustrative ? ' · Illustrative' : ''}
-              </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
-                {annotation.actionableFollowUp}
-              </p>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       )}
-
-      {/* Row 5: Note (event.note only) */}
-      {noteText && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: '6px',
-          padding: '6px 10px', borderRadius: 'var(--r-xs)',
-          background: 'var(--indigo-050)',
-        }}>
-          <AlertCircle size={12} color='var(--indigo-600)' style={{ marginTop: '3px', flexShrink: 0 }} aria-hidden="true" />
-          <span style={{ fontSize: '12px', color: 'var(--indigo-600)', lineHeight: '1.5' }}>
-            {noteText}
-          </span>
-        </div>
-      )}
-
-      {/* Row 6: Leadership expect/surprise — only in leadership priority view, only when synthesized.
-          Same label/body treatment as Row 4b (uppercase micro-label + body text) — both rows read
-          from the same `annotation` object, so they should look like one family, not two. */}
-      {showAnnotations && (annotation?.expect || annotation?.surprise) && (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {annotation?.expect && (
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--indigo-050)' }}>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-                What we expect
-              </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
-                {annotation.expect}
-              </p>
-            </div>
-          )}
-          {annotation?.surprise && (
-            <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: 'var(--cream-200)' }}>
-              <p style={{ margin: '0 0 3px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-600)' }}>
-                What would surprise us
-              </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.55', color: 'var(--ink-900)' }}>
-                {annotation.surprise}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
     </div>
   )
 }
@@ -782,7 +771,19 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
   const [upcomingOpen, setUpcomingOpen]     = useState(true)
   const [pastOpen, setPastOpen]             = useState(true)
   const [selectedDate, setSelectedDate]     = useState<string | null>(null)
+  // Controlled (not per-row local state, unlike DigestFeed's DigestRow) because
+  // jumpToEvent (deep-link from ?event=, e.g. War Room's "Next up" links) needs
+  // to force a specific row open, not just scroll to and flash it.
+  const [openIds, setOpenIds]               = useState<Set<string>>(new Set())
   const cardRefs = useRef(new Map())
+
+  function toggleOpen(id: string) {
+    setOpenIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
   const pastCutoffTs   = TODAY.getTime() - NINETY_DAYS_MS
@@ -828,6 +829,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
   function jumpToEvent(eventId) {
     const node = cardRefs.current.get(eventId)
     if (node?.scrollIntoView) node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setOpenIds((prev) => new Set(prev).add(eventId))
     setFlashedId(eventId)
     setTimeout(() => setFlashedId(null), 1000)
   }
@@ -958,18 +960,29 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                 <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
               </div>
 
-              {/* Cards — always full width. Type pill (inside EventCard) is the sole
-                  color signal, per craft-floor's ban on colored border accents. */}
+              {/* Grouped daily digest: one plate, a bold day heading per date,
+                  dense hairline rows underneath. Type pill (inside each row) is
+                  the sole color signal, per craft-floor's ban on colored border
+                  accents. */}
               {upcomingOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {upcoming.map((e) => (
-                    <div key={(e as any).id} style={{ ...NEU_PLATE_STYLE, overflow: 'hidden' }}>
-                      <EventCard
-                        event={e}
-                        cardRef={(node) => setCardRef((e as any).id, node)}
-                        flashing={flashedId === (e as any).id}
-                        showAnnotations={viewFilter === 'leadership'}
-                      />
+                <div className="digest-plate" style={NEU_PLATE_STYLE}>
+                  {groupByDay(upcoming).map((group) => (
+                    <div className="digest-group" key={group.dateStr}>
+                      <div className="digest-group-hd">
+                        <span className="name">{group.label}</span>
+                        <span className="count">{group.events.length} event{group.events.length === 1 ? '' : 's'}</span>
+                      </div>
+                      {group.events.map((e) => (
+                        <EventDigestRow
+                          key={(e as any).id}
+                          event={e}
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
+                          isOpen={openIds.has((e as any).id)}
+                          onToggle={() => toggleOpen((e as any).id)}
+                        />
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -996,16 +1009,25 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
                 <div style={{ flex: 1, height: '1px', background: 'var(--cream-300)' }} />
               </div>
               {pastOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {past.map((e) => (
-                    <div key={(e as any).id} style={{ ...NEU_PLATE_STYLE, overflow: 'hidden' }}>
-                      <EventCard
-                        event={e}
-                        pastVariant
-                        cardRef={(node) => setCardRef((e as any).id, node)}
-                        flashing={flashedId === (e as any).id}
-                        showAnnotations={viewFilter === 'leadership'}
-                      />
+                <div className="digest-plate" style={NEU_PLATE_STYLE}>
+                  {groupByDay(past).map((group) => (
+                    <div className="digest-group" key={group.dateStr}>
+                      <div className="digest-group-hd">
+                        <span className="name">{group.label}</span>
+                        <span className="count">{group.events.length} event{group.events.length === 1 ? '' : 's'}</span>
+                      </div>
+                      {group.events.map((e) => (
+                        <EventDigestRow
+                          key={(e as any).id}
+                          event={e}
+                          pastVariant
+                          cardRef={(node) => setCardRef((e as any).id, node)}
+                          flashing={flashedId === (e as any).id}
+                          showAnnotations={viewFilter === 'leadership'}
+                          isOpen={openIds.has((e as any).id)}
+                          onToggle={() => toggleOpen((e as any).id)}
+                        />
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -1319,8 +1341,8 @@ export default function Portal() {
   return (
     <div data-tour="intelligence-feed" className="inform-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
 
-      {/* Underline tab bar — sticky so it stays visible while scrolling events */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--cream-100)' }}>
+      {/* Tab bar — sticky so it stays visible while scrolling events */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)', borderBottom: '1px solid var(--border-default)' }}>
         <TabBar active={activeTab} onChange={setActiveTab} />
       </div>
 

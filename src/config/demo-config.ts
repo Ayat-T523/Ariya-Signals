@@ -22,9 +22,9 @@ export const DEMO = {
   drugClass:           'plasma kallikrein inhibitor',
 
   // ── App branding ────────────────────────────────────────────────────────────
-  appName:    'Ariya Signals',
+  appName:    'InForm',
   appTagline: 'HAE Competitive Intelligence',
-  appVendor:  'Phamax',
+  appVendor:  '',
 
   // ── Demo metadata ───────────────────────────────────────────────────────────
   /** ISO date string — used by formatDate() and any "today" reference in data. */
@@ -35,9 +35,9 @@ export const DEMO = {
   dataSources:         'IQVIA DE/UK/US · Veeva CRM · Movianto logistics',
 
   // ── Links ───────────────────────────────────────────────────────────────────
-  requestAccessUrl:      'mailto:ariya@phamax.ch?subject=Ariya%20Signals%20access%20request',
-  expiryContactUrl:      'mailto:ariya@phamax.ch?subject=Ariya%20Signals%20session%20renewal',
-  capabilityRequestUrl:  'mailto:ariya@phamax.ch?subject=Request%3A%20My%20Documents%20capability&body=I%20would%20like%20to%20use%20the%20My%20Documents%20capability%20in%20Ariya%20Signals.',
+  requestAccessUrl:      'mailto:ariya@phamax.ch?subject=InForm%20access%20request',
+  expiryContactUrl:      'mailto:ariya@phamax.ch?subject=InForm%20session%20renewal',
+  capabilityRequestUrl:  'mailto:ariya@phamax.ch?subject=Request%3A%20My%20Documents%20capability&body=I%20would%20like%20to%20use%20the%20My%20Documents%20capability%20in%20InForm.',
 
   // ── Design ──────────────────────────────────────────────────────────────────
   /** Primary accent colour — maps to the active/button colour in the current theme. */
