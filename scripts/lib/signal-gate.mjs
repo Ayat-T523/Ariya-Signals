@@ -18,9 +18,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash }   from 'node:crypto'
 
-const GENERIC_HAE_TERMS = [
-  'hereditary angioedema', 'hae', 'c1 inhibitor', 'kallikrein', 'bradykinin', 'angioedema',
-]
 // Generic container for signals with no tracked competitor (§2.3). Congress is a
 // SOURCE (recorded in data_source), never a competitor, so unresolved rows land
 // here rather than in a fake 'congress' competitor. NOT NULL forces a value;
@@ -125,7 +122,12 @@ export function parseSignalDate(raw) {
 
 /**
  * Load all drugs from asset_lexicon and build a lowercase term → competitor_id map.
- * Adds generic HAE terms (no competitor_id) for broad relevance matching.
+ *
+ * Dead code — exported but imported nowhere in scripts/ (loadAssetResolver is the
+ * identity-carrying superset actually in use). Left in place per E1 scope (report
+ * dead code, don't remove it), with the generic-term union it used to do removed:
+ * that union read the module-level GENERIC_HAE_TERMS constant, which no longer
+ * exists now that loadAssetResolver takes its term list as a parameter instead.
  *
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @returns {Promise<Map<string, string|null>>}
@@ -148,9 +150,6 @@ export async function loadLexicon(supabase) {
         map.set(k, row.competitor_id ?? null)
       }
     }
-  }
-  for (const t of GENERIC_HAE_TERMS) {
-    if (!map.has(t)) map.set(t, null)
   }
   return map
 }
@@ -189,11 +188,10 @@ function escapeRegex(s) {
  * Boundaries are applied on each side only when the term itself starts or ends
  * with a word character, so terms like "(rp)" or a leading hyphen still match.
  */
-export function termMatches(textLower, term) {
-  if (!textLower || !term) return false
+function getBoundaryRegex(term) {
   const t = term.toLowerCase().trim()
-  if (t.length < MIN_TERM_LENGTH) return false
-  if (STOP_LIST.has(t)) return false
+  if (t.length < MIN_TERM_LENGTH) return null
+  if (STOP_LIST.has(t)) return null
   let re = boundaryCache.get(t)
   if (!re) {
     const lead  = /^\w/.test(t) ? '\\b' : ''
@@ -201,7 +199,25 @@ export function termMatches(textLower, term) {
     re = new RegExp(`${lead}${escapeRegex(t)}${trail}`, 'i')
     boundaryCache.set(t, re)
   }
-  return re.test(textLower)
+  return re
+}
+
+export function termMatches(textLower, term) {
+  if (!textLower || !term) return false
+  const re = getBoundaryRegex(term)
+  return re ? re.test(textLower) : false
+}
+
+/**
+ * Character index of term's first (leftmost) match in textLower, or -1 if it
+ * doesn't match. Same boundary rules as termMatches — just reports where,
+ * not just whether.
+ */
+function firstMatchIndex(textLower, term) {
+  const re = getBoundaryRegex(term)
+  if (!re || !textLower) return -1
+  const m = re.exec(textLower)
+  return m ? m.index : -1
 }
 
 /** True when a term is eligible to be indexed at all. */
@@ -261,15 +277,26 @@ export async function loadInnToAssetId(supabase) {
 /**
  * Build a lowercase term → { competitorId, inn, assetId } resolver from
  * asset_lexicon (every inn + synonym) joined to assets for the canonical asset_id.
- * Generic HAE terms resolve to a relevance-only entry (all identity fields null).
+ * `genericTerms` resolve to a relevance-only entry (all identity fields null).
  *
  * Used by the writers that must DISCOVER the drug from free text (congress,
  * regulatory firecrawl). This is the identity-carrying superset of loadLexicon.
  *
+ * `genericTerms` used to be a hardcoded module constant (GENERIC_HAE_TERMS, 6
+ * HAE-only words), which silently baked "this ingest pipeline is HAE" into a
+ * shared library every writer imported. It is now a parameter — the shape
+ * loadDiseaseTerms() returns (scripts/lib/reference-data.mjs) — so a caller
+ * supplies whichever disease area(s) it actually cares about. `caseSensitive`
+ * is carried through but not yet consumed here: every term in the DB is
+ * currently case_sensitive=false, so termMatches's case-insensitive matching
+ * is unchanged either way; wiring case-sensitive matching into this resolver
+ * is deferred until a term actually needs it.
+ *
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {Array<{ term: string, caseSensitive: boolean }>} [genericTerms]
  * @returns {Promise<Map<string, {competitorId: string|null, inn: string|null, assetId: string|null}>>}
  */
-export async function loadAssetResolver(supabase) {
+export async function loadAssetResolver(supabase, genericTerms = []) {
   const innToAssetId = await loadInnToAssetId(supabase)
   const { data, error } = await supabase
     .from('asset_lexicon')
@@ -293,39 +320,124 @@ export async function loadAssetResolver(supabase) {
       }
     }
   }
-  for (const t of GENERIC_HAE_TERMS) {
-    if (!map.has(t)) map.set(t, { competitorId: null, inn: null, assetId: null })
+  for (const { term } of genericTerms) {
+    const k = term.toLowerCase()
+    if (!map.has(k)) map.set(k, { competitorId: null, inn: null, assetId: null })
   }
   return map
 }
 
 /**
+ * Collect every DISTINCT drug named in text (identity entries only; generic
+ * relevance-only terms are skipped). Deduped by canonical inn, one entry per
+ * drug regardless of how many of its terms (inn/brand/synonyms) matched.
+ *
+ * Shared by resolveAsset (go-forward ingest) and backfill-asset-identity.mjs,
+ * so both apply the same multi-drug rule (§2.2) rather than maintaining two
+ * copies that could drift.
+ *
+ * @param {string} textLower  Already-lowercased full text
+ * @param {Map<string,{competitorId:string|null,inn:string|null,assetId:string|null}>} resolver
+ * @returns {Array<{competitorId:string|null,inn:string,assetId:string|null}>}
+ */
+export function resolveAllDrugs(textLower, resolver) {
+  const byInn = new Map()
+  for (const [term, identity] of resolver) {
+    if (identity.inn == null) continue            // relevance-only term, not a drug
+    if (!termMatches(textLower, term)) continue
+    if (!byInn.has(identity.inn)) byInn.set(identity.inn, identity)
+  }
+  return [...byInn.values()]
+}
+
+/**
+ * Earliest character position at which ANY of a drug's terms (inn, brand,
+ * synonyms) appears in textLower. A drug can be named by more than one of its
+ * own aliases in the same text; what matters for "which drug is this really
+ * about" is the leftmost mention by any of them, not any single term's index.
+ */
+function earliestMentionIndex(textLower, resolver, inn) {
+  let earliest = Infinity
+  for (const [term, identity] of resolver) {
+    if (identity.inn !== inn) continue
+    const idx = firstMatchIndex(textLower, term)
+    if (idx !== -1 && idx < earliest) earliest = idx
+  }
+  return earliest
+}
+
+/** Of several matched drugs, the one whose earliest alias mention comes first in the text. */
+function pickEarliestMentioned(textLower, resolver, drugs) {
+  let best = drugs[0]
+  let bestIndex = earliestMentionIndex(textLower, resolver, best.inn)
+  for (const drug of drugs.slice(1)) {
+    const idx = earliestMentionIndex(textLower, resolver, drug.inn)
+    if (idx < bestIndex) { best = drug; bestIndex = idx }
+  }
+  return best
+}
+
+/**
  * Resolve drug identity from free text against a loadAssetResolver() map.
  *
- * First specific-drug term wins (matches existing resolveCompetitor precedence;
- * the multi-drug-in-one-signal rule is §2.2, deferred). When only generic HAE
- * terms match, the signal is relevant but unattributed: competitorId falls back
- * to `sentinel`, and inn/assetId stay null (never fabricated).
+ * Multi-drug rule (§2.2): when the text names more than one tracked drug, the
+ * one owned by `ownCompetitorId` wins (e.g. a competitor's own press release
+ * naming both its own drug and a rival's) — pass the writer's already-known
+ * competitor_id where one exists (IR/company-scoped ingest). This part is
+ * unchanged: an owning-competitor signal always wins when it disambiguates,
+ * regardless of how many drugs were named.
+ *
+ * Without that signal (writers with no independent competitor context, e.g.
+ * congress abstracts, where competitor_id is itself derived from this same
+ * call):
+ *   - 1-2 drugs named: the one mentioned FIRST in the text wins — literal
+ *     leftmost position, not resolver/DB row order. (A prior version picked
+ *     `drugs[0]`, which a comment here mis-described as "the first drug
+ *     named" when it was actually asset_lexicon's row order — an abstract
+ *     naming two drugs would resolve to whichever sorted first in the table,
+ *     not whichever the text was actually about.)
+ *   - 3+ drugs named: genuinely ambiguous — a landscape/review piece naming
+ *     several tracked drugs isn't "about" whichever one happens to be
+ *     mentioned first. Don't force a pick; fall through to the same
+ *     generic-relevance path used when no drug is named at all, so the row
+ *     still gets an honest competitor-level (or unattributed) attachment
+ *     instead of a fabricated one.
+ *
+ * When only generic HAE terms match, the signal is relevant but unattributed:
+ * competitorId falls back to `sentinel`, inn/assetId stay null (never
+ * fabricated).
  *
  * @param {string} textLower  Already-lowercased full text
  * @param {Map<string,{competitorId:string|null,inn:string|null,assetId:string|null}>} resolver
  * @param {string} [sentinel]  competitor_id fallback when only generic terms match
+ * @param {string|null} [ownCompetitorId]  writer's already-known competitor_id, for the tiebreak
  * @returns {{ matched: boolean, competitorId: string|null, inn: string|null, assetId: string|null }}
  */
-export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED) {
-  let matched = false
-  let generic = null
-  for (const [term, identity] of resolver) {
-    if (!termMatches(textLower, term)) continue
-    matched = true
-    if (identity.inn != null) {
-      // Specific drug named — this is the strongest signal, take it immediately.
-      return { matched: true, competitorId: identity.competitorId ?? sentinel, inn: identity.inn, assetId: identity.assetId }
+export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED, ownCompetitorId = null) {
+  const drugs = resolveAllDrugs(textLower, resolver)
+  let chosen = null
+  if (drugs.length > 0) {
+    const own = ownCompetitorId ? drugs.find((d) => d.competitorId === ownCompetitorId) : null
+    if (own) {
+      chosen = own
+    } else if (drugs.length <= 2) {
+      chosen = pickEarliestMentioned(textLower, resolver, drugs)
     }
-    generic = identity   // relevance-only match; keep looking for a specific drug
+    // else: 3+ distinct drugs with no disambiguating signal — leave chosen
+    // null and fall through below rather than guessing.
   }
-  if (!matched) return { matched: false, competitorId: null, inn: null, assetId: null }
-  return { matched: true, competitorId: generic?.competitorId ?? sentinel, inn: null, assetId: null }
+  if (chosen) {
+    return { matched: true, competitorId: chosen.competitorId ?? sentinel, inn: chosen.inn, assetId: chosen.assetId }
+  }
+
+  // No specific drug named (or too ambiguous to pick one) — check for a generic relevance-only match.
+  for (const [term, identity] of resolver) {
+    if (identity.inn != null) continue   // already covered above
+    if (termMatches(textLower, term)) {
+      return { matched: true, competitorId: identity.competitorId ?? sentinel, inn: null, assetId: null }
+    }
+  }
+  return { matched: false, competitorId: null, inn: null, assetId: null }
 }
 
 // ── Signal-type refinement (§4.1) ──────────────────────────────────────────────

@@ -1,3 +1,17 @@
+/**
+ * Not currently wired to any cron job or caller — confirmed via codebase
+ * search as of 2026-08-10 (no fetch of this route, no vercel.json cron entry,
+ * only referenced in design docs).
+ *
+ * The live, maintained path for SEC deal/press-release/exec-change ingestion
+ * is scripts/run-sec-deals.mjs, which already includes lexicon-based
+ * asset/competitor matching for deal and press_release signal types.
+ *
+ * If this file is ever reactivated, it needs the same fix applied to
+ * run-sec-deals.mjs first — it currently omits inn/asset_id from its inserts
+ * entirely.
+ */
+
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
