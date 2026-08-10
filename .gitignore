@@ -34,3 +34,6 @@ Icon\r
 .env.production
 .env.staging
 .env.*.local
+
+# Fetched-data caches — re-derivable from source APIs, not project code
+scripts/.cache/
