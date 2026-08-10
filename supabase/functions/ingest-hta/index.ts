@@ -194,6 +194,16 @@ Deno.serve(async (req: Request) => {
     })
   }
 
+  // INN (lowercase) → asset_id, mirroring scripts/lib/signal-gate.mjs's loadInnToAssetId.
+  // Non-fatal if it fails: decisions can still be found and written, just
+  // without asset_id for this run, rather than failing the whole ingest.
+  const { data: assetRows, error: assetErr } = await supabase.from('assets').select('id, inn')
+  if (assetErr) console.error('[ingest-hta] assets load failed:', assetErr.message)
+  const innToAssetId = new Map<string, string>()
+  for (const a of assetRows ?? []) {
+    if (a.inn) innToAssetId.set((a.inn as string).toLowerCase(), a.id as string)
+  }
+
   // Compute lookback cutoff
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - lookbackDays)
@@ -277,6 +287,8 @@ Deno.serve(async (req: Request) => {
         source_url:   doc.url,
         source_hash:  sourceHash,
         data_source:  DATA_SOURCE,
+        inn,
+        asset_id:     innToAssetId.get(inn.toLowerCase()) ?? null,
       })
 
       if (csErr) {
