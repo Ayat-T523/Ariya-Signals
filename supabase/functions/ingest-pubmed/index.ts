@@ -113,7 +113,7 @@ Deno.serve(async (_req: Request) => {
   // Load INNs from asset_lexicon (length >= 8 excludes short abbreviations like "hae")
   const { data: lexRows, error: lexErr } = await supabase
     .from('asset_lexicon')
-    .select('inn')
+    .select('inn, competitor_id')
     .not('inn', 'is', null)
     .gte('inn', '        ')  // length >= 8 via lexicographic comparison
 
@@ -127,9 +127,24 @@ Deno.serve(async (_req: Request) => {
     return new Response(JSON.stringify({ status: 'failed', error: 'asset_lexicon load failed' }), { status: 500 })
   }
 
-  // Deduplicate INNs
-  const inns = [...new Set(lexRows.map(r => r.inn as string).filter(inn => inn.length >= 8))]
+  // Deduplicate INNs, keeping each one's owning competitor
+  const innToCompetitorId = new Map<string, string | null>()
+  for (const row of lexRows) {
+    const inn = row.inn as string
+    if (inn && inn.length >= 8) innToCompetitorId.set(inn, (row.competitor_id as string | null) ?? null)
+  }
+  const inns = [...innToCompetitorId.keys()]
   console.log(`[ingest-pubmed] ${inns.length} INNs from asset_lexicon: ${inns.join(', ')}`)
+
+  // INN (lowercase) → asset_id, mirroring scripts/lib/signal-gate.mjs's loadInnToAssetId.
+  // Non-fatal if it fails: publications can still be found and written, just
+  // without asset_id for this run, rather than failing the whole ingest.
+  const { data: assetRows, error: assetErr } = await supabase.from('assets').select('id, inn')
+  if (assetErr) console.error('[ingest-pubmed] assets load failed:', assetErr.message)
+  const innToAssetId = new Map<string, string>()
+  for (const a of assetRows ?? []) {
+    if (a.inn) innToAssetId.set((a.inn as string).toLowerCase(), a.id as string)
+  }
 
   let totalNew = 0, totalSkipped = 0
   const errors: string[] = []
@@ -223,7 +238,7 @@ Deno.serve(async (_req: Request) => {
         const sourceUrl   = `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
 
         const { error: insertErr } = await supabase.from('company_signals').insert({
-          competitor_id: null,
+          competitor_id: innToCompetitorId.get(inn) ?? null,
           signal_type:   'publication',
           headline:      headline.slice(0, 500),
           body_excerpt:  bodyExcerpt.slice(0, 400),
@@ -232,6 +247,8 @@ Deno.serve(async (_req: Request) => {
           source_hash:   sourceHash,
           data_source:   DATA_SOURCE,
           severity,
+          inn,
+          asset_id:      innToAssetId.get(inn.toLowerCase()) ?? null,
         })
 
         if (insertErr) {
