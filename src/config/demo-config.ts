@@ -9,10 +9,15 @@
  */
 export const DEMO = {
   // ── Client identity ─────────────────────────────────────────────────────────
-  companyLabel:     'Pharma Inc',
-  personaName:      'David',
-  personaTitle:     'Head of Competitive Intelligence',
-  personaEmail:     'david@pharmainc.com',
+  // REMOVED: companyLabel, personaName, personaTitle, personaEmail.
+  //
+  // Ariya Light is one self-serve multi-tenant app, so who the user is comes from
+  // their signed-in account (useAccountIdentity in context/AppContext), never from
+  // configuration. These four fields made every visitor "David" from "Pharma Inc",
+  // and sent david@pharmainc.com as the author of everyone's feedback.
+  //
+  // No organisation field replaces companyLabel: nothing in the schema stores one,
+  // and rendering a company we do not hold would be a fabricated value.
 
   // ── Tracked asset ───────────────────────────────────────────────────────────
   assetName:           'Ekterly',

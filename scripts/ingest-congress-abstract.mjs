@@ -26,6 +26,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
+import { loadAssetResolver, resolveAsset } from './lib/signal-gate.mjs'
 
 // pdf-parse is CommonJS and its index.js runs a debug harness that reads a bundled
 // test PDF (throws ENOENT when imported as a dependency). Import the lib entry directly.
@@ -35,8 +36,6 @@ const pdfParse = require('pdf-parse/lib/pdf-parse.js')
 // ── Constants ───────────────────────────────────────────────────────────────
 const SIGNAL_TYPE       = 'congress_abstract'
 const DATA_SOURCE       = 'congress_pdf'
-const UNATTRIBUTED      = 'congress'   // competitor_id sentinel (column is NOT NULL)
-const GENERIC_TERMS     = ['hereditary angioedema', 'hae', 'c1 inhibitor', 'kallikrein', 'bradykinin', 'angioedema']
 // Abstract-number patterns: P001, OA-23, OP-12, EP045, LB-001, AB-1234
 const ABSTRACT_NO_RE    = /\b(?:P|OA|OP|EP|LB|AB)-?\d{2,4}\b/i
 const ABSTRACT_SPLIT_RE = /(?=\b(?:P|OA|OP|EP|LB|AB)-?\d{2,4}\b)/i
@@ -94,44 +93,10 @@ function classifySeverity(body) {
   return isPhase3 && hasOutcome ? 'HIGH' : 'MEDIUM'
 }
 
-// ── B. Build relevance terms + competitor resolution map from asset_lexicon ────
-async function loadLexicon() {
-  const { data, error } = await supabase.from('asset_lexicon').select('inn, synonyms, competitor_id')
-  if (error) throw new Error(`asset_lexicon load failed: ${error.message}`)
-  if (!data || data.length === 0) throw new Error('asset_lexicon is empty — Source 1 must complete first.')
-
-  // term (lowercased) → competitor_id (null for own asset / generic). For congress we
-  // include EVERY inn + EVERY synonym (max recall), plus generic HAE terms.
-  const termToCompetitor = new Map()
-  for (const row of data) {
-    const terms = [row.inn, ...(row.synonyms ?? [])].filter(Boolean)
-    for (const t of terms) {
-      const key = t.toLowerCase()
-      // keep a non-null competitor_id if any lexicon entry provides one for this term
-      if (!termToCompetitor.has(key) || (termToCompetitor.get(key) == null && row.competitor_id != null)) {
-        termToCompetitor.set(key, row.competitor_id ?? null)
-      }
-    }
-  }
-  for (const g of GENERIC_TERMS) {
-    if (!termToCompetitor.has(g)) termToCompetitor.set(g, null)
-  }
-  return termToCompetitor
-}
-
-// Resolve competitor_id: prefer a matched drug with a non-null competitor_id; else sentinel.
-function resolveCompetitor(blockLower, termToCompetitor) {
-  let matched = false
-  let resolved = null
-  for (const [term, competitorId] of termToCompetitor) {
-    if (blockLower.includes(term)) {
-      matched = true
-      if (competitorId != null) { resolved = competitorId; break }
-    }
-  }
-  if (!matched) return { matched: false, competitorId: null }
-  return { matched: true, competitorId: resolved ?? UNATTRIBUTED }
-}
+// ── B. Relevance + identity resolution ─────────────────────────────────────────
+// Lexicon load + drug resolution now come from the shared signal-gate resolver
+// (loadAssetResolver / resolveAsset), which also carries inn + asset_id so the
+// matched drug identity is persisted, not discarded (§2.1).
 
 // ── C. Download PDF ───────────────────────────────────────────────────────────
 async function downloadPdf(pdfUrl) {
@@ -162,8 +127,8 @@ async function main() {
   console.log(`   url:  ${url}`)
   console.log(`   date: ${date}\n`)
 
-  const termToCompetitor = await loadLexicon()
-  console.log(`Loaded ${termToCompetitor.size} relevance terms from asset_lexicon (+generic).`)
+  const resolver = await loadAssetResolver(supabase)
+  console.log(`Loaded ${resolver.size} relevance terms from asset_lexicon (+generic).`)
 
   const buffer = await downloadPdf(url)
   console.log(`Downloaded PDF: ${(buffer.length / 1024).toFixed(0)} KB`)
@@ -184,7 +149,7 @@ async function main() {
     const blockLower = block.toLowerCase()
 
     // F.i — relevance gate
-    const { matched, competitorId } = resolveCompetitor(blockLower, termToCompetitor)
+    const { matched, competitorId, inn, assetId } = resolveAsset(blockLower, resolver)
     if (!matched) continue
     passedGate++
 
@@ -213,7 +178,7 @@ async function main() {
 
     // F.vii — write
     const { error: insErr } = await supabase.from('company_signals').insert({
-      competitor_id: competitorId,            // resolved drug owner, or 'congress' sentinel
+      competitor_id: competitorId,            // resolved drug owner, or 'unattributed' container (§2.3)
       signal_type:   SIGNAL_TYPE,
       headline:      `${congress}: ${title}`,
       body_excerpt:  body,
@@ -222,6 +187,8 @@ async function main() {
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,
       severity,
+      inn,                                     // matched drug INN (§2.1), null if generic-only
+      asset_id:      assetId,                  // canonical asset UUID, null if unresolved
     })
     if (insErr) {
       console.error(`  ❌  insert failed (${abstractNo}): ${insErr.message}`)

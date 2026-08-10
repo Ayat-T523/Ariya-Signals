@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTrialsByCompetitorAndIndication, getRegulatoryEventsByAssetIds, getRegulatoryCalendar, getFinancialsByCompetitorId, getSignalsByCompetitorId, getHtaSignalsByCompetitorId, getDocumentsByCompetitorId, getMessagingSnapshot, getMessagingSignals, findAssetByCode } from '../lib/db'
 import { cleanSignalText, buildReadableHeadline, SIGNAL_FALLBACK } from '../lib/signalText'
 import { isoToYQ, trialPhaseToKey, GANTT_SKIP_STATUSES } from '../lib/trialsToGantt'
+import { tierOf, sourceNameOf } from '../lib/deterministic/provenance'
 
 // HAE indication tags used to filter trials and assets to the user's TA.
 const INDICATION_TAGS = ['hereditary angioedema', 'HAE']
@@ -366,14 +367,24 @@ export function useCompetitorSupabase(competitor: any) {
 
       // ── Strategic signals from 8-K ────────────────────────────────────────
 
+      // §4.7: carry the provenance contract through to the card. tier is derived
+      // from the real signal_type rather than assumed from the section a row
+      // happens to render in.
+      const provenanceFields = (s: any) => ({
+        sourceUrl:     s.source_url,
+        sourceLabel:   sourceNameOf(s.data_source),
+        tier:          tierOf(s.signal_type),
+        lastRefreshed: s.created_at ?? null,
+      })
+
       const liveDeals = signals
         .filter((s: any) => s.signal_type === 'deal')
         .map((s: any) => ({
           date:         s.date,
           headline:     cleanSignalText(s),
-          whyItMatters: s.why_it_matters ?? null,
+          whyItMatters: null, // §4-1: no auto-generated interpretation
           _live:        true,
-          sourceUrl:    s.source_url,
+          ...provenanceFields(s),
         }))
 
       const liveHiring = signals
@@ -382,7 +393,7 @@ export function useCompetitorSupabase(competitor: any) {
           date:      s.date,
           headline:  buildReadableHeadline(s, competitor.name),
           _live:     true,
-          sourceUrl: s.source_url,
+          ...provenanceFields(s),
         }))
         .filter((h: any) => h.headline !== SIGNAL_FALLBACK)
         .slice(0, 5)
@@ -395,8 +406,8 @@ export function useCompetitorSupabase(competitor: any) {
           date:             s.date,
           headline:         cleanSignalText(s),
           _live:            true,
-          sourceUrl:        s.source_url,
           accession_number: s.accession_number ?? null,
+          ...provenanceFields(s),
         }))
         .filter((p: any) => p.headline !== SIGNAL_FALLBACK)
         .slice(0, 5)
@@ -420,7 +431,7 @@ export function useCompetitorSupabase(competitor: any) {
               headline:      s.headline ?? '',
               detail:        s.body_excerpt ?? '',
               shiftDetected: true,
-              whyItMatters:  s.why_it_matters ?? null,
+              whyItMatters:  null, // §4-1: no auto-generated interpretation
             })),
             vsPharmaInc: [],
           }

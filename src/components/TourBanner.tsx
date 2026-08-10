@@ -29,15 +29,7 @@ function buildSteps(assetName: string, indication: string): TourStep[] {
     },
     {
       route: '/intelligence',
-      text: `A rolling calendar of regulatory, clinical, and commercial events across the ${indication} landscape. Switch to Leadership priority to see only the events that require your attention.`,
-    },
-    {
-      route: '/intelligence?tab=reports',
-      text: 'Post-earnings digests for each tracked competitor, available within 24 hours of a call. Filter by competitor or digest type.',
-    },
-    {
-      route: '/intelligence?tab=market',
-      text: `${indication} deal activity and HTA decisions in one place. Use the Deals and HTA filters to focus on what matters for your role.`,
+      text: `Every regulatory, clinical, and commercial signal across the ${indication} landscape, grouped by theme so you can go straight to what you're tracking. Switch to Leadership priority to see only the events that require your attention.`,
     },
     {
       route: '/alerts',
@@ -142,11 +134,17 @@ export default function TourBanner() {
     >
       {/* Reading-time progress bar */}
       <div style={{ height: '3px', background: 'rgba(78,205,164,0.20)' }}>
+        {/* Scaled rather than width-animated: elapsed ticks on an interval, so
+            this repaints ~20x a second and animating width would relayout on
+            every tick. scaleX from the left edge is visually identical and runs
+            on the compositor. */}
         <div style={{
           height: '100%',
-          width: `${progress}%`,
+          width: '100%',
+          transformOrigin: 'left center',
+          transform: `scaleX(${progress / 100})`,
           background: '#4ecda4',
-          transition: 'width 50ms linear',
+          transition: 'transform 50ms linear',
         }} />
       </div>
 

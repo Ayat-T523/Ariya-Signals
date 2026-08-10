@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, ChevronLeft, Bell, ChevronDown } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useApp } from '../context/AppContext'
+import { getRecentSignals, type DbRecentSignal } from '../lib/db'
+import { compareByImportance } from '../lib/deterministic/importance'
+import { sourceNameOf } from '../lib/deterministic/provenance'
+import { competitorsData } from '../data/kalvista'
 
 const FORMAT_OPTIONS = [
   { value: 'narrative',  label: 'Narrative summary', description: 'Conversational prose, contextualized takeaways' },
@@ -8,11 +14,51 @@ const FORMAT_OPTIONS = [
   { value: 'raw',        label: 'Raw signal',        description: 'Source extracts only, minimal interpretation' },
 ]
 
-const DIGEST_BULLETS = [
-  'Pharvaris RAPIDe-3 completion date tightened by 6 weeks — oral on-demand window narrows.',
-  'BioCryst Q1 earnings: HAE net revenue $89M, up 12% YoY. Management tone on prophylaxis switching remains cautious.',
-  'CSL Behring confirms Andembry formulary access in Germany ahead of schedule.',
-]
+/** How many days the weekly digest covers, and how many signals it leads with. */
+const DIGEST_WINDOW_DAYS = 7
+const DIGEST_ITEM_COUNT = 3
+
+/**
+ * The digest preview reads live signals.
+ *
+ * It used to render three hardcoded bullets that invented figures and attributed
+ * them to real companies ("BioCryst Q1 earnings: HAE net revenue $89M, up 12%
+ * YoY"), added interpretation ("Management tone ... remains cautious"), and
+ * carried no illustrative label anywhere on the page. A preview of a digest has
+ * to be built from the same signals the digest would contain, or it is a mockup
+ * presented as a forecast.
+ *
+ * Selection is deterministic: signals from the last DIGEST_WINDOW_DAYS days for
+ * the competitors on the watchlist, ranked by the D11 importance score, top
+ * DIGEST_ITEM_COUNT. Each line is the source headline verbatim with its company
+ * and source attached. Nothing is summarised or rephrased, because doing so would
+ * be interpretation the free tier does not do.
+ */
+const COMPETITOR_NAME = new Map(
+  (competitorsData as Array<{ id: string; name: string }>).map(c => [c.id, c.name]),
+)
+
+interface DigestLine {
+  id: string
+  headline: string
+  company: string
+  source: string | null
+  date: string | null
+}
+
+function buildDigestLines(signals: DbRecentSignal[], today: Date): DigestLine[] {
+  return [...signals]
+    .filter(s => s.headline)
+    .sort((a, b) => compareByImportance(a, b, { today }))
+    .slice(0, DIGEST_ITEM_COUNT)
+    .map(s => ({
+      id: s.id,
+      headline: s.headline as string,
+      company: COMPETITOR_NAME.get(s.competitor_id) ?? s.competitor_id,
+      source: sourceNameOf(s.data_source),
+      date: s.date,
+    }))
+}
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -59,6 +105,14 @@ function SubLabel({ children }: { children: React.ReactNode }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function MyAlerts() {
+  const { watchedCompetitors } = useApp()
+  const watchedIds = [...watchedCompetitors]
+  const { data: digestSignals, isLoading: digestLoading, isError: digestError } = useQuery({
+    queryKey: ['digest-preview', watchedIds],
+    queryFn: () => getRecentSignals(DIGEST_WINDOW_DAYS, watchedIds),
+  })
+  const digestLines = buildDigestLines(digestSignals ?? [], new Date())
+
   const [format, setFormat] = useState(() =>
     localStorage.getItem('ariya-delivery-format') || 'structured'
   )
@@ -245,7 +299,8 @@ export default function MyAlerts() {
           fontSize: '13px', fontFamily: 'Inter, sans-serif',
           color: 'rgba(5,10,68,0.50)', lineHeight: '1.5',
         }}>
-          Preview of your next Monday digest.
+          Built from your live signals over the last {DIGEST_WINDOW_DAYS} days, ranked by importance.
+          Headlines appear exactly as published by the source.
         </p>
 
         <div style={{
@@ -268,17 +323,46 @@ export default function MyAlerts() {
               Subject: Your Ariya weekly digest — Monday 07:00
             </span>
           </div>
+          {digestLoading && (
+            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.45)' }}>
+              Building your preview…
+            </p>
+          )}
+
+          {digestError && (
+            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)', lineHeight: '1.65' }}>
+              Could not load your recent signals just now. Your scheduled digest is unaffected.
+            </p>
+          )}
+
+          {!digestLoading && !digestError && digestLines.length === 0 && (
+            <p style={{ margin: 0, fontSize: '13px', fontFamily: 'Inter, sans-serif', color: 'rgba(5,10,68,0.55)', lineHeight: '1.65' }}>
+              {watchedIds.length === 0
+                ? 'You are not watching any competitors yet. Add competitors to your watchlist and your Monday digest will cover them.'
+                : `No new signals for your watched competitors in the last ${DIGEST_WINDOW_DAYS} days. If that is still true on Monday, you will not be sent a digest.`}
+            </p>
+          )}
+
+          {!digestLoading && !digestError && digestLines.length > 0 && (
           <ul style={{ margin: 0, padding: '0 0 0 18px', listStyleType: 'disc' }}>
-            {DIGEST_BULLETS.map((b, i) => (
-              <li key={i} style={{
+            {digestLines.map((line, i) => (
+              <li key={line.id} style={{
                 fontSize: '13px', fontFamily: 'Inter, sans-serif',
                 color: '#434c5b', lineHeight: '1.65',
-                marginBottom: i < DIGEST_BULLETS.length - 1 ? '6px' : 0,
+                marginBottom: i < digestLines.length - 1 ? '10px' : 0,
               }}>
-                {b}
+                <span style={{ fontWeight: 600 }}>{line.company}</span>
+                {' — '}
+                {line.headline}
+                {(line.source || line.date) && (
+                  <span style={{ display: 'block', fontSize: '11px', color: 'rgba(5,10,68,0.45)', marginTop: '2px' }}>
+                    {[line.source, line.date].filter(Boolean).join(' · ')}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
+          )}
         </div>
       </section>
 

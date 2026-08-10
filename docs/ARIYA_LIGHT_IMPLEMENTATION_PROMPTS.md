@@ -305,3 +305,45 @@ graphify update .  # keep the graph current after code changes
 **Rollback:** each phase is its own commit. To undo a phase, revert its commit; later phases depending on it will need reverting too (3 depends on 2; 4B read-state depends on 2; 5 depends on 4A).
 
 **Decision provenance:** all locked decisions trace to `docs/LIGHT_GAP_CONTEXT.md` and the design discussion that produced this file. If reality contradicts a stated fact mid-build (a file moved, a column differs), STOP and report the discrepancy rather than coding around it.
+
+---
+
+## Appendix — `company_signals` vocab notes
+
+These are the notes Phase 5 (step "Add the new `signal_type` and `data_source` values to the Phase 4 mapping layer and to the `company_signals` vocab notes") and the Phase 6 sweep ("vocabulary still unreconciled outside the Phase 4 mapping layer") refer to. This is the canonical home for `signal_type` vocabulary. A new `signal_type` is not done until it appears in this table.
+
+**Two consumers, not one.** `signal_type` is read in two separate places and a new value must be added to both:
+
+1. **The Phase 4B mapping layer** — presentation. `signal_type` to UI type key, plus severity casing.
+2. **`src/lib/deterministic/facets.ts`** — semantics. `signal_type` to *arc* (ordering inside a thread) and to *theme* (the browse and filter facet). Both are derived from `signal_type` alone, so they stay deterministic with no model involved.
+
+Arc display order is fixed: `trial, evidence, regulatory, commercial, ip, deal, personnel`.
+
+| `signal_type` | Arc | Theme | Emitted by |
+|---|---|---|---|
+| `trial_update` | trial | Pipeline and trials | trials ingest |
+| `publication` | evidence | Evidence | publication ingest |
+| `congress_abstract` | evidence | Evidence | congress ingest |
+| `regulatory_catalyst` | regulatory | Regulatory | regulatory ingest |
+| `hta_decision` | commercial | Market access | HTA ingest |
+| `press_release` | commercial | Commercial | IR and press ingest |
+| `exclusivity_listing` | ip | IP and exclusivity | exclusivity ingest |
+| `patent_grant` | ip | IP and exclusivity | patent ingest |
+| `ip_litigation` | ip | IP and exclusivity | litigation ingest |
+| `deal` | deal | Deals and BD | deal ingest |
+| `exec_change` | personnel | Leadership | exec ingest |
+| `label_update` | regulatory | Regulatory | `supabase/functions/ingest-fda-labels` |
+| `trial_status_change` | trial | Pipeline and trials | trials ingest (Phase 4A diff) |
+| `earnings` | commercial | Commercial | IR ingest |
+| `messaging_shift` | commercial | Commercial | `scripts/ingest-messaging-firecrawl.mjs` (Phase 5) |
+| `ir_rss` | commercial | Commercial | IR RSS ingest |
+
+The first 11 rows are the original taxonomy. The last 5 are **forward coverage**: the ingest paths listed emit them, but as of 2026-07-27 none has a live row. Verified against prod: 287 rows spanning only 8 types (`publication` 147, `press_release` 73, `exec_change` 17, `congress_abstract` 15, `regulatory_catalyst` 11, `hta_decision` 9, `deal` 8, `trial_update` 7). The 3 IP types have no live rows either. Mapping them ahead of time is worth it because `label_update` and `messaging_shift` are both graded `'high'` in `signalMapping.ts`, so the first one ingested would show as high-importance while sitting in the unclassified bucket.
+
+**Arc and theme coverage are compiler-coupled, not convention.** `SIGNAL_TYPE_TO_THEME` is typed `Record<KnownSignalType, Theme>` where `KnownSignalType = keyof typeof SIGNAL_TYPE_TO_ARC`. Adding an arc without a theme fails the build with TS2741, so the drift this table exists to prevent cannot recur silently. Verified by probe on 2026-07-27. This matters because `themesPresent()` builds the filter bar only from themes the data can satisfy, so a type with an arc and no theme would be orderable but unreachable from the UI.
+
+Theme is finer-grained than arc and the two deliberately disagree in one place: `hta_decision` is arc `commercial` but theme `Market access`, because a payer decision groups with commercial events yet a reader browses it as access.
+
+**Arc labels describe the bucket, not its most common member.** `ARC_LABEL.commercial` reads "commercial update", not "company announcement", because the commercial arc also holds `hta_decision` (a payer's decision, not the company's) and `messaging_shift` (undisclosed website drift the company never announced). Both would be described dishonestly by "announcement". Any future arc label has the same obligation: it must be true of every member type, since `describeArcMix` uses it in reader-facing captions.
+
+**Never guess.** `arcOf()` and `themeOf()` return `null` for an unrecognised `signal_type` rather than falling back to a default. Any summary that counts signals must therefore account for the unmapped bucket explicitly (see `describeArcMix`, whose parts always sum to the total) so a displayed count can never contradict its own caption.

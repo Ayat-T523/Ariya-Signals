@@ -51,17 +51,8 @@ export const analytics = {
     _ph.capture('competitor_tab_viewed', { tab, competitor_id })
   },
 
-  // ── Ask Ariya ───────────────────────────────────────────────────────────────
-  ariya_prompt_clicked(prompt_id: string, prompt_text: string) {
-    if (!enabled()) return
-    _ph.capture('ariya_prompt_clicked', { prompt_id, prompt_text })
-  },
-
-  // NOTE: Capture length only — never the question content.
-  ariya_question_typed(question_length: number) {
-    if (!enabled()) return
-    _ph.capture('ariya_question_typed', { question_length })
-  },
+  // The two Ask Ariya events were removed with the RAG chat feature
+  // (handoff index §2, frontend §2).
 
   // ── Alerts ──────────────────────────────────────────────────────────────────
   alert_expanded(alert_id: string) {

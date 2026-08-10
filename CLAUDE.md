@@ -17,13 +17,26 @@ Rules:
 ## Commands
 
 ```bash
-npm run dev       # Start dev server at http://localhost:5173
-npm run build     # Production build (runs tsc then vite build)
-npm run lint      # ESLint
-npm run preview   # Serve the production build locally
+npm run dev        # Start dev server at http://localhost:5173
+npm run build      # Production build — vite only, does NOT typecheck
+npm run typecheck  # Full typecheck across all three tsconfig projects
+npm run lint       # ESLint
+npm run preview    # Serve the production build locally
 ```
 
 There is no test runner configured.
+
+**Typechecking, and a trap.** Bare `npx tsc --noEmit` silently checks NOTHING: the
+root `tsconfig.json` has `"files": []` and only project references, so there is
+nothing for it to read. It exits 0 no matter how broken the code is. Use
+`npm run typecheck` (build mode, all three projects) or `npm run typecheck:app`
+for a faster app-only pass.
+
+`npm run build` is Vite alone and does not typecheck, so type errors never fail a
+build or a deploy. The codebase currently carries ~335 pre-existing errors, mostly
+implicit-`any` in older components. Treat that number as the baseline: when
+judging whether a change is clean, compare the count and confirm your own files
+are absent from the output rather than expecting zero.
 
 ---
 
@@ -57,7 +70,7 @@ There is no test runner configured.
 
 `GuidedTour` and `OnboardingModal` are rendered at the Layout level and sit above page content. The `AskModal` ("Ask Ariya", `/` shortcut key) is also Layout-level.
 
-> **Important:** The active nav is `src/components/shell/NavPanel.tsx`. `src/components/layout/Sidebar.tsx` is an alternate/legacy component that is **not wired into Layout.tsx** — edits to the sidebar appearance should go to `NavPanel.tsx`.
+> **Important:** The nav is `src/components/shell/NavPanel.tsx` — edits to nav appearance go there. (An earlier note here described a legacy `src/components/layout/Sidebar.tsx`; that file no longer exists.)
 
 ### Global state — `AppContext`
 

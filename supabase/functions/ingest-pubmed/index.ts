@@ -22,6 +22,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { decodeHtmlEntities, stripKnownHtmlTags } from '../_shared/htmlEntities.ts'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -212,8 +213,12 @@ Deno.serve(async (_req: Request) => {
         if ((count ?? 0) > 0) { totalSkipped++; continue }
 
         // G. Write to company_signals
-        const headline    = `${inn}: new publication in ${journal} — ${title.slice(0, 100)}`
-        const bodyExcerpt = `Authors: ${authors || 'N/A'}. Published: ${pubdate}.`
+        // PubMed titles carry entities for Greek letters, primes and curly
+        // quotes. Decode before truncating, so a slice never lands inside an
+        // entity and leaves a fragment like "&#82" that can no longer be decoded.
+        const clean = (s: string) => stripKnownHtmlTags(decodeHtmlEntities(s))
+        const headline    = `${inn}: new publication in ${clean(journal)} — ${clean(title).slice(0, 100)}`
+        const bodyExcerpt = `Authors: ${clean(authors) || 'N/A'}. Published: ${pubdate}.`
         const date        = parsePubDate(pubdate)
         const sourceUrl   = `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
 

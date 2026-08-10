@@ -2,9 +2,9 @@
  * WarRoom.tsx — iteration-4.
  *
  * UI matched to the reference image (ariya-signals-main prototype, WarRoom.jsx):
- *   greeting header, 3 KPI tiles with deltas/captions/links, Ask Ariya panel,
- *   Market weather, Upcoming events, Weekly digest. Exact prototype palette
- *   (#0055BB blue / #050A44 navy). "Customise" button is visual-only (no edit mode).
+ *   greeting header, 3 KPI tiles with deltas/captions/links,
+ *   Market weather, Upcoming events, Weekly digest. Signal Blue / Case Ink
+ *   palette (DESIGN.md tokens). "Customise" button is visual-only (no edit mode).
  *
  * Data from src/data/kalvista.ts. lucide-react icons only.
  */
@@ -13,17 +13,19 @@ import { useState, useMemo, type ReactNode, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Search,
-  TrendingDown, TrendingUp, Pencil, Plus, ExternalLink,
+  ArrowRight, ArrowUpRight,
+  TrendingDown, TrendingUp, Pencil, ExternalLink, ChevronDown,
 } from 'lucide-react'
-import { useApp, useConfig } from '../context/AppContext'
+import { useApp, useConfig, useAccountIdentity } from '../context/AppContext'
+import { importanceBand, bandToLegacyTier } from '../lib/deterministic/importance'
+import { tierOf, sourceNameOf, type AttributionTier } from '../lib/deterministic/provenance'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import ProvenanceChip from '../components/ui/ProvenanceChip'
 import PaidGate from '../components/ui/PaidGate'
+import { KeyCatalystsCalendar, CAL_COMPS, type CalCell } from '../components/ui/KeyCatalystsCalendar'
 import {
   competitorsData,
   eventsData,
-  userData,
 } from '../data/kalvista'
 import { DEMO } from '../config/demo-config'
 import {
@@ -32,14 +34,15 @@ import {
   getRecentSignals,
   getMarketImplications,
   getAllAssets,
-  getCompetitorSummaries,
+  getTrialsForCalendarYear,
   type DbAsset,
   type DbSignalSummary,
   type DbRegulatoryCalendarEvent,
   type DbRecentSignal,
   type DbMarketImplication,
 } from '../lib/db'
-import { cleanSignalText, isReadableProse, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
+import { trialsToCalendarCells } from '../lib/trialsToGantt'
+import { cleanSignalText, SIGNAL_FALLBACK, buildReadableHeadline } from '../lib/signalText'
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function decodeEntities(str: string): string {
@@ -55,28 +58,10 @@ const NARRATION_DAYS = 90
 
 // â”€â”€ Keyword matchers for severity and WHY logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CLINICAL_KW    = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
-const COMMERCIAL_KW  = /revenue|commercial|launch|market share|patient|prescription|growth/i
 
-function isCLevelChange(text: string): boolean {
-  return /chief executive|ceo|chief medical|cmo|chief commercial|cco|chief financial|cfo|board chair|president/.test(text)
-}
-
-// Body-text CRITICAL classification requires co-occurrence with a HAE lexicon term in
-// the same sentence — prevents Phase 3 safety trials (testing adverse events) from
-// matching /phase 3.*result/ and being rated CRITICAL when they shouldn't be.
-function criticalCoOccursWithHAE(text: string, lexicon: Lexicon): boolean {
-  // Match forward ("Phase 3 results") AND reverse ("results from the Phase 3 trial")
-  const CRITICAL_BODY_RE = /phase\s*[23].*result|result.*phase\s*[23]|pivotal.*result|topline.*result|primary endpoint|phase\s*[23].*data/i
-  const sentences = text.split(/(?<=[.!?])\s+/)
-  return sentences.some(sentence => {
-    const s = sentence.toLowerCase()
-    if (!CRITICAL_BODY_RE.test(s)) return false
-    return (
-      lexicon.inns.some(t => s.includes(t)) ||
-      lexicon.ta_terms.some(t => s.includes(t))
-    )
-  })
-}
+// isCLevelChange and criticalCoOccursWithHAE removed with D11 (§4.2): both read
+// importance out of phrasing. Importance is now scored from facts — arc, recency,
+// source count, forward catalyst — in lib/deterministic/importance.ts.
 
 function isSignalReadable(s: DbRecentSignal): boolean {
   return cleanSignalText(s) !== SIGNAL_FALLBACK
@@ -89,6 +74,27 @@ type Lexicon = { inns: string[]; ta_terms: string[] }
 
 // Tags that indicate an asset is in HAE development (matches indication_tags column)
 const HAE_TAG_TERMS = ['hereditary angioedema', 'hae']
+
+/**
+ * Plain-language category words for the High importance tile caption.
+ *
+ * Keys are the display `type` values (TYPE_MAP output, which passes unmapped
+ * signal_types straight through). Every signal_type present in live data is
+ * covered: publication, press_release, exec_change, congress_abstract,
+ * regulatory_catalyst, hta_decision, deal, trial_update. An unrecognised type
+ * falls back to its own key rather than being dropped, so the caption stays
+ * truthful if a new type appears before this map is updated.
+ */
+const HIGH_CAPTION_LABEL: Record<string, string> = {
+  'regulatory_catalyst': 'regulatory',
+  'hta_decision':        'access',
+  'trial_update':        'trial',
+  'publication':         'publication',
+  'congress_abstract':   'congress',
+  'deal':                'deal',
+  'exec-move':           'leadership',
+  'exec_change':         'leadership',
+}
 
 // ── EMA calendar event gates ──────────────────────────────────────────────────
 // Gate 1 — event_type allowlist (COMP/HMPC/PDCO are irrelevant to HAE products)
@@ -123,72 +129,33 @@ function isRelevant(s: DbRecentSignal, lexicon: Lexicon): boolean {
   )
 }
 
+/**
+ * Importance tier for a signal — D11 (§4.2), facts only.
+ *
+ * The score itself (arc weight → recency → source count → forward-catalyst
+ * nudge) lives in lib/deterministic/importance.ts. This wrapper adds the one
+ * thing that is local to the reader: the relevance gate. §3.1 defines the
+ * isRelevant() gate and the severity/importance gate as both driven by the
+ * selected asset's disease area, so a signal outside that area cannot reach the
+ * top band however it scores — an approval for an unrelated drug is not
+ * something to act on. That gate is a deterministic lexicon match on config,
+ * never a keyword judgment about what the text "means".
+ *
+ * Replaces the previous keyword classifier, which read importance out of
+ * phrasing ("material agreement", "hard regulatory setback").
+ */
 function computeSeverity(s: DbRecentSignal, lexicon: Lexicon, today: Date): 'high' | 'medium' | 'low' {
-  if (!isRelevant(s, lexicon)) {
-    // exec_change and deal are strategically important regardless of TA lexicon match
-    return (s.signal_type === 'exec_change' || s.signal_type === 'deal') ? 'medium' : 'low'
-  }
-
-  const items = (s.items ?? '').split(',').map(i => i.trim())
-  const text  = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`.toLowerCase()
-  const rawText = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-
-  let band: 'critical' | 'high' | 'moderate' | 'low' = 'low'
-
-  // CRITICAL: M&A via items code OR hard regulatory setbacks OR body-text readout
-  // co-occurring with a HAE term (guards against safety-trial false positives)
-  const isCritical = (
-    (items.includes('2.01') && (text.includes('acqui') || text.includes('merger'))) ||
-    /complete response letter|crl|market withdrawal|black.?box warning/i.test(text) ||
-    criticalCoOccursWithHAE(rawText, lexicon)
-  )
-  if (isCritical) band = 'critical'
-
-  // HIGH: material agreements, NDA/MAA filings, PDUFA, AdCom, Phase 2 results, HTA decisions
-  else if (
-    items.includes('1.01') ||
-    /nda|bla|maa|submitted|filing accepted|pdufa|adcom|advisory committee/i.test(text) ||
-    /phase\s*2.*result|hta decision|nice.*recomm|label.*expan|indication.*expan/i.test(text)
-  ) band = 'high'
-
-  // MODERATE: early-phase activity, earnings, guidelines, C-suite changes
-  else if (
-    /phase\s*(1|2).*start|enrollment.*complet|trial.*initiat/i.test(text) ||
-    items.includes('2.02') ||
-    /guideline.*update|congress.*presentation/i.test(text) ||
-    (items.includes('5.02') && isCLevelChange(text))
-  ) band = 'moderate'
-
-  // Step 3: Proximity bump — imminent catalyst (≤60 days out) raises MODERATE → HIGH
-  if (band === 'moderate') {
-    const daysOut = (new Date(s.date ?? '').getTime() - today.getTime()) / 86_400_000
-    if (daysOut > 0 && daysOut <= 60) band = 'high'
-  }
-
-  // Step 4: Collapse to UI tiers (critical and high both render as 'high')
-  return band === 'critical' || band === 'high' ? 'high'
-       : band === 'moderate'                    ? 'medium'
-       : 'low'
+  // sourceCount and daysToCatalyst are omitted deliberately: no event is
+  // currently carried by more than one source, and no future calendar row
+  // carries a competitor or drug link, so neither can be supplied honestly yet.
+  // Both terms activate in importance.ts the moment that data exists.
+  const band = importanceBand(s, { today })
+  const capped = !isRelevant(s, lexicon) && band === 'act' ? 'watch' : band
+  return bandToLegacyTier(capped)
 }
 
-function buildWhyItMatters(s: DbRecentSignal, competitorName: string, assetName: string, indication: string): string {
-  if (s.why_it_matters) return s.why_it_matters
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  switch (s.signal_type) {
-    case 'deal':
-      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
-    case 'exec_change':
-      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
-    case 'press_release':
-      if (CLINICAL_KW.test(text))
-        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
-      if (COMMERCIAL_KW.test(text))
-        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
-      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
-    default:
-      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
-  }
-}
+// buildWhyItMatters removed (§4-1): auto-generated "what this means" is a
+// paid-tier function; the free tier shows structural facts only.
 
 function buildSourceLabel(url: string | null, signalType: string): string {
   if (!url) return 'SEC EDGAR'
@@ -199,18 +166,23 @@ function buildSourceLabel(url: string | null, signalType: string): string {
   return 'Source'
 }
 
+// §4-1: factual activity descriptor only — no interpretation ("monitor for…",
+// "made a strategic move"). Prefer the real cleaned headline; else name the
+// event class plainly.
+const EVENT_CLASS: Record<string, string> = {
+  exec_change:         'reported a leadership change',
+  deal:                'disclosed a deal',
+  press_release:       'issued a press release',
+  publication:         'has a new publication',
+  hta_decision:        'received an HTA decision',
+  regulatory_catalyst: 'has a regulatory event',
+  congress_abstract:   'presented a congress abstract',
+  trial_update:        'has a trial update',
+}
 function buildNeedleText(s: DbRecentSignal): string {
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  if (s.signal_type === 'exec_change') {
-    return 'had a leadership change — monitor for commercial or strategic follow-through'
-  }
   const cleaned = cleanSignalText(s)
-  const cleanedIsReadable = cleaned !== SIGNAL_FALLBACK
-  const detail = cleanedIsReadable ? `: ${cleaned}` : ''
-  if (s.signal_type === 'deal') return `made a strategic move${detail || ' — see source for details'}`
-  if (CLINICAL_KW.test(text))   return `released clinical data${detail || ' — see source for details'}`
-  if (COMMERCIAL_KW.test(text)) return `signalled commercial progress${detail || ' — see source for details'}`
-  return cleanedIsReadable ? `disclosed new information: ${cleaned}` : 'filed a public disclosure — see source for details'
+  if (cleaned !== SIGNAL_FALLBACK) return cleaned
+  return EVENT_CLASS[s.signal_type] ?? 'filed a public disclosure'
 }
 
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -224,6 +196,10 @@ type Alert = {
   whyItMatters?: string
   source?: string
   sourceUrl?: string | null
+  /** Attribution tier — part of the §4.7 provenance contract. */
+  tier?: AttributionTier | null
+  /** When the record was last taken from its source (§4.7). */
+  lastRefreshed?: string | null
 }
 type Competitor = (typeof competitorsData)[0]
 type EventItem  = (typeof eventsData)[0]
@@ -236,9 +212,13 @@ type LiveSignalDisplayItem = {
   type: string
   severity: 'high' | 'medium' | 'low'
   headline: string
-  whyItMatters: string
+  // whyItMatters is absent by design (§4-1): the free tier carries no
+  // auto-generated interpretation, so the display model has no field for it.
   source: string
   sourceUrl: string | null
+  /** §4.7 provenance contract. */
+  tier: AttributionTier | null
+  lastRefreshed: string | null
   _isLive: true
 }
 
@@ -259,16 +239,14 @@ type MergedEventItem = {
 }
 
 // â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const SEVERITY_BORDER: Record<string, string> = {
-  high:   '#E11D48',
-  medium: '#F59E0B',
-  low:    'rgba(5,10,68,0.18)',
-}
-
-const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
-  high:   { bg: 'rgba(225,29,72,0.10)',  text: '#C01041',           label: 'HIGH' },
-  medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',           label: 'MED'  },
-  low:    { bg: 'rgba(5,10,68,0.06)',    text: 'rgba(5,10,68,0.70)', label: 'LOW'  },
+// Severity lives entirely in its own badge, next to the word it modifies —
+// no card-edge accent. `high` is solid so it anchors a scan down the feed
+// harder than a border ever did; medium and low stay tinted so only the
+// signals that need triage carry weight. White on #C01041 is 6.2:1.
+export const SEVERITY_LABEL: Record<string, { bg: string; text: string; label: string }> = {
+  high:   { bg: '#C01041',               text: '#FFFFFF',            label: 'HIGH' },
+  medium: { bg: 'rgba(245,158,11,0.10)', text: '#92500A',            label: 'MED'  },
+  low:    { bg: 'rgba(16,34,74,0.06)',    text: 'rgba(16,34,74,0.70)', label: 'LOW'  },
 }
 
 const SEVERITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
@@ -291,9 +269,9 @@ function typeLabel(t: string) {
 }
 
 const POSTURE_STYLE: Record<string, { bg: string; text: string }> = {
-  'Incumbent to displace':           { bg: 'rgba(5,10,68,0.08)',    text: 'rgba(5,10,68,0.70)' },
-  'Adjacent oral competitor':        { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
-  'Adjacent injectable prophylaxis': { bg: 'rgba(0,85,187,0.10)',   text: '#0055BB'             },
+  'Incumbent to displace':           { bg: 'rgba(16,34,74,0.08)',    text: 'rgba(16,34,74,0.70)' },
+  'Adjacent oral competitor':        { bg: 'rgba(42,118,244,0.10)',   text: '#2A76F4'             },
+  'Adjacent injectable prophylaxis': { bg: 'rgba(42,118,244,0.10)',   text: '#2A76F4'             },
   'Emerging direct threat':          { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
   'Emerging gene therapy':           { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
   'Emerging oral competitor':        { bg: 'rgba(225,29,72,0.10)',  text: '#C01041'             },
@@ -315,6 +293,9 @@ const SOURCE_TYPE_LABEL: Record<string, string> = {
 
 // â”€â”€ Live data mappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, indication = DEMO.therapeuticArea, lexicon: Lexicon = { inns: [], ta_terms: [] }): LiveSignalDisplayItem {
+  // Plain-language singular/plural is deliberately not attempted here: these read
+  // as category counts ("2 regulatory"), not sentences, which stays readable for a
+  // non-technical medical affairs user without inventing grammar rules.
   const TYPE_MAP: Record<string, string> = {
     deal:          'deal',
     press_release: 'publication',
@@ -329,9 +310,13 @@ function mapDbSignalToDisplay(s: DbRecentSignal, assetName = DEMO.assetName, ind
     type:         TYPE_MAP[s.signal_type] ?? s.signal_type,
     severity:     computeSeverity(s, lexicon, new Date()),
     headline:     buildReadableHeadline(s, competitorById(s.competitor_id)?.name ?? 'This company'),
-    whyItMatters: buildWhyItMatters(s, competitorName, assetName, indication),
-    source:       buildSourceLabel(s.source_url, s.signal_type),
+    // §4.7 requires a real source name. data_source records which pipeline wrote
+    // the row and is 100% populated, so prefer it; the URL-derived label is only a
+    // fallback and yields a bare "Source" for company IR domains.
+    source:       sourceNameOf(s.data_source) ?? buildSourceLabel(s.source_url, s.signal_type),
     sourceUrl:    s.source_url,
+    tier:         tierOf(s.signal_type),  // §4.7 provenance contract
+    lastRefreshed: s.created_at ?? null,  // when we last took it from the source
     _isLive:      true,
   }
 }
@@ -420,8 +405,8 @@ function Card({ children, padding = '20px 22px', style }: {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '16px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+      border: '1px solid rgba(16,34,74,0.08)',
+      boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
       padding,
       ...style,
     }}>
@@ -441,11 +426,11 @@ function CardHeader({ title, subtitle, right }: {
       gap: '12px', marginBottom: '14px',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.92)' }}>
           {title}
         </h2>
         {subtitle && (
-          <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.60)' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
             {subtitle}
           </span>
         )}
@@ -460,7 +445,7 @@ function HeaderLink({ to, children }: { to: string; children: ReactNode }) {
     <Link
       to={to}
       style={{
-        fontSize: '12px', fontWeight: 600, color: 'rgba(5,10,68,0.55)',
+        fontSize: '12px', fontWeight: 600, color: 'rgba(16,34,74,0.60)',
         textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px',
       }}
     >
@@ -479,27 +464,27 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
   linkTo?: string
   linkLabel?: string
 }) {
-  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(5,10,68,0.50)'
+  const deltaColor = deltaTone === 'positive' ? '#0E7B5F' : deltaTone === 'negative' ? '#C01041' : 'rgba(16,34,74,0.50)'
   return (
     <div style={{
       background: '#FFFFFF',
       borderRadius: '14px',
-      border: '1px solid rgba(5,10,68,0.08)',
-      boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+      border: '1px solid rgba(16,34,74,0.08)',
+      boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
       padding: '14px 18px',
       display: 'flex', flexDirection: 'column',
       gap: '4px',
     }}>
       <p style={{
-        margin: 0, fontSize: '10px', fontWeight: 700,
+        margin: 0, fontSize: '12px', fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'rgba(5,10,68,0.65)',
+        color: 'rgba(16,34,74,0.65)',
       }}>
         {label}
       </p>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
         <span style={{
-          fontSize: '26px', fontWeight: 700, color: 'rgba(5,10,68,0.92)',
+          fontSize: '24px', fontWeight: 700, color: 'rgba(16,34,74,0.92)',
           fontVariantNumeric: 'tabular-nums', lineHeight: 1.1,
         }}>
           {value}
@@ -515,7 +500,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
         )}
       </div>
       {caption && (
-        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
           {caption}
         </p>
       )}
@@ -524,7 +509,7 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
           to={linkTo}
           style={{
             marginTop: '6px', fontSize: '12px', fontWeight: 600,
-            color: '#0055BB', textDecoration: 'none',
+            color: '#2A76F4', textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center', gap: '3px',
           }}
         >
@@ -537,7 +522,6 @@ function KpiTile({ label, value, delta, deltaTone = 'positive', caption, linkTo,
 
 // â”€â”€ Compact alert card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CompactAlertCard({ alert }: { alert: Alert }) {
-  const sevBorder = SEVERITY_BORDER[alert.severity] || SEVERITY_BORDER.low
   const sevLabel  = SEVERITY_LABEL[alert.severity]  || SEVERITY_LABEL.low
   const competitor = competitorById(alert.competitorId)
 
@@ -545,28 +529,27 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
     <div style={{
       background: '#FFFFFF',
       borderRadius: '10px',
-      border: '1px solid rgba(5,10,68,0.06)',
-      borderLeft: `3px solid ${sevBorder}`,
+      border: '1px solid rgba(16,34,74,0.06)',
       padding: '12px 14px',
     }}>
       {/* Top row: chips left, age right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
         <span style={{
-          fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-          borderRadius: '9999px', background: 'rgba(5,10,68,0.06)',
-          color: 'rgba(5,10,68,0.60)',
+          fontSize: '12px', fontWeight: 600, padding: '2px 8px',
+          borderRadius: '9999px', background: 'rgba(16,34,74,0.06)',
+          color: 'rgba(16,34,74,0.60)',
         }}>
           {competitor?.name ?? alert.competitorId}
         </span>
         <span style={{
-          fontSize: '11px', fontWeight: 600, padding: '2px 8px',
-          borderRadius: '9999px', background: 'rgba(0,85,187,0.08)',
-          color: '#0055BB',
+          fontSize: '12px', fontWeight: 600, padding: '2px 8px',
+          borderRadius: '9999px', background: 'rgba(42,118,244,0.08)',
+          color: '#2A76F4',
         }}>
           {typeLabel(alert.type)}
         </span>
         <span style={{
-          fontSize: '10px', fontWeight: 700, padding: '2px 7px',
+          fontSize: '12px', fontWeight: 700, padding: '2px 7px',
           borderRadius: '9999px', background: sevLabel.bg, color: sevLabel.text,
           letterSpacing: '0.04em',
         }}>
@@ -575,7 +558,7 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
       </div>
 
       {/* Headline */}
-      <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.92)', lineHeight: 1.35 }}>
+      <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: 700, color: 'rgba(16,34,74,0.92)', lineHeight: 1.35 }}>
         {decodeEntities(alert.headline)}
       </p>
 
@@ -586,15 +569,17 @@ function CompactAlertCard({ alert }: { alert: Alert }) {
             sourceLabel={alert.source}
             sourceUrl={alert.sourceUrl}
             date={alert.timestamp}
+            tier={alert.tier}
+            lastRefreshed={alert.lastRefreshed}
           />
         </div>
       )}
 
       {/* WHY */}
       {alert.whyItMatters && (
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.62)', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.62)', lineHeight: 1.5 }}>
           <strong style={{
-            fontSize: '10px', fontWeight: 700, color: 'rgba(5,10,68,0.65)',
+            fontSize: '12px', fontWeight: 700, color: 'rgba(16,34,74,0.65)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
             WHY —{' '}
@@ -612,17 +597,15 @@ function CompactCompetitorCard({
   liveSignals,
   recentSignals,
   haeAssetCount,
-  narration,
   lexicon,
 }: {
   competitor: Competitor
   liveSignals: DbSignalSummary | null
   recentSignals: DbRecentSignal[]
   haeAssetCount: number
-  narration: string | null
   lexicon: Lexicon
 }) {
-  const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(5,10,68,0.06)', text: 'rgba(5,10,68,0.60)' }
+  const posture = POSTURE_STYLE[competitor.strategicPosture] || { bg: 'rgba(16,34,74,0.06)', text: 'rgba(16,34,74,0.60)' }
   const pipelineCount = haeAssetCount
 
   let lastSignal: string
@@ -656,11 +639,11 @@ function CompactCompetitorCard({
     activityLabel = ''
   }
 
-  // Phase 2C: body text — prefer stored narration (only when it reads as clean prose);
-  // fall back to a built needle, then an honest empty state when no signals exist.
+  // §4-1: body text is the most recent signal's real headline. The stored
+  // company_summaries narration is AI-generated interpretation ("which the
+  // Ekterly team should consider...") — legacy from the AI track, not read here.
   const hasSignals = compSignals.length > 0
-  const cleanNarration = narration && isReadableProse(narration) ? narration : null
-  const activityText: string | null = cleanNarration ?? (hasSignals ? buildNeedleText(compSignals[0]) : null)
+  const activityText: string | null = hasSignals ? buildNeedleText(compSignals[0]) : null
 
   return (
     <Link
@@ -670,8 +653,8 @@ function CompactCompetitorCard({
         textDecoration: 'none',
         background: '#FFFFFF',
         borderRadius: '14px',
-        border: '1px solid rgba(5,10,68,0.08)',
-        boxShadow: '0 1px 2px rgba(5,10,68,0.04)',
+        border: '1px solid rgba(16,34,74,0.08)',
+        boxShadow: '0 1px 2px rgba(16,34,74,0.04)',
         padding: '16px 18px',
         display: 'flex', flexDirection: 'column', gap: '10px',
       }}
@@ -679,7 +662,7 @@ function CompactCompetitorCard({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <CompetitorBadge name={competitor.name} size={32} />
-        <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
+        <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.92)' }}>
           {competitor.name}
         </p>
       </div>
@@ -689,7 +672,7 @@ function CompactCompetitorCard({
         <span style={{
           display: 'inline-block',
           padding: '2px 10px', borderRadius: '9999px',
-          fontSize: '11px', fontWeight: 600,
+          fontSize: '12px', fontWeight: 600,
           background: posture.bg, color: posture.text,
         }}>
           {competitor.strategicPosture}
@@ -698,8 +681,8 @@ function CompactCompetitorCard({
           title="Hand-authored editorial label — not computed from data"
           style={{
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 500,
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.40)',
+            fontSize: '12px', fontWeight: 500,
+            background: 'rgba(16,34,74,0.06)', color: 'rgba(16,34,74,0.60)',
             cursor: 'help', whiteSpace: 'nowrap',
           }}
         >
@@ -709,20 +692,20 @@ function CompactCompetitorCard({
 
       {/* Signal summary */}
       {activityIsLive && activityLabel && (
-        <p style={{ margin: '0 0 4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#10B981' }}>
+        <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#10B981' }}>
           {activityLabel}
         </p>
       )}
       {activityText ? (
         <p style={({
-          margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.60)',
+          margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.60)',
           lineHeight: 1.5,
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         } as CSSProperties)}>
           {activityText}
         </p>
       ) : (
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(5,10,68,0.35)', lineHeight: 1.5, fontStyle: 'italic' }}>
+        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(16,34,74,0.60)', lineHeight: 1.5, fontStyle: 'italic' }}>
           No recent signals in the last {NARRATION_DAYS} days
         </p>
       )}
@@ -731,21 +714,21 @@ function CompactCompetitorCard({
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         marginTop: '4px', paddingTop: '10px',
-        borderTop: '1px solid rgba(5,10,68,0.06)',
+        borderTop: '1px solid rgba(16,34,74,0.06)',
       }}>
         <div>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
+          <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
             Pipeline
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 600, color: 'rgba(5,10,68,0.85)' }}>
+          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 600, color: 'rgba(16,34,74,0.85)' }}>
             {pipelineCount} {pipelineCount === 1 ? 'asset' : 'assets'}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)' }}>
+          <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)' }}>
             Last signal
           </p>
-          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(5,10,68,0.65)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 500, color: 'rgba(16,34,74,0.65)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             {isLive && (
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0, display: 'inline-block' }} />
             )}
@@ -763,20 +746,20 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
   const subtitle = event.expectedTopics?.[0] || event.note || ''
   return (
     <Link
-      to={`/intelligence?tab=events&event=${event.id}`}
+      to={`/intelligence?event=${event.id}`}
       style={{
         textDecoration: 'none',
         display: 'flex', alignItems: 'center', gap: '14px',
         padding: '10px 4px',
-        borderBottom: last ? 'none' : '1px solid rgba(5,10,68,0.06)',
+        borderBottom: last ? 'none' : '1px solid rgba(16,34,74,0.06)',
       }}
     >
       {/* Date block */}
       <div style={{ textAlign: 'center', minWidth: '36px' }}>
-        <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'rgba(5,10,68,0.85)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'rgba(16,34,74,0.85)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {day}
         </p>
-        <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(5,10,68,0.65)' }}>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(16,34,74,0.65)' }}>
           {month}
         </p>
       </div>
@@ -784,7 +767,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
       {/* Title + EMA chip + subtitle */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(5,10,68,0.88)',
+          margin: 0, fontSize: '14px', fontWeight: 700, color: 'rgba(16,34,74,0.88)',
           lineHeight: 1.35,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
@@ -794,7 +777,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
           <span style={{
             display: 'inline-block', marginTop: '2px',
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 700, letterSpacing: '0.05em',
+            fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em',
             background: 'rgba(0,52,114,0.10)', color: '#003472',
           }}>
             EMA
@@ -804,15 +787,15 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
           <span style={{
             display: 'inline-block', marginTop: '2px',
             padding: '1px 7px', borderRadius: '9999px',
-            fontSize: '10px', fontWeight: 600, letterSpacing: '0.03em',
-            background: 'rgba(5,10,68,0.06)', color: 'rgba(5,10,68,0.55)',
+            fontSize: '12px', fontWeight: 600, letterSpacing: '0.03em',
+            background: 'rgba(16,34,74,0.06)', color: 'rgba(16,34,74,0.60)',
           }}>
             {SOURCE_TYPE_LABEL[event.sourceType]}
           </span>
         )}
         {subtitle && (
           <p style={{
-            margin: '2px 0 0', fontSize: '12px', color: 'rgba(5,10,68,0.50)',
+            margin: '2px 0 0', fontSize: '12px', color: 'rgba(16,34,74,0.60)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {subtitle}
@@ -822,7 +805,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
 
       {/* Countdown + source link */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-        <span style={{ fontSize: '11px', color: 'rgba(5,10,68,0.65)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.65)', whiteSpace: 'nowrap' }}>
           {daysUntilLabel(event.date)}
         </span>
         {event.sourceUrl && (
@@ -830,7 +813,7 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
             type="button"
             title="View source"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(event.sourceUrl!, '_blank', 'noreferrer') }}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(5,10,68,0.35)', display: 'inline-flex', alignItems: 'center' }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(16,34,74,0.60)', display: 'inline-flex', alignItems: 'center' }}
           >
             <ExternalLink size={10} />
           </button>
@@ -842,11 +825,16 @@ function EventRow({ event, last }: { event: MergedEventItem; last: boolean }) {
 
 // â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function WarRoom() {
-  const { unreadCount, readAlerts, openAskModal, watchedCompetitors } = useApp()
+  const { unreadCount, readAlerts, watchedCompetitors } = useApp()
+  const account = useAccountIdentity()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   const navigate = useNavigate()
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
+  // Key catalysts calendar (§ IA reference doc, "what is coming") — collapsed
+  // by default under the Upcoming events rail; its trial-cell data is only
+  // fetched once the reader actually asks to see it.
+  const [showFullCalendar, setShowFullCalendar] = useState(false)
 
   // â”€â”€ Live data via React Query (stale-while-revalidate, 5-min background refresh) â”€â”€
   // Sorted for stable key comparison — refetches automatically when watchlist changes
@@ -861,17 +849,28 @@ export default function WarRoom() {
       getRegulatoryCalendar(),
       getMarketImplications(),
       getAllAssets(),                   // indication_tags for HAE asset count per competitor
-      getCompetitorSummaries(),        // Phase 2C: per-competitor rolling narrations
-    ]).then(([summary, recent, calendar, implications, assets, narrations]) => ({
-      summary, recent, calendar, implications, assets, narrations,
+      // §4-1: getCompetitorSummaries() dropped — company_summaries holds
+      // AI-generated interpretation, which the free tier must not surface.
+    ]).then(([summary, recent, calendar, implications, assets]) => ({
+      summary, recent, calendar, implications, assets,
     })),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchInterval: 5 * 60 * 1000,
   })
 
+  // Trial-derived calendar cells for the full catalyst heatmap — fetched only
+  // when the reader expands it, not on every War Room load.
+  const { data: trialCellsData } = useQuery({
+    queryKey: ['war-room-trial-cells'],
+    queryFn: () => getTrialsForCalendarYear(CAL_COMPS, 2026)
+      .then((calTrials) => trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>),
+    enabled: showFullCalendar,
+    staleTime: 5 * 60 * 1000,
+  })
+  const liveTrialCells = trialCellsData ?? {}
+
   const signalsSummary     = liveData?.summary       ?? new Map<string, DbSignalSummary>()
-  const competitorNarrations = liveData?.narrations  ?? new Map<string, string | null>()
   const recentLiveSignals  = (liveData?.recent ?? ([] as DbRecentSignal[]))
   const calendarEvents     = liveData?.calendar      ?? ([] as DbRegulatoryCalendarEvent[])
   const marketImplications = liveData?.implications  ?? ([] as DbMarketImplication[])
@@ -916,22 +915,39 @@ export default function WarRoom() {
     .slice(0, 5)
 
   // KPI metrics — derived from live signals only
-  const highUnread         = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high' && !readAlerts.has((a as unknown as Alert).id)).length
+  /**
+   * The signals behind the High importance tile.
+   *
+   * The tile's number and its caption MUST come from this one array. They used to
+   * come from two different populations: the number counted high-and-unread, the
+   * caption described all high signals regardless of read state, and the caption
+   * only ever named two of the seven categories. So the tile could read "1" above
+   * the words "No high-priority signals", which is exactly what it did.
+   */
+  const highUnreadItems    = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high' && !readAlerts.has((a as unknown as Alert).id))
+  const highUnread         = highUnreadItems.length
   const newThisWeek        = newSignalCount7d
   const pharvarisUnread    = liveDisplayItems.filter((a) => (a as unknown as Alert).competitorId === 'pharvaris' && !readAlerts.has((a as unknown as Alert).id)).length
   const trackedCompetitorCount = watchedCompetitors.size
   // Signals that mention clinical trial keywords (press releases with clinical content)
   const trialAlerts        = liveDisplayItems.filter((a) => CLINICAL_KW.test((a as unknown as Alert).headline ?? '')).length
   const commercialAlerts   = liveDisplayItems.filter((a) => ['exec-move', 'deal', 'earnings'].includes((a as unknown as Alert).type ?? '')).length
-  // High-severity breakdown for KPI tile caption
-  const highAlerts = liveDisplayItems.filter((a) => (a as unknown as Alert).severity === 'high')
-  const dealHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'deal').length
-  const execHighCount   = highAlerts.filter((a) => (a as unknown as Alert).type === 'exec-move').length
-  const highCaptionParts = [
-    dealHighCount > 0   ? `${dealHighCount} deal`      : '',
-    execHighCount > 0   ? `${execHighCount} exec`      : '',
-  ].filter(Boolean)
-  const highCaption = highCaptionParts.length > 0 ? highCaptionParts.join(' · ') + ' · review recommended' : 'No high-priority signals'
+  // Caption for the High importance tile, built from the SAME array as its number
+  // so the two can never disagree. Categories are counted generically from the
+  // signals present rather than from a hardcoded shortlist, so a category nobody
+  // thought to enumerate still gets described instead of vanishing.
+  const highCaption = (() => {
+    if (highUnreadItems.length === 0) return 'Nothing needs action right now'
+    const byType = new Map<string, number>()
+    for (const item of highUnreadItems) {
+      const label = (item as unknown as Alert).type || 'other'
+      byType.set(label, (byType.get(label) ?? 0) + 1)
+    }
+    const parts = [...byType.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([label, n]) => `${n} ${HIGH_CAPTION_LABEL[label] ?? label}`)
+    return `${parts.join(' · ')} · review recommended`
+  })()
 
   // Tracked competitors — watched set, sorted by most recent signal (no cap)
   const trackedCompetitors = competitorsData
@@ -984,7 +1000,8 @@ export default function WarRoom() {
     : 'Pressure easing'
 
   // Market weather — implication bullets (live from DB only)
-  const displayedImplications = marketImplications.map((i) => i.content)
+  // §4-1: market implications are interpretation — gated behind PaidGate, never
+  // rendered in the free tier (see the Implications block below).
 
   // Weekly digest — top 3 relevant signals from the live feed
   const digestItems = relevantSignals
@@ -1009,21 +1026,24 @@ export default function WarRoom() {
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
-            margin: '0 0 4px', fontSize: '11px', fontWeight: 700,
-            letterSpacing: '0.08em', color: 'rgba(5,10,68,0.60)',
+            margin: '0 0 4px', fontSize: '12px', fontWeight: 700,
+            letterSpacing: '0.08em', color: 'rgba(16,34,74,0.60)',
           }}>
             {headerTimestamp(lastRefreshedAt)}
           </p>
           <h1 style={{
             margin: 0, fontSize: '24px', fontWeight: 700,
-            color: 'rgba(5,10,68,0.92)', lineHeight: 1.25,
+            color: 'rgba(16,34,74,0.92)', lineHeight: 1.25,
           }}>
-            {greeting()}, {userData.user.name}.{' '}
-            <span style={{ color: 'rgba(5,10,68,0.55)', fontWeight: 600 }}>
+            {/* Greet by the signed-in account's own name, and omit the name entirely
+                when the account carries none. This used to read userData.user.name
+                from static data, greeting every visitor as "David". */}
+            {account.displayName ? `${greeting()}, ${account.displayName}.` : `${greeting()}.`}{' '}
+            <span style={{ color: 'rgba(16,34,74,0.60)', fontWeight: 600 }}>
               Here's the state of {indication}.
             </span>
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(5,10,68,0.50)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)' }}>
             {assetName} · {indication}
             {trackedCompetitors.length > 0 && (
               <>
@@ -1035,32 +1055,19 @@ export default function WarRoom() {
           </p>
         </div>
 
-        {/* Ask Ariya + Customise buttons */}
+        {/* Customise button. The Ask Ariya CTA that sat here was removed with the
+            rest of the RAG chat feature (handoff index §2, frontend §2). */}
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0, paddingTop: '6px' }}>
-          <button
-            onClick={() => openAskModal('war-room-header-ask')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: 600,
-              background: '#0055BB', color: '#FFFFFF',
-              border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            <Plus size={13} strokeWidth={2.5} />
-            Ask Ariya
-          </button>
           {/* Customise — visual only (no edit-mode behaviour) */}
           <button
             type="button"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               padding: '7px 14px', borderRadius: '9999px',
-              fontSize: '13px', fontWeight: 600,
+              fontSize: '14px', fontWeight: 600,
               background: 'transparent',
-              color: 'rgba(5,10,68,0.65)',
-              border: '1.5px solid rgba(5,10,68,0.20)',
+              color: 'rgba(16,34,74,0.65)',
+              border: '1.5px solid rgba(16,34,74,0.20)',
               cursor: 'pointer',
               fontFamily: 'inherit',
             }}
@@ -1145,10 +1152,10 @@ export default function WarRoom() {
                         aria-pressed={on}
                         style={{
                           padding: '4px 10px', borderRadius: '9999px',
-                          fontSize: '11px', fontWeight: on ? 700 : 500,
-                          background: on ? '#050A44' : 'transparent',
-                          color: on ? '#FFFFFF' : 'rgba(5,10,68,0.55)',
-                          border: `1.5px solid ${on ? '#050A44' : 'rgba(5,10,68,0.15)'}`,
+                          fontSize: '12px', fontWeight: on ? 700 : 500,
+                          background: on ? '#10224A' : 'transparent',
+                          color: on ? '#FFFFFF' : 'rgba(16,34,74,0.55)',
+                          border: `1.5px solid ${on ? '#10224A' : 'rgba(16,34,74,0.15)'}`,
                           cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
@@ -1166,7 +1173,7 @@ export default function WarRoom() {
                   <CompactAlertCard key={alert.id} alert={alert} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   {!liveDataLoaded
                     ? 'Loading signals…'
                     : watchedCompetitors.size === 0
@@ -1190,67 +1197,21 @@ export default function WarRoom() {
                 gap: '12px',
               }}>
                 {trackedCompetitors.map((c) => (
-                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} narration={competitorNarrations.get(c.id) ?? null} lexicon={lexicon} />
+                  <CompactCompetitorCard key={c.id} competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} recentSignals={relevantSignals} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} lexicon={lexicon} />
                 ))}
               </div>
             ) : (
-              <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                 You're not tracking any competitors yet.{' '}
-                <a href="/competitors" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
+                <a href="/competitors" style={{ color: '#2A76F4', textDecoration: 'none', fontWeight: 600 }}>Go to Competitors</a>
                 {' '}to add some to your watchlist.
               </p>
             )}
           </Card>
 
-          {/* Ask Ariya panel */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Sparkles size={14} color="#0055BB" />
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.92)' }}>
-                Ask Ariya
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => openAskModal('war-room-ask-panel')}
-              aria-label={`Ask Ariya: What changed for ${assetName} this week?`}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '10px 14px', borderRadius: '10px',
-                background: '#FAFBFE',
-                border: '1px solid rgba(5,10,68,0.10)',
-                cursor: 'pointer', marginBottom: '12px',
-                width: '100%', textAlign: 'left', fontFamily: 'inherit',
-              }}
-            >
-              <Search size={14} color="rgba(5,10,68,0.50)" aria-hidden="true" />
-              <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.55)' }}>
-                What changed for {assetName} this week?
-              </span>
-            </button>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {[
-                `Compare Pharvaris vs ${assetName} timeline`,
-                "Summarise Takeda's pediatric narrative",
-                'Draft IR talking points',
-              ].map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => openAskModal(`war-room-prompt-${prompt}`)}
-                  style={{
-                    padding: '6px 12px', borderRadius: '9999px',
-                    background: 'rgba(0,85,187,0.06)',
-                    color: '#0055BB',
-                    border: '1px solid rgba(0,85,187,0.18)',
-                    fontSize: '12px', fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </Card>
+          {/* The Ask Ariya panel that sat here is removed: RAG chat is AI and is
+              excluded (handoff index §2, frontend §2). Frontend §6.1's War Room
+              composition does not include it either, so nothing replaces it. */}
         </div>
 
         {/* â”€â”€ RIGHT COLUMN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
@@ -1271,9 +1232,9 @@ export default function WarRoom() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
                     padding: '2px 9px', borderRadius: '9999px',
-                    background: 'rgba(5,10,68,0.06)',
-                    fontSize: '10px', fontWeight: 700,
-                    color: 'rgba(5,10,68,0.55)', letterSpacing: '0.05em',
+                    background: 'rgba(16,34,74,0.06)',
+                    fontSize: '12px', fontWeight: 700,
+                    color: 'rgba(16,34,74,0.60)', letterSpacing: '0.05em',
                   }}>
                     30D
                   </span>
@@ -1292,7 +1253,7 @@ export default function WarRoom() {
                 <StatusIcon size={14} strokeWidth={2.5} />
                 {pressureStatus}
               </span>
-              <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.55)' }}>
+              <span style={{ fontSize: '12px', color: 'rgba(16,34,74,0.60)' }}>
                 over the last 30 days
               </span>
             </div>
@@ -1300,9 +1261,9 @@ export default function WarRoom() {
             {/* What moved this week */}
             <div style={{ marginBottom: '14px' }}>
               <p style={{
-                margin: '0 0 8px', fontSize: '10px', fontWeight: 700,
+                margin: '0 0 8px', fontSize: '12px', fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.10em',
-                color: 'rgba(5,10,68,0.65)',
+                color: 'rgba(16,34,74,0.65)',
               }}>
                 What moved this week
               </p>
@@ -1312,9 +1273,9 @@ export default function WarRoom() {
                     const cName = competitorById(item.competitorId)?.name ?? item.competitorId
                     return (
                       <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                        <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                          <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                        <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(16,34,74,0.60)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '14px', color: 'rgba(16,34,74,0.72)', lineHeight: 1.5 }}>
+                          <strong style={{ fontWeight: 700, color: 'rgba(16,34,74,0.88)' }}>{cName}</strong>
                           {' — '}{decodeEntities(item.text)}
                         </span>
                       </li>
@@ -1322,7 +1283,7 @@ export default function WarRoom() {
                   })}
                 </ul>
               ) : (
-                <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: 0, fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   {watchedCompetitors.size === 0
                     ? 'Track competitors to see their weekly moves here.'
                     : 'No notable moves from your tracked competitors this week.'}
@@ -1338,14 +1299,14 @@ export default function WarRoom() {
             {/* Footer */}
             <div style={{
               marginTop: '14px', paddingTop: '12px',
-              borderTop: '1px solid rgba(5,10,68,0.06)',
+              borderTop: '1px solid rgba(16,34,74,0.06)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               gap: '10px',
             }}>
               <Link
                 to="/alerts"
                 style={{
-                  fontSize: '12px', fontWeight: 600, color: '#0055BB',
+                  fontSize: '12px', fontWeight: 600, color: '#2A76F4',
                   textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px',
                 }}
               >
@@ -1363,7 +1324,28 @@ export default function WarRoom() {
                   ? `${liveEventItems.length} from EMA`
                   : undefined
               }
-              right={<HeaderLink to="/intelligence?tab=events">All</HeaderLink>}
+              right={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <button
+                    onClick={() => setShowFullCalendar((v) => !v)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '3px',
+                      fontSize: '12px', fontWeight: 600, color: 'rgba(16,34,74,0.60)',
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    }}
+                  >
+                    {showFullCalendar ? 'Hide full calendar' : 'View full calendar'}
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transform: showFullCalendar ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 150ms ease',
+                      }}
+                    />
+                  </button>
+                  <HeaderLink to="/intelligence">All</HeaderLink>
+                </div>
+              }
             />
             <div>
               {upcomingEvents.length > 0 ? (
@@ -1371,13 +1353,18 @@ export default function WarRoom() {
                   <EventRow key={e.id} event={e} last={i === upcomingEvents.length - 1} />
                 ))
               ) : (
-                <p style={{ margin: '8px 0', fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+                <p style={{ margin: '8px 0', fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                   No upcoming events found.{' '}
-                  <a href="/intelligence?tab=events" style={{ color: '#0055BB', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
+                  <a href="/intelligence" style={{ color: '#2A76F4', textDecoration: 'none', fontWeight: 600 }}>Check the Intelligence Feed</a>
                   {' '}for the full calendar.
                 </p>
               )}
             </div>
+            {showFullCalendar && (
+              <div style={{ margin: '4px 0 12px' }}>
+                <KeyCatalystsCalendar count={eventsData.length} liveTrialCells={liveTrialCells} />
+              </div>
+            )}
           </Card>
 
           {/* Weekly digest */}
@@ -1392,9 +1379,9 @@ export default function WarRoom() {
                   const cName = competitorById(item.competitorId)?.name ?? item.competitorId
                   return (
                     <li key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(5,10,68,0.60)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '14px', color: 'rgba(5,10,68,0.72)', lineHeight: 1.5 }}>
-                        <strong style={{ fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>{cName}</strong>
+                      <span style={{ marginTop: '7px', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(16,34,74,0.60)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '14px', color: 'rgba(16,34,74,0.72)', lineHeight: 1.5 }}>
+                        <strong style={{ fontWeight: 700, color: 'rgba(16,34,74,0.88)' }}>{cName}</strong>
                         {' — '}{item.text}
                       </span>
                     </li>
@@ -1402,7 +1389,7 @@ export default function WarRoom() {
                 })}
               </ul>
             ) : (
-              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.40)', fontStyle: 'italic' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: 'rgba(16,34,74,0.60)', fontStyle: 'italic' }}>
                 No recent signals to summarise
               </p>
             )}

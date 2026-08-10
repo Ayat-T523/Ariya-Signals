@@ -24,6 +24,9 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadAssetResolver,
+  resolveAsset,
+  refineSignalType,
 } from './lib/signal-gate.mjs'
 import { fcScrape } from './lib/firecrawl.mjs'
 
@@ -129,11 +132,13 @@ function isRelevant(text, haeTerms) {
   return haeTerms.some(t => lower.includes(t))
 }
 
-function classifySignalType(text) {
-  const lower = text.toLowerCase()
+function classifySignalType(title, summary) {
+  const lower = `${title} ${summary}`.toLowerCase()
   if (/(deal|collaborat|licens|acqui|partner|agreement)/.test(lower)) return 'deal'
-  if (/(fda|ema|approv|cleared|authoris|pdufa|nda|bla|maa|granted)/.test(lower)) return 'regulatory_catalyst'
-  return 'press_release'
+  // Regulatory / trial / plain announcement via the shared calibrated rules
+  // (§4.1). The previous OR-regex typed anything mentioning "fda" or "granted"
+  // as regulatory, which over-typed trial readouts and earnings reports.
+  return refineSignalType(title, summary, 'press_release')
 }
 
 function titleInMarkdown(title, markdown) {
@@ -154,7 +159,7 @@ function resolveUrl(raw, baseUrl) {
 
 // ── Per-target ingest ─────────────────────────────────────────────────────────
 
-async function ingestTarget(supabase, target) {
+async function ingestTarget(supabase, target, resolver) {
   const { competitor_id, newsUrl, haeTerms } = target
   const prompt = buildPrompt(haeTerms)
 
@@ -207,7 +212,9 @@ async function ingestTarget(supabase, target) {
 
       const date       = parseSignalDate(article.date)
       const sourceUrl  = resolveUrl(article.url, pageUrl)
-      const signalType = classifySignalType(`${title} ${summary}`)
+      const signalType = classifySignalType(title, summary)
+      // Tier-3 asset match: persist named drug's INN + asset_id, else null (§4.1).
+      const { inn, assetId } = resolveAsset(`${title} ${summary}`.toLowerCase(), resolver)
 
       // Use same hash formula as ir_rss for cross-dedup compatibility
       const sourceHash = sha256(`${competitor_id}|${sourceUrl}|${date ?? ''}`)
@@ -223,6 +230,8 @@ async function ingestTarget(supabase, target) {
         source_url:   sourceUrl,
         source_hash:  sourceHash,
         data_source:  DATA_SOURCE,
+        inn,
+        asset_id:     assetId,
       })
 
       if (error) {
@@ -248,13 +257,14 @@ async function main() {
   console.log(`   pages per target: ${MAX_PAGES}\n`)
 
   const supabase = createSupabaseClient()
+  const resolver = await loadAssetResolver(supabase)
 
   let totalWritten = 0
   let totalSkipped = 0
   let totalErrors  = 0
 
   for (const target of targets) {
-    const { written, skipped, errors } = await ingestTarget(supabase, target)
+    const { written, skipped, errors } = await ingestTarget(supabase, target, resolver)
     totalWritten += written
     totalSkipped += skipped
     totalErrors  += errors

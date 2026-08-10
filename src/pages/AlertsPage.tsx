@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { analytics } from '../lib/analytics'
 import {
   CheckCheck, Circle,
-  ChevronDown, ChevronRight, Sparkles,
+  ChevronDown, ChevronRight,
   LayoutList, LayoutGrid,
   Layers,
   Database,
@@ -34,15 +34,11 @@ const TYPE_CONFIG = {
   'strategic-shift': { label: 'Strategic shift', bg: 'rgba(225,29,72,0.10)', text: '#C01041' },
 }
 
-// Severity left-border colours (§7.6)
-const SEVERITY_BORDER = {
-  high:   '#E11D48',
-  medium: '#F59E0B',
-  low:    'rgba(5,10,68,0.10)',
-}
-
+// Severity lives entirely in its badge, not on the card edge — matches the
+// War Room feed card. `high` is solid so it anchors a scan; medium and low stay
+// tinted so only what needs triage carries weight. White on #C01041 is 6.2:1.
 const SEVERITY_LABEL = {
-  high:   { text: '#C01041', bg: 'rgba(225,29,72,0.10)' },
+  high:   { text: '#FFFFFF', bg: '#C01041' },
   medium: { text: '#92500A', bg: 'rgba(245,158,11,0.10)' },
   low:    { text: 'rgba(5,10,68,0.70)', bg: 'rgba(5,10,68,0.06)' },
 }
@@ -138,7 +134,6 @@ function AlertCard({ alert }) {
   const [whatChangedOpen, setWhatChangedOpen] = useState(true)
 
   const typeCfg = TYPE_CONFIG[alert.type] || { label: alert.type, bg: 'rgba(5,10,68,0.07)', text: 'rgba(5,10,68,0.55)' }
-  const sevBorder = SEVERITY_BORDER[alert.severity] ?? SEVERITY_BORDER.low
   const sevLabel  = SEVERITY_LABEL[alert.severity]  ?? SEVERITY_LABEL.low
 
   function toggleRead(e) {
@@ -152,7 +147,6 @@ function AlertCard({ alert }) {
       background: '#FFFFFF',
       borderRadius: '12px',
       border: '1px solid rgba(210,226,255,1)',
-      borderLeft: `4px solid ${sevBorder}`,
       padding: '18px 20px',
       opacity: isRead ? 0.72 : 1,
       transition: 'opacity 150ms ease',
@@ -353,7 +347,7 @@ function AlertCard({ alert }) {
 
 // ── Theme cluster card ────────────────────────────────────────────────────────
 function ThemeCluster({ theme, clusterAlerts }) {
-  const { readAlerts, openAskModal } = useApp()
+  const { readAlerts } = useApp()
   const [expanded, setExpanded] = useState(false)
 
   const hasUnread = clusterAlerts.some((a) => !readAlerts.has(a.id))
@@ -452,31 +446,8 @@ function ThemeCluster({ theme, clusterAlerts }) {
             ))}
           </div>
 
-          {/* Ask Ariya CTA */}
-          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => openAskModal(`theme:${theme.id}`)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '8px 18px', borderRadius: '9999px',
-                fontSize: '14px', fontWeight: 600,
-                background: '#050A44', color: '#FFFFFF',
-                border: 'none', cursor: 'pointer',
-                transition: 'transform 120ms ease, box-shadow 120ms ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(5,10,68,0.25)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = ''
-                e.currentTarget.style.boxShadow = ''
-              }}
-            >
-              <Sparkles size={13} />
-              Ask Ariya about this theme
-            </button>
-          </div>
+          {/* The per-theme Ask Ariya CTA that sat here is removed: RAG chat is AI
+              and is excluded (handoff index §2, frontend §2). */}
 
         </div>
       )}

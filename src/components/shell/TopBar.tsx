@@ -3,7 +3,7 @@
  * Matches Figma node 77:1956 (file IXHI4HJFuZpw5hPMrv7DVb).
  *
  * Layout:
- *   [page title 32px Satoshi Medium] [stats row 14px]   [Ask Ariya CTA →]
+ *   [page title 32px Satoshi Medium] [stats row 14px]
  *   [illustrative data ribbon]
  *
  * Rules:
@@ -25,7 +25,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/market-performance':  'Market Performance',
   '/pricing':             'Pricing and Access',
   '/alerts':              'Alerts',
-  '/ask':                 'Ask Ariya',
   '/myspace':             'My Space',
   '/myspace/alerts':      'My Alerts',
   '/myspace/documents':   'My Documents',
@@ -59,32 +58,9 @@ function getPageSubtitle(pathname: string, assetName: string, indication: string
   return null
 }
 
-// ── Static fallback button (shown before Lottie loads) ───────────────────────
-function StaticAskButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: '8px',
-        padding: '6px 16px',
-        background: '#10224a',
-        border: 'none', borderRadius: '8px',
-        cursor: 'pointer',
-        fontFamily: 'Satoshi, sans-serif',
-        fontSize: '14px', fontWeight: 500,
-        color: '#ffffff',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-      }}
-    >
-      Ask Ariya
-    </button>
-  )
-}
-
-function AskAriyaButton({ onClick }: { onClick: () => void }) {
-  return <StaticAskButton onClick={onClick} />
-}
+// The Ask Ariya CTA that lived here is removed: RAG chat is AI and is excluded
+// (handoff index §2, frontend §2). The top bar right slot is now free, which
+// also serves frontend §4's "maximum content breath" intent.
 
 // ── TopBar ────────────────────────────────────────────────────────────────────
 export default function TopBar() {
@@ -110,10 +86,6 @@ export default function TopBar() {
   // War Room renders its own greeting header in-page — suppress the global title row
   const isWarRoom = location.pathname === '/'
 
-  // On the Ask Ariya page itself, the Ask Ariya button is redundant
-  const isAskPage     = location.pathname === '/ask'
-  // My Space is a settings/config screen — Ask Ariya not needed there
-  const isMySpacePage = location.pathname === '/myspace'
 
   const pageSubtitle = getPageSubtitle(location.pathname, assetName, indication, watchedCompetitors.size)
 
@@ -172,10 +144,6 @@ export default function TopBar() {
             )}
           </div>
 
-          {/* Right — Ask Ariya CTA (hidden on Ask page and My Space) */}
-          {!isAskPage && !isMySpacePage && (
-            <AskAriyaButton onClick={() => navigate('/ask')} />
-          )}
         </div>
       )}
 

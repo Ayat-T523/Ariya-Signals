@@ -1,10 +1,9 @@
 import {
   Megaphone, TrendingUp, Globe, Mic, DollarSign, FileText, AlertTriangle, ExternalLink,
 } from 'lucide-react'
-import AIButton from '../../ui/AIButton'
 import EmptyState from '../../ui/EmptyState'
 import ProvenanceChip from '../../ui/ProvenanceChip'
-import { DEMO } from '../../../config/demo-config'
+import { useConfig } from '../../../context/AppContext'
 import { formatDateAbs } from '../../../utils/formatDate'
 
 // ── Source type config ────────────────────────────────────────────────────────
@@ -171,6 +170,9 @@ function TimelineCard({ entry }) {
 
 // ── vs client comparison table ───────────────────────────────────────────────────
 function ComparisonTable({ rows, competitorName, competitorId }) {
+  // "Our side" is the user's tracked asset, not a hardcoded company. This column
+  // used to read DEMO.companyLabel, so it said "Pharma Inc" to every user.
+  const { assetName } = useConfig()
   return (
     <div style={{
       background: '#FFFFFF',
@@ -197,7 +199,7 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
             margin: 0, fontSize: '13px', fontWeight: 600,
             color: '#434c5b',
           }}>
-            {DEMO.companyLabel}'s position
+            {assetName}'s position
           </p>
         </div>
       </div>
@@ -240,17 +242,8 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
         </div>
       ))}
 
-      {/* AI CTA */}
-      <div style={{
-        padding: '14px 16px',
-        borderTop: '1px solid rgba(5,10,68,0.08)',
-        display: 'flex', justifyContent: 'flex-end',
-        background: 'rgba(5,10,68,0.02)',
-      }}>
-        <AIButton source={`messaging-comparison-${competitorId}`}>
-          Ask Ariya to analyze this
-        </AIButton>
-      </div>
+      {/* The "Ask Ariya to analyze this" CTA that closed this card is removed:
+          AI generation is excluded (handoff index §2, frontend §2). */}
     </div>
   )
 }
@@ -354,7 +347,13 @@ function AnnouncementsSection({ items }: { items: any[] }) {
             <p style={{ margin: 0, fontSize: '13px', color: 'rgba(5,10,68,0.80)', lineHeight: '1.4', flex: 1 }}>{item.headline}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               {item.accession_number
-                ? <ProvenanceChip sourceLabel="SEC EDGAR" sourceUrl={item.sourceUrl} date={item.date} />
+                ? <ProvenanceChip
+                    sourceLabel={item.sourceLabel ?? 'SEC EDGAR'}
+                    sourceUrl={item.sourceUrl}
+                    date={item.date}
+                    tier={item.tier}
+                    lastRefreshed={item.lastRefreshed}
+                  />
                 : item.date && <span style={{ fontSize: '12px', color: 'rgba(5,10,68,0.40)', whiteSpace: 'nowrap' }}>{formatDateAbs(item.date)}</span>
               }
             </div>
@@ -367,6 +366,7 @@ function AnnouncementsSection({ items }: { items: any[] }) {
 
 // ── Main tab ──────────────────────────────────────────────────────────────────
 export default function MessagingTab({ competitor }) {
+  const { assetName } = useConfig()
   const data        = competitor.messaging
   const pressItems  = competitor.recentPressReleases ?? []
   const sourceDocs  = competitor.sourceDocs ?? []
@@ -407,10 +407,11 @@ export default function MessagingTab({ competitor }) {
             </div>
           )}
 
-          {/* vs Pharma Inc comparison table */}
+          {/* Comparison against the user's own tracked asset. The data key is
+              historical; the label follows the account, not the key. */}
           {data.vsPharmaInc?.length > 0 && (
             <div>
-              <SectionHeader label={`vs ${DEMO.companyLabel}`} />
+              <SectionHeader label={`vs ${assetName}`} />
               <ComparisonTable
                 rows={data.vsPharmaInc}
                 competitorName={competitor.name}

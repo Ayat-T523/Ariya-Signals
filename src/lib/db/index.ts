@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import type { LexiconRow } from '../deterministic/lexicon'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,15 @@ export interface DbCompanySignal {
   items: string | null
   source_url: string | null
   accession_number: string
-  why_it_matters: string | null
+  /** Which ingest pipeline wrote the row — the authoritative source record (§4.7). */
+  data_source: string | null
+  /** When the row was last taken from its source. Distinct from `date`, the event's own date. */
+  created_at: string | null
+  /**
+   * How precisely `date` is known. Many publication dates are year-only at the
+   * source and are stored as YYYY-01-01, so rendering must not assert a day.
+   */
+  date_precision: 'day' | 'month' | 'year' | null
 }
 
 export async function getFinancialsByCompetitorId(competitorId: string): Promise<DbFinancialSnapshot[]> {
@@ -167,7 +176,7 @@ export async function getSignalsByCompetitorId(competitorId: string): Promise<Db
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .order('date', { ascending: false })
     .limit(20)
@@ -182,7 +191,7 @@ export async function getHtaSignalsByCompetitorId(competitorId: string): Promise
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .eq('signal_type', 'hta_decision')
     .order('date', { ascending: false })
@@ -227,7 +236,15 @@ export interface DbRecentSignal {
   items: string | null
   source_url: string | null
   accession_number: string
-  why_it_matters: string | null
+  /** Which ingest pipeline wrote the row — the authoritative source record (§4.7). */
+  data_source: string | null
+  /** When the row was last taken from its source. Distinct from `date`, the event's own date. */
+  created_at: string | null
+  /**
+   * How precisely `date` is known. Many publication dates are year-only at the
+   * source and are stored as YYYY-01-01, so rendering must not assert a day.
+   */
+  date_precision: 'day' | 'month' | 'year' | null
 }
 
 export async function getRecentSignals(limitDays: number, competitorIds?: string[]): Promise<DbRecentSignal[]> {
@@ -237,7 +254,7 @@ export async function getRecentSignals(limitDays: number, competitorIds?: string
   const cutoffStr = cutoff.toISOString().slice(0, 10)
   let query = supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .gte('date', cutoffStr)
     .order('date', { ascending: false })
   if (competitorIds && competitorIds.length > 0) {
@@ -332,16 +349,23 @@ export function findAssetByCode(code: string, assets: DbAsset[]): DbAsset | unde
   )
 }
 
-// Returns the synonyms array from asset_lexicon for the given INN, or null if not found.
-export async function getLexiconByInn(inn: string): Promise<string[] | null> {
+// Every asset_lexicon row (inn + synonyms). The table is small reference data
+// (one row per tracked drug), so it is fetched whole and filtered client-side by
+// expandLexiconInns rather than queried per drug.
+export async function getAssetLexicon(): Promise<LexiconRow[] | null> {
   if (!supabase) return null
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('asset_lexicon')
-    .select('synonyms')
-    .eq('inn', inn.toLowerCase())
-    .maybeSingle()
-  return (data as { synonyms: string[] } | null)?.synonyms ?? null
+    .select('inn, brand_name, synonyms, competitor_id')
+    .order('inn')
+  if (error) throw error
+  return (data as LexiconRow[] | null) ?? null
 }
+
+// NOTE: there is deliberately no getLexiconByInn here. Returning one drug's
+// synonyms invited them to be used as a landscape list, which narrowed relevance
+// matching from 153 live signals to 40. Fetch the table with getAssetLexicon and
+// expand the config landscape with expandLexiconInns instead.
 
 // ── Per-user profile (user_profiles) ─────────────────────────────────────────
 
@@ -478,7 +502,7 @@ export async function getMessagingSignals(competitorId: string): Promise<DbCompa
   if (!supabase) return []
   const { data } = await supabase
     .from('company_signals')
-    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, why_it_matters')
+    .select('id, competitor_id, signal_type, date, headline, body_excerpt, items, source_url, accession_number, data_source, created_at, date_precision')
     .eq('competitor_id', competitorId)
     .eq('signal_type', 'messaging_shift')
     .order('date', { ascending: false })

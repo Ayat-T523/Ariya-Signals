@@ -16,6 +16,7 @@
 import type { DbRecentSignal } from './db'
 import type { BaseCard, SignalType } from '../types/signal'
 import { competitorsData } from '../data/kalvista'
+import { importanceBand, bandToLegacyTier } from './deterministic/importance'
 
 // ── DB type → display SignalType ─────────────────────────────────────────────
 const DB_TO_SIGNAL_TYPE: Record<string, SignalType> = {
@@ -27,20 +28,18 @@ const DB_TO_SIGNAL_TYPE: Record<string, SignalType> = {
 // ── Keyword sets (kept in sync with WarRoom.tsx CLINICAL_KW / COMMERCIAL_KW) ─
 const CLINICAL_KW      = /phase [23]|phase iii|endpoint|efficacy|clinical trial|fda|ema|nda|approval|pdufa|advisory/i
 const COMMERCIAL_KW    = /revenue|commercial|launch|market share|patient|prescription|growth/i
-const HIGH_CLINICAL_KW = /phase [23] result|phase iii result|phase 3 result|phase iii data|phase 3 data|topline|top-line|primary endpoint met|fda approv|nda accepted|nda submitted|nda approved|ema approv|maa submitted|pdufa|regulatory approv/i
-const SENIOR_EXEC_RE   = /\b(chief executive|chief financial|chief medical|chief scientific|chief commercial|president|ceo|cfo|cmo|cso|cco)\b/i
+// HIGH_CLINICAL_KW and SENIOR_EXEC_RE removed with D11 (§4.2): they graded
+// importance by phrasing. Importance is now scored from facts.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Importance tier — D11 (§4.2), facts only. No lexicon is available on this path,
+ * so the relevance cap applied in the War Room does not apply here; the score is
+ * the pure arc/recency ranking.
+ */
 function computeSeverity(s: DbRecentSignal): 'high' | 'medium' | 'low' {
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  if (s.signal_type === 'deal') return 'high'
-  if (HIGH_CLINICAL_KW.test(text)) return 'high'
-  if (s.signal_type === 'exec_change') {
-    return SENIOR_EXEC_RE.test(text) ? 'high' : 'medium'
-  }
-  if (CLINICAL_KW.test(text) || COMMERCIAL_KW.test(text)) return 'medium'
-  return 'low'
+  return bandToLegacyTier(importanceBand(s, { today: new Date() }))
 }
 
 function computeDataFreshness(date: string | null): 'high' | 'medium' | 'low' {
@@ -75,29 +74,9 @@ function composeTitle(s: DbRecentSignal, competitorName: string): string {
   return `${competitorName} — ${TYPE_LABEL[s.signal_type] ?? 'SEC Filing'}`
 }
 
-function buildWhyItMatters(
-  s: DbRecentSignal,
-  competitorName: string,
-  assetName: string,
-  indication: string,
-): string {
-  if (s.why_it_matters) return s.why_it_matters
-  const text = `${s.headline ?? ''} ${s.body_excerpt ?? ''}`
-  switch (s.signal_type) {
-    case 'deal':
-      return `${competitorName} is making a strategic move — watch for pipeline or commercial implications in ${indication}.`
-    case 'exec_change':
-      return `Leadership change at ${competitorName} — often precedes commercial or strategic pivots. Monitor upcoming messaging and field activity.`
-    case 'press_release':
-      if (CLINICAL_KW.test(text))
-        return `Clinical update from ${competitorName} — assess relative positioning versus ${assetName} on efficacy and safety.`
-      if (COMMERCIAL_KW.test(text))
-        return `${competitorName} is signalling commercial performance or launch momentum — review for market share implications.`
-      return `${competitorName} filed a public disclosure — review for competitive implications relevant to ${indication}.`
-    default:
-      return `${competitorName} filed a regulatory or corporate disclosure — monitor for follow-up.`
-  }
-}
+// buildWhyItMatters removed (§4-1): interpretation ("watch for implications",
+// "assess relative positioning") is a paid-tier function. The free tier surfaces
+// structural facts only — never an auto-generated "what this means".
 
 export function buildSourceLabel(url: string | null, signalType: string): string {
   if (!url) return 'Source'
@@ -131,9 +110,6 @@ export function dbSignalToBaseCard(
   s: DbRecentSignal,
   opts: TransformerOptions = {},
 ): BaseCard {
-  const assetName  = opts.assetName  ?? 'the asset'
-  const indication = opts.indication ?? 'your indication'
-
   const signalType: SignalType = DB_TO_SIGNAL_TYPE[s.signal_type] ?? 'publication'
   const competitor    = competitorsData.find((c) => c.id === s.competitor_id)
   const competitorName = competitor?.name ?? s.competitor_id
@@ -157,7 +133,7 @@ export function dbSignalToBaseCard(
       sourceCoverage: 'high',
       dataFreshness:  computeDataFreshness(s.date),
     },
-    whyItMatters:         buildWhyItMatters(s, competitorName, assetName, indication),
+    whyItMatters:         null, // §4-1: no auto-generated interpretation in the free tier
     dealValue:            signalType === 'deal' ? extractDealValue(text) : null,
     agencyOutcome:        null, // populated by regulatory transformer (Phase 4)
     attendingCompetitors: null, // not applicable for SEC filing signals

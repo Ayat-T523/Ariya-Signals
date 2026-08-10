@@ -23,7 +23,9 @@ import {
   parseSignalDate,
   isDuplicate,
   writeIngestRun,
+  loadInnToAssetId,
 } from './lib/signal-gate.mjs'
+import { decodeHtmlEntities, stripKnownHtmlTags } from './lib/html-entities.mjs'
 
 const DATA_SOURCE = 'pubmed'
 const SIGNAL_TYPE = 'publication'
@@ -138,8 +140,12 @@ async function getAbstracts(pmids) {
 
 // ── Per-drug ingest ───────────────────────────────────────────────────────────
 
-async function ingestDrug(supabase, drug) {
+async function ingestDrug(supabase, drug, innToAssetId) {
   const term = drug.search_term ?? drug.inn
+  // Identity persisted at ingest (§2.1): the INN we searched, plus its canonical
+  // asset_id when known. Unknown asset_id stays null (honest) — e.g. ntla-2002
+  // until the lexicon gap for "lonvoguran ziclumeran" is filled.
+  const assetId = innToAssetId.get(drug.inn.toLowerCase()) ?? null
   console.log(`\n── ${drug.competitor_id.toUpperCase()} — ${drug.brand} (${term})`)
 
   const { pmids, total, query } = await searchPmids(term, args.max, args.since)
@@ -169,7 +175,16 @@ async function ingestDrug(supabase, drug) {
     const abstract = (abstractMap[pmid] ?? '').trim()
     if (!title) { skipped++; continue }
 
-    const date      = parseSignalDate(s.pubdate)
+    // PubMed reports many pubdates as a bare year. Store the year as YYYY-01-01
+    // with date_precision 'year' so recency works, rather than dropping the date
+    // and scoring the paper as if it were ancient. Precision travels with the
+    // value so nothing claims a day we do not have.
+    const parsedDate = parseSignalDate(s.pubdate)
+    const yearOnly   = !parsedDate && /^\s*(\d{4})\s*$/.test(String(s.pubdate ?? ''))
+    const date       = parsedDate ?? (yearOnly ? `${String(s.pubdate).trim()}-01-01` : null)
+    const datePrecision = parsedDate
+      ? (/^\d{4}\s+[a-z]+\.?\s+\d{1,2}/i.test(String(s.pubdate)) ? 'day' : 'month')
+      : (yearOnly ? 'year' : null)
     const journal   = s.source ?? ''
     const authors   = (s.authors ?? []).map(a => a.name).slice(0, 3).join(', ')
     const doi       = (s.articleids ?? []).find(a => a.idtype === 'doi')?.value ?? ''
@@ -178,11 +193,18 @@ async function ingestDrug(supabase, drug) {
 
     if (await isDuplicate(supabase, sourceHash)) { skipped++; continue }
 
-    const headline = title.slice(0, 500)
+    // PubMed titles and abstracts carry HTML entities (Greek letters, primes,
+    // curly quotes). Decode before truncating, so a slice never lands inside an
+    // entity and leaves a fragment like "&#82" that can no longer be decoded.
+    // Decode, then strip the formatting tags decoding reveals (PubMed abstracts
+    // arrive with escaped <p> and <sub>), then truncate. Truncating last means a
+    // slice never lands inside an entity and leaves an undecodable "&#82".
+    const clean = (s) => stripKnownHtmlTags(decodeHtmlEntities(s))
+    const headline = clean(title).slice(0, 500)
     const bodyExcerpt = [
-      journal  ? `${journal}`         : null,
-      authors  ? `${authors}`         : null,
-      abstract ? abstract.slice(0, 200) : null,
+      journal  ? clean(journal)  : null,
+      authors  ? clean(authors)  : null,
+      abstract ? clean(abstract).slice(0, 200) : null,
     ].filter(Boolean).join(' | ').slice(0, 400)
 
     const { error } = await supabase.from('company_signals').insert({
@@ -191,9 +213,12 @@ async function ingestDrug(supabase, drug) {
       headline,
       body_excerpt:  bodyExcerpt,
       date,
+      date_precision: datePrecision,
       source_url:    sourceUrl,
       source_hash:   sourceHash,
       data_source:   DATA_SOURCE,
+      inn:           drug.inn,
+      asset_id:      assetId,
     })
 
     if (error) {
@@ -216,10 +241,11 @@ async function main() {
   console.log(`   retmax: ${args.max} per drug | since: ${args.since}\n`)
 
   const supabase = createSupabaseClient()
+  const innToAssetId = await loadInnToAssetId(supabase)
   let totalWritten = 0, totalSkipped = 0, totalErrors = 0
 
   for (const drug of targets) {
-    const { written, skipped, errors } = await ingestDrug(supabase, drug)
+    const { written, skipped, errors } = await ingestDrug(supabase, drug, innToAssetId)
     totalWritten += written
     totalSkipped += skipped
     totalErrors  += errors
