@@ -14,7 +14,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { buildNarration, NARRATION_DAYS } from './lib/buildNarration.mjs'
-import { qualityGate, refineSignalType } from './lib/signal-gate.mjs'
+import { qualityGate, refineSignalType, loadAssetResolver, resolveAsset } from './lib/signal-gate.mjs'
 import { recoverDisclosure } from './lib/sec-extract.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -85,6 +85,11 @@ const withCik     = competitors.filter(c => c.secCik)
 const withIrScrape = competitors.filter(c => !c.secCik && c.dataSource === 'IR_SCRAPE')
 
 const cutoffDate = new Date(Date.now() - LOOKBACK_DAYS * 86400_000).toISOString().slice(0, 10)
+
+// deal and press_release are lexicon-matched (§2.2), same as every other
+// text-discovered signal type. exec_change never gets an asset by design — a
+// leadership change has no drug — so it's never passed through this resolver.
+const assetResolver = await loadAssetResolver(supabase)
 
 console.log(`\n🔄  Fetching SEC EDGAR signals for ${withCik.length} competitors (since ${cutoffDate})...\n`)
 
@@ -159,6 +164,17 @@ for (const competitor of withCik) {
         itemSignalType ?? classifyByText(bodyExcerpt ?? ''),
       )
 
+      // Lexicon-match deal/press_release to a specific tracked drug. competitor_id
+      // is already known (this filing's own filer) — never overwritten by the
+      // resolver's competitorId, which exists for writers that must discover it
+      // from free text. No match found: inn/asset_id stay null, same honest
+      // fallback as everywhere else — never forced onto a guess.
+      let inn = null, assetId = null
+      if (signalType === 'deal' || signalType === 'press_release') {
+        const identity = resolveAsset(`${headline ?? ''} ${bodyExcerpt ?? ''}`.toLowerCase(), assetResolver, undefined, id)
+        if (identity.inn != null) { inn = identity.inn; assetId = identity.assetId }
+      }
+
       const { error } = await supabase
         .from('company_signals')
         .upsert(
@@ -171,6 +187,8 @@ for (const competitor of withCik) {
             items:            filing.itemsStr || null,
             source_url:       `https://www.sec.gov/Archives/edgar/data/${unpadded}/${accNodash}/${filing.doc}`,
             accession_number: filing.accession,
+            inn,
+            asset_id:         assetId,
           },
           { onConflict: 'competitor_id,accession_number', ignoreDuplicates: false }
         )
