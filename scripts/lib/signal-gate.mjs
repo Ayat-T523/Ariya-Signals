@@ -188,11 +188,10 @@ function escapeRegex(s) {
  * Boundaries are applied on each side only when the term itself starts or ends
  * with a word character, so terms like "(rp)" or a leading hyphen still match.
  */
-export function termMatches(textLower, term) {
-  if (!textLower || !term) return false
+function getBoundaryRegex(term) {
   const t = term.toLowerCase().trim()
-  if (t.length < MIN_TERM_LENGTH) return false
-  if (STOP_LIST.has(t)) return false
+  if (t.length < MIN_TERM_LENGTH) return null
+  if (STOP_LIST.has(t)) return null
   let re = boundaryCache.get(t)
   if (!re) {
     const lead  = /^\w/.test(t) ? '\\b' : ''
@@ -200,7 +199,25 @@ export function termMatches(textLower, term) {
     re = new RegExp(`${lead}${escapeRegex(t)}${trail}`, 'i')
     boundaryCache.set(t, re)
   }
-  return re.test(textLower)
+  return re
+}
+
+export function termMatches(textLower, term) {
+  if (!textLower || !term) return false
+  const re = getBoundaryRegex(term)
+  return re ? re.test(textLower) : false
+}
+
+/**
+ * Character index of term's first (leftmost) match in textLower, or -1 if it
+ * doesn't match. Same boundary rules as termMatches — just reports where,
+ * not just whether.
+ */
+function firstMatchIndex(textLower, term) {
+  const re = getBoundaryRegex(term)
+  if (!re || !textLower) return -1
+  const m = re.exec(textLower)
+  return m ? m.index : -1
 }
 
 /** True when a term is eligible to be indexed at all. */
@@ -334,17 +351,61 @@ export function resolveAllDrugs(textLower, resolver) {
 }
 
 /**
+ * Earliest character position at which ANY of a drug's terms (inn, brand,
+ * synonyms) appears in textLower. A drug can be named by more than one of its
+ * own aliases in the same text; what matters for "which drug is this really
+ * about" is the leftmost mention by any of them, not any single term's index.
+ */
+function earliestMentionIndex(textLower, resolver, inn) {
+  let earliest = Infinity
+  for (const [term, identity] of resolver) {
+    if (identity.inn !== inn) continue
+    const idx = firstMatchIndex(textLower, term)
+    if (idx !== -1 && idx < earliest) earliest = idx
+  }
+  return earliest
+}
+
+/** Of several matched drugs, the one whose earliest alias mention comes first in the text. */
+function pickEarliestMentioned(textLower, resolver, drugs) {
+  let best = drugs[0]
+  let bestIndex = earliestMentionIndex(textLower, resolver, best.inn)
+  for (const drug of drugs.slice(1)) {
+    const idx = earliestMentionIndex(textLower, resolver, drug.inn)
+    if (idx < bestIndex) { best = drug; bestIndex = idx }
+  }
+  return best
+}
+
+/**
  * Resolve drug identity from free text against a loadAssetResolver() map.
  *
  * Multi-drug rule (§2.2): when the text names more than one tracked drug, the
  * one owned by `ownCompetitorId` wins (e.g. a competitor's own press release
  * naming both its own drug and a rival's) — pass the writer's already-known
- * competitor_id where one exists (IR/company-scoped ingest). Writers with no
- * independent competitor context (congress abstracts, where competitor_id is
- * itself derived from this same call) omit it and get the first drug named,
- * same as before. When only generic HAE terms match, the signal is relevant
- * but unattributed: competitorId falls back to `sentinel`, inn/assetId stay
- * null (never fabricated).
+ * competitor_id where one exists (IR/company-scoped ingest). This part is
+ * unchanged: an owning-competitor signal always wins when it disambiguates,
+ * regardless of how many drugs were named.
+ *
+ * Without that signal (writers with no independent competitor context, e.g.
+ * congress abstracts, where competitor_id is itself derived from this same
+ * call):
+ *   - 1-2 drugs named: the one mentioned FIRST in the text wins — literal
+ *     leftmost position, not resolver/DB row order. (A prior version picked
+ *     `drugs[0]`, which a comment here mis-described as "the first drug
+ *     named" when it was actually asset_lexicon's row order — an abstract
+ *     naming two drugs would resolve to whichever sorted first in the table,
+ *     not whichever the text was actually about.)
+ *   - 3+ drugs named: genuinely ambiguous — a landscape/review piece naming
+ *     several tracked drugs isn't "about" whichever one happens to be
+ *     mentioned first. Don't force a pick; fall through to the same
+ *     generic-relevance path used when no drug is named at all, so the row
+ *     still gets an honest competitor-level (or unattributed) attachment
+ *     instead of a fabricated one.
+ *
+ * When only generic HAE terms match, the signal is relevant but unattributed:
+ * competitorId falls back to `sentinel`, inn/assetId stay null (never
+ * fabricated).
  *
  * @param {string} textLower  Already-lowercased full text
  * @param {Map<string,{competitorId:string|null,inn:string|null,assetId:string|null}>} resolver
@@ -354,13 +415,22 @@ export function resolveAllDrugs(textLower, resolver) {
  */
 export function resolveAsset(textLower, resolver, sentinel = UNATTRIBUTED, ownCompetitorId = null) {
   const drugs = resolveAllDrugs(textLower, resolver)
+  let chosen = null
   if (drugs.length > 0) {
     const own = ownCompetitorId ? drugs.find((d) => d.competitorId === ownCompetitorId) : null
-    const chosen = own ?? drugs[0]
+    if (own) {
+      chosen = own
+    } else if (drugs.length <= 2) {
+      chosen = pickEarliestMentioned(textLower, resolver, drugs)
+    }
+    // else: 3+ distinct drugs with no disambiguating signal — leave chosen
+    // null and fall through below rather than guessing.
+  }
+  if (chosen) {
     return { matched: true, competitorId: chosen.competitorId ?? sentinel, inn: chosen.inn, assetId: chosen.assetId }
   }
 
-  // No specific drug named — check for a generic relevance-only match.
+  // No specific drug named (or too ambiguous to pick one) — check for a generic relevance-only match.
   for (const [term, identity] of resolver) {
     if (identity.inn != null) continue   // already covered above
     if (termMatches(textLower, term)) {
