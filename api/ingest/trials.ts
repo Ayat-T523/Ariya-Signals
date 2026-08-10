@@ -126,6 +126,14 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ message: 'No assets in database — add assets via onboarding first', upserted: 0 })
   }
 
+  // trial_update is NCT-native to asset_id: a trial is only found in the first
+  // place by querying CT.gov for a specific asset's own INN/synonyms (below), so
+  // every row already carries the right asset_id — no text matching needed.
+  // trials.asset_id already gets this (line below); this map just makes the
+  // same identity available for the company_signals insert further down,
+  // without adding an inn column to the trials table itself.
+  const assetIdToInn = new Map((assets as Asset[]).map((a) => [a.id, a.inn]))
+
   const seen = new Set<string>()   // deduplicate NCT IDs across synonym searches
   const rows: ReturnType<typeof parseStudy>[] = []
   const errors: string[] = []
@@ -226,6 +234,8 @@ export default async function handler(req: any, res: any) {
         source_hash:      sHash,
         data_source:      'clinicaltrials_gov',
         accession_number: accessionNumber,
+        inn:              assetIdToInn.get(row.asset_id) ?? null,
+        asset_id:         row.asset_id,
       })
       if (insertErr) {
         errors.push(`${row.nct_id}: signal insert failed — ${insertErr.message}`)
