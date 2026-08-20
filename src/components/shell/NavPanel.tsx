@@ -64,7 +64,7 @@ import { Button } from '../shadcn/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../shadcn/ui/dialog'
 import { Separator } from '../shadcn/ui/separator'
 import { useApp, useConfig } from '../../context/AppContext'
-import { signOut } from '../../lib/auth'
+import { useAuth } from '../../context/AuthContext'
 import { userData } from '../../data/kalvista'
 import { REDUCED_MOTION } from '../../lib/motion'
 import { DEMO, APP_VERSION } from '../../config/demo-config'
@@ -286,10 +286,11 @@ function NavPanelInner({ onHelpOpen }: { onHelpOpen: () => void }) {
   const { state, isMobile } = useSidebar()
   const collapsed = state === 'collapsed' && !isMobile
   const { unreadCount, openOnboarding, startTour } = useApp()
+  const { logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  async function handleSignOut() { await signOut(); navigate('/sign-in') }
+  async function handleSignOut() { await logout(); navigate('/sign-in') }
 
   const user = userData.user
   const company = userData.company

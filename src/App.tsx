@@ -2,15 +2,14 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { analytics } from './lib/analytics'
-import { AppProvider, useApp } from './context/AppContext'
+import { AppProvider } from './context/AppContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import KokonutLoader from './components/kokonutui/loader'
 import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
-
-const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === 'true'
 
 // ── Lazy page chunks — each page loads only when first visited ────────────────
 const WarRoom           = lazy(() => import('./pages/WarRoom'))
@@ -60,16 +59,14 @@ function PageLoader() {
 }
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
-function SupabaseAuthGuard() {
-  const { authUser, authLoading } = useApp()
-  if (authLoading) return <PageLoader />
-  if (!authUser) return <Navigate to="/sign-in" replace />
-  return <Outlet />
-}
-
+// Reads AuthContext (provider-independent), not Supabase directly. Local mode
+// grants a session via SignIn's "Enter workspace" button; http mode has no
+// working login yet, so isAuthenticated simply never becomes true there.
 function AuthGuard() {
-  if (BYPASS_AUTH) return <Outlet />
-  return <SupabaseAuthGuard />
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return <PageLoader />
+  if (!isAuthenticated) return <Navigate to="/sign-in" replace />
+  return <Outlet />
 }
 
 const queryClient = new QueryClient({
@@ -87,6 +84,7 @@ export default function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
       <PostHogPageTracker />
+      <AuthProvider>
       <AppProvider>
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
@@ -97,7 +95,7 @@ export default function App() {
               {/* InForm component-library scratch view — public, standalone (no shell/auth) */}
               <Route path="/inform-kit" element={<><RouteTitle title="InForm Kit" /><InformKit /></>} />
 
-              {/* Protected — all app routes require a Supabase session */}
+              {/* Protected — all app routes require an authenticated AuthContext session */}
               <Route element={<AuthGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/"                   element={<><RouteTitle title="War Room" /><WarRoom /></>} />
@@ -121,6 +119,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </AppProvider>
+      </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
   )

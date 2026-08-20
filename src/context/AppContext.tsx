@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import type { User } from '@supabase/supabase-js'
 import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { DEMO } from '../config/demo-config'
@@ -12,23 +11,8 @@ import {
 } from '../config/landscape-configuration'
 import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
 import { expandLexiconInns } from '../lib/lexicon'
-import {
-  getAssetLexicon,
-  getUserProfile,
-  upsertUserProfile,
-  getWatchedCompetitorIds,
-  upsertWatchedCompetitors,
-  addWatchedCompetitor,
-  removeWatchedCompetitor,
-  getReadAlertIds,
-  markAlertReadDb,
-  markAlertUnreadDb,
-  markAllAlertsReadDb,
-  getHandlingStates,
-  setHandlingStateDb,
-  type HandlingState,
-} from '../lib/db'
-import { supabase } from '../lib/supabase'
+import { getAssetLexicon, type HandlingState } from '../lib/db'
+import { useAuth } from './AuthContext'
 
 /**
  * Everything the provider supplies.
@@ -43,8 +27,6 @@ import { supabase } from '../lib/supabase'
  * on that branch.
  */
 export interface AppContextValue {
-  authUser: User | null
-  authLoading: boolean
   watchedCompetitors: Set<string>
   toggleWatch: (competitorId: string) => void
   readAlerts: Set<string>
@@ -110,151 +92,15 @@ const LEXICON_CACHE_KEY = 'ariya-lexicon-expanded'
 const LANDSCAPE_CONFIGURATION_KEY = 'ariya-landscape-configuration'
 
 
-// Copies localStorage onboarding/watchlist/read-state into Supabase on first sign-in.
-// Fire-and-forget; localStorage remains the live cache until Phase 3.
-async function migrateLocalStorageToSupabase(userId: string): Promise<void> {
-  if (!supabase) return
-  // Skip if already migrated for this user
-  if (localStorage.getItem('ariya-migrated-v2') === userId) return
-
-  const { data: existing } = await supabase
-    .from('user_profiles')
-    .select('user_id')
-    .eq('user_id', userId)
-    .single()
-  if (existing) {
-    localStorage.setItem('ariya-migrated-v2', userId)
-    return
-  }
-
-  const { error: profileErr } = await supabase.from('user_profiles').upsert({
-    user_id:             userId,
-    indication:          localStorage.getItem('ariya-user-indication'),
-    asset_id:            localStorage.getItem('ariya-user-asset-id'),
-    asset_name:          localStorage.getItem('ariya-user-asset'),
-    onboarding_complete: localStorage.getItem('onboardingComplete') === 'true',
-    onboarding_version:  localStorage.getItem('onboardingVersion'),
-  })
-  if (profileErr) console.warn('[AppContext] profile migration:', profileErr.message)
-
-  try {
-    const raw = localStorage.getItem('pharma-inc-ciwarroom-watched')
-    if (raw) {
-      const ids: string[] = JSON.parse(raw)
-      if (ids.length) {
-        const { error } = await supabase
-          .from('watched_assets')
-          .upsert(ids.map(id => ({ user_id: userId, competitor_id: id })))
-        if (error) console.warn('[AppContext] watched_assets migration:', error.message)
-      }
-    }
-  } catch { /* noop */ }
-
-  try {
-    const raw = localStorage.getItem('pharma-inc-ciwarroom-read-alerts')
-    if (raw) {
-      const ids: string[] = JSON.parse(raw)
-      if (ids.length) {
-        const { error } = await supabase
-          .from('read_alerts')
-          .upsert(ids.map(id => ({ user_id: userId, alert_id: id })))
-        if (error) console.warn('[AppContext] read_alerts migration:', error.message)
-      }
-    }
-  } catch { /* noop */ }
-
-  localStorage.setItem('ariya-migrated-v2', userId)
-}
-
 export function AppProvider({ children }) {
   const navigate = useNavigate()
 
-  // ── Supabase auth state ───────────────────────────────────────────────────
-  const [authUser, setAuthUser] = useState<User | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-
-  useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false)
-      return
-    }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setAuthUser(session?.user ?? null)
-      setAuthLoading(false)
-      if (event === 'SIGNED_IN' && session?.user) {
-        const userId = session.user.id
-        void (async () => {
-          // Load profile + watchlist + read state + handling state in parallel; Supabase is source of truth.
-          const [profile, watchedIds, readIds, handlingStatesRow] = await Promise.all([
-            getUserProfile(userId),
-            getWatchedCompetitorIds(userId),
-            getReadAlertIds(userId),
-            getHandlingStates(userId),
-          ])
-
-          // New / incomplete users need the onboarding flow.
-          if (!profile || !profile.onboarding_complete || profile.onboarding_version !== ONBOARDING_VERSION) {
-            localStorage.removeItem('onboardingComplete')
-            localStorage.removeItem('onboardingVersion')
-            setShowOnboarding(true)
-            setOnboardingComplete(false)
-          }
-
-          // Hydrate asset/indication from Supabase (wins over stale localStorage).
-          if (profile) {
-            if (profile.indication) {
-              setUserIndicationState(profile.indication)
-              localStorage.setItem('ariya-user-indication', profile.indication)
-            }
-            if (profile.asset_id) {
-              setUserAssetIdState(profile.asset_id)
-              localStorage.setItem('ariya-user-asset-id', profile.asset_id)
-            }
-            if (profile.asset_name) {
-              setUserAssetNameState(profile.asset_name)
-              localStorage.setItem('ariya-user-asset', profile.asset_name)
-            }
-
-            // Canonical landscape fields: use them if Supabase already has them;
-            // otherwise derive from asset_id via the catalog (never guessed).
-            const hydrated: LandscapeConfiguration =
-              profile.disease_area_id || profile.therapeutic_area_id
-                ? {
-                    diseaseAreaId: profile.disease_area_id,
-                    therapeuticAreaId: profile.therapeutic_area_id,
-                    homeAssetId: profile.asset_id,
-                  }
-                : deriveLandscapeConfigurationFromAsset(profile.asset_id)
-            setLandscapeConfigurationState(hydrated)
-            try { localStorage.setItem(LANDSCAPE_CONFIGURATION_KEY, JSON.stringify(hydrated)) } catch { /* noop */ }
-          }
-
-          // Hydrate competitor watchlist from Supabase.
-          if (watchedIds.length > 0) {
-            setWatchedCompetitors(new Set(watchedIds))
-            localStorage.setItem('pharma-inc-ciwarroom-watched', JSON.stringify(watchedIds))
-          }
-
-          // Hydrate read-state from Supabase.
-          if (readIds.length > 0) {
-            setReadAlerts(new Set(readIds))
-          }
-
-          // Hydrate triage/handling state from Supabase.
-          if (Object.keys(handlingStatesRow).length > 0) {
-            setHandlingStates(handlingStatesRow)
-          }
-
-          // Migration: seed Supabase from localStorage for users who pre-date auth.
-          void migrateLocalStorageToSupabase(userId)
-        })()
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
   // ── Competitor watch state ────────────────────────────────────────────────
-  // Default: all three competitors are watched
+  // LEGACY DEMO DATA (Frontend Step 3.5): this HAE-specific default predates
+  // the canonical LandscapeConfiguration and is not derived from it. Setting a
+  // new landscape (any Therapeutic Area/Disease Area) never touches this --
+  // see landscapeConfiguration below. Real discovered + explicitly-selected
+  // competitors, scoped to the configured landscape, are Frontend Steps 4-6.
   const [watchedCompetitors, setWatchedCompetitors] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('pharma-inc-ciwarroom-watched')
@@ -268,15 +114,30 @@ export function AppProvider({ children }) {
   })
 
   // ── Alert read state ──────────────────────────────────────────────────────
-  // Source of truth is read_alerts table in Supabase. Seeded on SIGNED_IN.
-  // localStorage is no longer the source of truth (kept only for migration).
-  const [readAlerts, setReadAlerts] = useState<Set<string>>(() => new Set())
+  // Frontend Step 3.5: local-only persistence, no Supabase read_alerts table.
+  // Reuses the pre-auth-era localStorage key (the same one the old Supabase
+  // migration path used to read from once, on first sign-in).
+  const [readAlerts, setReadAlerts] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('pharma-inc-ciwarroom-read-alerts')
+      return raw ? new Set(JSON.parse(raw)) : new Set()
+    } catch { return new Set() }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('pharma-inc-ciwarroom-read-alerts', JSON.stringify([...readAlerts])) } catch { /* noop */ }
+  }, [readAlerts])
 
-  // ── Alert triage/handling state (Phase 4.1) ──────────────────────────────
-  // Personal, Supabase-backed (alert_handling_state table) — same pattern as
-  // readAlerts above, not localStorage. Absence of a key means 'needs_triage'
-  // (the default); see getHandlingState below.
-  const [handlingStates, setHandlingStates] = useState<Record<string, HandlingState>>(() => ({}))
+  // ── Alert triage/handling state ───────────────────────────────────────────
+  // Frontend Step 3.5: local-only persistence, no Supabase alert_handling_state
+  // table. Absence of a key means 'needs_triage' (the default); see
+  // getHandlingState below.
+  const HANDLING_STATES_KEY = 'ariya-handling-states'
+  const [handlingStates, setHandlingStates] = useState<Record<string, HandlingState>>(() => {
+    try {
+      const raw = localStorage.getItem(HANDLING_STATES_KEY)
+      return raw ? (JSON.parse(raw) as Record<string, HandlingState>) : {}
+    } catch { return {} }
+  })
 
   function getHandlingState(alertId: string): HandlingState {
     return handlingStates[alertId] ?? 'needs_triage'
@@ -284,15 +145,17 @@ export function AppProvider({ children }) {
 
   function setHandlingState(alertId: string, state: HandlingState) {
     setHandlingStates((prev) => {
+      let next: Record<string, HandlingState>
       if (state === 'needs_triage') {
         if (!(alertId in prev)) return prev
-        const next = { ...prev }
+        next = { ...prev }
         delete next[alertId]
-        return next
+      } else {
+        next = { ...prev, [alertId]: state }
       }
-      return { ...prev, [alertId]: state }
+      try { localStorage.setItem(HANDLING_STATES_KEY, JSON.stringify(next)) } catch { /* noop */ }
+      return next
     })
-    if (authUser) void setHandlingStateDb(authUser.id, alertId, state)
   }
 
   // ── Saved alerts (Phase 3.1) ─────────────────────────────────────────────
@@ -365,7 +228,6 @@ export function AppProvider({ children }) {
     setUserIndicationState(val)
     if (val) {
       localStorage.setItem('ariya-user-indication', val)
-      if (authUser) void upsertUserProfile(authUser.id, { indication: val })
     } else {
       localStorage.removeItem('ariya-user-indication')
     }
@@ -375,7 +237,6 @@ export function AppProvider({ children }) {
     setUserAssetNameState(val)
     if (val) {
       localStorage.setItem('ariya-user-asset', val)
-      if (authUser) void upsertUserProfile(authUser.id, { asset_name: val })
     } else {
       localStorage.removeItem('ariya-user-asset')
     }
@@ -389,7 +250,6 @@ export function AppProvider({ children }) {
     setUserAssetIdState(val)
     if (val) {
       localStorage.setItem('ariya-user-asset-id', val)
-      if (authUser) void upsertUserProfile(authUser.id, { asset_id: val })
     } else {
       localStorage.removeItem('ariya-user-asset-id')
     }
@@ -423,12 +283,6 @@ export function AppProvider({ children }) {
     setLandscapeConfigurationState((prev) => {
       const next = { ...prev, ...patch }
       try { localStorage.setItem(LANDSCAPE_CONFIGURATION_KEY, JSON.stringify(next)) } catch { /* noop */ }
-      if (authUser) {
-        void upsertUserProfile(authUser.id, {
-          therapeutic_area_id: next.therapeuticAreaId,
-          disease_area_id: next.diseaseAreaId,
-        })
-      }
       return next
     })
 
@@ -513,12 +367,6 @@ export function AppProvider({ children }) {
     localStorage.setItem('trackedAssets', JSON.stringify(selectedAssets))
     setOnboardingComplete(true)
     setShowOnboarding(false)
-    if (authUser) {
-      void upsertUserProfile(authUser.id, {
-        onboarding_complete: true,
-        onboarding_version: ONBOARDING_VERSION,
-      })
-    }
   }
 
   // ── Guided tour ──────────────────────────────────────────────────────────
@@ -544,12 +392,6 @@ export function AppProvider({ children }) {
       localStorage.setItem('onboardingComplete', 'true')
       localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
     } catch { /* noop */ }
-    if (authUser) {
-      void upsertUserProfile(authUser.id, {
-        onboarding_complete: true,
-        onboarding_version: ONBOARDING_VERSION,
-      })
-    }
   }
 
   // ── Mobile nav overlay ───────────────────────────────────────────────────
@@ -578,27 +420,20 @@ export function AppProvider({ children }) {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   function toggleWatch(competitorId) {
-    const willRemove = watchedCompetitors.has(competitorId)
     setWatchedCompetitors((prev) => {
       const next = new Set(prev)
       if (prev.has(competitorId)) next.delete(competitorId)
       else next.add(competitorId)
       return next
     })
-    if (authUser) {
-      if (willRemove) void removeWatchedCompetitor(authUser.id, competitorId)
-      else void addWatchedCompetitor(authUser.id, competitorId)
-    }
   }
 
   function resetWatchedCompetitors(ids: string[]) {
     setWatchedCompetitors(new Set(ids))
-    if (authUser) void upsertWatchedCompetitors(authUser.id, ids)
   }
 
   function markAlertRead(alertId: string) {
     setReadAlerts((prev) => new Set([...prev, alertId]))
-    if (authUser) void markAlertReadDb(authUser.id, alertId)
   }
 
   function markAlertUnread(alertId: string) {
@@ -607,13 +442,11 @@ export function AppProvider({ children }) {
       next.delete(alertId)
       return next
     })
-    if (authUser) void markAlertUnreadDb(authUser.id, alertId)
   }
 
   function markAllRead(ids: string[]) {
     analytics.alerts_marked_all_read(ids.length)
     setReadAlerts((prev) => new Set([...prev, ...ids]))
-    if (authUser) void markAllAlertsReadDb(authUser.id, ids)
   }
 
   function openAskModal(source: string, question: string | null = null) {
@@ -629,8 +462,6 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
-        authUser,
-        authLoading,
         watchedCompetitors,
         toggleWatch,
         readAlerts,
@@ -720,42 +551,32 @@ export function useConfig() {
 /**
  * Display identity for the signed-in account.
  *
- * Ported from origin/claude/ariya-lightci-two-step-eckocz. Ariya Light is one
- * self-serve multi-tenant app, so the person's name and organisation belong to
- * their account, not to configuration — nothing here should read from
- * DEMO.personaName/personaEmail or src/data/user.json's static fixture.
+ * Frontend Step 3.5: source is now AuthContext (provider-independent), not
+ * Supabase. Ariya Light is one self-serve multi-tenant app, so the person's
+ * name and organisation belong to their account, not to configuration --
+ * nothing here should read from DEMO.personaName/personaEmail or
+ * src/data/user.json's static fixture. In local auth mode the account is the
+ * explicit "Local Developer" identity from AuthContext, never "David".
  *
- * `organisation` is deliberately absent rather than defaulted. Nothing in the
- * schema stores one: user_profiles carries indication, asset_id, asset_name and
- * onboarding state, and no company. Printing a company we do not hold would be a
- * plausible-looking placeholder, which is exactly what this product forbids.
+ * `organisation` is deliberately absent rather than defaulted -- printing a
+ * company we do not hold would be a plausible-looking placeholder, which is
+ * exactly what this product forbids.
  */
 export interface AccountIdentity {
   /** Name to greet by, or null when the account carries none. Never invented. */
   displayName: string | null
   email: string | null
-  /** True when nobody is signed in, e.g. VITE_BYPASS_AUTH in local development. */
+  /** True when nobody is signed in. */
   anonymous: boolean
 }
 
 export function useAccountIdentity(): AccountIdentity {
-  const { authUser } = useApp()
-  if (!authUser) return { displayName: null, email: null, anonymous: true }
-
-  const meta = (authUser.user_metadata ?? {}) as Record<string, unknown>
-  const fromMetadata = [meta.full_name, meta.name, meta.display_name]
-    .map(v => (typeof v === 'string' ? v.trim() : ''))
-    .find(v => v.length > 0)
-
-  const email = authUser.email ?? null
-  // Fall back to the address's local part: it is the account's own identifier,
-  // not a guess about the person. No prettifying, because turning "a.tayebulla"
-  // into "A Tayebulla" would be inventing a name.
-  const fromEmail = email ? email.split('@')[0] : ''
+  const { user } = useAuth()
+  if (!user) return { displayName: null, email: null, anonymous: true }
 
   return {
-    displayName: fromMetadata || fromEmail || null,
-    email,
+    displayName: user.displayName ?? null,
+    email: user.email ?? null,
     anonymous: false,
   }
 }
