@@ -23,6 +23,20 @@ export interface AssetConfig {
   lexiconInns: string[]
   /** Therapeutic-area keywords for the same relevance gate. */
   lexiconTaTerms: string[]
+  /**
+   * Canonical Disease Area id (src/config/therapeutic-areas.ts). `indication`/
+   * `indicationFull` above are kept as-is (legacy-compatible, unchanged) — this
+   * is the new link into the Therapeutic Area / Disease Area hierarchy; every
+   * curated entry below sets it, and it must always resolve to a DiseaseArea
+   * whose `shortCode`/`name` match this entry's own `indication`/
+   * `indicationFull` (checked in landscape-configuration.test.ts). Optional,
+   * not required, because OnboardingModal.tsx's live ChEMBL-search path builds
+   * a synthetic AssetConfig-shaped object for an asset that genuinely has no
+   * catalogued Disease Area — see deriveLandscapeConfigurationFromAsset, which
+   * already treats an absent diseaseAreaId the same as an uncatalogued asset
+   * (id kept, Therapeutic/Disease Area left null rather than guessed).
+   */
+  diseaseAreaId?: string
 }
 
 export const ASSETS_CONFIG: AssetConfig[] = [
@@ -32,6 +46,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'sebetralstat',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
+    diseaseAreaId: 'hae',
     suggestedCompetitors: ['takeda', 'biocryst', 'pharvaris'],
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
@@ -51,6 +66,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'iptacopan',
     indication: 'PNH',
     indicationFull: 'Paroxysmal Nocturnal Haemoglobinuria',
+    diseaseAreaId: 'pnh',
     suggestedCompetitors: ['takeda', 'csl-behring', 'ionis'],
     lexiconInns: [
       'iptacopan', 'fabhalta', 'pegcetacoplan', 'empaveli',
@@ -69,6 +85,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'seladelpar',
     indication: 'PBC',
     indicationFull: 'Primary Biliary Cholangitis',
+    diseaseAreaId: 'pbc',
     suggestedCompetitors: ['takeda', 'ionis', 'intellia'],
     lexiconInns: [
       'seladelpar', 'livdelzi', 'obeticholic acid', 'ocaliva',
@@ -91,6 +108,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'lanadelumab',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
+    diseaseAreaId: 'hae',
     suggestedCompetitors: ['biocryst', 'pharvaris', 'csl-behring', 'ionis'],
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
@@ -110,6 +128,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'berotralstat',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
+    diseaseAreaId: 'hae',
     suggestedCompetitors: ['takeda', 'pharvaris', 'csl-behring', 'ionis'],
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
@@ -129,6 +148,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'deucrictibant',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
+    diseaseAreaId: 'hae',
     suggestedCompetitors: ['takeda', 'biocryst', 'csl-behring', 'ionis'],
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',
@@ -148,6 +168,7 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     innName: 'navenibart',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
+    diseaseAreaId: 'hae',
     suggestedCompetitors: ['takeda', 'pharvaris', 'csl-behring', 'ionis'],
     lexiconInns: [
       'berotralstat', 'navenibart', 'bcx17725', 'garadacimab',

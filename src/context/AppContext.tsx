@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { DEMO } from '../config/demo-config'
 import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
+import {
+  type LandscapeConfiguration,
+  deriveLandscapeConfigurationFromAsset,
+  migrateLegacyToLandscapeConfiguration,
+  getLegacyIndicationCompat,
+} from '../config/landscape-configuration'
+import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
 import { expandLexiconInns } from '../lib/lexicon'
 import {
   getAssetLexicon,
@@ -78,6 +85,15 @@ export interface AppContextValue {
   userAssetId: string | null
   setUserAssetId: (id: string | null) => void
   /**
+   * Canonical Frontend Step 2 configuration model — Therapeutic Area, Disease
+   * Area, and Home Asset kept as three distinct fields (see
+   * src/config/landscape-configuration.ts). userIndication/userAssetId/
+   * userAssetName above remain as compatibility values for existing consumers;
+   * this is the field new/canonical code should read and write going forward.
+   */
+  landscapeConfiguration: LandscapeConfiguration
+  setLandscapeConfiguration: (patch: Partial<LandscapeConfiguration>) => void
+  /**
    * The tracked asset's config landscape, expanded with live asset_lexicon
    * synonyms. Always a superset of the config list, never a replacement for it.
    */
@@ -89,6 +105,9 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 /** Cache key for the expanded lexicon. Stores { assetId, inns }. */
 const LEXICON_CACHE_KEY = 'ariya-lexicon-expanded'
+
+/** Stores the canonical LandscapeConfiguration (Frontend Step 2) as JSON. */
+const LANDSCAPE_CONFIGURATION_KEY = 'ariya-landscape-configuration'
 
 
 // Copies localStorage onboarding/watchlist/read-state into Supabase on first sign-in.
@@ -195,6 +214,19 @@ export function AppProvider({ children }) {
               setUserAssetNameState(profile.asset_name)
               localStorage.setItem('ariya-user-asset', profile.asset_name)
             }
+
+            // Canonical landscape fields: use them if Supabase already has them;
+            // otherwise derive from asset_id via the catalog (never guessed).
+            const hydrated: LandscapeConfiguration =
+              profile.disease_area_id || profile.therapeutic_area_id
+                ? {
+                    diseaseAreaId: profile.disease_area_id,
+                    therapeuticAreaId: profile.therapeutic_area_id,
+                    homeAssetId: profile.asset_id,
+                  }
+                : deriveLandscapeConfigurationFromAsset(profile.asset_id)
+            setLandscapeConfigurationState(hydrated)
+            try { localStorage.setItem(LANDSCAPE_CONFIGURATION_KEY, JSON.stringify(hydrated)) } catch { /* noop */ }
           }
 
           // Hydrate competitor watchlist from Supabase.
@@ -359,6 +391,46 @@ export function AppProvider({ children }) {
       localStorage.removeItem('ariya-user-asset-id')
     }
   }
+
+  // ── Canonical landscape configuration (Frontend Step 2) ────────────────────
+  // Therapeutic Area / Disease Area / Home Asset, kept distinct. Initialised
+  // from its own persisted value if one exists; otherwise migrated from
+  // whatever legacy asset/indication state localStorage already has (product
+  // contract Step 7's fallback chain — never a guessed Therapeutic Area).
+  const [landscapeConfiguration, setLandscapeConfigurationState] = useState<LandscapeConfiguration>(() => {
+    let stored: LandscapeConfiguration | null = null
+    try {
+      const raw = localStorage.getItem(LANDSCAPE_CONFIGURATION_KEY)
+      stored = raw ? (JSON.parse(raw) as LandscapeConfiguration) : null
+    } catch { stored = null }
+    return migrateLegacyToLandscapeConfiguration(stored, {
+      assetId: localStorage.getItem('ariya-user-asset-id'),
+      indication: localStorage.getItem('ariya-user-indication'),
+    })
+  })
+
+  function setLandscapeConfiguration(patch: Partial<LandscapeConfiguration>) {
+    setLandscapeConfigurationState((prev) => {
+      const next = { ...prev, ...patch }
+      try { localStorage.setItem(LANDSCAPE_CONFIGURATION_KEY, JSON.stringify(next)) } catch { /* noop */ }
+      if (authUser) {
+        void upsertUserProfile(authUser.id, {
+          therapeutic_area_id: next.therapeuticAreaId,
+          disease_area_id: next.diseaseAreaId,
+        })
+      }
+      return next
+    })
+  }
+
+  // Keeps landscapeConfiguration in sync when userAssetId changes through the
+  // existing setter (e.g. OnboardingModal, unmodified this step) — new/legacy
+  // callers converge on the same canonical state without either being rewritten.
+  useEffect(() => {
+    if (userAssetId === landscapeConfiguration.homeAssetId) return
+    setLandscapeConfiguration(deriveLandscapeConfigurationFromAsset(userAssetId))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAssetId])
 
   // ── Config landscape expanded with live asset_lexicon synonyms ─────────────
   // Ported from origin/claude/ariya-lightci-two-step-eckocz. Replaces the prior
@@ -573,6 +645,8 @@ export function AppProvider({ children }) {
         setUserAssetName,
         userAssetId,
         setUserAssetId,
+        landscapeConfiguration,
+        setLandscapeConfiguration,
         expandedLexiconInns,
         resetWatchedCompetitors,
       }}
@@ -596,19 +670,28 @@ export function useApp(): AppContextValue {
  * wiring is deferred to 1-WIRE (backbone Phase 5).
  */
 export function useConfig() {
-  const { userIndication, userAssetName, userAssetId, expandedLexiconInns } = useApp()
+  const { userIndication, userAssetName, userAssetId, landscapeConfiguration, expandedLexiconInns } = useApp()
   const asset = userAssetId ? getAssetById(userAssetId) : undefined
+  // Canonical-preferred: Disease Area -> legacy indication/indicationFull
+  // projection (product contract Step 4 — never the reverse direction).
+  const legacyCompat = getLegacyIndicationCompat(landscapeConfiguration.diseaseAreaId)
   return {
     assetName:            asset?.brandName            ?? userAssetName  ?? DEMO.assetName,
     innName:              asset?.innName               ?? DEMO.assetGenericName,
-    indication:           asset?.indication            ?? userIndication ?? DEMO.therapeuticArea,
-    indicationFull:       asset?.indicationFull        ?? userIndication ?? DEMO.therapeuticAreaFull,
+    indication:           legacyCompat?.indication      ?? asset?.indication      ?? userIndication ?? DEMO.therapeuticArea,
+    indicationFull:       legacyCompat?.indicationFull  ?? asset?.indicationFull  ?? userIndication ?? DEMO.therapeuticAreaFull,
     suggestedCompetitors: asset?.suggestedCompetitors  ?? ['takeda', 'biocryst', 'pharvaris'],
     // Expanded list when the lexicon fetch has landed; the config landscape
     // until then. Both are landscape lists, so relevance matching never narrows.
     lexiconInns:          expandedLexiconInns ?? asset?.lexiconInns ?? ASSETS_CONFIG[0].lexiconInns,
     lexiconTaTerms:       asset?.lexiconTaTerms        ?? ASSETS_CONFIG[0].lexiconTaTerms,
     assetGenericName:     asset?.innName               ?? DEMO.assetGenericName,
+    // Canonical Frontend Step 2 fields — the seam future onboarding/discovery UI
+    // and War Room/Competitors/Intelligence should read from once they're wired
+    // to be landscape-aware (not done this step; pages are unchanged).
+    therapeuticArea:      landscapeConfiguration.therapeuticAreaId ? getTherapeuticAreaById(landscapeConfiguration.therapeuticAreaId) : undefined,
+    diseaseArea:          landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(landscapeConfiguration.diseaseAreaId) : undefined,
+    homeAssetId:          landscapeConfiguration.homeAssetId,
   }
 }
 

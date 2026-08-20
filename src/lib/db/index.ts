@@ -372,6 +372,15 @@ export interface DbUserProfile {
   indication: string | null
   asset_id: string | null
   asset_name: string | null
+  /**
+   * Canonical Frontend Step 2 fields. Additive (see the accompanying
+   * migration) -- null on every row that predates this step. asset_id/
+   * asset_name above are reused as-is for the Home Asset identity/display
+   * name rather than duplicated; these two columns exist only for the two
+   * concepts that had no prior column at all (Disease Area, Therapeutic Area).
+   */
+  disease_area_id: string | null
+  therapeutic_area_id: string | null
   onboarding_complete: boolean
   onboarding_version: string | null
 }
@@ -380,7 +389,7 @@ export async function getUserProfile(userId: string): Promise<DbUserProfile | nu
   if (!supabase) return null
   const { data } = await supabase
     .from('user_profiles')
-    .select('user_id, indication, asset_id, asset_name, onboarding_complete, onboarding_version')
+    .select('user_id, indication, asset_id, asset_name, disease_area_id, therapeutic_area_id, onboarding_complete, onboarding_version')
     .eq('user_id', userId)
     .maybeSingle()
   return data as DbUserProfile | null
