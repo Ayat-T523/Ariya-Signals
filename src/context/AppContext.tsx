@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { DEMO } from '../config/demo-config'
 import { ASSETS_CONFIG, getAssetById } from '../config/assets-config'
+import { expandLexiconInns } from '../lib/lexicon'
 import {
-  getLexiconByInn,
+  getAssetLexicon,
   getUserProfile,
   upsertUserProfile,
   getWatchedCompetitorIds,
@@ -22,7 +23,72 @@ import {
 } from '../lib/db'
 import { supabase } from '../lib/supabase'
 
-const AppContext = createContext(null)
+/**
+ * Everything the provider supplies.
+ *
+ * Ported from origin/claude/ariya-lightci-two-step-eckocz: `createContext(null)`
+ * gave the context the type `null`, so every field destructured from useApp()
+ * inferred as `never` and any use of it ("watchedCompetitors.has(...)") was
+ * reported as an error. TypeScript checks this interface against the actual
+ * Provider value, so it cannot silently drift. Extended here (relative to the
+ * Claude branch's own version) with every field iteration-5 actually carries —
+ * handlingStates/triage, savedAlerts, askModal, aiClickLog — none of which exist
+ * on that branch.
+ */
+export interface AppContextValue {
+  authUser: User | null
+  authLoading: boolean
+  watchedCompetitors: Set<string>
+  toggleWatch: (competitorId: string) => void
+  readAlerts: Set<string>
+  markAlertRead: (alertId: string) => void
+  markAlertUnread: (alertId: string) => void
+  markAllRead: (ids: string[]) => void
+  handlingStates: Record<string, HandlingState>
+  getHandlingState: (alertId: string) => HandlingState
+  setHandlingState: (alertId: string, state: HandlingState) => void
+  savedAlerts: Set<string>
+  toggleSavedAlert: (alertId: string) => void
+  unreadCount: number
+  syncUnreadCount: (n: number) => void
+  onboardingComplete: boolean
+  showOnboarding: boolean
+  openOnboarding: () => void
+  closeOnboarding: () => void
+  completeOnboarding: (selectedAssets: any) => void
+  // Read from localStorage, which returns null when unset.
+  userRole: string | null
+  setUserRole: (role: string) => void
+  tourActive: boolean
+  startTour: () => void
+  endTour: (isComplete?: boolean, step?: number) => void
+  askModal: { open: boolean; source: string | null; question: string | null }
+  openAskModal: (source: string, question?: string | null) => void
+  closeAskModal: () => void
+  aiClickLog: { source: string | null; question: string | null; timestamp: string }[]
+  mobileNavOpen: boolean
+  openMobileNav: () => void
+  closeMobileNav: () => void
+  // Also localStorage-backed, so null until onboarding sets them. useConfig()
+  // already falls back to DEMO defaults, which is why this was never noticed.
+  userIndication: string | null
+  setUserIndication: (indication: string) => void
+  userAssetName: string | null
+  setUserAssetName: (name: string) => void
+  userAssetId: string | null
+  setUserAssetId: (id: string | null) => void
+  /**
+   * The tracked asset's config landscape, expanded with live asset_lexicon
+   * synonyms. Always a superset of the config list, never a replacement for it.
+   */
+  expandedLexiconInns: string[] | null
+  resetWatchedCompetitors: (ids: string[]) => void
+}
+
+const AppContext = createContext<AppContextValue | null>(null)
+
+/** Cache key for the expanded lexicon. Stores { assetId, inns }. */
+const LEXICON_CACHE_KEY = 'ariya-lexicon-expanded'
 
 
 // Copies localStorage onboarding/watchlist/read-state into Supabase on first sign-in.
@@ -157,11 +223,12 @@ export function AppProvider({ children }) {
 
   // ── Competitor watch state ────────────────────────────────────────────────
   // Default: all three competitors are watched
-  const [watchedCompetitors, setWatchedCompetitors] = useState(() => {
+  const [watchedCompetitors, setWatchedCompetitors] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('pharma-inc-ciwarroom-watched')
+      // JSON.parse returns any, so the Set inferred as Set<unknown> without this.
       return stored
-        ? new Set(JSON.parse(stored))
+        ? new Set(JSON.parse(stored) as string[])
         : new Set(['takeda', 'biocryst', 'pharvaris'])
     } catch {
       return new Set(['takeda', 'biocryst', 'pharvaris'])
@@ -293,15 +360,24 @@ export function AppProvider({ children }) {
     }
   }
 
-  // ── Live lexiconInns from asset_lexicon ───────────────────────────────────
-  // Initialised from localStorage so the value survives page refresh without a
-  // Supabase round-trip. Re-fetched whenever the tracked asset changes.
-  const [liveLexiconInns, setLiveLexiconInns] = useState<string[] | null>(() => {
+  // ── Config landscape expanded with live asset_lexicon synonyms ─────────────
+  // Ported from origin/claude/ariya-lightci-two-step-eckocz. Replaces the prior
+  // per-INN `getLexiconByInn` lookup, which returned one drug's synonyms and
+  // measurably narrowed relevance matching when used as a landscape list (see
+  // src/lib/lexicon.ts's header comment). The live lexicon now ADDS alternate
+  // drug names to the config landscape; it never replaces it.
+  //
+  // Cached under its own key alongside the asset it was expanded for, so a
+  // refresh needs no Supabase round-trip and a cache built for a different
+  // asset is never reused. Deliberately does not share the `trackedAssets` key,
+  // which onboarding overwrites with an array.
+  const [expandedLexiconInns, setExpandedLexiconInns] = useState<string[] | null>(() => {
     try {
-      const stored = localStorage.getItem('trackedAssets')
+      const stored = localStorage.getItem(LEXICON_CACHE_KEY)
       if (!stored) return null
       const parsed = JSON.parse(stored)
-      return Array.isArray(parsed.lexiconInns) ? parsed.lexiconInns : null
+      if (parsed?.assetId !== localStorage.getItem('ariya-user-asset-id')) return null
+      return Array.isArray(parsed.inns) ? parsed.inns : null
     } catch { return null }
   })
 
@@ -310,21 +386,20 @@ export function AppProvider({ children }) {
     const asset = getAssetById(userAssetId)
     if (!asset) return
 
-    getLexiconByInn(asset.innName)
-      .then(synonyms => {
-        if (!synonyms || synonyms.length === 0) {
-          console.warn(`[AppContext] asset_lexicon: no row for "${asset.innName}" — using hardcoded lexiconInns`)
-          return
-        }
-        setLiveLexiconInns(synonyms)
+    getAssetLexicon()
+      .then(rows => {
+        // Always a superset of asset.lexiconInns, including when rows is empty,
+        // so there is no fallback branch and no way for a failed or empty fetch
+        // to shrink relevance matching.
+        const inns = expandLexiconInns(asset.lexiconInns, rows)
+        setExpandedLexiconInns(inns)
         try {
-          const stored = localStorage.getItem('trackedAssets')
-          const parsed = stored ? JSON.parse(stored) : {}
-          localStorage.setItem('trackedAssets', JSON.stringify({ ...parsed, lexiconInns: synonyms }))
-        } catch { /* noop */ }
+          localStorage.setItem(LEXICON_CACHE_KEY, JSON.stringify({ assetId: userAssetId, inns }))
+        } catch { /* cache is an optimisation; failing to write it is not an error */ }
       })
       .catch(err => {
-        console.warn('[AppContext] asset_lexicon fetch failed:', err)
+        // Config landscape stays in force via the ?? in useConfig.
+        console.warn('[AppContext] asset_lexicon fetch failed, using config landscape only:', err)
       })
   }, [userAssetId])
 
@@ -392,10 +467,12 @@ export function AppProvider({ children }) {
   // that exact question via Ollama instead of the generic recent-activity
   // briefing it falls back to when a trigger has no specific question (e.g.
   // War Room's header "Ask InForm" button).
-  const [askModal, setAskModal] = useState({ open: false, source: null, question: null })
+  const [askModal, setAskModal] = useState<{ open: boolean; source: string | null; question: string | null }>(
+    { open: false, source: null, question: null }
+  )
 
   // Track which AI buttons were clicked (valuable feedback signal per §5)
-  const [aiClickLog, setAiClickLog] = useState([])
+  const [aiClickLog, setAiClickLog] = useState<{ source: string | null; question: string | null; timestamp: string }[]>([])
 
   // ── Persistence ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -445,7 +522,7 @@ export function AppProvider({ children }) {
     if (authUser) void markAllAlertsReadDb(authUser.id, ids)
   }
 
-  function openAskModal(source, question = null) {
+  function openAskModal(source: string, question: string | null = null) {
     const entry = { source, question, timestamp: new Date().toISOString() }
     setAiClickLog((prev) => [...prev, entry])
     setAskModal({ open: true, source, question })
@@ -496,7 +573,7 @@ export function AppProvider({ children }) {
         setUserAssetName,
         userAssetId,
         setUserAssetId,
-        liveLexiconInns,
+        expandedLexiconInns,
         resetWatchedCompetitors,
       }}
     >
@@ -505,7 +582,7 @@ export function AppProvider({ children }) {
   )
 }
 
-export function useApp() {
+export function useApp(): AppContextValue {
   const ctx = useContext(AppContext)
   if (!ctx) throw new Error('useApp must be used within AppProvider')
   return ctx
@@ -519,7 +596,7 @@ export function useApp() {
  * wiring is deferred to 1-WIRE (backbone Phase 5).
  */
 export function useConfig() {
-  const { userIndication, userAssetName, userAssetId, liveLexiconInns } = useApp()
+  const { userIndication, userAssetName, userAssetId, expandedLexiconInns } = useApp()
   const asset = userAssetId ? getAssetById(userAssetId) : undefined
   return {
     assetName:            asset?.brandName            ?? userAssetName  ?? DEMO.assetName,
@@ -527,8 +604,53 @@ export function useConfig() {
     indication:           asset?.indication            ?? userIndication ?? DEMO.therapeuticArea,
     indicationFull:       asset?.indicationFull        ?? userIndication ?? DEMO.therapeuticAreaFull,
     suggestedCompetitors: asset?.suggestedCompetitors  ?? ['takeda', 'biocryst', 'pharvaris'],
-    lexiconInns:          liveLexiconInns ?? asset?.lexiconInns ?? ASSETS_CONFIG[0].lexiconInns,
+    // Expanded list when the lexicon fetch has landed; the config landscape
+    // until then. Both are landscape lists, so relevance matching never narrows.
+    lexiconInns:          expandedLexiconInns ?? asset?.lexiconInns ?? ASSETS_CONFIG[0].lexiconInns,
     lexiconTaTerms:       asset?.lexiconTaTerms        ?? ASSETS_CONFIG[0].lexiconTaTerms,
     assetGenericName:     asset?.innName               ?? DEMO.assetGenericName,
+  }
+}
+
+/**
+ * Display identity for the signed-in account.
+ *
+ * Ported from origin/claude/ariya-lightci-two-step-eckocz. Ariya Light is one
+ * self-serve multi-tenant app, so the person's name and organisation belong to
+ * their account, not to configuration — nothing here should read from
+ * DEMO.personaName/personaEmail or src/data/user.json's static fixture.
+ *
+ * `organisation` is deliberately absent rather than defaulted. Nothing in the
+ * schema stores one: user_profiles carries indication, asset_id, asset_name and
+ * onboarding state, and no company. Printing a company we do not hold would be a
+ * plausible-looking placeholder, which is exactly what this product forbids.
+ */
+export interface AccountIdentity {
+  /** Name to greet by, or null when the account carries none. Never invented. */
+  displayName: string | null
+  email: string | null
+  /** True when nobody is signed in, e.g. VITE_BYPASS_AUTH in local development. */
+  anonymous: boolean
+}
+
+export function useAccountIdentity(): AccountIdentity {
+  const { authUser } = useApp()
+  if (!authUser) return { displayName: null, email: null, anonymous: true }
+
+  const meta = (authUser.user_metadata ?? {}) as Record<string, unknown>
+  const fromMetadata = [meta.full_name, meta.name, meta.display_name]
+    .map(v => (typeof v === 'string' ? v.trim() : ''))
+    .find(v => v.length > 0)
+
+  const email = authUser.email ?? null
+  // Fall back to the address's local part: it is the account's own identifier,
+  // not a guess about the person. No prettifying, because turning "a.tayebulla"
+  // into "A Tayebulla" would be inventing a name.
+  const fromEmail = email ? email.split('@')[0] : ''
+
+  return {
+    displayName: fromMetadata || fromEmail || null,
+    email,
+    anonymous: false,
   }
 }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { analytics } from '../../lib/analytics'
 import { DEMO } from '../../config/demo-config'
+import { useAccountIdentity } from '../../context/AppContext'
 
 type Stage = 'closed' | 'open' | 'submitting' | 'success'
 
@@ -17,6 +18,8 @@ export default function FeedbackWidget() {
   const [comment, setComment] = useState('')
   const location  = useLocation()
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Real signed-in identity, not the shared demo persona — see demo-config.ts.
+  const { email: accountEmail } = useAccountIdentity()
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
@@ -44,7 +47,7 @@ export default function FeedbackWidget() {
         body: JSON.stringify({
           rating,
           comment: comment.trim(),
-          userEmail: DEMO.personaEmail,
+          userEmail: accountEmail ?? DEMO.personaEmail,
           organisation: DEMO.companyLabel,
           route: location.pathname,
           timestamp: new Date().toISOString(),

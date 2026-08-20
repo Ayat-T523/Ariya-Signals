@@ -3,8 +3,22 @@ import { DbTrial, DbFinancialSnapshot, getAllAssets, getTrialsByAssetIds, getTri
 import { cleanSignalText, buildReadableHeadline, SIGNAL_FALLBACK } from '../lib/signalText'
 import { isoToYQ, trialPhaseToKey, GANTT_SKIP_STATUSES } from '../lib/trialsToGantt'
 
-// HAE indication tags used to filter trials and assets to the user's TA.
-const INDICATION_TAGS = ['hereditary angioedema', 'HAE']
+// TODO(TA/DA config model): hardcoded to HAE's canonical `indication_tags`
+// vocabulary — confirmed present in every historical frontend source inspected
+// during reconciliation (iteration-5, the Claude branch, and the standalone
+// InForm package all carry this exact constant). This is NOT the same list as
+// useConfig().lexiconTaTerms (a broad keyword-matching lexicon for signal
+// relevance) — this filters a Postgres `indication_tags` array column, which
+// expects a small, controlled set of canonical tag strings per indication.
+// Swapping in lexiconTaTerms here would silently change query semantics, not
+// generalize it correctly.
+//
+// Generalizing this requires the upcoming Therapeutic Area / Disease Area /
+// Home Asset configuration model to carry each asset's own canonical
+// indication_tags vocabulary (not just its lexicon keywords) — deliberately not
+// invented here. Isolated as its own named constant so the seam is a one-line
+// change once that model exists, rather than a scattered string literal.
+const INDICATION_TAGS: string[] = ['hereditary angioedema', 'HAE']
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

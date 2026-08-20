@@ -9,9 +9,17 @@
  */
 export const DEMO = {
   // ── Client identity ─────────────────────────────────────────────────────────
+  // personaName/personaTitle removed (unused — reconciliation pass, see
+  // origin/claude/ariya-lightci-two-step-eckocz's demo-config.ts diff). Signed-in
+  // display identity now comes from useAccountIdentity() in AppContext.tsx, never
+  // from configuration — that was the actual "every visitor is David" bug.
+  //
+  // companyLabel/personaEmail remain as harmless demo/branding-copy defaults
+  // (product-description strings, not per-user identity claims) — but must not
+  // be used as the authoritative identity behind a real user action. The one
+  // place that was happening (FeedbackWidget submitting personaEmail as the
+  // reporter's email) has been fixed to use the real signed-in account instead.
   companyLabel:     'Pharma Inc',
-  personaName:      'David',
-  personaTitle:     'Head of Competitive Intelligence',
   personaEmail:     'david@pharmainc.com',
 
   // ── Tracked asset ───────────────────────────────────────────────────────────
