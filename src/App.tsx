@@ -24,6 +24,7 @@ const PricingAndAccess  = lazy(() => import('./pages/PricingAndAccess'))
 const MySpace           = lazy(() => import('./pages/MySpace'))
 const MyAlerts          = lazy(() => import('./pages/MyAlerts'))
 const MyDocuments       = lazy(() => import('./pages/MyDocuments'))
+const DiscoverCompetitors = lazy(() => import('./pages/DiscoverCompetitors'))  // Frontend Step 4 of 7
 const InformKit         = lazy(() => import('./pages/InformKit'))  // Phase 0.4 component-library scratch view
 
 // ── Per-route document title ──────────────────────────────────────────────────
@@ -100,6 +101,7 @@ export default function App() {
                 <Route element={<Layout />}>
                   <Route path="/"                   element={<><RouteTitle title="War Room" /><WarRoom /></>} />
                   <Route path="/competitors"          element={<><RouteTitle title="Competitors" /><Competitors /></>} />
+                  <Route path="/competitors/discover" element={<><RouteTitle title="Discover Competitors" /><DiscoverCompetitors /></>} />
                   <Route path="/competitors/timeline" element={<Navigate to="/competitors" replace />} />
                   <Route path="/competitors/:id"      element={<CompetitorProfile />} />
                   <Route path="/market-performance"   element={<><RouteTitle title="Market Performance" /><MarketPerformance /></>} />

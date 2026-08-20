@@ -723,22 +723,38 @@ export default function Competitors() {
             </div>
           </div>
 
-          {/* View Timeline toggle — text + dotted underline style */}
-          <button
-            onClick={() => setShowTimeline(v => !v)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              background: 'none', border: 'none', padding: '0',
-              cursor: 'pointer', flexShrink: 0,
-              fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-ui)',
-              color: 'var(--ink-800)',
-            }}
-          >
-            <BarChart2 size={14} strokeWidth={2} aria-hidden="true" />
-            <span style={{ borderBottom: '1px dashed var(--ink-400)', paddingBottom: '1px', lineHeight: '1.4' }}>
-              {showTimeline ? 'Hide timeline' : 'View timeline'}
-            </span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
+            {/* Discover competitors — Frontend Step 4 of 7 entry point */}
+            <Link
+              to="/competitors/discover"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-ui)',
+                color: 'var(--ink-800)', textDecoration: 'none',
+              }}
+            >
+              <span style={{ borderBottom: '1px dashed var(--ink-400)', paddingBottom: '1px', lineHeight: '1.4' }}>
+                Discover competitors
+              </span>
+            </Link>
+
+            {/* View Timeline toggle — text + dotted underline style */}
+            <button
+              onClick={() => setShowTimeline(v => !v)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                background: 'none', border: 'none', padding: '0',
+                cursor: 'pointer', flexShrink: 0,
+                fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-ui)',
+                color: 'var(--ink-800)',
+              }}
+            >
+              <BarChart2 size={14} strokeWidth={2} aria-hidden="true" />
+              <span style={{ borderBottom: '1px dashed var(--ink-400)', paddingBottom: '1px', lineHeight: '1.4' }}>
+                {showTimeline ? 'Hide timeline' : 'View timeline'}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Timeline panel — shown above the grid */}
