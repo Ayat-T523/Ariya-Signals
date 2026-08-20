@@ -323,7 +323,10 @@ export function AppProvider({ children }) {
   // Version stamp: bump this string whenever onboarding content changes so
   // returning visitors see the updated flow instead of being skipped over.
   // v5: role step removed (Light is single-view, no per-role tailoring)
-  const ONBOARDING_VERSION = 'v5'
+  // v6: replaced with the canonical Therapeutic Area -> Disease Area -> Home
+  // Asset flow (Frontend Step 3) -- the old asset-first + static-competitor-
+  // confirm flow is gone, so every returning user needs to see this once.
+  const ONBOARDING_VERSION = 'v6'
   const onboardingDone = (() => {
     try {
       return (
@@ -409,6 +412,13 @@ export function AppProvider({ children }) {
     })
   })
 
+  // Single source of truth for the canonical configuration (Frontend Step 3):
+  // also keeps the three legacy fields in lockstep so existing consumers that
+  // still read userAssetId/userAssetName/userIndication directly (not just
+  // through useConfig()) see the same asset immediately, without the caller
+  // having to write through three unrelated setters itself. Safe against the
+  // userAssetId-watching effect below re-triggering this: once homeAssetId and
+  // userAssetId agree, that effect's guard makes it a no-op.
   function setLandscapeConfiguration(patch: Partial<LandscapeConfiguration>) {
     setLandscapeConfigurationState((prev) => {
       const next = { ...prev, ...patch }
@@ -421,11 +431,23 @@ export function AppProvider({ children }) {
       }
       return next
     })
+
+    if ('homeAssetId' in patch) {
+      setUserAssetId(patch.homeAssetId ?? null)
+      const asset = patch.homeAssetId ? getAssetById(patch.homeAssetId) : undefined
+      if (asset) setUserAssetName(asset.brandName)
+    }
+    if ('diseaseAreaId' in patch) {
+      const compat = getLegacyIndicationCompat(patch.diseaseAreaId ?? null)
+      if (compat) setUserIndication(compat.indication)
+    }
   }
 
   // Keeps landscapeConfiguration in sync when userAssetId changes through the
-  // existing setter (e.g. OnboardingModal, unmodified this step) — new/legacy
-  // callers converge on the same canonical state without either being rewritten.
+  // legacy setter directly (bypassing setLandscapeConfiguration above) — e.g. a
+  // future/other caller that only knows about setUserAssetId. Converges to a
+  // no-op once the two agree, so this and setLandscapeConfiguration's own
+  // legacy-field sync never fight each other.
   useEffect(() => {
     if (userAssetId === landscapeConfiguration.homeAssetId) return
     setLandscapeConfiguration(deriveLandscapeConfigurationFromAsset(userAssetId))

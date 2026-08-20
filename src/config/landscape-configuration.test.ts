@@ -1,5 +1,5 @@
 /**
- * landscape-configuration.test.ts — Frontend Step 2 acceptance tests.
+ * landscape-configuration.test.ts — Frontend Step 2 + Step 3 acceptance tests.
  *
  * No test runner is configured in this repo (see src/lib/signalText.test.ts);
  * run with:  npx tsx src/config/landscape-configuration.test.ts
@@ -19,6 +19,12 @@ import {
   migrateLegacyToLandscapeConfiguration,
   getLegacyIndicationCompat,
   isLandscapeConfigurationConsistent,
+  isLandscapeConfigurationSubmittable,
+  getDiseaseAreasForTherapeuticArea,
+  getAssetsForDiseaseArea,
+  applyTherapeuticAreaSelection,
+  applyDiseaseAreaSelection,
+  applyHomeAssetSelection,
   EMPTY_LANDSCAPE_CONFIGURATION,
   type LandscapeConfiguration,
 } from './landscape-configuration.js'
@@ -173,6 +179,111 @@ for (const asset of ASSETS_CONFIG) {
 for (const ta of THERAPEUTIC_AREAS) {
   assertTrue(`getTherapeuticAreaById(${ta.id}) still resolves`, !!getTherapeuticAreaById(ta.id))
 }
+
+// ── Frontend Step 3: onboarding hierarchical-selection interaction ─────────────
+
+// 1. Selecting TA filters DA
+console.log('8. Selecting a Therapeutic Area filters the offered Disease Areas')
+assert(
+  'Immunology -> HAE, PNH, PBC (catalog order)',
+  getDiseaseAreasForTherapeuticArea('immunology').map(da => da.id),
+  ['hae', 'pnh', 'pbc'],
+)
+assert('Neurology -> gMG only', getDiseaseAreasForTherapeuticArea('neurology').map(da => da.id), ['gmg'])
+assert('unknown Therapeutic Area -> no Disease Areas', getDiseaseAreasForTherapeuticArea('not-a-real-id'), [])
+
+// 2. Changing TA clears DA and Asset
+console.log('9. Changing Therapeutic Area clears Disease Area and Home Asset')
+assert(
+  'switching from Immunology/hae/ekterly to Neurology clears both downstream fields',
+  applyTherapeuticAreaSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' }, 'neurology'),
+  { therapeuticAreaId: 'neurology', diseaseAreaId: null, homeAssetId: null },
+)
+assert(
+  're-selecting the SAME Therapeutic Area is a no-op, not a fresh clear',
+  applyTherapeuticAreaSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' }, 'immunology'),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' },
+)
+
+// 3. Selecting DA filters assets
+console.log('10. Selecting a Disease Area filters the offered Home Assets')
+assert(
+  'hae -> ekterly, takhzyro, orladeyo, deucrictibant, navenibart',
+  getAssetsForDiseaseArea('hae').map(a => a.id),
+  ['ekterly', 'takhzyro', 'orladeyo', 'deucrictibant', 'navenibart'],
+)
+assert('pnh -> zevaro only', getAssetsForDiseaseArea('pnh').map(a => a.id), ['zevaro'])
+
+// 4. Changing DA clears Asset
+console.log('11. Changing Disease Area clears Home Asset')
+assert(
+  'switching from hae/ekterly to pnh clears the Home Asset',
+  applyDiseaseAreaSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' }, 'pnh'),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: 'pnh', homeAssetId: null },
+)
+assert(
+  're-selecting the SAME Disease Area is a no-op',
+  applyDiseaseAreaSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' }, 'hae'),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'ekterly' },
+)
+
+// 5. Invalid cross-TA Disease Area cannot be submitted
+console.log('12. A Disease Area from another Therapeutic Area is refused, not silently accepted')
+assert(
+  'selecting gmg (Neurology) while Immunology is the active Therapeutic Area is refused (state unchanged)',
+  applyDiseaseAreaSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: null, homeAssetId: null }, 'gmg'),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: null, homeAssetId: null },
+)
+
+// 6. Invalid cross-Disease Asset cannot be submitted
+console.log('13. A Home Asset from another Disease Area is refused, not silently accepted')
+assert(
+  'selecting zevaro (pnh) while hae is the active Disease Area is refused (state unchanged)',
+  applyHomeAssetSelection({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: null }, 'zevaro'),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: null },
+)
+assertTrue(
+  'isLandscapeConfigurationSubmittable never trusts UI filtering alone -- catches the same cross-hierarchy mismatch even if constructed directly',
+  !isLandscapeConfigurationSubmittable({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'zevaro' }),
+)
+
+// 7. Valid configuration persists canonical IDs
+console.log('14. A fully valid configuration is submittable')
+for (const asset of ASSETS_CONFIG) {
+  const config = deriveLandscapeConfigurationFromAsset(asset.id)
+  assertTrue(`${asset.id}'s derived configuration is submittable`, isLandscapeConfigurationSubmittable(config))
+}
+assertTrue('a configuration missing homeAssetId is not submittable', !isLandscapeConfigurationSubmittable({ therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: null }))
+assertTrue('the empty configuration is not submittable', !isLandscapeConfigurationSubmittable(EMPTY_LANDSCAPE_CONFIGURATION))
+
+// 8. Legacy deterministic configuration pre-populates correctly (onboarding-facing scenario)
+console.log('15. Legacy state pre-populates the onboarding form when deterministic')
+assert(
+  'a returning user with only a legacy asset_id pre-populates the full hierarchy',
+  migrateLegacyToLandscapeConfiguration(null, { assetId: 'takhzyro', indication: 'HAE' }),
+  { therapeuticAreaId: 'immunology', diseaseAreaId: 'hae', homeAssetId: 'takhzyro' },
+)
+
+// 9. Unknown legacy configuration requires user choice (onboarding-facing scenario)
+console.log('16. Unrecognised legacy state leaves the form unselected, never guessed')
+assert(
+  'a legacy asset_id absent from the catalog pre-populates nothing selectable -- the user must choose',
+  migrateLegacyToLandscapeConfiguration(null, { assetId: 'some-legacy-chembl-asset', indication: 'Unknown Disease' }),
+  { therapeuticAreaId: null, diseaseAreaId: null, homeAssetId: 'some-legacy-chembl-asset' },
+)
+assert(
+  'no legacy state at all -- the fully empty configuration, no field pre-selected',
+  migrateLegacyToLandscapeConfiguration(null, { assetId: null, indication: null }),
+  EMPTY_LANDSCAPE_CONFIGURATION,
+)
+
+// 10. Disease Area with zero configured assets produces a valid empty state, not guessed assets
+console.log('17. A Disease Area with no configured assets yields an empty list, never a guess')
+assert('gmg (Generalized Myasthenia Gravis) has zero configured Home Assets today', getAssetsForDiseaseArea('gmg'), [])
+assertTrue(
+  'gmg is still a real, selectable Disease Area despite having no assets yet -- the gap is in the asset catalog, not the hierarchy',
+  !!getDiseaseAreaById('gmg'),
+)
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 

@@ -16,8 +16,13 @@
  * Direct/Indirect classification. Those begin after configuration is stable.
  */
 
-import { getAssetById, type AssetConfig } from './assets-config'
-import { getDiseaseAreaById, getTherapeuticAreaForDiseaseArea } from './therapeutic-areas'
+import { ASSETS_CONFIG, getAssetById, type AssetConfig } from './assets-config'
+import {
+  DISEASE_AREAS,
+  type DiseaseArea,
+  getDiseaseAreaById,
+  getTherapeuticAreaForDiseaseArea,
+} from './therapeutic-areas'
 
 export interface LandscapeConfiguration {
   therapeuticAreaId: string | null
@@ -126,6 +131,82 @@ export function isLandscapeConfigurationConsistent(config: LandscapeConfiguratio
     if (config.therapeuticAreaId && ta?.id !== config.therapeuticAreaId) return false
   }
   return true
+}
+
+// ── Hierarchical selection helpers (Frontend Step 3 onboarding UI) ─────────────
+//
+// Pure functions the onboarding component calls directly rather than
+// reimplementing filtering/clearing logic inline. Keeping them here (not in
+// the component) is what makes the hierarchy's interaction rules — clearing
+// downstream selections, refusing a cross-hierarchy selection — unit-testable
+// without rendering React.
+
+/** Disease Areas belonging to the given Therapeutic Area, in catalog order. */
+export function getDiseaseAreasForTherapeuticArea(therapeuticAreaId: string): DiseaseArea[] {
+  return DISEASE_AREAS.filter(da => da.therapeuticAreaId === therapeuticAreaId)
+}
+
+/** Catalogued (AssetConfig) Home Assets belonging to the given Disease Area, in catalog order. */
+export function getAssetsForDiseaseArea(diseaseAreaId: string): AssetConfig[] {
+  return ASSETS_CONFIG.filter(a => a.diseaseAreaId === diseaseAreaId)
+}
+
+/**
+ * Selecting a Therapeutic Area: sets it, and clears Disease Area + Home Asset
+ * whenever the Therapeutic Area actually changed (re-selecting the same one is
+ * a no-op on the downstream fields, not a fresh clear).
+ */
+export function applyTherapeuticAreaSelection(
+  current: LandscapeConfiguration,
+  therapeuticAreaId: string,
+): LandscapeConfiguration {
+  if (current.therapeuticAreaId === therapeuticAreaId) return current
+  return { therapeuticAreaId, diseaseAreaId: null, homeAssetId: null }
+}
+
+/**
+ * Selecting a Disease Area: refuses silently (returns `current` unchanged) if
+ * it doesn't belong to the currently-selected Therapeutic Area — the caller is
+ * expected to only ever offer already-filtered options (getDiseaseAreasForTherapeuticArea),
+ * so reaching this guard means a stale/inconsistent call, not a valid user
+ * choice. Clears Home Asset whenever the Disease Area actually changed.
+ */
+export function applyDiseaseAreaSelection(
+  current: LandscapeConfiguration,
+  diseaseAreaId: string,
+): LandscapeConfiguration {
+  const diseaseArea = getDiseaseAreaById(diseaseAreaId)
+  if (!diseaseArea || diseaseArea.therapeuticAreaId !== current.therapeuticAreaId) return current
+  if (current.diseaseAreaId === diseaseAreaId) return current
+  return { ...current, diseaseAreaId, homeAssetId: null }
+}
+
+/**
+ * Selecting a Home Asset: refuses silently if it doesn't belong to the
+ * currently-selected Disease Area, for the same reason as above.
+ */
+export function applyHomeAssetSelection(
+  current: LandscapeConfiguration,
+  homeAssetId: string,
+): LandscapeConfiguration {
+  const asset = getAssetById(homeAssetId)
+  if (!asset || asset.diseaseAreaId !== current.diseaseAreaId) return current
+  return { ...current, homeAssetId }
+}
+
+/**
+ * Whether a configuration is complete and internally consistent enough to
+ * persist — the gate for the onboarding primary action. Never trusts UI
+ * filtering alone (product contract Step 15): re-validates membership via the
+ * catalog, the same way applyDiseaseAreaSelection/applyHomeAssetSelection do.
+ */
+export function isLandscapeConfigurationSubmittable(config: LandscapeConfiguration): boolean {
+  return (
+    !!config.therapeuticAreaId &&
+    !!config.diseaseAreaId &&
+    !!config.homeAssetId &&
+    isLandscapeConfigurationConsistent(config)
+  )
 }
 
 export type { AssetConfig }
