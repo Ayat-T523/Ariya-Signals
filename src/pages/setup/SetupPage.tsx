@@ -100,14 +100,14 @@ export default function SetupPage() {
 
   function handleEnterAriya() {
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft))
+    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset)
     clearSetupDraft()
     navigate('/')
   }
 
   function handleStartTour() {
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft))
+    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset)
     clearSetupDraft()
     startTour()
   }

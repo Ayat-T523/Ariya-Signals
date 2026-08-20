@@ -2,9 +2,10 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { fadeUp } from '../../lib/motion'
-import NavPanel from '../shell/NavPanel'
-import TopBar from '../shell/TopBar'
-import ContentColumn from '../shell/ContentColumn'
+import { SidebarProvider, SidebarInset } from '../shadcn/ui/sidebar'
+import { TooltipProvider } from '../shadcn/ui/tooltip'
+import { AppSidebar } from '../shell/AppSidebar'
+import SiteHeader from '../shell/SiteHeader'
 import AskModal from '../ui/AskModal'
 import FeedbackWidget from '../ui/FeedbackWidget'
 import TourBanner from '../TourBanner'
@@ -12,6 +13,12 @@ import { useApp } from '../../context/AppContext'
 import { useTour } from '../../hooks/useTour'
 import { ErrorBoundary, PageErrorFallback } from '../ErrorBoundary'
 
+/**
+ * Layout.tsx — canonical application shell (sidebar-08 migration).
+ * SidebarProvider > AppSidebar + SidebarInset(SiteHeader + Outlet). Replaces
+ * the old custom NavPanel/TopBar/ContentColumn composition -- see this
+ * migration's checkpoint for the full retirement report.
+ */
 export default function Layout() {
   const { askModal, closeAskModal, openAskModal } = useApp()
   useTour()
@@ -44,7 +51,8 @@ export default function Layout() {
   }, [askModal.open, closeAskModal, openAskModal])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--white)' }}>
+    <TooltipProvider>
+    <SidebarProvider>
       {/* Skip to main content — visually hidden until focused (a11y) */}
       <a
         href="#main-content"
@@ -64,23 +72,13 @@ export default function Layout() {
         Skip to content
       </a>
 
-      {/* Nav panel — in-flow so resizing pushes/pulls content column */}
-      <NavPanel />
+      <AppSidebar />
 
-      {/* Main content column — flex:1 so it fills remaining width */}
-      <ContentColumn>
-        <TopBar />
+      <SidebarInset>
+        <SiteHeader />
 
         {/* Page content — scrollable area */}
-        <main
-          id="main-content"
-          className="flex-1"
-          style={{
-            background: 'var(--neutral-50)',
-            overflowY: 'auto',
-            minHeight: 0,
-          }}
-        >
+        <main id="main-content" className="flex-1 overflow-y-auto">
           <ErrorBoundary fallback={<PageErrorFallback />}>
             <AnimatePresence mode="wait">
               <motion.div
@@ -95,7 +93,7 @@ export default function Layout() {
             </AnimatePresence>
           </ErrorBoundary>
         </main>
-      </ContentColumn>
+      </SidebarInset>
 
       {/* Ask InForm modal — shared across all pages */}
       <AskModal
@@ -110,7 +108,7 @@ export default function Layout() {
 
       {/* Guided tour banner — fixed bottom, shown during tour */}
       <TourBanner />
-
-    </div>
+    </SidebarProvider>
+    </TooltipProvider>
   )
 }

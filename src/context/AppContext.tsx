@@ -10,7 +10,7 @@ import {
   getLegacyIndicationCompat,
 } from '../config/landscape-configuration'
 import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
-import { type TrackedCompetitor } from '../config/setup-draft'
+import { type TrackedCompetitor, type ManualAssetIdentity } from '../config/setup-draft'
 import { expandLexiconInns } from '../lib/lexicon'
 import { getAssetLexicon, type HandlingState } from '../lib/db'
 import { useAuth } from './AuthContext'
@@ -50,7 +50,15 @@ export interface AppContextValue {
    * being analysed, not who the competitors are). See setup-draft.ts.
    */
   trackedCompetitors: TrackedCompetitor[]
-  completeSetup: (competitors: TrackedCompetitor[]) => void
+  /**
+   * A manually entered Home Asset's display identity (brand/INN/company).
+   * `landscapeConfiguration.homeAssetId` alone is opaque for a manual asset
+   * (it never resolves via getAssetById) -- this is what lets the shell
+   * header show "RYSTIGGO" instead of nothing once setup completes. null
+   * whenever the configured Home Asset is a catalogued AssetConfig instead.
+   */
+  manualHomeAsset: ManualAssetIdentity | null
+  completeSetup: (competitors: TrackedCompetitor[], manualHomeAsset: ManualAssetIdentity | null) => void
   // Read from localStorage, which returns null when unset.
   userRole: string | null
   setUserRole: (role: string) => void
@@ -61,9 +69,6 @@ export interface AppContextValue {
   openAskModal: (source: string, question?: string | null) => void
   closeAskModal: () => void
   aiClickLog: { source: string | null; question: string | null; timestamp: string }[]
-  mobileNavOpen: boolean
-  openMobileNav: () => void
-  closeMobileNav: () => void
   // Also localStorage-backed, so null until onboarding sets them. useConfig()
   // already falls back to DEMO defaults, which is why this was never noticed.
   userIndication: string | null
@@ -373,9 +378,22 @@ export function AppProvider({ children }) {
     } catch { return [] }
   })
 
-  function completeSetup(competitors: TrackedCompetitor[]) {
+  const MANUAL_HOME_ASSET_KEY = 'ariya-manual-home-asset'
+  const [manualHomeAsset, setManualHomeAssetState] = useState<ManualAssetIdentity | null>(() => {
+    try {
+      const raw = localStorage.getItem(MANUAL_HOME_ASSET_KEY)
+      return raw ? (JSON.parse(raw) as ManualAssetIdentity) : null
+    } catch { return null }
+  })
+
+  function completeSetup(competitors: TrackedCompetitor[], nextManualHomeAsset: ManualAssetIdentity | null) {
     setTrackedCompetitorsState(competitors)
-    try { localStorage.setItem(TRACKED_COMPETITORS_KEY, JSON.stringify(competitors)) } catch { /* noop */ }
+    setManualHomeAssetState(nextManualHomeAsset)
+    try {
+      localStorage.setItem(TRACKED_COMPETITORS_KEY, JSON.stringify(competitors))
+      if (nextManualHomeAsset) localStorage.setItem(MANUAL_HOME_ASSET_KEY, JSON.stringify(nextManualHomeAsset))
+      else localStorage.removeItem(MANUAL_HOME_ASSET_KEY)
+    } catch { /* noop */ }
     localStorage.setItem('onboardingComplete', 'true')
     localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
     setOnboardingComplete(true)
@@ -403,9 +421,6 @@ export function AppProvider({ children }) {
       localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
     } catch { /* noop */ }
   }
-
-  // ── Mobile nav overlay ───────────────────────────────────────────────────
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // ── AI modal state ────────────────────────────────────────────────────────
   // `question`, when present, is the literal text the user asked (typed into
@@ -487,15 +502,13 @@ export function AppProvider({ children }) {
         syncUnreadCount,
         onboardingComplete,
         trackedCompetitors,
+        manualHomeAsset,
         completeSetup,
         userRole,
         setUserRole,
         tourActive,
         startTour,
         endTour,
-        mobileNavOpen,
-        openMobileNav: () => setMobileNavOpen(true),
-        closeMobileNav: () => setMobileNavOpen(false),
         askModal,
         openAskModal,
         closeAskModal,

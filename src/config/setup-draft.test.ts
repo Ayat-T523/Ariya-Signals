@@ -42,6 +42,8 @@ import {
   toggleCandidateSelection,
   isCandidateSelected,
   setCandidateRelationship,
+  setDiscoveredCandidates,
+  discoveredCandidateToEntry,
   isStage3Valid,
   hasDownstreamData,
   clearDownstreamData,
@@ -52,6 +54,7 @@ import {
   type SetupDraft,
 } from './setup-draft.js'
 import { getDiseaseAreasForTherapeuticArea, getAssetsForDiseaseArea } from './landscape-configuration.js'
+import type { DiscoveredCandidate } from '../lib/api/discovery.js'
 
 let passed = 0
 let failed = 0
@@ -112,21 +115,28 @@ assert('manualAsset shape has exactly the identity fields a user can supply', Ob
 ])
 assertTrue('no mechanism/phase/lexicon/evidence field exists on the manual asset', !('mechanism' in gmgDraft.manualAsset!) && !('lexiconInns' in gmgDraft.manualAsset!))
 
-// ── 8. Stage 2 unavailable discovery uses no static HAE fallback ─────────
-console.log('8. Discovery adapter never returns a static HAE fallback (source check)')
-const discoveryAdapterPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'api', 'discoveryAdapter.ts')
-const discoveryAdapterSource = fs.readFileSync(discoveryAdapterPath, 'utf-8')
-// Strip block/line comments first -- the module's own docstring legitimately
-// *names* suggestedCompetitors/discovered-candidates.json to document what it
-// deliberately avoids; only real code (imports/usage) should fail this check.
-const discoveryAdapterCode = discoveryAdapterSource
+// ── 8. Stage 2 uses the REAL discovery client, no static HAE fallback ────
+// (Shell + discovery reconciliation phase.) The temporary always-not-
+// connected discoveryAdapter.ts is gone entirely -- Stage2Discover.tsx now
+// calls useDiscovery()/discovery.ts directly (see commit b45033c), never a
+// second discovery architecture.
+console.log('8. Stage 2 uses the real discovery client; the temporary adapter is gone')
+const setupDir = path.dirname(fileURLToPath(import.meta.url))
+const discoveryAdapterPath = path.join(setupDir, '..', 'lib', 'api', 'discoveryAdapter.ts')
+assertTrue('discoveryAdapter.ts no longer exists', !fs.existsSync(discoveryAdapterPath))
+
+const stage2Path = path.join(setupDir, '..', 'pages', 'setup', 'Stage2Discover.tsx')
+const stage2Source = fs.readFileSync(stage2Path, 'utf-8')
+const stage2Code = stage2Source
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n')
   .map((line) => line.replace(/\/\/.*$/, ''))
   .join('\n')
-assertTrue('discoveryAdapter.ts never imports/uses suggestedCompetitors in real code', !discoveryAdapterCode.includes('suggestedCompetitors'))
-assertTrue('discoveryAdapter.ts never imports discovered-candidates.json in real code', !discoveryAdapterCode.toLowerCase().includes('discovered-candidates'))
-assertTrue('discoveryAdapter.ts never hardcodes takeda/biocryst/pharvaris in real code', !/takeda|biocryst|pharvaris/i.test(discoveryAdapterCode))
+assertTrue('Stage2Discover.tsx imports the real useDiscovery hook', stage2Code.includes("from '../../hooks/useDiscovery'"))
+assertTrue('Stage2Discover.tsx never imports the retired discoveryAdapter', !stage2Code.includes('discoveryAdapter'))
+assertTrue('Stage2Discover.tsx never references suggestedCompetitors in real code', !stage2Code.includes('suggestedCompetitors'))
+assertTrue('Stage2Discover.tsx never references discovered-candidates.json in real code', !stage2Code.toLowerCase().includes('discovered-candidates'))
+assertTrue('Stage2Discover.tsx never hardcodes takeda/biocryst/pharvaris in real code', !/takeda|biocryst|pharvaris/i.test(stage2Code))
 
 // ── 9/10. manual competitor can be added, marked evidence-not-evaluated ──
 console.log('9/10. A manual competitor can be added and is marked evidence-not-evaluated')
@@ -202,16 +212,67 @@ clearSetupDraft()
 assert('clearSetupDraft removes it', loadSetupDraft(), null)
 
 // ── 19. no Supabase persistence is used ───────────────────────────────────
-console.log('19. No Supabase reference anywhere in the setup flow\'s new modules')
+console.log('19. No Supabase reference anywhere in the setup flow\'s modules')
 const setupDraftSource = fs.readFileSync(fileURLToPath(import.meta.url).replace(/\.test\.ts$/, '.ts'), 'utf-8')
 assertTrue('setup-draft.ts never imports/references supabase', !/supabase/i.test(setupDraftSource))
-assertTrue('discoveryAdapter.ts never imports/references supabase', !/supabase/i.test(discoveryAdapterSource))
+assertTrue('Stage2Discover.tsx never imports/references supabase', !/supabase/i.test(stage2Source))
 
 // ── 20. legacy Takeda/BioCryst/Pharvaris default does not overwrite newly configured tracked competitors ──
 console.log('20. The legacy HAE watchlist default never leaks into a fresh tracked-competitor projection')
 const freshDraft = withHae()
 assert('a freshly defined landscape with no candidates yet projects to zero tracked competitors', draftToTrackedCompetitors(freshDraft).length, 0)
 assertTrue('draftToTrackedCompetitors never injects takeda/biocryst/pharvaris on its own', !draftToTrackedCompetitors(freshDraft).some((c) => ['takeda', 'biocryst', 'pharvaris'].includes(c.id)))
+
+// ── 21. real discovered candidates merge with manual candidates, statuses unfiltered ──
+console.log('21. Real discovered candidates merge with manual ones; candidate_status is never filtered')
+function fakeDiscovered(identityKey: string, status: DiscoveredCandidate['candidateStatus']): DiscoveredCandidate {
+  return {
+    identityKey, candidateStatus: status, relationshipStatus: 'skipped',
+    aiProposedRelationship: null, finalRelationship: null, finalRationale: null,
+    validationReasons: [], evidenceGaps: ['development_stage_unresolved'], durableEvidenceRefs: [],
+    detail: null, sourceReferences: ['https://clinicaltrials.gov/study/NCT00000001'],
+    reasonDetail: [], unresolvedQuestions: [], organizationName: 'Acme Biotech',
+    organizationSourceStatus: 'no_verified_official_source', verifiedDomains: [],
+  }
+}
+let mergeDraft = withHae()
+mergeDraft = addManualCandidate(mergeDraft, { companyName: 'BioCryst Pharmaceuticals', assetName: 'Orladeyo' })
+mergeDraft = addManualCandidate(mergeDraft, { companyName: 'Duplicate Co', assetName: 'Weak Signal' })
+mergeDraft = setDiscoveredCandidates(mergeDraft, [
+  fakeDiscovered('Orladeyo', 'needs_more_evidence'),
+  fakeDiscovered('Weak Signal', 'not_presentable_for_target'),
+])
+assert('both discovered candidates present, neither filtered by weak status', mergeDraft.candidates.filter((c) => c.source === 'discovered').length, 2)
+assertTrue('needs_more_evidence candidate kept, not silently dropped', mergeDraft.candidates.some((c) => c.discovered?.candidateStatus === 'needs_more_evidence'))
+assertTrue('not_presentable_for_target candidate kept, not silently dropped', mergeDraft.candidates.some((c) => c.discovered?.candidateStatus === 'not_presentable_for_target'))
+assert('exact-name-matching manual candidates were replaced by the richer discovered record, not duplicated', mergeDraft.candidates.length, 2)
+assertTrue('the surviving discovered entry carries real evidence gaps', mergeDraft.candidates.find((c) => c.displayName === 'Orladeyo')!.discovered!.evidenceGaps.length > 0)
+
+// ── 22. discoveredCandidateToEntry preserves identity/provenance without inventing fields ──
+console.log('22. discoveredCandidateToEntry preserves real backend fields verbatim')
+const rawDiscovered = fakeDiscovered('Pharvaris', 'presentable_candidate')
+const entry = discoveredCandidateToEntry(rawDiscovered)
+assert('id is the real identityKey, not a synthesized id', entry.id, 'Pharvaris')
+assert('organizationName carried into companyName', entry.companyName, 'Acme Biotech')
+assert('sourceReferences carried verbatim', entry.sourceReferences, rawDiscovered.sourceReferences)
+assert('evidenceStatus is evidence_available for any discovered candidate, regardless of candidateStatus strength', entry.evidenceStatus, 'evidence_available')
+assert('the full raw record is retained for the evidence sheet', entry.discovered, rawDiscovered)
+
+// ── 23. old custom shell no longer controls primary app layout ───────────
+console.log('23. The retired NavPanel/TopBar/ContentColumn shell no longer exists or is referenced by Layout')
+const shellDir = path.join(setupDir, '..', 'components', 'shell')
+assertTrue('NavPanel.tsx no longer exists', !fs.existsSync(path.join(shellDir, 'NavPanel.tsx')))
+assertTrue('TopBar.tsx no longer exists', !fs.existsSync(path.join(shellDir, 'TopBar.tsx')))
+assertTrue('ContentColumn.tsx no longer exists', !fs.existsSync(path.join(shellDir, 'ContentColumn.tsx')))
+const layoutSource = fs.readFileSync(path.join(setupDir, '..', 'components', 'layout', 'Layout.tsx'), 'utf-8')
+const layoutCode = layoutSource
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n')
+  .map((line) => line.replace(/\/\/.*$/, ''))
+  .join('\n')
+assertTrue('Layout.tsx no longer imports the retired NavPanel in real code', !layoutCode.includes('NavPanel'))
+assertTrue('Layout.tsx now uses the official SidebarProvider', layoutCode.includes('SidebarProvider'))
+assertTrue('Layout.tsx now uses AppSidebar (sidebar-08-derived shell)', layoutCode.includes('AppSidebar'))
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 declare const process: { exit(code: number): void }

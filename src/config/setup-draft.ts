@@ -25,6 +25,7 @@ import {
   isLandscapeConfigurationConsistent,
 } from './landscape-configuration'
 import { getAssetById, type AssetConfig } from './assets-config'
+import type { DiscoveredCandidate } from '../lib/api/discovery'
 
 export type SetupStage = 'define' | 'discover' | 'configure'
 
@@ -54,6 +55,15 @@ export interface CandidateEntry {
   evidenceStatus: 'not_evaluated' | 'evidence_available'
   evidenceSummary: string | null
   sourceReferences: string[]
+  /**
+   * The full real backend record for a discovered candidate -- candidate
+   * status, evidence gaps, unresolved questions, verified domains,
+   * provenance, etc. undefined for manual candidates (there is no backend
+   * record) and never fabricated. CandidateEvidenceSheet reads this for the
+   * richer detail view; the fields above stay the simple, always-present
+   * shape the candidate list itself renders.
+   */
+  discovered?: DiscoveredCandidate
 }
 
 export interface SelectedCompetitorDraft {
@@ -181,9 +191,49 @@ export function addManualCandidate(
   return { ...draft, candidates: [...draft.candidates, candidate] }
 }
 
-export function setDiscoveredCandidates(draft: SetupDraft, discovered: CandidateEntry[]): SetupDraft {
-  const manualOnly = draft.candidates.filter((c) => c.source === 'manual')
-  return { ...draft, candidates: [...discovered, ...manualOnly] }
+/**
+ * Maps a real backend DiscoveredCandidate (src/lib/api/discovery.ts) into
+ * this module's CandidateEntry -- the one place that shape conversion
+ * happens, so Stage2Discover.tsx never duplicates it. `identityKey` is
+ * already a stable, deterministic identity (see discovery.ts's own docstring
+ * on why it's a real name, not a synthesized id), reused directly as the
+ * CandidateEntry id so re-running discovery doesn't fabricate new identities
+ * for the same real candidate. evidenceStatus is 'evidence_available' for
+ * every discovered candidate -- the backend evaluated it, regardless of how
+ * strong the resulting candidate_status is; 'not_evaluated' is reserved for
+ * genuinely manual, backend-untouched entries.
+ */
+export function discoveredCandidateToEntry(dc: DiscoveredCandidate): CandidateEntry {
+  return {
+    id: dc.identityKey,
+    source: 'discovered',
+    displayName: dc.identityKey,
+    companyName: dc.organizationName,
+    innName: null,
+    ariyaAssessment: dc.aiProposedRelationship,
+    evidenceStatus: 'evidence_available',
+    evidenceSummary: dc.finalRationale,
+    sourceReferences: dc.sourceReferences,
+    discovered: dc,
+  }
+}
+
+/**
+ * Merges real discovery results into the draft. Never overwrites a manual
+ * candidate -- but a manual entry whose company/asset name exactly matches
+ * (case-insensitive, trimmed) a freshly discovered identity is dropped in
+ * favor of the richer discovered record, rather than showing the same real
+ * competitor twice. Deliberately exact-match only -- no fuzzy entity
+ * resolution (a near-miss stays as two separate, honest entries rather than
+ * a guessed merge).
+ */
+export function setDiscoveredCandidates(draft: SetupDraft, discovered: DiscoveredCandidate[]): SetupDraft {
+  const discoveredEntries = discovered.map(discoveredCandidateToEntry)
+  const discoveredNames = new Set(discoveredEntries.map((c) => c.displayName.trim().toLowerCase()))
+  const manualOnly = draft.candidates.filter(
+    (c) => c.source === 'manual' && !discoveredNames.has(c.displayName.trim().toLowerCase()),
+  )
+  return { ...draft, candidates: [...discoveredEntries, ...manualOnly] }
 }
 
 // ── Stage 3: selection + user classification ────────────────────────────────
