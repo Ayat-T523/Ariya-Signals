@@ -28,6 +28,7 @@ import { Link } from 'react-router-dom'
 // Inbox, AlertTriangle, Bookmark, BookmarkCheck -- confirmed absent via
 // registry.json, same check as NavPanel.tsx).
 import { Circle, PauseCircle, Inbox, AlertTriangle, Bookmark, BookmarkCheck } from 'lucide-react'
+import type { NavIcon } from '../components/animate-ui/icons/types'
 import { ArrowRight } from '../components/animate-ui/icons/arrow-right'
 import { Plus } from '../components/animate-ui/icons/plus'
 import { CircleCheckBig as CheckCircle2 } from '../components/animate-ui/icons/circle-check-big'
@@ -145,7 +146,12 @@ function isRelevantEMAEvent(e: DbRegulatoryCalendarEvent, lexicon: Lexicon): boo
 }
 
 // ── Handling-state menu ────────────────────────────────────────────────────────
-const STATE_META: Record<HandlingState, { label: string; icon: typeof Circle }> = {
+// icon: NavIcon (not `typeof Circle`) — Circle/PauseCircle are plain lucide-react
+// icons (ForwardRefExoticComponent), while CheckCircle2/XCircle below are restored
+// Animate UI icons (plain function components under React 19's ref-as-prop model).
+// The two are typed incompatibly by their own upstream libraries; NavIcon is the
+// same union already used for exactly this mix in NavPanel.tsx.
+const STATE_META: Record<HandlingState, { label: string; icon: NavIcon }> = {
   needs_triage: { label: 'Handle', icon: Circle },
   in_progress: { label: 'In progress', icon: PauseCircle },
   handled: { label: 'Handled', icon: CheckCircle2 },

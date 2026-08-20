@@ -17,7 +17,13 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
-Icon?
+# Icon\r (below) is the standard GitHub-template macOS custom-folder-icon rule —
+# a literal file named "Icon" + a carriage return. The redundant `Icon?` variant
+# that used to sit here matched more broadly than intended: with core.ignorecase
+# (the Windows/macOS default), `?` (any one character) made it match "icons" too,
+# silently swallowing every path under src/components/animate-ui/icons/ from the
+# InForm rebrand commit onward. Icon\r alone covers the real intent without that
+# collision — verified it does not match a directory literally named "icons".
 Icon\r
 *.suo
 *.ntvs*
