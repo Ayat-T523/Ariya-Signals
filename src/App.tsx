@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { analytics } from './lib/analytics'
-import { AppProvider } from './context/AppContext'
+import { AppProvider, useApp } from './context/AppContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import KokonutLoader from './components/kokonutui/loader'
@@ -10,6 +10,8 @@ import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
+
+const SetupPage = lazy(() => import('./pages/setup/SetupPage'))
 
 // ── Lazy page chunks — each page loads only when first visited ────────────────
 const WarRoom           = lazy(() => import('./pages/WarRoom'))
@@ -70,6 +72,16 @@ function AuthGuard() {
   return <Outlet />
 }
 
+// ── Setup guard ───────────────────────────────────────────────────────────────
+// A first-time (or reset, or pre-v7) authenticated user is routed to the
+// dedicated /setup page instead of the normal workspace. Once setup is
+// complete, /setup itself stays reachable (NAV 4 — reopening to edit).
+function SetupGuard() {
+  const { onboardingComplete } = useApp()
+  if (!onboardingComplete) return <Navigate to="/setup" replace />
+  return <Outlet />
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -98,6 +110,10 @@ export default function App() {
 
               {/* Protected — all app routes require an authenticated AuthContext session */}
               <Route element={<AuthGuard />}>
+                {/* Dedicated full-page staged setup — no workspace chrome, reachable whether or not setup is complete */}
+                <Route path="/setup" element={<><RouteTitle title="Set Up Your Landscape" /><SetupPage /></>} />
+
+                <Route element={<SetupGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/"                   element={<><RouteTitle title="War Room" /><WarRoom /></>} />
                   <Route path="/competitors"          element={<><RouteTitle title="Competitors" /><Competitors /></>} />
@@ -115,6 +131,7 @@ export default function App() {
                   <Route path="/ask"                  element={<><RouteTitle title="Ask InForm" /><Ask /></>} />
                   <Route path="/admin"                element={<><RouteTitle title="Admin" /><AdminPage /></>} />
                   <Route path="*"                     element={<NotFoundState />} />
+                </Route>
                 </Route>
               </Route>
             </Routes>

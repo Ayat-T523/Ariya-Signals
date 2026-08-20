@@ -10,6 +10,7 @@ import {
   getLegacyIndicationCompat,
 } from '../config/landscape-configuration'
 import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
+import { type TrackedCompetitor } from '../config/setup-draft'
 import { expandLexiconInns } from '../lib/lexicon'
 import { getAssetLexicon, type HandlingState } from '../lib/db'
 import { useAuth } from './AuthContext'
@@ -41,10 +42,15 @@ export interface AppContextValue {
   unreadCount: number
   syncUnreadCount: (n: number) => void
   onboardingComplete: boolean
-  showOnboarding: boolean
-  openOnboarding: () => void
-  closeOnboarding: () => void
-  completeOnboarding: (selectedAssets: any) => void
+  /**
+   * Staged setup completion (Frontend "Build Full-Page Staged Landscape
+   * Setup"). Persists the final tracked-competitor list produced by Stage 3
+   * -- kept entirely separate from watchedCompetitors (the legacy HAE
+   * default) and from LandscapeConfiguration (what market/home asset is
+   * being analysed, not who the competitors are). See setup-draft.ts.
+   */
+  trackedCompetitors: TrackedCompetitor[]
+  completeSetup: (competitors: TrackedCompetitor[]) => void
   // Read from localStorage, which returns null when unset.
   userRole: string | null
   setUserRole: (role: string) => void
@@ -189,7 +195,10 @@ export function AppProvider({ children }) {
   // v6: replaced with the canonical Therapeutic Area -> Disease Area -> Home
   // Asset flow (Frontend Step 3) -- the old asset-first + static-competitor-
   // confirm flow is gone, so every returning user needs to see this once.
-  const ONBOARDING_VERSION = 'v6'
+  // v7: modal onboarding retired in favor of the dedicated full-page staged
+  // setup (/setup) -- no existing user has ever completed Stage 2/3 (they
+  // didn't exist), so every returning user is routed through setup once more.
+  const ONBOARDING_VERSION = 'v7'
   const onboardingDone = (() => {
     try {
       return (
@@ -199,7 +208,6 @@ export function AppProvider({ children }) {
     } catch { return false }
   })()
   const [onboardingComplete, setOnboardingComplete] = useState(() => onboardingDone)
-  const [showOnboarding, setShowOnboarding] = useState(() => !onboardingDone)
 
   // ── User role ────────────────────────────────────────────────────────────
   const [userRole, setUserRoleState] = useState(() => {
@@ -353,20 +361,24 @@ export function AppProvider({ children }) {
 
   useEffect(() => { analytics.identify(userRole) }, [userRole])
 
-  function openOnboarding() {
-    setShowOnboarding(true)
-  }
+  // ── Tracked competitors (Stage 3 output) ────────────────────────────────
+  // Separate key from 'pharma-inc-ciwarroom-watched' (watchedCompetitors,
+  // the legacy HAE default above) -- completing setup never touches that
+  // key, so the Takeda/BioCryst/Pharvaris default can never overwrite it.
+  const TRACKED_COMPETITORS_KEY = 'ariya-tracked-competitors'
+  const [trackedCompetitors, setTrackedCompetitorsState] = useState<TrackedCompetitor[]>(() => {
+    try {
+      const raw = localStorage.getItem(TRACKED_COMPETITORS_KEY)
+      return raw ? (JSON.parse(raw) as TrackedCompetitor[]) : []
+    } catch { return [] }
+  })
 
-  function closeOnboarding() {
-    setShowOnboarding(false)
-  }
-
-  function completeOnboarding(selectedAssets) {
+  function completeSetup(competitors: TrackedCompetitor[]) {
+    setTrackedCompetitorsState(competitors)
+    try { localStorage.setItem(TRACKED_COMPETITORS_KEY, JSON.stringify(competitors)) } catch { /* noop */ }
     localStorage.setItem('onboardingComplete', 'true')
     localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
-    localStorage.setItem('trackedAssets', JSON.stringify(selectedAssets))
     setOnboardingComplete(true)
-    setShowOnboarding(false)
   }
 
   // ── Guided tour ──────────────────────────────────────────────────────────
@@ -375,7 +387,6 @@ export function AppProvider({ children }) {
   function startTour() {
     analytics.tour_started()
     setTourActive(true)
-    setShowOnboarding(false)
     navigate('/')
   }
 
@@ -387,7 +398,6 @@ export function AppProvider({ children }) {
     }
     setTourActive(false)
     setOnboardingComplete(true)
-    setShowOnboarding(false)
     try {
       localStorage.setItem('onboardingComplete', 'true')
       localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
@@ -476,10 +486,8 @@ export function AppProvider({ children }) {
         unreadCount,
         syncUnreadCount,
         onboardingComplete,
-        showOnboarding,
-        openOnboarding,
-        closeOnboarding,
-        completeOnboarding,
+        trackedCompetitors,
+        completeSetup,
         userRole,
         setUserRole,
         tourActive,

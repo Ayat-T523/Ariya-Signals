@@ -1,5 +1,7 @@
 import { Info } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Button } from '../components/shadcn/ui/button'
 
 const TRACKED_ASSETS = [
   {
@@ -133,7 +135,8 @@ const TD = ({ children, style }) => (
 export default function AdminPage() {
   function resetOnboarding() {
     localStorage.removeItem('onboardingComplete')
-    localStorage.removeItem('trackedAssets')
+    localStorage.removeItem('ariya-tracked-competitors')
+    localStorage.removeItem('ariya-setup-draft')
     window.location.reload()
   }
 
@@ -204,6 +207,26 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* Section 1.5: Edit landscape */}
+      <div style={{
+        background: '#FFFFFF',
+        borderRadius: '16px',
+        border: '1px solid rgba(5,10,68,0.08)',
+        boxShadow: '0 1px 2px rgba(5,10,68,0.04), 0 4px 12px rgba(5,10,68,0.04)',
+        marginBottom: '24px',
+        padding: '24px',
+      }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: 'rgba(5,10,68,0.88)' }}>
+          Landscape configuration
+        </h2>
+        <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'rgba(5,10,68,0.50)', lineHeight: '1.6' }}>
+          Reopen the staged setup flow, pre-populated with your current landscape and tracked competitors.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/setup">Edit landscape</Link>
+        </Button>
+      </div>
+
       {/* Section 2: Reset state */}
       <div style={{
         background: '#FFFFFF',
@@ -216,7 +239,7 @@ export default function AdminPage() {
           Reset onboarding state
         </h2>
         <p style={{ margin: '0 0 16px', fontSize: '13px', color: 'rgba(5,10,68,0.50)', lineHeight: '1.6' }}>
-          To replay the onboarding + guided tour as a new user, use the "Take the tour" button in the sidebar.
+          To edit your landscape without a full reset, use "Edit landscape" above.
           This action below fully clears local state and reloads — only use it to fully reset the demo.
         </p>
 

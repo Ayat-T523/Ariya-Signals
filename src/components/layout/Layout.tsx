@@ -7,14 +7,13 @@ import TopBar from '../shell/TopBar'
 import ContentColumn from '../shell/ContentColumn'
 import AskModal from '../ui/AskModal'
 import FeedbackWidget from '../ui/FeedbackWidget'
-import OnboardingModal from '../OnboardingModal'
 import TourBanner from '../TourBanner'
 import { useApp } from '../../context/AppContext'
 import { useTour } from '../../hooks/useTour'
 import { ErrorBoundary, PageErrorFallback } from '../ErrorBoundary'
 
 export default function Layout() {
-  const { askModal, closeAskModal, openAskModal, showOnboarding } = useApp()
+  const { askModal, closeAskModal, openAskModal } = useApp()
   useTour()
   const location = useLocation()
 
@@ -105,9 +104,6 @@ export default function Layout() {
         source={askModal.source}
         question={askModal.question}
       />
-
-      {/* Onboarding modal — shown on first visit or triggered from Admin */}
-      {showOnboarding && <OnboardingModal />}
 
       {/* Feedback pill — fixed bottom-right, all pages */}
       <FeedbackWidget />

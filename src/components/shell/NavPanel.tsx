@@ -285,7 +285,7 @@ function EdgeChevron() {
 function NavPanelInner({ onHelpOpen }: { onHelpOpen: () => void }) {
   const { state, isMobile } = useSidebar()
   const collapsed = state === 'collapsed' && !isMobile
-  const { unreadCount, openOnboarding, startTour } = useApp()
+  const { unreadCount } = useApp()
   const { logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -407,7 +407,7 @@ function NavPanelInner({ onHelpOpen }: { onHelpOpen: () => void }) {
 
           {/* Utility icons */}
           <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: collapsed ? '8px' : '4px' }}>
-            <FooterIconBtn icon={Compass} label="Take the tour" onClick={openOnboarding} />
+            <FooterIconBtn icon={Compass} label="Edit landscape" onClick={() => navigate('/setup')} />
             <FooterIconBtn icon={Bell} label={`${unreadCount} unread alert${unreadCount !== 1 ? 's' : ''}`} onClick={() => navigate('/alerts')} badge={unreadCount > 0} />
             <FooterIconBtn icon={HelpCircle} label="Help" onClick={onHelpOpen} animatedIcon={false} />
             <FooterIconBtn icon={Settings} label="Admin" onClick={() => navigate('/admin')} />
