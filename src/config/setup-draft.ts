@@ -326,27 +326,49 @@ export interface HomeAssetDisplay {
   indicationContexts?: string[]
 }
 
-/** Resolves the Home Asset identity for display, whichever source it came from. Null when nothing is selected yet. */
-export function resolveHomeAssetDisplay(draft: SetupDraft): HomeAssetDisplay | null {
-  if (draft.manualAsset && draft.manualAsset.id === draft.landscapeConfiguration.homeAssetId) {
-    return { displayName: draft.manualAsset.displayName, innName: draft.manualAsset.innName, companyName: draft.manualAsset.company }
+/**
+ * The same manual -> resolved -> catalog priority resolveHomeAssetDisplay
+ * below uses, factored out to accept the four loose pieces directly
+ * (Targeted Implementation 4) -- so a caller that isn't holding a full
+ * SetupDraft (e.g. AppContext.useConfig(), which persists manualHomeAsset/
+ * resolvedHomeAsset independently once setup completes -- see
+ * completeSetup()) can reuse the EXACT same resolution logic instead of
+ * re-deriving a second, competing implementation. `homeCompanyOverride`
+ * defaults to null -- AppContext does not persist Stage 1's own
+ * homeCompanyOverride draft field (out of this task's scope), so a
+ * resolved/catalog asset with no recorded owner company simply surfaces
+ * companyName: null post-setup, the same honest-gap semantics
+ * resolveHomeAssetDisplay() already documents, never fabricated.
+ */
+export function resolveHomeAssetDisplayFrom(
+  homeAssetId: string | null,
+  manualAsset: ManualAssetIdentity | null,
+  resolvedAsset: ResolvedAssetIdentity | null,
+  homeCompanyOverride: string | null = null,
+): HomeAssetDisplay | null {
+  if (manualAsset && manualAsset.id === homeAssetId) {
+    return { displayName: manualAsset.displayName, innName: manualAsset.innName, companyName: manualAsset.company }
   }
-  if (draft.resolvedAsset && draft.resolvedAsset.id === draft.landscapeConfiguration.homeAssetId) {
-    const r = draft.resolvedAsset
+  if (resolvedAsset && resolvedAsset.id === homeAssetId) {
     return {
-      displayName: r.preferredName,
-      innName: r.innNames[0] ?? null,
-      companyName: r.ownerCompanies[0] ?? draft.homeCompanyOverride,
-      aliases: r.aliases,
-      mechanismOfAction: r.mechanismOfAction,
-      indicationContexts: r.indicationContexts,
+      displayName: resolvedAsset.preferredName,
+      innName: resolvedAsset.innNames[0] ?? null,
+      companyName: resolvedAsset.ownerCompanies[0] ?? homeCompanyOverride,
+      aliases: resolvedAsset.aliases,
+      mechanismOfAction: resolvedAsset.mechanismOfAction,
+      indicationContexts: resolvedAsset.indicationContexts,
     }
   }
-  const asset: AssetConfig | undefined = draft.landscapeConfiguration.homeAssetId
-    ? getAssetById(draft.landscapeConfiguration.homeAssetId)
-    : undefined
-  if (asset) return { displayName: asset.brandName, innName: asset.innName, companyName: asset.company ?? draft.homeCompanyOverride }
+  const asset: AssetConfig | undefined = homeAssetId ? getAssetById(homeAssetId) : undefined
+  if (asset) return { displayName: asset.brandName, innName: asset.innName, companyName: asset.company ?? homeCompanyOverride }
   return null
+}
+
+/** Resolves the Home Asset identity for display, whichever source it came from. Null when nothing is selected yet. */
+export function resolveHomeAssetDisplay(draft: SetupDraft): HomeAssetDisplay | null {
+  return resolveHomeAssetDisplayFrom(
+    draft.landscapeConfiguration.homeAssetId, draft.manualAsset, draft.resolvedAsset, draft.homeCompanyOverride,
+  )
 }
 
 /** True when a Home Asset is selected but its company is genuinely unknown -- Stage 1 must prompt for it (Phase 6/Step 13) rather than proceed or guess. */
@@ -359,20 +381,38 @@ export interface DiseaseAreaDisplay {
   name: string
   aliases?: string[]
   source: 'manual' | 'catalog' | 'mondo'
+  /** Populated only for the 'catalog' source (Targeted Implementation 2) -- a manual/MONDO Disease Area has no curated abbreviation, never fabricated. Consumers wanting a short label fall back to `name` when this is absent. */
+  shortCode?: string
+}
+
+/**
+ * The same manual -> resolved(MONDO) -> catalog priority resolveDiseaseAreaDisplay
+ * below uses, factored out to accept the three loose pieces directly
+ * (Targeted Implementation 2) -- so a caller that isn't holding a full
+ * SetupDraft (e.g. AppContext.useConfig(), which persists these three pieces
+ * independently once setup completes -- see completeSetup()) can reuse the
+ * EXACT same resolution logic instead of re-deriving a second, competing
+ * implementation.
+ */
+export function resolveDiseaseAreaDisplayFrom(
+  diseaseAreaId: string | null,
+  manualDiseaseArea: ManualDiseaseArea | null,
+  resolvedDiseaseArea: ResolvedDiseaseArea | null,
+): DiseaseAreaDisplay | null {
+  if (manualDiseaseArea && manualDiseaseArea.id === diseaseAreaId) {
+    return { name: manualDiseaseArea.name, source: 'manual' }
+  }
+  if (resolvedDiseaseArea && resolvedDiseaseArea.id === diseaseAreaId) {
+    return { name: resolvedDiseaseArea.preferredName, aliases: resolvedDiseaseArea.aliases, source: 'mondo' }
+  }
+  const catalogEntry = diseaseAreaId ? getDiseaseAreaById(diseaseAreaId) : undefined
+  if (catalogEntry) return { name: catalogEntry.name, source: 'catalog', shortCode: catalogEntry.shortCode }
+  return null
 }
 
 /** Resolves the Disease Area identity for display, whichever source it came from (Root-Cause Recon implementation, Part A). Null when nothing is selected yet. */
 export function resolveDiseaseAreaDisplay(draft: SetupDraft): DiseaseAreaDisplay | null {
-  const { diseaseAreaId } = draft.landscapeConfiguration
-  if (draft.manualDiseaseArea && draft.manualDiseaseArea.id === diseaseAreaId) {
-    return { name: draft.manualDiseaseArea.name, source: 'manual' }
-  }
-  if (draft.resolvedDiseaseArea && draft.resolvedDiseaseArea.id === diseaseAreaId) {
-    return { name: draft.resolvedDiseaseArea.preferredName, aliases: draft.resolvedDiseaseArea.aliases, source: 'mondo' }
-  }
-  const catalogEntry = diseaseAreaId ? getDiseaseAreaById(diseaseAreaId) : undefined
-  if (catalogEntry) return { name: catalogEntry.name, source: 'catalog' }
-  return null
+  return resolveDiseaseAreaDisplayFrom(draft.landscapeConfiguration.diseaseAreaId, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
 }
 
 /**
@@ -614,6 +654,64 @@ export function clearDownstreamData(draft: SetupDraft): SetupDraft {
   return { ...draft, companies: [], selections: [] }
 }
 
+// ── Stale/invalid draft recovery (Targeted Implementation 3) ────────────────
+
+/**
+ * Whether a persisted draft actually has a genuinely resolvable Disease
+ * Area AND Home Asset AND Home Company -- DISCOVER's real requirement, per
+ * this task's own root-cause diagram (resolveDiseaseAreaDisplay() ||
+ * resolveHomeAssetDisplay() === null -> the stage was never actually safe).
+ *
+ * Reuses isStage1Valid() for the Home Asset/Home Company side (its own
+ * manualAsset/resolvedAsset/getAssetById branches already exactly match
+ * resolveHomeAssetDisplay()'s own null condition) PLUS an explicit
+ * resolveDiseaseAreaDisplay() check for the Disease Area side -- a real,
+ * confirmed gap in isStage1Valid() alone: it only checks a matching
+ * manualDiseaseArea's OWN therapeuticAreaId consistency IF one happens to
+ * exist for the current diseaseAreaId; it never asserts that diseaseAreaId
+ * resolves to ANYTHING (manual, resolved, or catalog) at all. A draft whose
+ * diseaseAreaId is a dangling id -- no manualDiseaseArea, no
+ * resolvedDiseaseArea, no catalog match -- passes isStage1Valid() unchanged
+ * today, which is exactly the stale-draft symptom this task exists to fix.
+ * Never a second, competing validation implementation -- this only adds the
+ * ONE missing check the existing functions don't already cover between them.
+ */
+function isStage1GenuinelyResolvable(draft: SetupDraft): boolean {
+  return isStage1Valid(draft) && resolveDiseaseAreaDisplay(draft) !== null && resolveHomeAssetDisplay(draft) !== null
+}
+
+/**
+ * Whether a persisted draft's OWN claimed `stage` is still safe to resume
+ * at, or must be recovered to an earlier stage whose required identities
+ * can actually be resolved from what the draft still carries.
+ *
+ * DISCOVER requires isStage1GenuinelyResolvable() above. CONFIGURE
+ * additionally requires at least one selected company (Stage 3's own
+ * isStage3Valid() first precondition) -- but NOT that every selection is
+ * already classified, since an in-progress, not-yet-fully-classified Stage 3
+ * is normal, valid, in-progress state, not staleness.
+ *
+ * Recovery only ever corrects `stage`, falling back to the HIGHEST stage
+ * still safe (configure -> discover -> define, never skipping past a stage
+ * that's still genuinely valid) -- every other field is left completely
+ * untouched, so no still-valid value is ever discarded and no missing
+ * identity is ever fabricated. DEFINE itself is always safe to resume at:
+ * Stage 1's own UI already tolerates partial/unresolved selections (that is
+ * its normal empty/in-progress state), so no draft is ever rejected
+ * entirely -- only routed to the correct starting point.
+ */
+export function recoverSetupDraft(draft: SetupDraft): SetupDraft {
+  if (draft.stage === 'define') return draft
+  const stage1Ok = isStage1GenuinelyResolvable(draft)
+  if (draft.stage === 'discover') {
+    return stage1Ok ? draft : { ...draft, stage: 'define' }
+  }
+  // draft.stage === 'configure'
+  const hasSelections = Array.isArray(draft.selections) && draft.selections.length > 0
+  if (stage1Ok && hasSelections) return draft
+  return { ...draft, stage: stage1Ok ? 'discover' : 'define' }
+}
+
 // ── Persistence (NAV 3) ──────────────────────────────────────────────────────
 
 export const SETUP_DRAFT_STORAGE_KEY = 'ariya-setup-draft'
@@ -630,7 +728,10 @@ export function loadSetupDraft(): SetupDraft | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as SetupDraft
     if (!parsed || typeof parsed !== 'object' || !parsed.landscapeConfiguration || !Array.isArray(parsed.companies)) return null
-    return parsed
+    // Targeted Implementation 3: a persisted stage is a CLAIM, not a fact --
+    // never resumed directly into Stage 2/3 without confirming the
+    // identities that stage requires can still actually be resolved.
+    return recoverSetupDraft(parsed)
   } catch { return null }
 }
 

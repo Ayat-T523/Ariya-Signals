@@ -118,14 +118,14 @@ export default function SetupPage() {
 
   function handleEnterAriya() {
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset)
+    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
     clearSetupDraft()
     navigate('/')
   }
 
   function handleStartTour() {
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset)
+    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
     clearSetupDraft()
     startTour()
   }

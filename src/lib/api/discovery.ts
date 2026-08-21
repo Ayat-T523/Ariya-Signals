@@ -225,11 +225,70 @@ export function mapDiscoveryResponse(raw: any): DiscoveryResult {
   }
 }
 
+// ── Targeted Implementation 6A — in-flight request de-duplication ───────────
+//
+// React 18 dev StrictMode double-invokes a mount effect (mount -> cleanup ->
+// mount), and Stage2Discover.tsx's own effect calls run()/this function
+// unconditionally on mount -- so a clean Stage 2 mount fires this function
+// TWICE, back-to-back, with an IDENTICAL request, before the first call's
+// fetch has even resolved. Deduplicating here (the API-client boundary
+// EVERY caller already goes through, regardless of which component or how
+// many times it renders) is the smallest reliable shared boundary --
+// smaller/more robust than a component-local ref or boolean, which would
+// only cover this one call site and would need to independently prove it
+// survives StrictMode's specific churn. A module-level Map is unaffected by
+// component mount/unmount/remount entirely, by construction.
+//
+// Deliberately an IN-FLIGHT map, never a result cache: the entry is removed
+// the moment the request settles (success OR error, via `finally`) -- see
+// discoveryRequestInFlight's own docstring. A later explicit Retry (or a
+// second call after the first has already resolved) always starts a
+// genuinely new request; discovery.test.ts's own pre-existing test 9
+// ("Retry performs another real request") already proves this and remains
+// unmodified and green under this change, since it awaits the first call to
+// fully settle before making the second.
+//
+// Request identity: the exact three fields the backend request itself is
+// built from (homeAsset, indication, homeCompany) -- the same fields
+// Stage2Discover.tsx's own runDiscovery() passes in. Two requests for
+// different landscapes (any of these three differing) get different keys
+// and therefore never collide.
+//
+// No AbortController is introduced here, and none needs to be: neither this
+// module nor client.ts's apiPost currently create or pass one for this
+// endpoint (confirmed by inspection -- apiPost has no signal parameter at
+// all, unlike apiGet), so there is no existing cancel-on-unmount behavior
+// this change could interact with or destabilize. Both concurrent callers
+// simply await the SAME underlying promise and receive the SAME resolved
+// value or SAME rejected error -- ordinary JS promise semantics, no extra
+// plumbing required. If a consumer unmounts before the shared promise
+// settles, its own eventual setState call is a React 18 no-op (silently
+// ignored on an unmounted component, not a warning/crash) -- unaffected by
+// whether that promise happened to be shared with another caller or not.
+const _inFlightDiscoveryRequests = new Map<string, Promise<DiscoveryResult>>()
+
+function _discoveryRequestKey(request: DiscoveryRequest): string {
+  return JSON.stringify([request.homeAsset, request.indication, request.homeCompany ?? null])
+}
+
 export async function fetchDiscoveredCompetitors(request: DiscoveryRequest): Promise<DiscoveryResult> {
-  const raw = await apiPost<any>('/api/discovery/competitors', {
-    home_asset: request.homeAsset,
-    indication: request.indication,
-    ...(request.homeCompany ? { home_company: request.homeCompany } : {}),
-  })
-  return mapDiscoveryResponse(raw)
+  const key = _discoveryRequestKey(request)
+  const existing = _inFlightDiscoveryRequests.get(key)
+  if (existing) return existing
+
+  const inFlight = (async () => {
+    const raw = await apiPost<any>('/api/discovery/competitors', {
+      home_asset: request.homeAsset,
+      indication: request.indication,
+      ...(request.homeCompany ? { home_company: request.homeCompany } : {}),
+    })
+    return mapDiscoveryResponse(raw)
+  })()
+
+  _inFlightDiscoveryRequests.set(key, inFlight)
+  try {
+    return await inFlight
+  } finally {
+    _inFlightDiscoveryRequests.delete(key)
+  }
 }

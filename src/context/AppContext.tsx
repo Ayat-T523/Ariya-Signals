@@ -10,7 +10,13 @@ import {
   getLegacyIndicationCompat,
 } from '../config/landscape-configuration'
 import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
-import { type TrackedCompetitor, type ManualAssetIdentity } from '../config/setup-draft'
+import {
+  type TrackedCompetitor, type ManualAssetIdentity, type ManualDiseaseArea,
+  type DiseaseAreaDisplay, resolveDiseaseAreaDisplayFrom,
+  type HomeAssetDisplay, resolveHomeAssetDisplayFrom,
+} from '../config/setup-draft'
+import type { ResolvedDiseaseArea } from '../lib/api/diseaseSearch'
+import type { ResolvedAssetIdentity } from '../lib/api/assetSearch'
 import { expandLexiconInns } from '../lib/lexicon'
 import { getAssetLexicon, type HandlingState } from '../lib/db'
 import { useAuth } from './AuthContext'
@@ -58,7 +64,39 @@ export interface AppContextValue {
    * whenever the configured Home Asset is a catalogued AssetConfig instead.
    */
   manualHomeAsset: ManualAssetIdentity | null
-  completeSetup: (competitors: TrackedCompetitor[], manualHomeAsset: ManualAssetIdentity | null) => void
+  /**
+   * Targeted Implementation 4 — the equivalent persistence path for a Home
+   * Asset selected from live asset search (Step 20/28's ResolvedAssetIdentity),
+   * mirroring manualHomeAsset above exactly the same way resolvedDiseaseArea
+   * mirrors manualDiseaseArea below. `landscapeConfiguration.homeAssetId`
+   * alone is opaque for a resolved asset too (it never resolves via
+   * getAssetById) -- before this task, completeSetup() never even received
+   * this identity, so it was silently discarded the moment setup completed.
+   * Mutually exclusive with manualHomeAsset in practice, both kept
+   * independently persisted.
+   */
+  resolvedHomeAsset: ResolvedAssetIdentity | null
+  /**
+   * Targeted Implementation 2 — the equivalent persistence path for a
+   * non-static Disease Area, mirroring manualHomeAsset above exactly.
+   * `landscapeConfiguration.diseaseAreaId` alone is opaque for a manual or
+   * MONDO-resolved Disease Area (it never resolves via getDiseaseAreaById) --
+   * these two are what let the main app still know "Non-Small Cell Lung
+   * Cancer" (or a live MONDO result) once setup completes, instead of
+   * falling back to "Disease Area not set". Mutually exclusive in practice
+   * (see setup-draft.ts's own mutual-exclusion discipline for
+   * manualDiseaseArea/resolvedDiseaseArea) but both kept independently
+   * persisted, same as the SetupDraft shape they're carried forward from.
+   */
+  manualDiseaseArea: ManualDiseaseArea | null
+  resolvedDiseaseArea: ResolvedDiseaseArea | null
+  completeSetup: (
+    competitors: TrackedCompetitor[],
+    manualHomeAsset: ManualAssetIdentity | null,
+    resolvedHomeAsset: ResolvedAssetIdentity | null,
+    manualDiseaseArea: ManualDiseaseArea | null,
+    resolvedDiseaseArea: ResolvedDiseaseArea | null,
+  ) => void
   // Read from localStorage, which returns null when unset.
   userRole: string | null
   setUserRole: (role: string) => void
@@ -386,13 +424,59 @@ export function AppProvider({ children }) {
     } catch { return null }
   })
 
-  function completeSetup(competitors: TrackedCompetitor[], nextManualHomeAsset: ManualAssetIdentity | null) {
+  // Targeted Implementation 4 -- same persistence shape as manualHomeAsset
+  // above, for a Home Asset selected via live asset search instead. Before
+  // this task, completeSetup() had no parameter for it at all, so it was
+  // silently discarded on setup completion (see this field's own doc
+  // comment on AppContextValue).
+  const RESOLVED_HOME_ASSET_KEY = 'ariya-resolved-home-asset'
+  const [resolvedHomeAsset, setResolvedHomeAssetState] = useState<ResolvedAssetIdentity | null>(() => {
+    try {
+      const raw = localStorage.getItem(RESOLVED_HOME_ASSET_KEY)
+      return raw ? (JSON.parse(raw) as ResolvedAssetIdentity) : null
+    } catch { return null }
+  })
+
+  // Targeted Implementation 2 -- same persistence shape as manualHomeAsset
+  // above, one key per source since a landscape carries at most one of the
+  // two (never both; see setup-draft.ts's mutual exclusion).
+  const MANUAL_DISEASE_AREA_KEY = 'ariya-manual-disease-area'
+  const RESOLVED_DISEASE_AREA_KEY = 'ariya-resolved-disease-area'
+  const [manualDiseaseArea, setManualDiseaseAreaState] = useState<ManualDiseaseArea | null>(() => {
+    try {
+      const raw = localStorage.getItem(MANUAL_DISEASE_AREA_KEY)
+      return raw ? (JSON.parse(raw) as ManualDiseaseArea) : null
+    } catch { return null }
+  })
+  const [resolvedDiseaseArea, setResolvedDiseaseAreaState] = useState<ResolvedDiseaseArea | null>(() => {
+    try {
+      const raw = localStorage.getItem(RESOLVED_DISEASE_AREA_KEY)
+      return raw ? (JSON.parse(raw) as ResolvedDiseaseArea) : null
+    } catch { return null }
+  })
+
+  function completeSetup(
+    competitors: TrackedCompetitor[],
+    nextManualHomeAsset: ManualAssetIdentity | null,
+    nextResolvedHomeAsset: ResolvedAssetIdentity | null,
+    nextManualDiseaseArea: ManualDiseaseArea | null,
+    nextResolvedDiseaseArea: ResolvedDiseaseArea | null,
+  ) {
     setTrackedCompetitorsState(competitors)
     setManualHomeAssetState(nextManualHomeAsset)
+    setResolvedHomeAssetState(nextResolvedHomeAsset)
+    setManualDiseaseAreaState(nextManualDiseaseArea)
+    setResolvedDiseaseAreaState(nextResolvedDiseaseArea)
     try {
       localStorage.setItem(TRACKED_COMPETITORS_KEY, JSON.stringify(competitors))
       if (nextManualHomeAsset) localStorage.setItem(MANUAL_HOME_ASSET_KEY, JSON.stringify(nextManualHomeAsset))
       else localStorage.removeItem(MANUAL_HOME_ASSET_KEY)
+      if (nextResolvedHomeAsset) localStorage.setItem(RESOLVED_HOME_ASSET_KEY, JSON.stringify(nextResolvedHomeAsset))
+      else localStorage.removeItem(RESOLVED_HOME_ASSET_KEY)
+      if (nextManualDiseaseArea) localStorage.setItem(MANUAL_DISEASE_AREA_KEY, JSON.stringify(nextManualDiseaseArea))
+      else localStorage.removeItem(MANUAL_DISEASE_AREA_KEY)
+      if (nextResolvedDiseaseArea) localStorage.setItem(RESOLVED_DISEASE_AREA_KEY, JSON.stringify(nextResolvedDiseaseArea))
+      else localStorage.removeItem(RESOLVED_DISEASE_AREA_KEY)
     } catch { /* noop */ }
     localStorage.setItem('onboardingComplete', 'true')
     localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
@@ -503,6 +587,9 @@ export function AppProvider({ children }) {
         onboardingComplete,
         trackedCompetitors,
         manualHomeAsset,
+        resolvedHomeAsset,
+        manualDiseaseArea,
+        resolvedDiseaseArea,
         completeSetup,
         userRole,
         setUserRole,
@@ -544,27 +631,95 @@ export function useApp(): AppContextValue {
  * wiring is deferred to 1-WIRE (backbone Phase 5).
  */
 export function useConfig() {
-  const { userIndication, userAssetName, userAssetId, landscapeConfiguration, expandedLexiconInns } = useApp()
+  const {
+    userIndication, userAssetName, userAssetId, landscapeConfiguration, expandedLexiconInns,
+    manualHomeAsset, resolvedHomeAsset, manualDiseaseArea, resolvedDiseaseArea,
+  } = useApp()
   const asset = userAssetId ? getAssetById(userAssetId) : undefined
+  // Targeted Implementation 4 — Home Asset resolution priority: persisted
+  // manual/resolved identity first, legacy getAssetById() only as part of
+  // the SAME shared resolver's own third branch (never a second, competing
+  // implementation) so an existing landscape carrying only a legacy
+  // homeAssetId keeps working exactly as before. Same shared
+  // resolveHomeAssetDisplayFrom() Stage 1/2/3 already use via
+  // resolveHomeAssetDisplay(draft).
+  const homeAssetDisplay: HomeAssetDisplay | null = resolveHomeAssetDisplayFrom(
+    landscapeConfiguration.homeAssetId, manualHomeAsset, resolvedHomeAsset,
+  )
   // Canonical-preferred: Disease Area -> legacy indication/indicationFull
   // projection (product contract Step 4 — never the reverse direction).
   const legacyCompat = getLegacyIndicationCompat(landscapeConfiguration.diseaseAreaId)
+  // Targeted Implementation 2 — Disease Area resolution priority: persisted
+  // manual/MONDO-resolved identity first, legacy getDiseaseAreaById() only as
+  // the fallback (below, on the unchanged `diseaseArea` field) so an existing
+  // landscape carrying only a legacy diseaseAreaId keeps working exactly as
+  // before. Same shared resolveDiseaseAreaDisplayFrom() Stage 1/2/3 already
+  // use via resolveDiseaseAreaDisplay(draft) — never a second, competing
+  // resolution implementation.
+  const diseaseAreaDisplay: DiseaseAreaDisplay | null = resolveDiseaseAreaDisplayFrom(
+    landscapeConfiguration.diseaseAreaId, manualDiseaseArea, resolvedDiseaseArea,
+  )
+  // Targeted Implementation 2A — indication/indicationFull compatibility for
+  // a manual or MONDO-resolved Disease Area (legacyCompat is null for both,
+  // since getLegacyIndicationCompat() only ever understands a catalog id).
+  // Reuses diseaseAreaDisplay directly -- never a second Disease Area
+  // resolver -- and never fabricates a short code that doesn't exist for
+  // these two sources: both indication/indicationFull surface the SAME
+  // verbatim name (manual) or preferredName (mondo, already what
+  // diseaseAreaDisplay.name holds for that source per Implementation 2's own
+  // mapping), exactly as this task's own rule states. Only used when
+  // legacyCompat itself is null -- a catalog Disease Area's existing
+  // shortCode/name split is preserved completely unchanged.
+  const diseaseAreaCompat = !legacyCompat && diseaseAreaDisplay
+    ? { indication: diseaseAreaDisplay.name, indicationFull: diseaseAreaDisplay.name }
+    : null
   return {
-    assetName:            asset?.brandName            ?? userAssetName  ?? DEMO.assetName,
-    innName:              asset?.innName               ?? DEMO.assetGenericName,
-    indication:           legacyCompat?.indication      ?? asset?.indication      ?? userIndication ?? DEMO.therapeuticArea,
-    indicationFull:       legacyCompat?.indicationFull  ?? asset?.indicationFull  ?? userIndication ?? DEMO.therapeuticAreaFull,
+    // Targeted Implementation 4 — homeAssetDisplay first (manual -> resolved
+    // -> catalog, all three already reconciled by the ONE shared resolver
+    // above), legacy userAssetName only as a fallback for a landscape that
+    // predates this task's own persistence, DEMO last. asset?.brandName is
+    // kept as a redundant extra layer for defense-in-depth (homeAssetDisplay's
+    // own third branch already covers the catalog case via the identical
+    // getAssetById lookup) -- never removed, since it costs nothing and
+    // preserves the exact pre-existing fallback shape for anything relying on
+    // it.
+    assetName:            homeAssetDisplay?.displayName ?? asset?.brandName ?? userAssetName  ?? DEMO.assetName,
+    // innName mirrors assetName's own priority -- a manual asset's INN is
+    // genuinely optional (never fabricated when absent; see
+    // resolveHomeAssetDisplayFrom's own HomeAssetDisplay contract), so this
+    // still correctly falls through to DEMO when homeAssetDisplay.innName
+    // itself is null, exactly the existing "leave it absent" semantics.
+    innName:              homeAssetDisplay?.innName ?? asset?.innName ?? DEMO.assetGenericName,
+    indication:           legacyCompat?.indication      ?? diseaseAreaCompat?.indication      ?? asset?.indication      ?? userIndication ?? DEMO.therapeuticArea,
+    indicationFull:       legacyCompat?.indicationFull  ?? diseaseAreaCompat?.indicationFull  ?? asset?.indicationFull  ?? userIndication ?? DEMO.therapeuticAreaFull,
+    // Catalog-only enrichment with no manual/resolved equivalent to
+    // substitute -- left completely untouched (never fabricated for a
+    // manual/resolved asset, which simply has no such data).
     suggestedCompetitors: asset?.suggestedCompetitors  ?? ['takeda', 'biocryst', 'pharvaris'],
     // Expanded list when the lexicon fetch has landed; the config landscape
     // until then. Both are landscape lists, so relevance matching never narrows.
     lexiconInns:          expandedLexiconInns ?? asset?.lexiconInns ?? ASSETS_CONFIG[0].lexiconInns,
     lexiconTaTerms:       asset?.lexiconTaTerms        ?? ASSETS_CONFIG[0].lexiconTaTerms,
-    assetGenericName:     asset?.innName               ?? DEMO.assetGenericName,
+    assetGenericName:     homeAssetDisplay?.innName ?? asset?.innName ?? DEMO.assetGenericName,
     // Canonical Frontend Step 2 fields — the seam future onboarding/discovery UI
     // and War Room/Competitors/Intelligence should read from once they're wired
     // to be landscape-aware (not done this step; pages are unchanged).
     therapeuticArea:      landscapeConfiguration.therapeuticAreaId ? getTherapeuticAreaById(landscapeConfiguration.therapeuticAreaId) : undefined,
+    // Legacy field, UNCHANGED (static catalog lookup only) -- existing
+    // consumers expecting a catalog DiseaseArea (id/shortCode/etc.) keep
+    // working; undefined for a manual/MONDO Disease Area, exactly as before
+    // this task. New code should prefer diseaseAreaDisplay below instead.
     diseaseArea:          landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(landscapeConfiguration.diseaseAreaId) : undefined,
+    // Targeted Implementation 2 — the non-static-aware Disease Area
+    // resolution: manual -> MONDO-resolved -> legacy catalog, in that order.
+    // Prefer this over `diseaseArea` for any display that must also work for
+    // a manually entered or MONDO-resolved Disease Area.
+    diseaseAreaDisplay,
+    // Targeted Implementation 4 — the non-static-aware Home Asset resolution:
+    // manual -> resolved -> legacy catalog, in that order. The single shared
+    // source AppSidebar also consumes -- never a second, competing
+    // resolution implementation.
+    homeAssetDisplay,
     homeAssetId:          landscapeConfiguration.homeAssetId,
   }
 }

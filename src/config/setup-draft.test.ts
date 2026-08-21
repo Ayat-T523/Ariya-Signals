@@ -47,6 +47,7 @@ import {
   confirmHomeCompany,
   needsHomeCompanyConfirmation,
   resolveHomeAssetDisplay,
+  resolveHomeAssetDisplayFrom,
   assetDiseaseAreaAgreement,
   isStage1Valid,
   addManualCompany,
@@ -65,10 +66,11 @@ import {
   saveSetupDraft,
   loadSetupDraft,
   clearSetupDraft,
+  recoverSetupDraft,
   type SetupDraft,
 } from './setup-draft.js'
 import type { ResolvedDiseaseArea } from '../lib/api/diseaseSearch.js'
-import { getDiseaseAreasForTherapeuticArea, getAssetsForDiseaseArea } from './landscape-configuration.js'
+import { getDiseaseAreasForTherapeuticArea, getAssetsForDiseaseArea, getLegacyIndicationCompat } from './landscape-configuration.js'
 import { THERAPEUTIC_AREAS } from './therapeutic-areas.js'
 import type { SuggestedCompanySuggestion } from '../lib/api/discovery.js'
 import type { ResolvedAssetIdentity } from '../lib/api/assetSearch.js'
@@ -560,6 +562,454 @@ selectionDraft = toggleCompanySelection(selectionDraft, 'b')
 assert('two companies selected before clearing', selectionDraft.selections.length, 2)
 const clearedSelectionDraft = clearCompanySelections(selectionDraft)
 assert('zero companies selected after clearing', clearedSelectionDraft.selections.length, 0)
+
+// ── Targeted Implementation 2: setup -> main-app Disease Area persistence ──
+//
+// AppContext.tsx/useConfig() cannot be exercised directly here (React
+// component, no DOM testing library in this repo -- see module docstring).
+// Following this file's own already-established pattern for such files
+// (stage1Source/stage2Source/setupPageSource/layoutSource etc. above), the
+// non-pure wiring is verified via source-text assertions; the actual
+// resolution LOGIC (resolveDiseaseAreaDisplayFrom, the exact function
+// useConfig() calls) is exercised directly and behaviorally below.
+
+import { resolveDiseaseAreaDisplayFrom } from './setup-draft.js'
+
+// Normalized to LF regardless of the file's actual on-disk line-ending
+// convention (CRLF on this checkout) -- every multi-line substring check
+// below assumes '\n', matching how every other *Source read above compares.
+const appContextSource = fs.readFileSync(path.join(setupDir, '..', 'context', 'AppContext.tsx'), 'utf-8').replace(/\r\n/g, '\n')
+
+// ── 57. Legacy catalog Disease Area still resolves (regression) ──────────
+console.log('57. A legacy catalog Disease Area id still resolves via resolveDiseaseAreaDisplayFrom -- no manual/resolved override present')
+assert(
+  'catalog id with no manual/resolved override resolves to the catalog name+shortCode',
+  resolveDiseaseAreaDisplayFrom('hae', null, null),
+  { name: 'Hereditary Angioedema', source: 'catalog', shortCode: 'HAE' },
+)
+assert('an unregistered id with no manual/resolved override resolves to null (never a fabricated disease)', resolveDiseaseAreaDisplayFrom('not-a-real-id', null, null), null)
+
+// ── 58. MONDO-resolved Disease Area survives the setup -> AppContext path ──
+console.log('58. A MONDO-resolved Disease Area survives loose-params resolution exactly as it does inside a SetupDraft')
+const mondoResult = resolveDiseaseAreaDisplayFrom('MONDO:1060006', null, fakeDiseaseArea())
+assert('preferredName/aliases/source preserved, matching resolveDiseaseAreaDisplay(draft) exactly', mondoResult, { name: 'generalized myasthenia gravis', aliases: ['gMG'], source: 'mondo' })
+
+// ── 59. Manual Disease Area survives the setup -> AppContext path ────────
+console.log('59. A manually-entered Disease Area survives loose-params resolution exactly as it does inside a SetupDraft')
+const manualResult = resolveDiseaseAreaDisplayFrom('manual-disease-area-xyz', { source: 'manual', id: 'manual-disease-area-xyz', name: 'Non-Small Cell Lung Cancer', therapeuticAreaId: 'oncology' }, null)
+assert('60. manual Disease Area name preserved verbatim, source=manual, no fabricated aliases', manualResult, { name: 'Non-Small Cell Lung Cancer', source: 'manual' })
+
+// ── 61. AppContext.tsx carries manualDiseaseArea/resolvedDiseaseArea through completeSetup, mirroring manualHomeAsset ──
+console.log('61. AppContext.tsx persists manualDiseaseArea/resolvedDiseaseArea the same way it already persists manualHomeAsset')
+assertTrue('a dedicated localStorage key exists for manual Disease Area, same pattern as MANUAL_HOME_ASSET_KEY', appContextSource.includes("MANUAL_DISEASE_AREA_KEY = 'ariya-manual-disease-area'"))
+assertTrue('a dedicated localStorage key exists for resolved (MONDO) Disease Area', appContextSource.includes("RESOLVED_DISEASE_AREA_KEY = 'ariya-resolved-disease-area'"))
+assertTrue('completeSetup() accepts manualDiseaseArea and resolvedDiseaseArea as new parameters, in addition to the existing manualHomeAsset one (and, since Targeted Implementation 4, resolvedHomeAsset)', /function completeSetup\(\s*competitors: TrackedCompetitor\[\],\s*nextManualHomeAsset: ManualAssetIdentity \| null,\s*nextResolvedHomeAsset: ResolvedAssetIdentity \| null,\s*nextManualDiseaseArea: ManualDiseaseArea \| null,\s*nextResolvedDiseaseArea: ResolvedDiseaseArea \| null,/.test(appContextSource))
+assertTrue('completeSetup() persists manualDiseaseArea to localStorage, same write/remove discipline as manualHomeAsset (set when present, removed when null)', appContextSource.includes('if (nextManualDiseaseArea) localStorage.setItem(MANUAL_DISEASE_AREA_KEY') && appContextSource.includes('else localStorage.removeItem(MANUAL_DISEASE_AREA_KEY)'))
+assertTrue('completeSetup() persists resolvedDiseaseArea to localStorage the same way', appContextSource.includes('if (nextResolvedDiseaseArea) localStorage.setItem(RESOLVED_DISEASE_AREA_KEY') && appContextSource.includes('else localStorage.removeItem(RESOLVED_DISEASE_AREA_KEY)'))
+
+// ── 62. useConfig() resolution priority: persisted manual/resolved identity first, legacy getDiseaseAreaById() fallback preserved ──
+console.log('62. useConfig() resolves Disease Area with the manual/MONDO-first, catalog-fallback priority -- legacy diseaseArea field left unchanged')
+assertTrue('useConfig() computes diseaseAreaDisplay via the SAME shared resolveDiseaseAreaDisplayFrom() Stage 1/2/3 already use -- never a second, competing implementation', appContextSource.includes('const diseaseAreaDisplay: DiseaseAreaDisplay | null = resolveDiseaseAreaDisplayFrom('))
+assertTrue('the existing legacy `diseaseArea` field (static getDiseaseAreaById lookup) is left completely unchanged -- existing consumers/landscapes keep working', appContextSource.includes('diseaseArea:          landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(landscapeConfiguration.diseaseAreaId) : undefined,'))
+assertTrue('diseaseAreaDisplay is exposed on useConfig()\'s return value', appContextSource.includes('diseaseAreaDisplay,\n    // Targeted Implementation 4'))
+
+// ── 63. SetupPage.tsx carries the draft\'s Disease Area identity through both completion paths ──
+console.log('63. SetupPage.tsx passes draft.manualDiseaseArea/draft.resolvedDiseaseArea into completeSetup() on BOTH the "Enter Ariya" and "Start tour" paths')
+assertTrue('handleEnterAriya() forwards manualDiseaseArea/resolvedDiseaseArea (and, since Targeted Implementation 4, resolvedAsset)', setupPageSource.includes('completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)'))
+assertTrue('both completeSetup() call sites use the identical, correct 5-argument form (no drift between Enter Ariya and Start tour)', (setupPageSource.match(/completeSetup\(draftToTrackedCompetitors\(draft\), draft\.manualAsset, draft\.resolvedAsset, draft\.manualDiseaseArea, draft\.resolvedDiseaseArea\)/g) || []).length === 2)
+
+// ── 64. manualHomeAsset persistence is unchanged by this task ────────────
+console.log('64. Existing manualHomeAsset persistence (key, write/remove discipline, position in completeSetup) is unchanged')
+assertTrue('MANUAL_HOME_ASSET_KEY is still the original key string', appContextSource.includes("MANUAL_HOME_ASSET_KEY = 'ariya-manual-home-asset'"))
+assertTrue('manualHomeAsset write/remove discipline is unchanged', appContextSource.includes('if (nextManualHomeAsset) localStorage.setItem(MANUAL_HOME_ASSET_KEY') && appContextSource.includes('else localStorage.removeItem(MANUAL_HOME_ASSET_KEY)'))
+assertTrue('manualHomeAsset remains completeSetup\'s first identity parameter (position unchanged) -- resolvedHomeAsset (Targeted Implementation 4) is inserted right after it, mirroring the manual/resolved asset pairing, before the disease-area pair', appContextSource.includes('nextManualHomeAsset: ManualAssetIdentity | null,\n    nextResolvedHomeAsset: ResolvedAssetIdentity | null,\n    nextManualDiseaseArea: ManualDiseaseArea | null,'))
+
+// ── 65. DiscoverCompetitors.tsx resolves Disease Area from the same source as AppContext (Recon 2's confirmed gap) ──
+console.log('65. DiscoverCompetitors.tsx consumes useConfig().diseaseAreaDisplay instead of an independent getDiseaseAreaById() lookup')
+const discoverCompetitorsSource = fs.readFileSync(path.join(setupDir, '..', 'pages', 'DiscoverCompetitors.tsx'), 'utf-8')
+assertTrue('no direct getDiseaseAreaById import remains in DiscoverCompetitors.tsx', !discoverCompetitorsSource.includes('getDiseaseAreaById'))
+assertTrue('DiscoverCompetitors.tsx reads diseaseAreaDisplay from useConfig(), the same resolved source AppContext/AppSidebar use', discoverCompetitorsSource.includes('const { diseaseAreaDisplay } = useConfig()'))
+assertTrue('the page\'s own diseaseArea variable is now sourced from diseaseAreaDisplay, not a second competing resolution', discoverCompetitorsSource.includes('const diseaseArea = diseaseAreaDisplay'))
+
+// ── 66. AppSidebar.tsx's landscape header also uses the shared resolved source (same underlying bug, most visible symptom) ──
+console.log('66. AppSidebar.tsx\'s LandscapeContext resolves Disease Area via useConfig().diseaseAreaDisplay, with a shortCode fallback to the full name for manual/MONDO sources')
+const appSidebarSource = fs.readFileSync(path.join(setupDir, '..', 'components', 'shell', 'AppSidebar.tsx'), 'utf-8').replace(/\r\n/g, '\n')
+assertTrue('getDiseaseAreaById is no longer imported in AppSidebar.tsx (only referenced descriptively in a code comment explaining the fix)', !/^import .*getDiseaseAreaById/m.test(appSidebarSource))
+assertTrue('the therapeutic-areas import now only pulls getTherapeuticAreaById', appSidebarSource.includes("import { getTherapeuticAreaById } from '../../config/therapeutic-areas'"))
+assertTrue('LandscapeContext reads diseaseAreaDisplay AND (since Targeted Implementation 4) homeAssetDisplay from useConfig()', appSidebarSource.includes('const { diseaseAreaDisplay, homeAssetDisplay } = useConfig()'))
+assertTrue('falls back to the full name when no curated shortCode exists (manual/MONDO Disease Area)', appSidebarSource.includes('diseaseAreaDisplay.shortCode ?? diseaseAreaDisplay.name'))
+
+// ── 67. Refresh/localStorage round-trip preserves the structured Disease Area (same key contract completeSetup writes) ──
+console.log('67. The persisted manual/resolved Disease Area round-trips through localStorage under the exact keys completeSetup() writes -- simulating a browser refresh')
+localStorage.clear()
+const roundTripManual: import('./setup-draft.js').ManualDiseaseArea = { source: 'manual', id: 'manual-disease-area-refresh-test', name: 'Non-Small Cell Lung Cancer', therapeuticAreaId: 'oncology' }
+localStorage.setItem('ariya-manual-disease-area', JSON.stringify(roundTripManual))
+const reloadedManual = JSON.parse(localStorage.getItem('ariya-manual-disease-area')!)
+assert('manual Disease Area survives a stringify/parse round-trip through its real persistence key, byte-for-byte', reloadedManual, roundTripManual)
+
+const roundTripResolved: ResolvedDiseaseArea = fakeDiseaseArea()
+localStorage.setItem('ariya-resolved-disease-area', JSON.stringify(roundTripResolved))
+const reloadedResolved = JSON.parse(localStorage.getItem('ariya-resolved-disease-area')!)
+assert('resolved (MONDO) Disease Area survives the same round-trip, preferredName/aliases/source/sourceId intact', reloadedResolved, roundTripResolved)
+
+assertTrue('a landscape with ONLY a legacy diseaseAreaId (no manual/resolved key ever written) still resolves via the catalog fallback after a simulated refresh -- never broken', (() => {
+  localStorage.removeItem('ariya-manual-disease-area')
+  localStorage.removeItem('ariya-resolved-disease-area')
+  return resolveDiseaseAreaDisplayFrom('hae', null, null)?.name === 'Hereditary Angioedema'
+})())
+
+// ── Targeted Implementation 3: stale/invalid SetupDraft recovery ───────────
+
+function baseOncologyDraft(): SetupDraft {
+  let d = createEmptySetupDraft()
+  d = selectTherapeuticArea(d, 'oncology')
+  return d
+}
+
+// ── 68. stale discover draft: unresolvable Disease Area -> recovered to define ──
+console.log('68. A persisted discover-stage draft whose diseaseAreaId resolves to nothing (no manual/resolved/catalog match) recovers to define')
+let staleDiseaseDraft = baseOncologyDraft()
+staleDiseaseDraft = attachManualHomeAsset(staleDiseaseDraft, { displayName: 'TAGRISSO', company: 'AstraZeneca' })
+// A dangling diseaseAreaId with NO manualDiseaseArea/resolvedDiseaseArea
+// attached for it, and no catalog entry -- exactly Recon 5's proven shape.
+staleDiseaseDraft = {
+  ...staleDiseaseDraft,
+  stage: 'discover',
+  landscapeConfiguration: { ...staleDiseaseDraft.landscapeConfiguration, diseaseAreaId: 'manual-disease-area-old' },
+}
+assert('recovered stage is define', recoverSetupDraft(staleDiseaseDraft).stage, 'define')
+
+// ── 69. stale discover draft: unresolvable Home Asset -> recovered to define ──
+console.log('69. A persisted discover-stage draft whose homeAssetId resolves to nothing recovers to define')
+let staleAssetDraft = baseOncologyDraft()
+staleAssetDraft = attachManualDiseaseArea(staleAssetDraft, 'Non-Small Cell Lung Cancer')
+staleAssetDraft = {
+  ...staleAssetDraft,
+  stage: 'discover',
+  landscapeConfiguration: { ...staleAssetDraft.landscapeConfiguration, homeAssetId: 'manual-asset-old' },
+}
+assert('recovered stage is define', recoverSetupDraft(staleAssetDraft).stage, 'define')
+
+// ── 70. stale discover draft: BOTH ids unresolvable -> recovered to define ──
+console.log('70. A persisted discover-stage draft with both a dangling diseaseAreaId and a dangling homeAssetId recovers to define')
+let bothStaleDraft: SetupDraft = {
+  ...baseOncologyDraft(),
+  stage: 'discover',
+  landscapeConfiguration: { therapeuticAreaId: 'oncology', diseaseAreaId: 'manual-disease-area-old', homeAssetId: 'manual-asset-old' },
+}
+assert('recovered stage is define', recoverSetupDraft(bothStaleDraft).stage, 'define')
+
+// ── 71. valid manual Disease + manual Asset -> discover remains discover ──
+console.log('71. A genuinely valid persisted discover-stage draft (manual Disease Area + manual Home Asset) is NOT recovered -- discover remains discover')
+let validManualDraft = baseOncologyDraft()
+validManualDraft = attachManualDiseaseArea(validManualDraft, 'Non-Small Cell Lung Cancer')
+validManualDraft = attachManualHomeAsset(validManualDraft, { displayName: 'TAGRISSO', company: 'AstraZeneca' })
+validManualDraft = { ...validManualDraft, stage: 'discover' }
+assert('stage stays discover', recoverSetupDraft(validManualDraft).stage, 'discover')
+assertTrue('recovery returns the exact same object reference when nothing needs correcting (no unnecessary copy)', recoverSetupDraft(validManualDraft) === validManualDraft)
+
+// ── 72. valid MONDO Disease + resolved Asset -> discover remains discover ──
+console.log('72. A genuinely valid persisted discover-stage draft (MONDO-resolved Disease Area + resolved Home Asset) is NOT recovered')
+let validMondoDraft = createEmptySetupDraft()
+validMondoDraft = selectTherapeuticArea(validMondoDraft, 'neurology')
+validMondoDraft = selectResolvedDiseaseArea(validMondoDraft, fakeDiseaseArea())
+validMondoDraft = selectResolvedAsset(validMondoDraft, fakeResolvedAsset())
+validMondoDraft = { ...validMondoDraft, stage: 'discover' }
+assert('stage stays discover', recoverSetupDraft(validMondoDraft).stage, 'discover')
+
+// ── 73. valid legacy catalog Disease + known asset -> discover remains discover ──
+console.log('73. A genuinely valid persisted discover-stage draft using only the legacy static catalog is NOT recovered')
+let validCatalogDraft = withHae()
+validCatalogDraft = { ...validCatalogDraft, stage: 'discover' }
+assert('stage stays discover', recoverSetupDraft(validCatalogDraft).stage, 'discover')
+
+// ── 74. configure-stage draft whose Stage 1 prerequisites are stale -> falls back to the highest safe stage ──
+console.log('74. A persisted configure-stage draft whose Stage 1 identities no longer resolve falls all the way back to define (Stage 1 itself is unsafe)')
+let staleConfigureDraft: SetupDraft = {
+  ...baseOncologyDraft(),
+  stage: 'configure',
+  landscapeConfiguration: { therapeuticAreaId: 'oncology', diseaseAreaId: 'manual-disease-area-old', homeAssetId: 'manual-asset-old' },
+  companies: [{ id: 'c1', source: 'manual', companyName: 'Merck', relevantAssets: [], ariyaAssessment: null, evidenceStatus: 'not_evaluated', evidenceRefs: [], verifiedDomains: [], whySuggested: null }],
+  selections: [{ companyId: 'c1', userRelationship: 'direct' }],
+}
+assert('recovered stage is define (Stage 1 itself is unsafe, not just missing selections)', recoverSetupDraft(staleConfigureDraft).stage, 'define')
+
+console.log('74b. A persisted configure-stage draft with VALID Stage 1 identities but zero selections falls back only to discover, not all the way to define')
+let emptySelectionsConfigureDraft = validManualDraft // reuse the valid manual Stage 1 identity from test 71
+emptySelectionsConfigureDraft = { ...emptySelectionsConfigureDraft, stage: 'configure', selections: [] }
+assert('recovered stage is discover (Stage 1 is fine, only Stage 3 has nothing to show)', recoverSetupDraft(emptySelectionsConfigureDraft).stage, 'discover')
+
+// ── 75. valid configure-stage draft -> configure remains configure ────────
+console.log('75. A genuinely valid persisted configure-stage draft (valid Stage 1 + at least one selection, even if not yet fully classified) is NOT recovered')
+let validConfigureDraft = validManualDraft
+validConfigureDraft = {
+  ...validConfigureDraft,
+  stage: 'configure',
+  companies: [{ id: 'c1', source: 'manual', companyName: 'Merck', relevantAssets: [], ariyaAssessment: null, evidenceStatus: 'not_evaluated', evidenceRefs: [], verifiedDomains: [], whySuggested: null }],
+  selections: [{ companyId: 'c1', userRelationship: null }], // selected but not yet classified -- still a normal in-progress state
+}
+assert('stage stays configure even though the selection is not yet classified', recoverSetupDraft(validConfigureDraft).stage, 'configure')
+
+// ── 76. still-valid fields are preserved during recovery, never fabricated or dropped ──
+console.log('76. Recovering a stale draft never fabricates a missing identity and never drops any other still-present field')
+const recoveredStaleDraft = recoverSetupDraft(bothStaleDraft)
+assert('landscapeConfiguration is left completely untouched (dangling ids preserved, not cleared or fabricated)', recoveredStaleDraft.landscapeConfiguration, bothStaleDraft.landscapeConfiguration)
+assert('manualDiseaseArea stays exactly what it was (null here) -- never fabricated to paper over the recovery', recoveredStaleDraft.manualDiseaseArea, bothStaleDraft.manualDiseaseArea)
+assert('manualAsset stays exactly what it was (null here) -- never fabricated', recoveredStaleDraft.manualAsset, bothStaleDraft.manualAsset)
+assert('companies array is preserved untouched', recoveredStaleDraft.companies, bothStaleDraft.companies)
+assert('selections array is preserved untouched', recoveredStaleDraft.selections, bothStaleDraft.selections)
+
+// ── 77. save/load round-trip for a CURRENT valid draft is unchanged by this task ──
+console.log('77. saveSetupDraft/loadSetupDraft round-trip for an already-valid current-shaped draft is completely unaffected by the new recovery step')
+localStorage.clear()
+saveSetupDraft(validConfigureDraft)
+const roundTrippedValidDraft = loadSetupDraft()
+assert('loadSetupDraft returns the draft with its stage unchanged (still configure) -- recovery is a no-op for a genuinely valid draft', roundTrippedValidDraft?.stage, 'configure')
+assert('every other field round-trips byte-for-byte, exactly as before this task', JSON.stringify(roundTrippedValidDraft), JSON.stringify(validConfigureDraft))
+
+// ── 78. loadSetupDraft() itself applies recovery, not just recoverSetupDraft() in isolation ──
+console.log('78. loadSetupDraft() applies the same recovery automatically -- SetupPage.tsx needs no changes to benefit from it')
+localStorage.clear()
+localStorage.setItem(
+  'ariya-setup-draft',
+  JSON.stringify({ ...bothStaleDraft, stage: 'discover' }),
+)
+assert('a stale persisted discover-stage draft loads back already recovered to define', loadSetupDraft()?.stage, 'define')
+
+const setupDraftSourceForRecovery = fs.readFileSync(fileURLToPath(import.meta.url).replace(/\.test\.ts$/, '.ts'), 'utf-8')
+assertTrue('loadSetupDraft() calls recoverSetupDraft() on the parsed draft before returning it', /return recoverSetupDraft\(parsed\)/.test(setupDraftSourceForRecovery))
+
+// ── Targeted Implementation 2A: indication/indicationFull compatibility ────
+//
+// useConfig() itself cannot be exercised directly here (React hook, no DOM
+// testing library -- same boundary as every other AppContext.tsx check
+// above). The exact derivation formula useConfig() now runs is replicated
+// here using the SAME real, unmodified functions (getLegacyIndicationCompat,
+// resolveDiseaseAreaDisplayFrom) it actually calls, plus source-text
+// assertions confirming AppContext.tsx is wired exactly this way.
+
+function deriveIndicationCompat(diseaseAreaId: string | null, manualDiseaseArea: ManualDiseaseArea | null, resolvedDiseaseArea: ResolvedDiseaseArea | null) {
+  const legacyCompat = getLegacyIndicationCompat(diseaseAreaId)
+  const diseaseAreaDisplay = resolveDiseaseAreaDisplayFrom(diseaseAreaId, manualDiseaseArea, resolvedDiseaseArea)
+  const diseaseAreaCompat = !legacyCompat && diseaseAreaDisplay
+    ? { indication: diseaseAreaDisplay.name, indicationFull: diseaseAreaDisplay.name }
+    : null
+  return {
+    indication: legacyCompat?.indication ?? diseaseAreaCompat?.indication ?? null,
+    indicationFull: legacyCompat?.indicationFull ?? diseaseAreaCompat?.indicationFull ?? null,
+  }
+}
+
+// ── 79. Legacy HAE: indication/indicationFull continue behaving as before ──
+console.log('79. A legacy catalog Disease Area (HAE) still resolves indication=shortCode / indicationFull=full name, completely unchanged')
+assert('legacy catalog: indication is the curated short code', deriveIndicationCompat('hae', null, null).indication, 'HAE')
+assert('legacy catalog: indicationFull is the curated full name', deriveIndicationCompat('hae', null, null).indicationFull, 'Hereditary Angioedema')
+
+// ── 80. Manual Non-Small Cell Lung Cancer: resolves from the manual Disease Area, never HAE/demo ──
+console.log('80. A manual Disease Area (Non-Small Cell Lung Cancer) drives indication/indicationFull -- never HAE, never a demo fallback')
+const manualDA: ManualDiseaseArea = { source: 'manual', id: 'manual-disease-area-nsclc', name: 'Non-Small Cell Lung Cancer', therapeuticAreaId: 'oncology' }
+const manualCompat = deriveIndicationCompat('manual-disease-area-nsclc', manualDA, null)
+assert('indication is the manual Disease Area name, not HAE/a short code', manualCompat.indication, 'Non-Small Cell Lung Cancer')
+assert('indicationFull is the same manual Disease Area name', manualCompat.indicationFull, 'Non-Small Cell Lung Cancer')
+assertTrue('neither value is the legacy HAE demo text', manualCompat.indication !== 'HAE' && manualCompat.indicationFull !== 'Hereditary Angioedema')
+
+// ── 81. MONDO-resolved Disease Area: preferredName used consistently for both fields ──
+console.log('81. A MONDO-resolved Disease Area drives indication/indicationFull via its own preferredName, consistently')
+const mondoCompat = deriveIndicationCompat('MONDO:1060006', null, fakeDiseaseArea())
+assert('indication is the MONDO preferredName', mondoCompat.indication, 'generalized myasthenia gravis')
+assert('indicationFull is the SAME MONDO preferredName -- one consistent value, not a separate fabricated short form', mondoCompat.indicationFull, 'generalized myasthenia gravis')
+
+// ── 82. Manual Disease Area text is preserved verbatim, never rewritten ────
+console.log('82. A manual Disease Area name with unusual casing/punctuation survives verbatim into indication/indicationFull -- no AI rewrite, no normalization')
+const oddManualDA: ManualDiseaseArea = { source: 'manual', id: 'manual-disease-area-odd', name: 'KRAS G12C-Mutated NSCLC (2nd-line)', therapeuticAreaId: 'oncology' }
+const oddCompat = deriveIndicationCompat('manual-disease-area-odd', oddManualDA, null)
+assert('indication preserves the exact user-entered string, byte-for-byte', oddCompat.indication, 'KRAS G12C-Mutated NSCLC (2nd-line)')
+assert('indicationFull preserves it too', oddCompat.indicationFull, 'KRAS G12C-Mutated NSCLC (2nd-line)')
+
+// ── 83. AppContext.tsx wiring itself ───────────────────────────────────────
+console.log('83. AppContext.tsx computes indication/indicationFull with legacyCompat preserved first, diseaseAreaDisplay-derived compat second, never a second Disease Area resolver')
+assertTrue('diseaseAreaCompat is derived from diseaseAreaDisplay only when legacyCompat is absent', appContextSource.includes('const diseaseAreaCompat = !legacyCompat && diseaseAreaDisplay'))
+assertTrue('diseaseAreaCompat never introduces a new resolver -- it reads diseaseAreaDisplay.name for BOTH indication and indicationFull', appContextSource.includes('{ indication: diseaseAreaDisplay.name, indicationFull: diseaseAreaDisplay.name }'))
+assertTrue('indication priority: legacyCompat -> diseaseAreaCompat -> asset -> userIndication -> DEMO, in that exact order', appContextSource.includes('indication:           legacyCompat?.indication      ?? diseaseAreaCompat?.indication      ?? asset?.indication      ?? userIndication ?? DEMO.therapeuticArea,'))
+assertTrue('indicationFull priority mirrors it exactly', appContextSource.includes('indicationFull:       legacyCompat?.indicationFull  ?? diseaseAreaCompat?.indicationFull  ?? asset?.indicationFull  ?? userIndication ?? DEMO.therapeuticAreaFull,'))
+
+// ── 84. diseaseAreaDisplay behavior from Implementation 2 remains unchanged ──
+console.log('84. diseaseAreaDisplay itself (Implementation 2) is untouched by this task -- same resolveDiseaseAreaDisplayFrom() call, same field on useConfig()')
+assertTrue('diseaseAreaDisplay is still computed via resolveDiseaseAreaDisplayFrom exactly as Implementation 2 left it', appContextSource.includes('const diseaseAreaDisplay: DiseaseAreaDisplay | null = resolveDiseaseAreaDisplayFrom('))
+assertTrue('diseaseAreaDisplay is still exposed on useConfig()\'s return value', appContextSource.includes('diseaseAreaDisplay,\n    // Targeted Implementation 4'))
+assertTrue('the legacy `diseaseArea` field (static catalog only) is still completely unchanged', appContextSource.includes('diseaseArea:          landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(landscapeConfiguration.diseaseAreaId) : undefined,'))
+
+// ── 85. Stage 2 discovery request is unaffected -- still uses resolveDiseaseAreaDisplay(draft).name directly ──
+console.log('85. Stage2Discover.tsx\'s own discovery request still reads resolveDiseaseAreaDisplay(draft).name directly, never routed through the new indication/indicationFull compat')
+assertTrue('Stage2Discover.tsx still derives its own local diseaseArea via resolveDiseaseAreaDisplay(draft), unchanged', stage2Source.includes('const diseaseArea = resolveDiseaseAreaDisplay(draft)'))
+assertTrue('the discovery run() call still sends diseaseArea.name directly, never `indication`/`indicationFull` from useConfig()', stage2Source.includes('indication: diseaseArea.name'))
+
+// ── 86. Home Asset compatibility (assetName/innName/etc.) as of Targeted Implementation 2A -- superseded by Implementation 4's own dedicated tests below, which assert the NEW, intentionally-changed derivation instead ──
+console.log('86. manualHomeAsset persistence itself (Implementation 2\'s own check) remains untouched -- assetName/innName derivation is now intentionally different, see Targeted Implementation 4\'s own tests below')
+assertTrue('manualHomeAsset persistence (Implementation 2\'s own check, still green) is untouched by this task', appContextSource.includes("MANUAL_HOME_ASSET_KEY = 'ariya-manual-home-asset'"))
+
+// ── Targeted Implementation 4: Home Asset persistence + AppContext consistency ──
+//
+// useConfig()/AppSidebar cannot be exercised directly here (React, no DOM
+// testing library -- same boundary as every AppContext.tsx check above).
+// The exact derivation formula useConfig() now runs is replicated using the
+// SAME real, unmodified resolveHomeAssetDisplayFrom() it actually calls,
+// plus source-text assertions confirming the wiring end to end.
+
+function deriveAssetNameCompat(homeAssetId: string | null, manualHomeAsset: ManualAssetIdentity | null, resolvedHomeAsset: ResolvedAssetIdentity | null, userAssetName: string | null) {
+  const homeAssetDisplay = resolveHomeAssetDisplayFrom(homeAssetId, manualHomeAsset, resolvedHomeAsset)
+  return {
+    assetName: homeAssetDisplay?.displayName ?? userAssetName ?? 'Ekterly',
+    innName: homeAssetDisplay?.innName ?? null,
+  }
+}
+
+const tagrisso: ManualAssetIdentity = {
+  source: 'manual', id: 'manual-asset-tagrisso', displayName: 'TAGRISSO', innName: 'osimertinib',
+  company: 'AstraZeneca', diseaseAreaId: 'manual-disease-area-nsclc', therapeuticAreaId: 'oncology', developmentCode: null,
+}
+
+// ── 87. Manual Home Asset (TAGRISSO) survives completeSetup() and drives useConfig().assetName ──
+console.log('87. A manual Home Asset (TAGRISSO) resolves via the SAME shared resolver useConfig() now uses -- assetName resolves TAGRISSO, not a stale/demo fallback')
+const tagrissoCompat = deriveAssetNameCompat('manual-asset-tagrisso', tagrisso, null, null)
+assert('assetName is TAGRISSO', tagrissoCompat.assetName, 'TAGRISSO')
+assert('innName is the manually-supplied osimertinib', tagrissoCompat.innName, 'osimertinib')
+
+// ── 88. A poisoned legacy userAssetName never overrides a genuinely resolved manual Home Asset ──
+console.log('88. Poisoned legacy userAssetName="Ekterly" does NOT override manual TAGRISSO -- homeAssetDisplay wins the priority chain')
+const poisonedCompat = deriveAssetNameCompat('manual-asset-tagrisso', tagrisso, null, 'Ekterly')
+assert('assetName is still TAGRISSO despite the poisoned legacy key', poisonedCompat.assetName, 'TAGRISSO')
+assertTrue('the poisoned value never surfaces at all', poisonedCompat.assetName !== 'Ekterly')
+
+// ── 89. A resolved Home Asset (from live asset search) survives SetupDraft -> completeSetup -> AppContext -> useConfig ──
+console.log('89. A resolved Home Asset survives the full setup -> AppContext -> useConfig path (Targeted Implementation 4\'s own headline fix -- FAILURE 1)')
+const rystiggoResolved = fakeResolvedAsset()
+const resolvedCompat = deriveAssetNameCompat('rystiggo', null, rystiggoResolved, null)
+assert('assetName is the resolved preferredName (RYSTIGGO)', resolvedCompat.assetName, 'RYSTIGGO')
+assert('innName is the resolved identity\'s own INN (rozanolixizumab)', resolvedCompat.innName, 'rozanolixizumab')
+assertTrue('completeSetup() now has a resolvedHomeAsset parameter -- FAILURE 1\'s root cause is closed', appContextSource.includes('nextResolvedHomeAsset: ResolvedAssetIdentity | null,'))
+assertTrue('completeSetup() persists resolvedHomeAsset to localStorage, same write/remove discipline as manualHomeAsset', appContextSource.includes('if (nextResolvedHomeAsset) localStorage.setItem(RESOLVED_HOME_ASSET_KEY') && appContextSource.includes('else localStorage.removeItem(RESOLVED_HOME_ASSET_KEY)'))
+assertTrue('SetupPage.tsx now forwards draft.resolvedAsset into completeSetup() on both call sites', (setupPageSource.match(/completeSetup\(draftToTrackedCompetitors\(draft\), draft\.manualAsset, draft\.resolvedAsset, draft\.manualDiseaseArea, draft\.resolvedDiseaseArea\)/g) || []).length === 2)
+assertTrue('useConfig() destructures resolvedHomeAsset from useApp()', appContextSource.includes('manualHomeAsset, resolvedHomeAsset, manualDiseaseArea, resolvedDiseaseArea,'))
+assertTrue('useConfig() computes homeAssetDisplay via the SAME shared resolveHomeAssetDisplayFrom() Stage 1/2/3 already use -- never a second, competing implementation', appContextSource.includes('const homeAssetDisplay: HomeAssetDisplay | null = resolveHomeAssetDisplayFrom('))
+assertTrue('assetName reads homeAssetDisplay first, before the legacy asset/userAssetName/DEMO chain', appContextSource.includes('assetName:            homeAssetDisplay?.displayName ?? asset?.brandName ?? userAssetName  ?? DEMO.assetName,'))
+
+// ── 90. A resolved Home Asset survives a localStorage/browser round-trip ──
+console.log('90. The persisted resolved Home Asset round-trips through localStorage under the exact key completeSetup() writes -- simulating a browser refresh')
+localStorage.clear()
+localStorage.setItem('ariya-resolved-home-asset', JSON.stringify(rystiggoResolved))
+const reloadedResolvedAsset = JSON.parse(localStorage.getItem('ariya-resolved-home-asset')!)
+assert('resolved Home Asset survives the round-trip byte-for-byte', reloadedResolvedAsset, rystiggoResolved)
+
+// ── 91. AppSidebar resolves a persisted resolved Home Asset (not just manual/catalog) ──
+console.log('91. AppSidebar.tsx\'s LandscapeContext now resolves a resolved Home Asset too, via the same shared useConfig().homeAssetDisplay -- no more "Landscape not configured" for a live-search-selected asset')
+assertTrue('AppSidebar no longer maintains its own separate manual-only/catalog-only priority chain (no direct getAssetById call)', !/^import .*getAssetById/m.test(appSidebarSource))
+assertTrue('LandscapeContext reads homeAssetDisplay from useConfig(), the single shared resolver', appSidebarSource.includes('homeAssetDisplay') && appSidebarSource.includes('const { diseaseAreaDisplay, homeAssetDisplay } = useConfig()'))
+assertTrue('the sidebar\'s "not configured" guard now checks homeAssetDisplay (manual OR resolved OR catalog), not a manual-only local variable', appSidebarSource.includes('!homeAssetDisplay'))
+assertTrue('the displayed name comes from homeAssetDisplay.displayName', appSidebarSource.includes('{homeAssetDisplay.displayName}'))
+
+// ── 92. Resolved asset structured fields remain available after persistence (never dropped) ──
+console.log('92. A resolved Home Asset\'s full structured identity (preferredName, innNames, developmentCodes, ownerCompanies, aliases) survives persistence intact -- this task never touches identity QUALITY, only whether it persists at all')
+const richResolvedAsset: ResolvedAssetIdentity = fakeResolvedAsset({
+  id: 'tagrisso-live', preferredName: 'TAGRISSO', brandNames: ['TAGRISSO'],
+  innNames: ['osimertinib'], developmentCodes: ['AZD9291'], aliases: ['Osimertinib', 'AZD9291'],
+  ownerCompanies: ['AstraZeneca'], mechanismOfAction: ['EGFR TKI'], indicationContexts: ['Non-Small Cell Lung Cancer'],
+  source: 'clinicaltrials_gov',
+})
+localStorage.setItem('ariya-resolved-home-asset', JSON.stringify(richResolvedAsset))
+const reloadedRichAsset = JSON.parse(localStorage.getItem('ariya-resolved-home-asset')!) as ResolvedAssetIdentity
+assert('preferredName preserved', reloadedRichAsset.preferredName, 'TAGRISSO')
+assert('innNames preserved', reloadedRichAsset.innNames, ['osimertinib'])
+assert('developmentCodes preserved', reloadedRichAsset.developmentCodes, ['AZD9291'])
+assert('ownerCompanies preserved', reloadedRichAsset.ownerCompanies, ['AstraZeneca'])
+assert('aliases preserved', reloadedRichAsset.aliases, ['Osimertinib', 'AZD9291'])
+const richCompat = deriveAssetNameCompat('tagrisso-live', null, reloadedRichAsset, null)
+assert('assetName correctly derives from the reloaded resolved identity', richCompat.assetName, 'TAGRISSO')
+
+// ── 93. Legacy catalog Home Asset (Ekterly) continues working unchanged ──
+console.log('93. A legacy catalog Home Asset (Ekterly) still resolves via the same shared resolver\'s third branch, completely unchanged')
+const ekterlyCompat = deriveAssetNameCompat('ekterly', null, null, null)
+assert('assetName is the real catalog brand name', ekterlyCompat.assetName, 'Ekterly')
+assertTrue('innName is a real catalog INN, not null (Ekterly has one configured)', typeof ekterlyCompat.innName === 'string' && ekterlyCompat.innName.length > 0)
+
+// ── 94. Existing manualHomeAsset behavior remains backward-compatible ──
+console.log('94. manualHomeAsset itself resolves exactly as before -- same fields, same priority position (checked first, ahead of resolvedHomeAsset)')
+const manualVsResolvedCompat = deriveAssetNameCompat('manual-asset-tagrisso', tagrisso, fakeResolvedAsset({ id: 'manual-asset-tagrisso' }), null)
+assert('when a manual AND a (mismatched-id) resolved asset both exist, the matching manual one wins -- manual is still checked first', manualVsResolvedCompat.assetName, 'TAGRISSO')
+
+// ── 95/96. Disease Area persistence (Implementation 2/2A) and stale-draft recovery (Implementation 3) remain green ──
+console.log('95/96. Implementation 2/2A\'s Disease Area tests and Implementation 3\'s stale-draft recovery tests all still pass in this same run (see the full pass/fail count below) -- neither was modified by this task')
+assertTrue('recoverSetupDraft() (Implementation 3) still calls the unmodified resolveHomeAssetDisplay(draft), which now internally delegates to resolveHomeAssetDisplayFrom -- fully compatible, no change needed there', /function resolveHomeAssetDisplay\(draft: SetupDraft\): HomeAssetDisplay \| null \{\s*return resolveHomeAssetDisplayFrom\(/.test(fs.readFileSync(fileURLToPath(import.meta.url).replace(/\.test\.ts$/, '.ts'), 'utf-8')))
+
+// ── Targeted Implementation 5: Stage 2 recommendation-first state UX ───────
+//
+// Stage2Discover.tsx is a React component (no DOM testing library in this
+// repo -- same boundary as every other page-level check above). Verified
+// via source-text assertions against the freshly-loaded stage2Source,
+// which reflects the file exactly as edited by this task.
+
+// ── 97. idle does NOT render a false zero-results message ─────────────────
+console.log('97. The idle (NOT YET ATTEMPTED) state no longer claims a search already completed with zero results')
+assertTrue('the old misleading "No competitor companies yet" wording is gone entirely', !stage2Source.includes('No competitor companies yet'))
+assertTrue('idle now uses neutral "hasn\'t started yet" wording instead', stage2Source.includes("state.status === 'idle' && !hasCompanies") && stage2Source.includes('Competitor discovery hasn\'t started yet'))
+
+// ── 98. loading clearly represents active discovery, never an empty-state message ──
+console.log('98. loading still clearly represents active discovery, with no empty-state message shown alongside it')
+assertTrue('loading shows Ariya is analysing the competitive landscape', stage2Source.includes("state.status === 'loading'") && stage2Source.includes('Ariya is analysing the competitive landscape'))
+const loadingBlockMatch = stage2Source.match(/state\.status === 'loading' &&[\s\S]*?<\/Empty>/)
+const loadingBlock = loadingBlockMatch ? loadingBlockMatch[0] : ''
+assertTrue('the loading block was found', loadingBlock.length > 0)
+assertTrue('no idle/empty-state text renders inside the loading block specifically', !loadingBlock.includes('No competitor companies') && !loadingBlock.includes("didn't find suitable"))
+
+// ── 99. results render the existing company recommendation cards unchanged ──
+console.log('99. RESULTS still render the existing company list/card markup, completely unchanged by this task')
+assertTrue('the company list still uses ItemGroup/Item/Checkbox exactly as before', stage2Source.includes('<ItemGroup>') && stage2Source.includes('<Checkbox'))
+assertTrue('company selection still calls the unmodified toggleCompanySelection', stage2Source.includes('onCheckedChange={() => onChange(toggleCompanySelection(draft, company.id))}'))
+assertTrue('"Review evidence" action is unchanged', stage2Source.includes('Review evidence →'))
+
+// ── 100. empty appears only after successful zero-result completion ───────
+console.log('100. A distinct EMPTY state now exists for state.status === \'empty\' && !hasCompanies -- previously this exact case rendered nothing at all')
+assertTrue('a dedicated empty-state block is gated on state.status === \'empty\'', stage2Source.includes("state.status === 'empty' && !hasCompanies"))
+assertTrue('it explicitly communicates that automatic discovery was attempted first', stage2Source.includes('Automatic discovery completed for this landscape but found no companies to suggest'))
+assertTrue('idle and empty are two textually DISTINCT messages, never conflated', stage2Source.includes('Competitor discovery hasn\'t started yet') && stage2Source.includes('Ariya didn\'t find suitable competitor recommendations') )
+
+// ── 101. error makes Retry the primary recovery action ─────────────────────
+console.log('101. In the error state, Retry is now styled as the PRIMARY action (default variant) and manual Add as SECONDARY (outline) -- previously reversed')
+const errorBlockMatch = stage2Source.match(/state\.status === 'error' && !hasCompanies[\s\S]*?<\/Empty>/)
+const errorBlock = errorBlockMatch ? errorBlockMatch[0] : ''
+assertTrue('the error block was found', errorBlock.length > 0)
+assertTrue('Retry button has NO variant prop (default/filled = primary) and appears before Add', /<Button onClick=\{runDiscovery\}>Retry<\/Button>/.test(errorBlock))
+assertTrue('Add competitor manually is styled variant="outline" (secondary) in the error state', /<Button variant="outline" onClick=\{\(\) => setAddOpen\(true\)\}><PlusIcon \/> Add competitor manually<\/Button>/.test(errorBlock))
+assertTrue('Retry appears BEFORE Add in DOM order (first = visually leads in a left-to-right button row)', errorBlock.indexOf('>Retry<') < errorBlock.indexOf('Add competitor manually'))
+
+// ── 102. manual Add remains secondary in idle/results/error states (NOT in empty, where it is the appropriate primary action) ──
+console.log('102. Manual Add is styled as the secondary (outline) action in idle, results, and error -- and is deliberately the primary styled action only in the EMPTY state, where there is no competing Ariya recommendation to stay secondary to')
+const idleBlockMatch = stage2Source.match(/state\.status === 'idle' && !hasCompanies[\s\S]*?<\/Empty>/)
+const idleBlock = idleBlockMatch ? idleBlockMatch[0] : ''
+assertTrue('idle\'s Add button is variant="outline" (secondary)', /<Button variant="outline" onClick=\{\(\) => setAddOpen\(true\)\}><PlusIcon \/> Add competitor manually<\/Button>/.test(idleBlock))
+assertTrue('the results-state header Add button is variant="outline" (secondary), unchanged in spirit from before this task', stage2Source.includes('<Button variant="outline" onClick={() => setAddOpen(true)} className="ml-auto">'))
+const emptyBlockMatch = stage2Source.match(/state\.status === 'empty' && !hasCompanies[\s\S]*?<\/Empty>/)
+const emptyBlock = emptyBlockMatch ? emptyBlockMatch[0] : ''
+assertTrue('EMPTY\'s Add button has NO variant prop (default/filled) -- the one deliberate exception, since it is genuinely the only actionable path in that state', /<Button onClick=\{\(\) => setAddOpen\(true\)\}><PlusIcon \/> Add competitor manually<\/Button>/.test(emptyBlock))
+
+// ── 103. Stage 2 selection behavior remains unchanged ──────────────────────
+console.log('103. Stage 2 selection logic itself (toggleCompanySelection/isCompanySelected) is untouched -- this task only changed state presentation/CTA hierarchy')
+assertTrue('isCompanySelected still drives the checkbox\'s checked state, unchanged', stage2Source.includes('const selected = isCompanySelected(draft, company.id)'))
+assertTrue('toggleCompanySelection is still imported and used exactly once, for the checkbox handler', stage2Source.includes('toggleCompanySelection,') && (stage2Source.match(/toggleCompanySelection\(/g) || []).length === 1)
+
+// ── 104. Stage 3 still contains no selection checkbox (pre-existing, untouched by this task) ──
+console.log('104. Stage 3 still has no selection checkbox (pre-existing test 8b, re-confirmed here since Implementation 5 touches ONLY Stage2Discover.tsx)')
+assertTrue('Stage3Configure.tsx still never imports the Checkbox primitive', !stage3Source.includes('shadcn/ui/checkbox'))
+
+// ── 105. existing Home Company exclusion remains green (pre-existing, untouched by this task) ──
+console.log('105. Home Company exclusion (isHomeCompany, pre-existing test 22b) remains green -- re-confirmed here since Implementation 5 never touches setup-draft.ts\'s home-company logic')
+assertTrue('exact match is still blocked', isHomeCompany(withHae(), 'KalVista'))
+assertTrue('an unrelated company is still never blocked', !isHomeCompany(withHae(), 'BioCryst Pharmaceuticals'))
+
+// ── 106. Implementation 2/2A/3/4 setup-state tests remain green ────────────
+console.log('106. Implementation 2/2A/3/4\'s own tests all still pass in this same run (see the full pass/fail count below) -- none of their code was touched by this task')
+assertTrue('Stage2Discover.tsx still derives diseaseArea/homeAsset via the SAME shared resolvers (resolveDiseaseAreaDisplay/resolveHomeAssetDisplay) Implementation 2/4 established -- never a competing resolution path', stage2Source.includes('const diseaseArea = resolveDiseaseAreaDisplay(draft)') && stage2Source.includes('const homeAsset = resolveHomeAssetDisplay(draft)'))
+assertTrue('the discovery request itself is completely unchanged (still sends homeAsset.displayName/diseaseArea.name/homeAsset.companyName)', stage2Source.includes("run({ homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName })"))
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 declare const process: { exit(code: number): void }

@@ -180,6 +180,115 @@ await (async () => {
   )
 })()
 
+// ── Targeted Implementation 6A: in-flight discovery request de-duplication ──
+//
+// Deterministic fetch mocking throughout -- no real backend, no timers,
+// no sleeps. Concurrency is proven by controlling exactly when the mocked
+// fetch's own Promise resolves (a manually-resolvable "gate"), never by
+// racing against real network/timing.
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => { resolve = res })
+  return { promise, resolve }
+}
+
+const requestA: DiscoveryRequest = { homeAsset: 'TAGRISSO', indication: 'Non-Small Cell Lung Cancer', homeCompany: 'AstraZeneca' }
+const requestAIdenticalCopy: DiscoveryRequest = { homeAsset: 'TAGRISSO', indication: 'Non-Small Cell Lung Cancer', homeCompany: 'AstraZeneca' }
+const requestB: DiscoveryRequest = { homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', homeCompany: 'UCB' }
+
+// ── 11/12. Two concurrent identical calls -> exactly ONE fetch, both callers get the SAME result ──
+console.log('11/12. Two concurrent identical discovery calls (request still in flight when the second starts) produce exactly ONE underlying fetch -- both callers receive the same successful result')
+await (async () => {
+  let callCount = 0
+  const gate = deferred<Response>()
+  await withMockFetch(
+    (async () => { callCount++; return gate.promise }) as unknown as typeof fetch,
+    async () => {
+      // Both calls start BEFORE the mocked fetch has resolved -- genuine
+      // concurrency, not just "called in the same synchronous tick".
+      const p1 = fetchDiscoveredCompetitors(requestA)
+      const p2 = fetchDiscoveredCompetitors(requestAIdenticalCopy)
+      assert('exactly one real fetch was issued for two concurrent identical requests', callCount, 1)
+      gate.resolve(new Response(JSON.stringify(RAW_RESPONSE), { status: 200 }))
+      const [r1, r2] = await Promise.all([p1, p2])
+      assertTrue('both callers receive the SAME result object (the shared promise\'s own resolution)', r1 === r2)
+      assert('the result itself is the real mapped response', r1.homeAsset, RAW_RESPONSE.home_asset)
+    },
+  )
+})()
+
+// ── 13. Different landscape payloads -> separate fetches, even when concurrent ──
+console.log('13. Different landscape payloads (different homeAsset/indication/homeCompany) never collide -- separate fetches even when concurrent')
+await (async () => {
+  let callCount = 0
+  const gateA = deferred<Response>()
+  const gateB = deferred<Response>()
+  let calls = 0
+  await withMockFetch(
+    (async () => { calls++; callCount++; return calls === 1 ? gateA.promise : gateB.promise }) as unknown as typeof fetch,
+    async () => {
+      const pA = fetchDiscoveredCompetitors(requestA)
+      const pB = fetchDiscoveredCompetitors(requestB)
+      assert('two DIFFERENT landscapes issue two separate fetches, not deduplicated', callCount, 2)
+      gateA.resolve(new Response(JSON.stringify(RAW_RESPONSE), { status: 200 }))
+      gateB.resolve(new Response(JSON.stringify({ ...RAW_RESPONSE, home_asset: 'RYSTIGGO' }), { status: 200 }))
+      await Promise.all([pA, pB])
+    },
+  )
+})()
+
+// ── 14. After an in-flight request settles, a later call (Retry) makes a genuinely NEW fetch ──
+console.log('14. Once a request settles, the in-flight entry is removed -- a later call for the SAME landscape (Retry) makes a brand-new fetch, never reuses the old result')
+await (async () => {
+  let callCount = 0
+  await withMockFetch(
+    (async () => { callCount++; return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 }) }) as typeof fetch,
+    async () => {
+      await fetchDiscoveredCompetitors(requestA)
+      await fetchDiscoveredCompetitors(requestA) // simulates an explicit Retry after the first fully settled
+    },
+  )
+  assert('two SEQUENTIAL calls (second after the first fully settled) -> two real fetches, no permanent cache', callCount, 2)
+})()
+
+// ── 15. An error clears the in-flight entry too -- Retry after a failure still works ──
+console.log('15. A rejected (errored) in-flight request still clears its own entry -- a subsequent call for the same landscape is a genuinely new fetch, not stuck reusing the failed promise')
+await (async () => {
+  let callCount = 0
+  await withMockFetch(
+    (async () => {
+      callCount++
+      if (callCount === 1) return new Response(JSON.stringify({ error: 'discovery_source_unavailable', message: 'CT.gov unreachable' }), { status: 502 })
+      return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 })
+    }) as typeof fetch,
+    async () => {
+      await assertRejects('first call rejects as ApiError', () => fetchDiscoveredCompetitors(requestA), (err) => err instanceof ApiError)
+      const retried = await fetchDiscoveredCompetitors(requestA)
+      assert('the Retry after a failure succeeds with a real (non-stale) result', retried.homeAsset, RAW_RESPONSE.home_asset)
+    },
+  )
+  assert('two real fetches: the failed attempt and the successful retry', callCount, 2)
+})()
+
+// ── 16. StrictMode-style mount/remount simulation: two synchronous calls from the "same effect firing twice" pattern never produce two fetches ──
+console.log('16. Simulating React 18 dev StrictMode\'s mount -> cleanup -> mount effect churn (two synchronous calls to fetchDiscoveredCompetitors for the identical request, exactly as Stage2Discover.tsx\'s own effect would trigger) still produces only ONE fetch')
+await (async () => {
+  let callCount = 0
+  await withMockFetch(
+    (async () => { callCount++; return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 }) }) as typeof fetch,
+    async () => {
+      // Exactly how Stage2Discover.tsx's useEffect(() => { runDiscovery() }, [])
+      // fires under StrictMode: two synchronous, back-to-back calls with the
+      // identical request, neither awaited before the other starts.
+      const strictModeCall1 = fetchDiscoveredCompetitors(requestA)
+      const strictModeCall2 = fetchDiscoveredCompetitors(requestA)
+      await Promise.all([strictModeCall1, strictModeCall2])
+    },
+  )
+  assert('StrictMode\'s double-invoke pattern results in exactly one real network request', callCount, 1)
+})()
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 
 declare const process: { exit(code: number): void }

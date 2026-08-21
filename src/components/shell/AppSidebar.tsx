@@ -25,9 +25,8 @@ import { NavMain, type NavMainItem } from '../shadcn/nav-main'
 import { NavSecondary, type NavSecondaryItem } from '../shadcn/nav-secondary'
 import { NavUser } from '../shadcn/nav-user'
 import HelpModal from './HelpModal'
-import { useApp } from '../../context/AppContext'
-import { getAssetById } from '../../config/assets-config'
-import { getTherapeuticAreaById, getDiseaseAreaById } from '../../config/therapeutic-areas'
+import { useApp, useConfig } from '../../context/AppContext'
+import { getTherapeuticAreaById } from '../../config/therapeutic-areas'
 
 const MONITOR: NavMainItem[] = [
   { url: '/',                   icon: <HomeIcon />,       title: 'War Room',           end: true },
@@ -52,27 +51,29 @@ function BrandMark() {
 
 /**
  * Active-landscape context, e.g. "Neurology · gMG" + "RYSTIGGO" -- real
- * canonical config only, never fabricated. A manual Home Asset resolves via
- * AppContext.manualHomeAsset (see that context's own docstring for why a
- * catalog-only lookup isn't enough). Neutral copy when setup is incomplete.
+ * canonical config only, never fabricated. Home Asset AND Disease Area both
+ * resolve via useConfig()'s own shared resolvers (homeAssetDisplay /
+ * diseaseAreaDisplay, Targeted Implementation 4 / 2) -- manual -> resolved ->
+ * legacy catalog, in that order -- rather than a direct getAssetById()/
+ * getDiseaseAreaById() call, which only ever resolves a legacy static
+ * catalog id. Never a second, competing priority chain. Neutral copy when
+ * setup is incomplete.
  */
 function LandscapeContext() {
-  const { landscapeConfiguration, manualHomeAsset } = useApp()
-  const { therapeuticAreaId, diseaseAreaId, homeAssetId } = landscapeConfiguration
+  const { landscapeConfiguration } = useApp()
+  const { diseaseAreaDisplay, homeAssetDisplay } = useConfig()
+  const { therapeuticAreaId } = landscapeConfiguration
 
   const therapeuticArea = therapeuticAreaId ? getTherapeuticAreaById(therapeuticAreaId) : undefined
-  const diseaseArea = diseaseAreaId ? getDiseaseAreaById(diseaseAreaId) : undefined
-  const knownAsset = homeAssetId ? getAssetById(homeAssetId) : undefined
-  const homeAssetName = knownAsset?.brandName ?? (manualHomeAsset && manualHomeAsset.id === homeAssetId ? manualHomeAsset.displayName : undefined)
 
-  if (!therapeuticArea || !diseaseArea || !homeAssetName) {
+  if (!therapeuticArea || !diseaseAreaDisplay || !homeAssetDisplay) {
     return <p className="truncate text-xs text-muted-foreground">Landscape not configured</p>
   }
 
   return (
     <div className="min-w-0">
-      <p className="truncate text-xs text-muted-foreground">{therapeuticArea.name} · {diseaseArea.shortCode}</p>
-      <p className="truncate text-xs font-medium">{homeAssetName}</p>
+      <p className="truncate text-xs text-muted-foreground">{therapeuticArea.name} · {diseaseAreaDisplay.shortCode ?? diseaseAreaDisplay.name}</p>
+      <p className="truncate text-xs font-medium">{homeAssetDisplay.displayName}</p>
     </div>
   )
 }

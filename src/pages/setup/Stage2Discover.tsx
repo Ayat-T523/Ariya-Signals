@@ -21,7 +21,7 @@ import { Input } from '../../components/shadcn/ui/input'
 import { Spinner } from '../../components/shadcn/ui/spinner'
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent, EmptyMedia } from '../../components/shadcn/ui/empty'
 import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions, ItemMedia, ItemGroup } from '../../components/shadcn/ui/item'
-import { PlugZapIcon, PlusIcon, SearchIcon } from 'lucide-react'
+import { PlugZapIcon, PlusIcon, SearchIcon, SearchXIcon } from 'lucide-react'
 import AddCompetitorDialog from './AddCompetitorDialog'
 import CompanyEvidenceSheet from './CompanyEvidenceSheet'
 
@@ -147,7 +147,11 @@ export default function Stage2Discover({
         </Empty>
       )}
 
-      {/* ── Error/unavailable -- only blocks the whole stage while there's nothing else to show ── */}
+      {/* ── Error/unavailable -- only blocks the whole stage while there's nothing else to show ──
+          Targeted Implementation 5: Retry is the PRIMARY recovery action (default/filled variant,
+          first), manual Add is the SECONDARY fallback (outline variant, second) -- previously
+          reversed, which visually prioritized the manual fallback over recovering the real
+          recommendation flow. */}
       {state.status === 'error' && !hasCompanies && (
         <Empty className="border">
           <EmptyHeader>
@@ -156,9 +160,9 @@ export default function Stage2Discover({
             <EmptyDescription>{state.message}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={runDiscovery}>Retry</Button>
-              <Button onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={runDiscovery}>Retry</Button>
+              <Button variant="outline" onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor manually</Button>
             </div>
           </EmptyContent>
         </Empty>
@@ -170,8 +174,8 @@ export default function Stage2Discover({
           {state.status === 'error' && (
             <p className="text-xs text-muted-foreground">Discovery is currently unavailable — showing manually added competitors.</p>
           )}
-          <div className="flex items-center gap-2">
-            <div className="relative max-w-sm flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[200px] max-w-sm flex-1">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
@@ -180,6 +184,9 @@ export default function Stage2Discover({
                 className="pl-8"
               />
             </div>
+            {/* Targeted Implementation 5: secondary (outline) fallback next to the
+                primary results list -- Ariya's recommendations remain the dominant
+                content; this never competes visually with them. */}
             <Button variant="outline" onClick={() => setAddOpen(true)} className="ml-auto">
               <PlusIcon /> Add competitor manually
             </Button>
@@ -245,15 +252,44 @@ export default function Stage2Discover({
         </div>
       )}
 
-      {/* No companies at all yet, but discovery hasn't failed */}
+      {/* ── NOT YET ATTEMPTED -- Targeted Implementation 5 ──
+          Discovery genuinely has not run/completed yet (distinct from EMPTY
+          below, where it HAS completed and found nothing). Neutral wording
+          only -- never implies a search already happened and found zero
+          results. Auto-starts on mount (see the effect above), so this is
+          normally a very brief flash; manual Add stays a secondary
+          (outline) fallback here, never the dominant action. */}
       {state.status === 'idle' && !hasCompanies && (
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>No competitor companies yet</EmptyTitle>
-            <EmptyDescription>Add a known competitor company manually to continue.</EmptyDescription>
+            <EmptyMedia variant="icon"><SearchIcon className="size-4" /></EmptyMedia>
+            <EmptyTitle>Competitor discovery hasn't started yet</EmptyTitle>
+            <EmptyDescription>Ariya will search for relevant competitor companies for this landscape.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor</Button>
+            <Button variant="outline" onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor manually</Button>
+          </EmptyContent>
+        </Empty>
+      )}
+
+      {/* ── EMPTY -- Targeted Implementation 5 ──
+          Discovery genuinely completed successfully with zero suggested
+          companies (state.status === 'empty') and there are no manually
+          added companies either -- previously this exact combination
+          rendered NOTHING (a blank page): it matched none of idle/error/
+          "has companies" branches. Distinct from NOT YET ATTEMPTED above --
+          this explicitly communicates automatic discovery WAS attempted
+          first. Manual Add is the appropriate primary action here (there is
+          no competing Ariya recommendation list to stay secondary to). */}
+      {state.status === 'empty' && !hasCompanies && (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><SearchXIcon className="size-4" /></EmptyMedia>
+            <EmptyTitle>Ariya didn't find suitable competitor recommendations</EmptyTitle>
+            <EmptyDescription>Automatic discovery completed for this landscape but found no companies to suggest. Add a known competitor manually to continue.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor manually</Button>
           </EmptyContent>
         </Empty>
       )}

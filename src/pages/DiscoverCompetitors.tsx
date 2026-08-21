@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
-import { getTherapeuticAreaById, getDiseaseAreaById } from '../config/therapeutic-areas'
+import { useApp, useConfig } from '../context/AppContext'
+import { getTherapeuticAreaById } from '../config/therapeutic-areas'
 import { getAssetById } from '../config/assets-config'
 import { isLandscapeConfigurationSubmittable } from '../config/landscape-configuration'
 import { useDiscovery } from '../hooks/useDiscovery'
@@ -102,15 +102,19 @@ function CandidateCard({ candidate }: { candidate: DiscoveredCandidate }) {
 
 export default function DiscoverCompetitors() {
   const { landscapeConfiguration } = useApp()
+  // Targeted Implementation 2: resolves the SAME manual/MONDO/catalog
+  // Disease Area source AppContext/AppSidebar already use (via
+  // useConfig().diseaseAreaDisplay) instead of independently assuming
+  // diseaseAreaId always belongs to the legacy static DISEASE_AREAS catalog
+  // -- Recon 2's confirmed gap for this page.
+  const { diseaseAreaDisplay } = useConfig()
   const { state, run, reset } = useDiscovery()
   const [query, setQuery] = useState('')
 
   const therapeuticArea = landscapeConfiguration.therapeuticAreaId
     ? getTherapeuticAreaById(landscapeConfiguration.therapeuticAreaId)
     : undefined
-  const diseaseArea = landscapeConfiguration.diseaseAreaId
-    ? getDiseaseAreaById(landscapeConfiguration.diseaseAreaId)
-    : undefined
+  const diseaseArea = diseaseAreaDisplay
   const homeAsset = landscapeConfiguration.homeAssetId
     ? getAssetById(landscapeConfiguration.homeAssetId)
     : undefined
