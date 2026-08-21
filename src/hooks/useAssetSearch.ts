@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, ApiUnreachableError } from '../lib/api/client'
-import { searchAssets, type ResolvedAssetIdentity } from '../lib/api/assetSearch'
+import { searchAssets, searchAssetsByIndication, type ResolvedAssetIdentity } from '../lib/api/assetSearch'
 
 /**
  * useAssetSearch.ts — debounced Home Asset search (Landscape Input
@@ -33,22 +33,15 @@ export function useAssetSearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const search = useCallback((query: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (abortRef.current) abortRef.current.abort()
-
-    const trimmed = query.trim()
-    if (!trimmed) {
-      setState({ status: 'idle' })
-      return
-    }
-
-    setState({ status: 'searching' })
-    debounceRef.current = setTimeout(async () => {
-      const controller = new AbortController()
-      abortRef.current = controller
+  // Shared by search()/searchByIndication() -- the ONE place a response or
+  // transport failure becomes AssetSearchState, so both callers stay in
+  // exact lockstep with each other's error/empty-result handling.
+  const runFetch = useCallback((fetcher: (signal: AbortSignal) => Promise<{ results: ResolvedAssetIdentity[] }>) => {
+    const controller = new AbortController()
+    abortRef.current = controller
+    void (async () => {
       try {
-        const response = await searchAssets(trimmed, controller.signal)
+        const response = await fetcher(controller.signal)
         if (controller.signal.aborted) return
         setState(response.results.length === 0 ? { status: 'no_results' } : { status: 'results', results: response.results })
       } catch (err) {
@@ -61,8 +54,47 @@ export function useAssetSearch() {
           setState({ status: 'error', message: err instanceof Error ? err.message : 'Unknown error' })
         }
       }
-    }, DEBOUNCE_MS)
+    })()
   }, [])
+
+  const search = useCallback((query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (abortRef.current) abortRef.current.abort()
+
+    const trimmed = query.trim()
+    if (!trimmed) {
+      setState({ status: 'idle' })
+      return
+    }
+
+    setState({ status: 'searching' })
+    debounceRef.current = setTimeout(() => {
+      runFetch((signal) => searchAssets(trimmed, signal))
+    }, DEBOUNCE_MS)
+  }, [runFetch])
+
+  /**
+   * Targeted Implementation 1 — disease-driven suggestion request. Fires
+   * immediately (no debounce): this is triggered by Disease Area
+   * resolution, not a keystroke, so there is no "user is still typing"
+   * reason to wait. Shares debounceRef/abortRef with search() -- typing a
+   * query (or a newer indication superseding an older one) cancels a
+   * stale in-flight request exactly the same way search() already
+   * cancels a stale typed search.
+   */
+  const searchByIndication = useCallback((indication: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (abortRef.current) abortRef.current.abort()
+
+    const trimmed = indication.trim()
+    if (!trimmed) {
+      setState({ status: 'idle' })
+      return
+    }
+
+    setState({ status: 'searching' })
+    runFetch((signal) => searchAssetsByIndication(trimmed, signal))
+  }, [runFetch])
 
   const reset = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -75,5 +107,5 @@ export function useAssetSearch() {
     if (abortRef.current) abortRef.current.abort()
   }, [])
 
-  return { state, search, reset }
+  return { state, search, searchByIndication, reset }
 }

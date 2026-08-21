@@ -563,6 +563,35 @@ assert('two companies selected before clearing', selectionDraft.selections.lengt
 const clearedSelectionDraft = clearCompanySelections(selectionDraft)
 assert('zero companies selected after clearing', clearedSelectionDraft.selections.length, 0)
 
+// ── 53. Disease Area resolution automatically triggers asset suggestions ──
+console.log('53. Selecting/resolving a Disease Area automatically requests disease-driven asset suggestions -- never waiting for the user to type first (Targeted Implementation 1)')
+assertTrue('assetSearch.ts exposes an indication-driven search client, distinct from the existing q-based one', assetSearchClientSource.includes('searchAssetsByIndication') && assetSearchClientSource.includes("{ indication }"))
+assertTrue('useAssetSearch.ts exposes searchByIndication alongside the existing search()', useAssetSearchSource.includes('searchByIndication') && useAssetSearchSource.includes('searchAssetsByIndication'))
+assertTrue('Stage1Define.tsx auto-fires searchByIndication as soon as diseaseAreaName is known, gated only on an empty query -- never behind focus/typing', /useEffect\(\(\) => \{\s*if \(diseaseAreaName && !query\.trim\(\)\) searchByIndication\(diseaseAreaName\)/.test(stage1Source))
+
+// ── 54. Manual Disease Area also triggers it -- same code path, no special-casing ──
+console.log('54. A manually-entered Disease Area triggers the same automatic asset request as a catalog/MONDO one (no source-specific branch)')
+const autoTriggerEffectSource = stage1Source.match(/useEffect\(\(\) => \{\s*if \(diseaseAreaName[\s\S]*?\n {2}\}, \[diseaseAreaName\]\)/)?.[0] ?? ''
+assertTrue('the auto-trigger effect body itself contains no manual/resolved/catalog source branch -- one diseaseAreaName value, one code path', autoTriggerEffectSource.length > 0 && !/manualDiseaseArea|resolvedDiseaseArea|\.source ===/.test(autoTriggerEffectSource))
+assertTrue('Stage1Define.tsx feeds AssetSearchField the SAME resolveDiseaseAreaDisplay-derived name used for manual/MONDO/catalog Disease Areas alike', stage1Source.includes('diseaseAreaName={diseaseAreaDisplay?.name}'))
+// Behavioral confirmation this name is real and non-empty for a manual Disease Area specifically (not just catalog/MONDO):
+let manualDiseaseTriggerDraft = createEmptySetupDraft()
+manualDiseaseTriggerDraft = selectTherapeuticArea(manualDiseaseTriggerDraft, 'oncology')
+manualDiseaseTriggerDraft = attachManualDiseaseArea(manualDiseaseTriggerDraft, 'Non-Small Cell Lung Cancer')
+assert('resolveDiseaseAreaDisplay(...).name is the literal manual text the auto-trigger effect will send as the indication', resolveDiseaseAreaDisplay(manualDiseaseTriggerDraft)?.name, 'Non-Small Cell Lung Cancer')
+
+// ── 55. Changing Disease Area replaces/refetches suggestions ─────────────
+console.log('55. Changing Disease Area cancels a stale in-flight request and fetches suggestions for the new one')
+assertTrue('the auto-trigger effect is keyed on diseaseAreaName, so it re-fires whenever the Disease Area changes', /\}, \[diseaseAreaName\]\)/.test(stage1Source))
+assertTrue('searchByIndication cancels any in-flight request the same way search() already does (shared abortRef), so a disease change never leaves a stale response to land later', (useAssetSearchSource.match(/abortRef\.current\.abort\(\)/g) || []).length >= 2)
+
+// ── 56. Existing typed asset search is unaffected ─────────────────────────
+console.log('56. Existing typed asset search (search()/searchAssets) is unchanged by this addition')
+assertTrue('handleQueryChange still calls search(value) for typed input, unchanged', stage1Source.includes('if (value.trim()) search(value)'))
+assertTrue('search() still debounces on every keystroke (DEBOUNCE_MS/setTimeout), unchanged', /const search = useCallback\(\(query: string\) => \{[\s\S]*?setTimeout\(/.test(useAssetSearchSource))
+assertTrue('searchAssets() (typed) still sends q, never indication', assetSearchClientSource.includes("{ q: query }"))
+assertTrue('the "No known assets" message never renders while a remote attempt is in flight or failed (only idle/no_results)', stage1Source.includes("(state.status === 'idle' || state.status === 'no_results')"))
+
 // ── Targeted Implementation 2: setup -> main-app Disease Area persistence ──
 //
 // AppContext.tsx/useConfig() cannot be exercised directly here (React

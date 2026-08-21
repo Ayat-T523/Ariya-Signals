@@ -74,3 +74,15 @@ export async function searchAssets(query: string, signal?: AbortSignal): Promise
   const raw = await apiGet<any>('/api/assets/search', { q: query }, signal)
   return mapAssetSearchResponse(raw)
 }
+
+/**
+ * Targeted Implementation 1 — disease/indication-driven asset suggestion,
+ * the automatic counterpart to searchAssets() above. Sends ONLY `indication`
+ * (never `q`) so the backend's own route dispatch (api_server.py) treats
+ * this as the disease-only suggestion request, not the existing typed
+ * search — see that route's own A/B distinction.
+ */
+export async function searchAssetsByIndication(indication: string, signal?: AbortSignal): Promise<AssetSearchResponse> {
+  const raw = await apiGet<any>('/api/assets/search', { indication }, signal)
+  return mapAssetSearchResponse(raw)
+}

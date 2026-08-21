@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { THERAPEUTIC_AREAS } from '../../config/therapeutic-areas'
 import { getAssetsForDiseaseArea, getAssetsForResolvedDiseaseArea } from '../../config/landscape-configuration'
 import {
@@ -419,7 +419,7 @@ function AssetSearchField({
 }) {
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
-  const { state, search, reset } = useAssetSearch()
+  const { state, search, searchByIndication, reset } = useAssetSearch()
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const knownAssets = useMemo(() => {
@@ -428,6 +428,20 @@ function AssetSearchField({
     const seen = new Set<string>()
     return [...byId, ...byName].filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)))
   }, [diseaseAreaId, diseaseAreaName, diseaseAreaAliases])
+
+  // Targeted Implementation 1 — Ariya searches automatically as soon as a
+  // Disease Area is resolved, never waiting for the user to type or even
+  // focus this field (that's the whole point: the user should not need to
+  // already know a drug name). diseaseAreaName is resolveDiseaseAreaDisplay()'s
+  // own display name (see Stage1Define's own call site below) -- already
+  // correct for a catalog, MONDO-resolved, OR manually-entered Disease
+  // Area alike, so this works for all three without a separate code path.
+  // Guarded on an empty query so a request already in flight from typing
+  // is never clobbered by this effect re-running for an unrelated reason.
+  useEffect(() => {
+    if (diseaseAreaName && !query.trim()) searchByIndication(diseaseAreaName)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diseaseAreaName])
 
   function handleQueryChange(value: string) {
     setQuery(value)
@@ -494,7 +508,7 @@ function AssetSearchField({
                   <p className="text-xs text-muted-foreground">Asset search is currently unavailable.</p>
                 </div>
               )}
-              {!query.trim() && merged.length === 0 && (
+              {!query.trim() && merged.length === 0 && (state.status === 'idle' || state.status === 'no_results') && (
                 <p className="px-3 py-4 text-center text-xs text-muted-foreground">No known assets for this Disease Area yet. Search by brand, INN, or development code.</p>
               )}
               {query.trim() && state.status === 'no_results' && merged.length === 0 && (
