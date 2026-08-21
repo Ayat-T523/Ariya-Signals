@@ -10,11 +10,13 @@ import {
   selectDiseaseArea,
   selectKnownHomeAsset,
   attachManualHomeAsset,
+  confirmHomeCompany,
   resolveHomeAssetDisplay,
+  needsHomeCompanyConfirmation,
   isStage1Valid,
 } from '../../config/setup-draft'
 import { Button } from '../../components/shadcn/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/shadcn/ui/select'
+import { Input } from '../../components/shadcn/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/shadcn/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../../components/shadcn/ui/command'
 import { Field, FieldLabel } from '../../components/shadcn/ui/field'
@@ -28,6 +30,22 @@ import AddAssetDialog from './AddAssetDialog'
  * treated as a known/seed source only, never the authority over what asset
  * a user can configure -- see attachManualHomeAsset in setup-draft.ts for
  * the manual fallback this stage always offers.
+ *
+ * Phase 27 taxonomy note: Therapeutic Area / Disease Area come from
+ * src/config/therapeutic-areas.ts, the only such catalog anywhere in either
+ * repo -- there is no approved "core 20" (or any other numbered/named)
+ * taxonomy document in this project (searched both repos, docs/, and every
+ * sibling directory; see this milestone's own checkpoint, section P/Q for
+ * the full search record). Today that catalog holds 2 Therapeutic Areas
+ * (Immunology, Neurology) and 4 Disease Areas (HAE, PNH, PBC, gMG) -- every
+ * one backed by a real asset in assets-config.ts or a real gMG asset
+ * reachable via manual entry, never a placeholder. This stage does not
+ * invent more; it upgrades the CONTROL for both fields to the same
+ * documented shadcn Popover+Command combobox pattern Home Asset already
+ * uses (shadcn's registry has no separate first-class "Combobox" component
+ * -- Popover+Command composition IS the official documented pattern for
+ * this interaction), so the selector is real, searchable, and ready for a
+ * larger catalog without another rewrite when one exists.
  */
 export default function Stage1Define({
   draft,
@@ -38,32 +56,54 @@ export default function Stage1Define({
   onChange: (draft: SetupDraft) => void
   onContinue: () => void
 }) {
+  const [taOpen, setTaOpen] = useState(false)
+  const [daOpen, setDaOpen] = useState(false)
   const [assetSearchOpen, setAssetSearchOpen] = useState(false)
   const [addAssetOpen, setAddAssetOpen] = useState(false)
+  const [companyInput, setCompanyInput] = useState('')
 
   const { therapeuticAreaId, diseaseAreaId, homeAssetId } = draft.landscapeConfiguration
   const diseaseAreas = therapeuticAreaId ? getDiseaseAreasForTherapeuticArea(therapeuticAreaId) : []
   const knownAssets = diseaseAreaId ? getAssetsForDiseaseArea(diseaseAreaId) : []
   const homeAssetDisplay = resolveHomeAssetDisplay(draft)
+  const needsCompany = needsHomeCompanyConfirmation(draft)
   const valid = isStage1Valid(draft)
+
+  const selectedTa = THERAPEUTIC_AREAS.find((ta) => ta.id === therapeuticAreaId)
+  const selectedDa = diseaseAreas.find((da) => da.id === diseaseAreaId)
 
   return (
     <div className="flex flex-col gap-6">
       <Field>
         <FieldLabel>Therapeutic Area</FieldLabel>
-        <Select
-          value={therapeuticAreaId ?? undefined}
-          onValueChange={(id) => onChange(selectTherapeuticArea(draft, id))}
-        >
-          <SelectTrigger className="w-full sm:w-80">
-            <SelectValue placeholder="Select a Therapeutic Area" />
-          </SelectTrigger>
-          <SelectContent>
-            {THERAPEUTIC_AREAS.map((ta) => (
-              <SelectItem key={ta.id} value={ta.id}>{ta.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={taOpen} onOpenChange={setTaOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" aria-expanded={taOpen} className="w-full justify-between sm:w-80">
+              {selectedTa?.name ?? 'Search therapeutic areas…'}
+              <ChevronsUpDownIcon className="opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search therapeutic areas…" />
+              <CommandList>
+                <CommandEmpty>No therapeutic area matches.</CommandEmpty>
+                <CommandGroup>
+                  {THERAPEUTIC_AREAS.map((ta) => (
+                    <CommandItem
+                      key={ta.id}
+                      value={ta.name}
+                      onSelect={() => { onChange(selectTherapeuticArea(draft, ta.id)); setTaOpen(false) }}
+                    >
+                      <CheckIcon className={therapeuticAreaId === ta.id ? 'opacity-100' : 'opacity-0'} />
+                      {ta.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </Field>
 
       <Field>
@@ -71,19 +111,34 @@ export default function Stage1Define({
         {!therapeuticAreaId ? (
           <p className="text-sm text-muted-foreground italic">Select a Therapeutic Area first.</p>
         ) : (
-          <Select
-            value={diseaseAreaId ?? undefined}
-            onValueChange={(id) => onChange(selectDiseaseArea(draft, id))}
-          >
-            <SelectTrigger className="w-full sm:w-80">
-              <SelectValue placeholder="Select a Disease Area" />
-            </SelectTrigger>
-            <SelectContent>
-              {diseaseAreas.map((da) => (
-                <SelectItem key={da.id} value={da.id}>{da.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={daOpen} onOpenChange={setDaOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" aria-expanded={daOpen} className="w-full justify-between sm:w-80">
+                {selectedDa?.name ?? 'Search disease areas…'}
+                <ChevronsUpDownIcon className="opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search disease areas…" />
+                <CommandList>
+                  <CommandEmpty>No disease area matches.</CommandEmpty>
+                  <CommandGroup>
+                    {diseaseAreas.map((da) => (
+                      <CommandItem
+                        key={da.id}
+                        value={da.name}
+                        onSelect={() => { onChange(selectDiseaseArea(draft, da.id)); setDaOpen(false) }}
+                      >
+                        <CheckIcon className={diseaseAreaId === da.id ? 'opacity-100' : 'opacity-0'} />
+                        {da.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         )}
       </Field>
 
@@ -96,7 +151,7 @@ export default function Stage1Define({
             <div className="flex-1">
               <p className="text-sm font-medium">{draft.manualAsset.displayName}</p>
               <p className="text-xs text-muted-foreground">
-                {[draft.manualAsset.innName, draft.manualAsset.company].filter(Boolean).join(' · ') || 'Added manually'}
+                {[draft.manualAsset.innName, draft.manualAsset.company].filter(Boolean).join(' · ')}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setAddAssetOpen(true)}>Change</Button>
@@ -166,6 +221,25 @@ export default function Stage1Define({
           </div>
         )}
       </Field>
+
+      {needsCompany && homeAssetDisplay && (
+        <Field>
+          <FieldLabel>Company for {homeAssetDisplay.displayName} *</FieldLabel>
+          <p className="mb-1.5 text-xs text-muted-foreground">
+            Ariya's catalog doesn't have a confirmed company for this asset yet. Confirm it so Ariya can exclude your own company from competitor suggestions later.
+          </p>
+          <div className="flex gap-2 sm:w-80">
+            <Input value={companyInput} onChange={(e) => setCompanyInput(e.target.value)} placeholder="e.g. KalVista Pharmaceuticals" />
+            <Button
+              variant="outline"
+              disabled={!companyInput.trim()}
+              onClick={() => { onChange(confirmHomeCompany(draft, companyInput)); setCompanyInput('') }}
+            >
+              Confirm
+            </Button>
+          </div>
+        </Field>
+      )}
 
       <AddAssetDialog
         open={addAssetOpen}

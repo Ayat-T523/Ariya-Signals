@@ -1,15 +1,27 @@
 /**
- * setup-draft.ts — staged landscape setup draft model.
+ * setup-draft.ts — staged landscape setup draft model (company-rooted).
  *
  * Pure (no React, no network) so it's testable in isolation -- see
  * setup-draft.test.ts. SetupPage.tsx wires it into state/persistence.
  *
- * Three distinct concepts, kept distinct on purpose:
+ * PRODUCT CONTRACT (fixed decision): a competitor in Ariya is a COMPANY.
+ * Assets and populations are supporting evidence for why a company is
+ * relevant, never top-level competitors themselves. The backend's own
+ * competitor_promotion.py already enforces this at the API boundary
+ * (raw CT.gov intervention-name candidates -> company-rooted
+ * SuggestedCompanySuggestion); this module carries that same shape through
+ * the setup draft so the frontend never re-flattens it back into an
+ * asset-rooted list.
+ *
+ * Four distinct concepts, kept distinct on purpose:
  *   LandscapeConfiguration  -- what market/home asset is being analysed
  *                               (src/config/landscape-configuration.ts, unchanged)
  *   SetupDraft               -- THIS module: in-progress setup state (manual
- *                               asset identity, candidates, selections) --
- *                               discarded once setup completes
+ *                               asset identity, company suggestions,
+ *                               selection+classification) -- discarded once
+ *                               setup completes
+ *   CompanyEntry             -- one company-rooted suggestion or manual
+ *                               competitor, with its relevant assets nested
  *   TrackedCompetitor        -- the final, persisted user landscape (see
  *                               AppContext.tsx) -- what setup PRODUCES
  *
@@ -25,11 +37,11 @@ import {
   isLandscapeConfigurationConsistent,
 } from './landscape-configuration'
 import { getAssetById, type AssetConfig } from './assets-config'
-import type { DiscoveredCandidate } from '../lib/api/discovery'
+import type { SuggestedCompanySuggestion } from '../lib/api/discovery'
 
 export type SetupStage = 'define' | 'discover' | 'configure'
 
-export type CandidateSource = 'discovered' | 'manual'
+export type CompanySource = 'discovered' | 'manual'
 export type UserRelationship = 'direct' | 'indirect'
 /** Ariya's own advisory read -- never a user classification. */
 export type AdvisoryRelationship = 'direct' | 'indirect' | 'unclear'
@@ -39,35 +51,39 @@ export interface ManualAssetIdentity {
   id: string
   displayName: string
   innName: string | null
-  company: string | null
+  /** REQUIRED (Phase 6): without a resolved company, home-company exclusion cannot work -- see attachManualHomeAsset. */
+  company: string
   diseaseAreaId: string
   therapeuticAreaId: string
 }
 
-export interface CandidateEntry {
-  id: string
-  source: CandidateSource
-  displayName: string
-  companyName: string | null
-  innName: string | null
-  /** Advisory only -- null for every manual candidate, never fabricated for a discovered one. */
-  ariyaAssessment: AdvisoryRelationship | null
-  evidenceStatus: 'not_evaluated' | 'evidence_available'
-  evidenceSummary: string | null
+export interface RelevantAssetEntry {
+  identityKey: string
+  candidateStatus: string | null
+  evidenceGaps: string[]
   sourceReferences: string[]
-  /**
-   * The full real backend record for a discovered candidate -- candidate
-   * status, evidence gaps, unresolved questions, verified domains,
-   * provenance, etc. undefined for manual candidates (there is no backend
-   * record) and never fabricated. CandidateEvidenceSheet reads this for the
-   * richer detail view; the fields above stay the simple, always-present
-   * shape the candidate list itself renders.
-   */
-  discovered?: DiscoveredCandidate
+  reasonDetail: string[]
+  unresolvedQuestions: string[]
+  detail: string | null
 }
 
-export interface SelectedCompetitorDraft {
-  candidateId: string
+export interface CompanyEntry {
+  /** Stable identity: the backend's own company_key for a discovered suggestion, or a local id for a manual competitor. */
+  id: string
+  source: CompanySource
+  companyName: string
+  relevantAssets: RelevantAssetEntry[]
+  /** Advisory only -- null for every manual entry, never fabricated for a discovered one. */
+  ariyaAssessment: AdvisoryRelationship | null
+  evidenceStatus: 'not_evaluated' | 'evidence_available'
+  evidenceRefs: string[]
+  verifiedDomains: string[]
+  /** Why Ariya suggested this company -- null for a manual entry (the user added it, not Ariya). */
+  whySuggested: string | null
+}
+
+export interface SelectedCompanyDraft {
+  companyId: string
   /** null = explicitly selected but not yet classified -- never defaulted from ariyaAssessment. */
   userRelationship: UserRelationship | null
 }
@@ -76,8 +92,16 @@ export interface SetupDraft {
   stage: SetupStage
   landscapeConfiguration: LandscapeConfiguration
   manualAsset: ManualAssetIdentity | null
-  candidates: CandidateEntry[]
-  selections: SelectedCompetitorDraft[]
+  /**
+   * A user-confirmed company for a KNOWN catalog asset that has no
+   * `company` recorded in assets-config.ts (Phase 6's "known/resolved drug
+   * with an honest data gap" case -- distinct from a fully manual asset,
+   * which carries its own `company` directly on ManualAssetIdentity).
+   * Cleared whenever the Home Asset selection changes.
+   */
+  homeCompanyOverride: string | null
+  companies: CompanyEntry[]
+  selections: SelectedCompanyDraft[]
 }
 
 export function createEmptySetupDraft(landscapeConfiguration?: LandscapeConfiguration): SetupDraft {
@@ -85,7 +109,8 @@ export function createEmptySetupDraft(landscapeConfiguration?: LandscapeConfigur
     stage: 'define',
     landscapeConfiguration: landscapeConfiguration ?? { ...EMPTY_LANDSCAPE_CONFIGURATION },
     manualAsset: null,
-    candidates: [],
+    homeCompanyOverride: null,
+    companies: [],
     selections: [],
   }
 }
@@ -101,13 +126,13 @@ export function createLocalId(prefix: string): string {
 export function selectTherapeuticArea(draft: SetupDraft, therapeuticAreaId: string): SetupDraft {
   const nextConfig = applyTherapeuticAreaSelection(draft.landscapeConfiguration, therapeuticAreaId)
   if (nextConfig === draft.landscapeConfiguration) return draft
-  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null }
+  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null, homeCompanyOverride: null }
 }
 
 export function selectDiseaseArea(draft: SetupDraft, diseaseAreaId: string): SetupDraft {
   const nextConfig = applyDiseaseAreaSelection(draft.landscapeConfiguration, diseaseAreaId)
   if (nextConfig === draft.landscapeConfiguration) return draft
-  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null }
+  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null, homeCompanyOverride: null }
 }
 
 /** Selecting a catalogued Home Asset -- refuses silently if it doesn't belong to the selected Disease Area, same discipline as applyHomeAssetSelection. */
@@ -118,43 +143,71 @@ export function selectKnownHomeAsset(draft: SetupDraft, assetId: string): SetupD
     ...draft,
     landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: assetId },
     manualAsset: null,
+    homeCompanyOverride: null,
   }
 }
 
-/** A manually entered asset is explicitly attached to the CURRENTLY selected TA/DA -- never guessed. Refuses if TA/DA aren't both selected yet. */
+/** Confirms a company for the currently-selected KNOWN asset when assets-config.ts has no `company` recorded for it (Phase 6). No-op for a manual asset (which carries its own required `company` already) or when nothing is selected. */
+export function confirmHomeCompany(draft: SetupDraft, company: string): SetupDraft {
+  if (!company.trim() || draft.manualAsset || !draft.landscapeConfiguration.homeAssetId) return draft
+  return { ...draft, homeCompanyOverride: company.trim() }
+}
+
+/**
+ * A manually entered asset is explicitly attached to the CURRENTLY selected
+ * TA/DA -- never guessed. Company is REQUIRED (Phase 6): without it, Ariya
+ * cannot reliably exclude the home company from its own competitor
+ * suggestions later, so this refuses (returns `draft` unchanged) rather than
+ * accept a company-less manual asset. Refuses if TA/DA aren't both selected
+ * yet, or if displayName/company are blank.
+ */
 export function attachManualHomeAsset(
   draft: SetupDraft,
-  input: { displayName: string; innName?: string | null; company?: string | null },
+  input: { displayName: string; innName?: string | null; company: string },
 ): SetupDraft {
   const { therapeuticAreaId, diseaseAreaId } = draft.landscapeConfiguration
-  if (!therapeuticAreaId || !diseaseAreaId || !input.displayName.trim()) return draft
+  if (!therapeuticAreaId || !diseaseAreaId || !input.displayName.trim() || !input.company.trim()) return draft
 
   const manualAsset: ManualAssetIdentity = {
     source: 'manual',
     id: createLocalId('manual-asset'),
     displayName: input.displayName.trim(),
     innName: input.innName?.trim() || null,
-    company: input.company?.trim() || null,
+    company: input.company.trim(),
     diseaseAreaId,
     therapeuticAreaId,
   }
   return {
     ...draft,
     manualAsset,
+    homeCompanyOverride: null,
     landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: manualAsset.id },
   }
 }
 
+export interface HomeAssetDisplay {
+  displayName: string
+  innName: string | null
+  /** null only for a catalogued asset with no recorded company yet -- a genuine, honest gap, never fabricated. See needsHomeCompanyConfirmation(). */
+  companyName: string | null
+}
+
 /** Resolves the Home Asset identity for display, whichever source it came from. Null when nothing is selected yet. */
-export function resolveHomeAssetDisplay(draft: SetupDraft): { displayName: string; innName: string | null; company: string | null } | null {
+export function resolveHomeAssetDisplay(draft: SetupDraft): HomeAssetDisplay | null {
   if (draft.manualAsset && draft.manualAsset.id === draft.landscapeConfiguration.homeAssetId) {
-    return { displayName: draft.manualAsset.displayName, innName: draft.manualAsset.innName, company: draft.manualAsset.company }
+    return { displayName: draft.manualAsset.displayName, innName: draft.manualAsset.innName, companyName: draft.manualAsset.company }
   }
   const asset: AssetConfig | undefined = draft.landscapeConfiguration.homeAssetId
     ? getAssetById(draft.landscapeConfiguration.homeAssetId)
     : undefined
-  if (asset) return { displayName: asset.brandName, innName: asset.innName, company: null }
+  if (asset) return { displayName: asset.brandName, innName: asset.innName, companyName: asset.company ?? draft.homeCompanyOverride }
   return null
+}
+
+/** True when a Home Asset is selected but its company is genuinely unknown -- Stage 1 must prompt for it (Phase 6) rather than proceed or guess. */
+export function needsHomeCompanyConfirmation(draft: SetupDraft): boolean {
+  const display = resolveHomeAssetDisplay(draft)
+  return !!display && !display.companyName
 }
 
 export function isStage1Valid(draft: SetupDraft): boolean {
@@ -163,97 +216,115 @@ export function isStage1Valid(draft: SetupDraft): boolean {
   if (!isLandscapeConfigurationConsistent(draft.landscapeConfiguration)) return false
   // A manual asset must genuinely be attached to this exact draft's TA/DA -- never trusted merely because homeAssetId matches.
   if (draft.manualAsset) {
-    return draft.manualAsset.id === homeAssetId
-      && draft.manualAsset.diseaseAreaId === diseaseAreaId
-      && draft.manualAsset.therapeuticAreaId === therapeuticAreaId
+    if (draft.manualAsset.id !== homeAssetId
+      || draft.manualAsset.diseaseAreaId !== diseaseAreaId
+      || draft.manualAsset.therapeuticAreaId !== therapeuticAreaId) return false
+  } else if (!getAssetById(homeAssetId)) {
+    return false
   }
-  return !!getAssetById(homeAssetId)
+  // A resolved company is required before Ariya can run discovery at all (Phase 6/13).
+  return !needsHomeCompanyConfirmation(draft)
 }
 
-// ── Stage 2: candidates (discovered + manual) ───────────────────────────────
+// ── Stage 2: FIND + SELECT companies ────────────────────────────────────────
 
-export function addManualCandidate(
+/** Maps one real backend SuggestedCompanySuggestion into this module's CompanyEntry -- the one place that shape conversion happens. */
+export function suggestedCompanyToEntry(s: SuggestedCompanySuggestion): CompanyEntry {
+  return {
+    id: s.companyKey,
+    source: 'discovered',
+    companyName: s.companyName,
+    relevantAssets: s.relevantAssets.map((a) => ({
+      identityKey: a.identityKey,
+      candidateStatus: a.candidateStatus,
+      evidenceGaps: a.evidenceGaps,
+      sourceReferences: a.sourceReferences,
+      reasonDetail: a.reasonDetail,
+      unresolvedQuestions: a.unresolvedQuestions,
+      detail: a.detail,
+    })),
+    ariyaAssessment: s.aiProposedRelationship,
+    evidenceStatus: 'evidence_available',
+    evidenceRefs: s.evidenceRefs,
+    verifiedDomains: s.verifiedDomains,
+    whySuggested: s.whySuggested,
+  }
+}
+
+/**
+ * Merges real, already-shortlisted company suggestions into the draft.
+ * Never overwrites a manual competitor -- but a manual entry whose company
+ * name exactly matches (case-insensitive, trimmed, generic-suffix-agnostic
+ * is NOT attempted here -- see module docstring) a freshly suggested
+ * company is dropped in favor of the richer discovered record. Deliberately
+ * exact-match only -- no fuzzy entity resolution in the frontend (that
+ * belongs in Python; see competitor_promotion.py's own docstring).
+ */
+export function setSuggestedCompanies(draft: SetupDraft, suggestions: SuggestedCompanySuggestion[]): SetupDraft {
+  const discoveredEntries = suggestions.map(suggestedCompanyToEntry)
+  const discoveredNames = new Set(discoveredEntries.map((c) => c.companyName.trim().toLowerCase()))
+  const manualOnly = draft.companies.filter(
+    (c) => c.source === 'manual' && !discoveredNames.has(c.companyName.trim().toLowerCase()),
+  )
+  return { ...draft, companies: [...discoveredEntries, ...manualOnly] }
+}
+
+/**
+ * Manual competitor addition -- company-rooted (Phase 19): the required
+ * identity is the COMPANY, never an asset. An optional relevant asset/INN
+ * nests underneath it exactly like a discovered company's relevant assets,
+ * never as its own top-level entry.
+ */
+export function addManualCompany(
   draft: SetupDraft,
   input: { companyName: string; assetName?: string | null; innName?: string | null },
 ): SetupDraft {
   if (!input.companyName.trim()) return draft
-  const candidate: CandidateEntry = {
-    id: createLocalId('manual-candidate'),
+  const relevantAssets: RelevantAssetEntry[] = input.assetName?.trim()
+    ? [{
+      identityKey: input.assetName.trim(),
+      candidateStatus: null,
+      evidenceGaps: [],
+      sourceReferences: [],
+      reasonDetail: [],
+      unresolvedQuestions: [],
+      detail: null,
+    }]
+    : []
+  const company: CompanyEntry = {
+    id: createLocalId('manual-company'),
     source: 'manual',
-    displayName: input.assetName?.trim() || input.companyName.trim(),
     companyName: input.companyName.trim(),
-    innName: input.innName?.trim() || null,
+    relevantAssets,
     ariyaAssessment: null,
     evidenceStatus: 'not_evaluated',
-    evidenceSummary: null,
-    sourceReferences: [],
+    evidenceRefs: [],
+    verifiedDomains: [],
+    whySuggested: null,
   }
-  return { ...draft, candidates: [...draft.candidates, candidate] }
+  return { ...draft, companies: [...draft.companies, company] }
 }
 
-/**
- * Maps a real backend DiscoveredCandidate (src/lib/api/discovery.ts) into
- * this module's CandidateEntry -- the one place that shape conversion
- * happens, so Stage2Discover.tsx never duplicates it. `identityKey` is
- * already a stable, deterministic identity (see discovery.ts's own docstring
- * on why it's a real name, not a synthesized id), reused directly as the
- * CandidateEntry id so re-running discovery doesn't fabricate new identities
- * for the same real candidate. evidenceStatus is 'evidence_available' for
- * every discovered candidate -- the backend evaluated it, regardless of how
- * strong the resulting candidate_status is; 'not_evaluated' is reserved for
- * genuinely manual, backend-untouched entries.
- */
-export function discoveredCandidateToEntry(dc: DiscoveredCandidate): CandidateEntry {
-  return {
-    id: dc.identityKey,
-    source: 'discovered',
-    displayName: dc.identityKey,
-    companyName: dc.organizationName,
-    innName: null,
-    ariyaAssessment: dc.aiProposedRelationship,
-    evidenceStatus: 'evidence_available',
-    evidenceSummary: dc.finalRationale,
-    sourceReferences: dc.sourceReferences,
-    discovered: dc,
-  }
-}
+// ── Stage 2 selection (moved out of Stage 3 -- Phase 15/20 fixed decision) ──
 
-/**
- * Merges real discovery results into the draft. Never overwrites a manual
- * candidate -- but a manual entry whose company/asset name exactly matches
- * (case-insensitive, trimmed) a freshly discovered identity is dropped in
- * favor of the richer discovered record, rather than showing the same real
- * competitor twice. Deliberately exact-match only -- no fuzzy entity
- * resolution (a near-miss stays as two separate, honest entries rather than
- * a guessed merge).
- */
-export function setDiscoveredCandidates(draft: SetupDraft, discovered: DiscoveredCandidate[]): SetupDraft {
-  const discoveredEntries = discovered.map(discoveredCandidateToEntry)
-  const discoveredNames = new Set(discoveredEntries.map((c) => c.displayName.trim().toLowerCase()))
-  const manualOnly = draft.candidates.filter(
-    (c) => c.source === 'manual' && !discoveredNames.has(c.displayName.trim().toLowerCase()),
-  )
-  return { ...draft, candidates: [...discoveredEntries, ...manualOnly] }
-}
-
-// ── Stage 3: selection + user classification ────────────────────────────────
-
-export function toggleCandidateSelection(draft: SetupDraft, candidateId: string): SetupDraft {
-  const exists = draft.selections.some((s) => s.candidateId === candidateId)
+export function toggleCompanySelection(draft: SetupDraft, companyId: string): SetupDraft {
+  const exists = draft.selections.some((s) => s.companyId === companyId)
   const selections = exists
-    ? draft.selections.filter((s) => s.candidateId !== candidateId)
-    : [...draft.selections, { candidateId, userRelationship: null }]
+    ? draft.selections.filter((s) => s.companyId !== companyId)
+    : [...draft.selections, { companyId, userRelationship: null }]
   return { ...draft, selections }
 }
 
-export function isCandidateSelected(draft: SetupDraft, candidateId: string): boolean {
-  return draft.selections.some((s) => s.candidateId === candidateId)
+export function isCompanySelected(draft: SetupDraft, companyId: string): boolean {
+  return draft.selections.some((s) => s.companyId === companyId)
 }
 
-export function setCandidateRelationship(draft: SetupDraft, candidateId: string, relationship: UserRelationship): SetupDraft {
+// ── Stage 3: CLASSIFY + REVIEW only (no selection here -- Phase 20) ────────
+
+export function setCompanyRelationship(draft: SetupDraft, companyId: string, relationship: UserRelationship): SetupDraft {
   return {
     ...draft,
-    selections: draft.selections.map((s) => (s.candidateId === candidateId ? { ...s, userRelationship: relationship } : s)),
+    selections: draft.selections.map((s) => (s.companyId === companyId ? { ...s, userRelationship: relationship } : s)),
   }
 }
 
@@ -268,57 +339,79 @@ export function reviewCounts(draft: SetupDraft): { total: number; direct: number
   return { total: draft.selections.length, direct, indirect }
 }
 
-// ── Final output: TrackedCompetitor (Stage 3.7/3.8) ─────────────────────────
+// ── Final output: TrackedCompetitor (company-level, Phase 21) ──────────────
 //
-// Kept structurally separate from SetupDraft's own CandidateEntry/
-// SelectedCompetitorDraft (provisional, in-progress) and from the legacy
-// rich static Competitor type (src/data/competitors.json) -- a tracked
+// Kept structurally separate from SetupDraft's own CompanyEntry/
+// SelectedCompanyDraft (provisional, in-progress) and from the legacy rich
+// static Competitor type (src/data/competitors.json) -- a tracked
 // competitor here only ever carries fields a user or Ariya's advisory read
-// actually supplied, never a fabricated profile.
+// actually supplied, never a fabricated profile. userRelationship belongs
+// to the COMPANY; relevantAssets (with their own evidence) are preserved
+// underneath it, never discarded merely because the company became the
+// top-level unit.
 
 export interface TrackedCompetitor {
-  id: string
-  source: CandidateSource
-  displayName: string
-  companyName: string | null
-  innName: string | null
+  companyId: string
+  companyName: string
+  source: CompanySource
   userRelationship: UserRelationship
   ariyaAssessment: AdvisoryRelationship | null
+  relevantAssets: RelevantAssetEntry[]
+  evidenceRefs: string[]
   evidenceStatus: 'not_evaluated' | 'evidence_available'
 }
 
 /** Only classified selections become tracked competitors -- isStage3Valid() is the real gate; this is just the projection. */
 export function draftToTrackedCompetitors(draft: SetupDraft): TrackedCompetitor[] {
-  const byId = new Map(draft.candidates.map((c) => [c.id, c]))
+  const byId = new Map(draft.companies.map((c) => [c.id, c]))
   const result: TrackedCompetitor[] = []
   for (const selection of draft.selections) {
     if (!selection.userRelationship) continue
-    const candidate = byId.get(selection.candidateId)
-    if (!candidate) continue
+    const company = byId.get(selection.companyId)
+    if (!company) continue
     result.push({
-      id: candidate.id,
-      source: candidate.source,
-      displayName: candidate.displayName,
-      companyName: candidate.companyName,
-      innName: candidate.innName,
+      companyId: company.id,
+      companyName: company.companyName,
+      source: company.source,
       userRelationship: selection.userRelationship,
-      ariyaAssessment: candidate.ariyaAssessment,
-      evidenceStatus: candidate.evidenceStatus,
+      ariyaAssessment: company.ariyaAssessment,
+      relevantAssets: company.relevantAssets,
+      evidenceRefs: company.evidenceRefs,
+      evidenceStatus: company.evidenceStatus,
     })
   }
   return result
+}
+
+// ── Home company exclusion (deterministic -- Phase 22) ──────────────────────
+
+/** Deterministic normalization mirroring the backend's own company_grouping_key() closely enough for a frontend-side guard (e.g. blocking a manual add of the home company) -- NOT used for backend promotion, which is Python's job. */
+export function normalizeCompanyName(name: string): string {
+  const GENERIC_SUFFIXES = new Set(['bio', 'biopharma', 'biotech', 'pharma', 'pharmaceuticals', 'therapeutics'])
+  const LEGAL_SUFFIXES = new Set(['inc', 'incorporated', 'ltd', 'limited', 'llc', 'plc', 'corp', 'corporation', 'co', 'company'])
+  let tokens = name.trim().toLowerCase().replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean)
+  while (tokens.length && LEGAL_SUFFIXES.has(tokens[tokens.length - 1])) tokens = tokens.slice(0, -1)
+  while (tokens.length && GENERIC_SUFFIXES.has(tokens[tokens.length - 1])) tokens = tokens.slice(0, -1)
+  return tokens.join(' ') || name.trim().toLowerCase()
+}
+
+/** True when `companyName` resolves to the same company as the draft's own Home Asset -- used to block a manual "competitor" add of the home company itself (Phase 22). */
+export function isHomeCompany(draft: SetupDraft, companyName: string): boolean {
+  const home = resolveHomeAssetDisplay(draft)
+  if (!home?.companyName) return false
+  return normalizeCompanyName(home.companyName) === normalizeCompanyName(companyName)
 }
 
 // ── Cross-landscape staleness (NAV 2) ───────────────────────────────────────
 
 /** True when the draft has Stage 2/3 data that a landscape change would strand. */
 export function hasDownstreamData(draft: SetupDraft): boolean {
-  return draft.candidates.length > 0 || draft.selections.length > 0
+  return draft.companies.length > 0 || draft.selections.length > 0
 }
 
 /** Clears everything downstream of Stage 1 -- used only after explicit user confirmation (NAV 2). */
 export function clearDownstreamData(draft: SetupDraft): SetupDraft {
-  return { ...draft, candidates: [], selections: [] }
+  return { ...draft, companies: [], selections: [] }
 }
 
 // ── Persistence (NAV 3) ──────────────────────────────────────────────────────
@@ -336,7 +429,7 @@ export function loadSetupDraft(): SetupDraft | null {
     const raw = localStorage.getItem(SETUP_DRAFT_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as SetupDraft
-    if (!parsed || typeof parsed !== 'object' || !parsed.landscapeConfiguration) return null
+    if (!parsed || typeof parsed !== 'object' || !parsed.landscapeConfiguration || !Array.isArray(parsed.companies)) return null
     return parsed
   } catch { return null }
 }

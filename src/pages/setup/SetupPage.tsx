@@ -49,16 +49,33 @@ export default function SetupPage() {
     const persisted = loadSetupDraft()
     if (persisted) return persisted
 
-    if (trackedCompetitors.length > 0) {
+    // A tracked competitor persisted before this milestone's company-rooted
+    // rewrite carries the OLD shape (no companyId/relevantAssets/evidenceRefs)
+    // -- filtered out here rather than trusted, so a pre-migration
+    // localStorage entry degrades to "not seeded" instead of crashing Stage 3
+    // on `.relevantAssets.length` of undefined.
+    const validTrackedCompetitors = trackedCompetitors.filter(
+      (c): c is typeof c & { companyId: string; companyName: string } =>
+        typeof c.companyId === 'string' && typeof c.companyName === 'string',
+    )
+
+    if (validTrackedCompetitors.length > 0) {
       // Re-editing an already-completed setup: seed Stage 1 + Stage 3 from
       // what's already configured, never guessing anything not already there.
       const seeded = createEmptySetupDraft(landscapeConfiguration)
       seeded.stage = 'configure'
-      seeded.candidates = trackedCompetitors.map((c) => ({
-        id: c.id, source: c.source, displayName: c.displayName, companyName: c.companyName, innName: c.innName,
-        ariyaAssessment: c.ariyaAssessment, evidenceStatus: c.evidenceStatus, evidenceSummary: null, sourceReferences: [],
+      seeded.companies = validTrackedCompetitors.map((c) => ({
+        id: c.companyId,
+        source: c.source,
+        companyName: c.companyName,
+        relevantAssets: c.relevantAssets ?? [],
+        ariyaAssessment: c.ariyaAssessment,
+        evidenceStatus: c.evidenceStatus,
+        evidenceRefs: c.evidenceRefs ?? [],
+        verifiedDomains: [],
+        whySuggested: null,
       }))
-      seeded.selections = trackedCompetitors.map((c) => ({ candidateId: c.id, userRelationship: c.userRelationship }))
+      seeded.selections = validTrackedCompetitors.map((c) => ({ companyId: c.companyId, userRelationship: c.userRelationship }))
       return seeded
     }
 

@@ -2,34 +2,42 @@ import { useEffect, useRef, useState } from 'react'
 import { getTherapeuticAreaById, getDiseaseAreaById } from '../../config/therapeutic-areas'
 import {
   type SetupDraft,
-  type CandidateEntry,
+  type CompanyEntry,
   resolveHomeAssetDisplay,
-  addManualCandidate,
-  setDiscoveredCandidates,
+  addManualCompany,
+  setSuggestedCompanies,
+  toggleCompanySelection,
+  isCompanySelected,
+  isHomeCompany,
 } from '../../config/setup-draft'
 import { useDiscovery } from '../../hooks/useDiscovery'
 import type { DiscoveryResult } from '../../lib/api/discovery'
 import { Button } from '../../components/shadcn/ui/button'
 import { Badge } from '../../components/shadcn/ui/badge'
+import { Checkbox } from '../../components/shadcn/ui/checkbox'
 import { Separator } from '../../components/shadcn/ui/separator'
 import { Input } from '../../components/shadcn/ui/input'
 import { Spinner } from '../../components/shadcn/ui/spinner'
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent, EmptyMedia } from '../../components/shadcn/ui/empty'
-import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions, ItemGroup } from '../../components/shadcn/ui/item'
+import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions, ItemMedia, ItemGroup } from '../../components/shadcn/ui/item'
 import { PlugZapIcon, PlusIcon, SearchIcon } from 'lucide-react'
 import AddCompetitorDialog from './AddCompetitorDialog'
-import CandidateEvidenceSheet from './CandidateEvidenceSheet'
+import CompanyEvidenceSheet from './CompanyEvidenceSheet'
+
+const RELATIONSHIP_LABEL: Record<string, string> = { direct: 'Direct', indirect: 'Indirect', unclear: 'Unclear' }
 
 /**
- * Stage2Discover.tsx — "Find competitors". Calls the REAL discovery client
- * (useDiscovery()/src/lib/api/discovery.ts, from commit b45033c) directly --
- * there is no separate "setup discovery adapter" anymore (see this
- * migration's own checkpoint, section I, for why the temporary
- * discoveryAdapter.ts was removed rather than kept as a second discovery
- * architecture). idle/loading/success/empty/error all come straight from
- * useDiscovery()'s own state machine. An unreachable/erroring backend never
- * falls back to suggestedCompetitors, discovered-candidates.json, or any
- * static HAE list -- manual competitor addition remains the only fallback.
+ * Stage2Discover.tsx — "Find + select competitors" (Phase 15/16). Calls the
+ * REAL discovery client (useDiscovery()/src/lib/api/discovery.ts) directly.
+ * The unit rendered here is always a COMPANY (SuggestedCompanySuggestion),
+ * never a raw candidate or a bare asset -- see setup-draft.ts's
+ * suggestedCompanyToEntry, the one place that shape conversion happens.
+ *
+ * Selection happens HERE (Checkbox, Phase 16/20) -- Stage 3 only classifies
+ * what was already selected. `needs_more_evidence` is never the dominant
+ * visible text (Phase 17): a card leads with company name, relevant assets,
+ * why Ariya suggested it, and its advisory assessment; candidate-status is
+ * only a small badge inside "Review evidence".
  */
 export default function Stage2Discover({
   draft,
@@ -45,7 +53,7 @@ export default function Stage2Discover({
   const { state, run } = useDiscovery()
   const [addOpen, setAddOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [reviewing, setReviewing] = useState<CandidateEntry | null>(null)
+  const [reviewing, setReviewing] = useState<CompanyEntry | null>(null)
   const lastMergedResultRef = useRef<DiscoveryResult | null>(null)
 
   const therapeuticArea = draft.landscapeConfiguration.therapeuticAreaId
@@ -58,48 +66,43 @@ export default function Stage2Discover({
 
   function runDiscovery() {
     if (!diseaseArea || !homeAsset) return
-    // Manual asset identity and Disease Area's own canonical name -- the
-    // exact same request mapping /competitors/discover already uses. No
-    // Therapeutic Area is sent: the backend has no such concept (see
-    // discovery.ts's own DiscoveryRequest docstring).
-    run({ homeAsset: homeAsset.displayName, indication: diseaseArea.name })
+    // Home company travels with the request (Phase 3/6) so the backend can
+    // deterministically exclude it -- never resolved by asking an AI model
+    // whether the home company competes with itself.
+    run({ homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName })
   }
 
-  // Attempt discovery once per stage visit -- never silently, never
-  // repeatedly on every render. Skipped when resuming a draft that already
-  // has candidates (manual entries from a prior visit) -- a resumed error
-  // re-check must never hide what the user already added.
+  // Attempt discovery once per stage visit -- skipped when resuming a draft
+  // that already has companies (manual entries from a prior visit).
   useEffect(() => {
-    if (draft.candidates.length === 0) runDiscovery()
+    if (draft.companies.length === 0) runDiscovery()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Merge a genuinely new discovery result into the draft exactly once --
-  // guarded by object identity so this never loops (state.result only
-  // changes reference when useDiscovery() completes a fresh request).
+  // guarded by object identity so this never loops.
   useEffect(() => {
     if (
       (state.status === 'success' || state.status === 'empty') &&
       state.result !== lastMergedResultRef.current
     ) {
       lastMergedResultRef.current = state.result
-      onChange(setDiscoveredCandidates(draft, state.result.candidates))
+      onChange(setSuggestedCompanies(draft, state.result.suggestedCompanies))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
-  const hasCandidates = draft.candidates.length > 0
+  const hasCompanies = draft.companies.length > 0
 
-  const filtered = draft.candidates.filter((c) => {
+  const filtered = draft.companies.filter((c) => {
     const q = query.trim().toLowerCase()
     if (!q) return true
-    return c.displayName.toLowerCase().includes(q) || (c.companyName ?? '').toLowerCase().includes(q)
+    if (c.companyName.toLowerCase().includes(q)) return true
+    return c.relevantAssets.some((a) => a.identityKey.toLowerCase().includes(q))
   })
 
-  // Adding a competitor manually always surfaces the candidate list -- an
-  // error/loading discovery phase must never hide a manually added entry.
-  function handleAddManualCandidate(input: { companyName: string; assetName: string | null; innName: string | null }) {
-    onChange(addManualCandidate(draft, input))
+  function handleAddManualCompany(input: { companyName: string; assetName: string | null; innName: string | null }) {
+    onChange(addManualCompany(draft, input))
   }
 
   return (
@@ -113,7 +116,7 @@ export default function Stage2Discover({
         <span className="text-xs text-muted-foreground">Home asset</span>
         <Badge>{homeAsset?.displayName ?? '—'}</Badge>
         {homeAsset?.innName && <span className="text-xs text-muted-foreground italic">{homeAsset.innName}</span>}
-        {homeAsset?.company && <span className="text-xs text-muted-foreground">· {homeAsset.company}</span>}
+        {homeAsset?.companyName && <span className="text-xs text-muted-foreground">· {homeAsset.companyName}</span>}
       </div>
 
       {/* ── Loading ── */}
@@ -122,13 +125,13 @@ export default function Stage2Discover({
           <EmptyHeader>
             <EmptyMedia variant="icon"><Spinner className="size-5" /></EmptyMedia>
             <EmptyTitle>Ariya is analysing the competitive landscape</EmptyTitle>
-            <EmptyDescription>Searching companies and assets · Evaluating evidence · Building candidate landscape</EmptyDescription>
+            <EmptyDescription>Searching companies and assets · Evaluating evidence · Resolving competitor companies</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
 
       {/* ── Error/unavailable -- only blocks the whole stage while there's nothing else to show ── */}
-      {state.status === 'error' && !hasCandidates && (
+      {state.status === 'error' && !hasCompanies && (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon"><PlugZapIcon className="size-4" /></EmptyMedia>
@@ -144,8 +147,8 @@ export default function Stage2Discover({
         </Empty>
       )}
 
-      {/* ── Candidate list (search) -- shown whenever there's anything to show, independent of discovery phase ── */}
-      {state.status !== 'loading' && hasCandidates && (
+      {/* ── Company list (search) -- shown whenever there's anything to show, independent of discovery phase ── */}
+      {state.status !== 'loading' && hasCompanies && (
         <div className="flex flex-col gap-3">
           {state.status === 'error' && (
             <p className="text-xs text-muted-foreground">Discovery is currently unavailable — showing manually added competitors.</p>
@@ -156,7 +159,7 @@ export default function Stage2Discover({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search candidates…"
+                placeholder="Search companies…"
                 className="pl-8"
               />
             </div>
@@ -166,44 +169,55 @@ export default function Stage2Discover({
           </div>
 
           {filtered.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">No candidates match "{query}".</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">No companies match "{query}".</p>
           ) : (
             <ItemGroup>
-              {filtered.map((candidate) => (
-                <Item key={candidate.id} variant="outline">
-                  <ItemContent>
-                    <ItemTitle>
-                      {candidate.companyName && candidate.companyName !== candidate.displayName
-                        ? `${candidate.companyName} — ${candidate.displayName}`
-                        : candidate.displayName}
-                    </ItemTitle>
-                    <ItemDescription>
-                      {candidate.source === 'manual' ? (
-                        <>Added manually · Evidence not yet evaluated</>
-                      ) : (
-                        <>
-                          {candidate.discovered?.candidateStatus.replace(/_/g, ' ') ?? 'Evidence available'}
-                          {candidate.ariyaAssessment ? ` · Ariya assessment: Likely ${candidate.ariyaAssessment}` : ''}
-                        </>
+              {filtered.map((company) => {
+                const selected = isCompanySelected(draft, company.id)
+                return (
+                  <Item key={company.id} variant={selected ? 'outline' : 'muted'}>
+                    <ItemMedia>
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => onChange(toggleCompanySelection(draft, company.id))}
+                        aria-label={`Select ${company.companyName}`}
+                      />
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>{company.companyName}</ItemTitle>
+                      <ItemDescription>
+                        {company.relevantAssets.length > 0
+                          ? company.relevantAssets.map((a) => a.identityKey).join(', ')
+                          : company.source === 'manual' ? 'No specific asset recorded' : 'Relevant asset not identified'}
+                      </ItemDescription>
+                      {company.whySuggested && (
+                        <p className="mt-1 text-xs text-muted-foreground">{company.whySuggested}</p>
                       )}
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    <Button variant="ghost" size="sm" onClick={() => setReviewing(candidate)}>Review →</Button>
-                  </ItemActions>
-                </Item>
-              ))}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        {company.source === 'manual' ? (
+                          <Badge variant="outline" className="text-xs">Added manually</Badge>
+                        ) : company.ariyaAssessment ? (
+                          <Badge variant="outline" className="text-xs">Ariya assessment: Likely {RELATIONSHIP_LABEL[company.ariyaAssessment]}</Badge>
+                        ) : null}
+                      </div>
+                    </ItemContent>
+                    <ItemActions>
+                      <Button variant="ghost" size="sm" onClick={() => setReviewing(company)}>Review evidence →</Button>
+                    </ItemActions>
+                  </Item>
+                )
+              })}
             </ItemGroup>
           )}
         </div>
       )}
 
-      {/* No candidates at all yet, but discovery hasn't failed (e.g. a fresh idle state with nothing added) */}
-      {state.status === 'idle' && !hasCandidates && (
+      {/* No companies at all yet, but discovery hasn't failed */}
+      {state.status === 'idle' && !hasCompanies && (
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>No competitors yet</EmptyTitle>
-            <EmptyDescription>Add a known competitor manually to continue.</EmptyDescription>
+            <EmptyTitle>No competitor companies yet</EmptyTitle>
+            <EmptyDescription>Add a known competitor company manually to continue.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button onClick={() => setAddOpen(true)}><PlusIcon /> Add competitor</Button>
@@ -211,16 +225,21 @@ export default function Stage2Discover({
         </Empty>
       )}
 
+      {(state.status === 'success' || state.status === 'empty') && hasCompanies && draft.companies.every((c) => c.source === 'manual') && (
+        <p className="text-xs text-muted-foreground">Ariya didn't surface any additional companies for this landscape — showing manually added competitors.</p>
+      )}
+
       <AddCompetitorDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onAdd={handleAddManualCandidate}
+        onAdd={handleAddManualCompany}
+        isHomeCompany={(companyName) => isHomeCompany(draft, companyName)}
       />
-      <CandidateEvidenceSheet candidate={reviewing} open={!!reviewing} onOpenChange={(open) => { if (!open) setReviewing(null) }} />
+      <CompanyEvidenceSheet company={reviewing} open={!!reviewing} onOpenChange={(open) => { if (!open) setReviewing(null) }} />
 
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button onClick={onContinue}>Continue</Button>
+        <Button onClick={onContinue} disabled={draft.selections.length === 0}>Continue</Button>
       </div>
     </div>
   )

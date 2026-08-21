@@ -9,6 +9,10 @@ import { Field, FieldLabel, FieldGroup } from '../../components/shadcn/ui/field'
  * metadata (mechanism, phase, competitors, lexicon, evidence, posture) --
  * Ariya provides intelligence later, the user only provides identity here.
  *
+ * Company is REQUIRED (Phase 6): without a resolved home company, Ariya
+ * cannot reliably exclude it from its own competitor suggestions later --
+ * see setup-draft.ts's attachManualHomeAsset/needsHomeCompanyConfirmation.
+ *
  * Viewport-safe per this phase's overlay rule even though this form is
  * short today -- same structural contract as every other dialog in this
  * flow, so it never needs revisiting if fields are added later.
@@ -20,7 +24,7 @@ export default function AddAssetDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (input: { displayName: string; innName: string | null; company: string | null }) => void
+  onAdd: (input: { displayName: string; innName: string | null; company: string }) => void
 }) {
   const [displayName, setDisplayName] = useState('')
   const [innName, setInnName] = useState('')
@@ -33,8 +37,8 @@ export default function AddAssetDialog({
   }
 
   function handleAdd() {
-    if (!displayName.trim()) return
-    onAdd({ displayName, innName: innName || null, company: company || null })
+    if (!displayName.trim() || !company.trim()) return
+    onAdd({ displayName, innName: innName || null, company })
     reset()
     onOpenChange(false)
   }
@@ -71,7 +75,7 @@ export default function AddAssetDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="manual-asset-company">Company</FieldLabel>
+              <FieldLabel htmlFor="manual-asset-company">Company *</FieldLabel>
               <Input
                 id="manual-asset-company"
                 value={company}
@@ -84,7 +88,7 @@ export default function AddAssetDialog({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false) }}>Cancel</Button>
-          <Button onClick={handleAdd} disabled={!displayName.trim()}>Add asset</Button>
+          <Button onClick={handleAdd} disabled={!displayName.trim() || !company.trim()}>Add asset</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

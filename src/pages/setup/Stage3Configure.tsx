@@ -3,31 +3,28 @@ import {
   type SetupDraft,
   type UserRelationship,
   resolveHomeAssetDisplay,
-  toggleCandidateSelection,
-  isCandidateSelected,
-  setCandidateRelationship,
+  setCompanyRelationship,
   isStage3Valid,
   reviewCounts,
 } from '../../config/setup-draft'
 import { Button } from '../../components/shadcn/ui/button'
 import { Badge } from '../../components/shadcn/ui/badge'
-import { Checkbox } from '../../components/shadcn/ui/checkbox'
 import { ToggleGroup, ToggleGroupItem } from '../../components/shadcn/ui/toggle-group'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/shadcn/ui/card'
 import { Separator } from '../../components/shadcn/ui/separator'
-import { Item, ItemContent, ItemTitle, ItemDescription, ItemMedia, ItemGroup } from '../../components/shadcn/ui/item'
+import { Item, ItemContent, ItemTitle, ItemDescription, ItemGroup } from '../../components/shadcn/ui/item'
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '../../components/shadcn/ui/empty'
 
 const RELATIONSHIP_LABEL: Record<string, string> = { direct: 'Direct', indirect: 'Indirect', unclear: 'Unclear' }
 
 /**
- * Stage3Configure.tsx — "Configure landscape". The critical product
- * contract: Ariya's advisory read ("Ariya assessment / Likely Direct") and
- * the user's own classification are two separate, never-merged concepts.
- * A candidate is not tracked merely because it was discovered, and not
- * tracked merely because Ariya considers it Direct -- explicit selection
- * (Checkbox) and explicit classification (ToggleGroup, never defaulted)
- * are both required before it can enter the landscape.
+ * Stage3Configure.tsx — "Classify + review" (Phase 15/20 fixed decision).
+ * Selection already happened in Stage 2 -- this stage operates ONLY on
+ * draft.selections (the companies the user already checked) and has no
+ * Checkbox of its own. Ariya's advisory read ("Ariya assessment / Likely
+ * Direct") and the user's own classification remain two separate, never-
+ * merged concepts: Direct/Indirect always starts EMPTY here, never
+ * defaulted from ariyaAssessment.
  */
 export default function Stage3Configure({
   draft,
@@ -54,13 +51,18 @@ export default function Stage3Configure({
   const counts = reviewCounts(draft)
   const hasUnclassifiedSelection = draft.selections.some((s) => s.userRelationship === null)
 
-  if (draft.candidates.length === 0) {
+  const byId = new Map(draft.companies.map((c) => [c.id, c]))
+  const selectedCompanies = draft.selections
+    .map((s) => ({ selection: s, company: byId.get(s.companyId) }))
+    .filter((entry): entry is { selection: (typeof draft.selections)[number]; company: (typeof draft.companies)[number] } => !!entry.company)
+
+  if (selectedCompanies.length === 0) {
     return (
       <div className="flex flex-col gap-6">
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>No competitors to configure yet</EmptyTitle>
-            <EmptyDescription>Go back to Find competitors and add at least one before continuing.</EmptyDescription>
+            <EmptyTitle>No competitors selected yet</EmptyTitle>
+            <EmptyDescription>Go back to Find + select competitors and choose at least one before continuing.</EmptyDescription>
           </EmptyHeader>
         </Empty>
         <div className="flex justify-start pt-2">
@@ -73,56 +75,40 @@ export default function Stage3Configure({
   return (
     <div className="flex flex-col gap-6">
       <ItemGroup>
-        {draft.candidates.map((candidate) => {
-          const selected = isCandidateSelected(draft, candidate.id)
-          const selection = draft.selections.find((s) => s.candidateId === candidate.id)
-          return (
-            <Item key={candidate.id} variant={selected ? 'outline' : 'muted'}>
-              <ItemMedia>
-                <Checkbox
-                  checked={selected}
-                  onCheckedChange={() => onChange(toggleCandidateSelection(draft, candidate.id))}
-                  aria-label={`Select ${candidate.displayName}`}
-                />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>
-                  {candidate.companyName && candidate.companyName !== candidate.displayName
-                    ? `${candidate.companyName} — ${candidate.displayName}`
-                    : candidate.displayName}
-                </ItemTitle>
-                <ItemDescription>
-                  {candidate.ariyaAssessment ? (
-                    <>Ariya assessment / Likely {RELATIONSHIP_LABEL[candidate.ariyaAssessment]}</>
-                  ) : candidate.source === 'manual' ? (
-                    'Added manually'
-                  ) : (
-                    'No Ariya assessment available'
-                  )}
-                </ItemDescription>
+        {selectedCompanies.map(({ selection, company }) => (
+          <Item key={company.id} variant="outline">
+            <ItemContent>
+              <ItemTitle>{company.companyName}</ItemTitle>
+              <ItemDescription>
+                {company.relevantAssets.length > 0
+                  ? company.relevantAssets.map((a) => a.identityKey).join(', ')
+                  : company.source === 'manual' ? 'Added manually' : 'Relevant asset not identified'}
+              </ItemDescription>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {company.ariyaAssessment
+                  ? `Ariya assessment / Likely ${RELATIONSHIP_LABEL[company.ariyaAssessment]}`
+                  : 'No Ariya assessment available'}
+              </p>
 
-                {selected && (
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Your classification *</p>
-                    <ToggleGroup
-                      type="single"
-                      variant="outline"
-                      size="sm"
-                      value={selection?.userRelationship ?? undefined}
-                      onValueChange={(value) => { if (value) onChange(setCandidateRelationship(draft, candidate.id, value as UserRelationship)) }}
-                    >
-                      <ToggleGroupItem value="direct">Direct</ToggleGroupItem>
-                      <ToggleGroupItem value="indirect">Indirect</ToggleGroupItem>
-                    </ToggleGroup>
-                    {!selection?.userRelationship && (
-                      <p className="text-xs text-destructive">Choose Direct or Indirect to include this competitor.</p>
-                    )}
-                  </div>
+              <div className="mt-2 flex flex-col gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Your classification *</p>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  value={selection.userRelationship ?? undefined}
+                  onValueChange={(value) => { if (value) onChange(setCompanyRelationship(draft, company.id, value as UserRelationship)) }}
+                >
+                  <ToggleGroupItem value="direct">Direct</ToggleGroupItem>
+                  <ToggleGroupItem value="indirect">Indirect</ToggleGroupItem>
+                </ToggleGroup>
+                {!selection.userRelationship && (
+                  <p className="text-xs text-destructive">Choose Direct or Indirect to include this competitor.</p>
                 )}
-              </ItemContent>
-            </Item>
-          )
-        })}
+              </div>
+            </ItemContent>
+          </Item>
+        ))}
       </ItemGroup>
 
       {/* ── Stage 3.5 review summary ── */}
@@ -152,10 +138,7 @@ export default function Stage3Configure({
           <Button onClick={onEnterAriya} disabled={!valid}>Enter Ariya</Button>
         </div>
       </div>
-      {!valid && counts.total === 0 && (
-        <p className="text-right text-xs text-muted-foreground">Select at least one competitor to continue.</p>
-      )}
-      {!valid && counts.total > 0 && hasUnclassifiedSelection && (
+      {!valid && hasUnclassifiedSelection && (
         <p className="text-right text-xs text-muted-foreground">Every selected competitor needs a Direct/Indirect classification.</p>
       )}
     </div>

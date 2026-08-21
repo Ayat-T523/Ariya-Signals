@@ -18,6 +18,18 @@ export interface AssetConfig {
   innName: string
   indication: string
   indicationFull: string
+  /**
+   * The company that develops/owns/sponsors this asset -- REQUIRED for
+   * deterministic home-company exclusion when this asset is selected as
+   * Home Asset (see setup-draft.ts's isHomeCompany/needsHomeCompanyConfirmation).
+   * Optional here on purpose: only set where it's a verified, already-real
+   * fact already established elsewhere in this app (src/data/competitors.json's
+   * own company/product records, or this milestone's own live backend
+   * discovery evidence for sebetralstat/KalVista) -- never guessed from
+   * general knowledge. An entry with no `company` is a genuine, honest gap;
+   * Stage 1 prompts the user to confirm it rather than silently proceeding.
+   */
+  company?: string
   suggestedCompetitors: string[]
   /** INNs and brand synonyms used to gate whether a live signal is relevant to this asset's TA. */
   lexiconInns: string[]
@@ -44,6 +56,11 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     id: 'ekterly',
     brandName: 'Ekterly',
     innName: 'sebetralstat',
+    // Verified via this milestone's own live backend discovery evidence:
+    // "KalVista Pharmaceuticals, Ltd." is the real CT.gov-declared sponsor
+    // organization for sebetralstat/KVD900/KVD824 trials (confirmed in the
+    // live gMG/HAE smoke tests run earlier in this project).
+    company: 'KalVista',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
     diseaseAreaId: 'hae',
@@ -106,6 +123,10 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     id: 'takhzyro',
     brandName: 'Takhzyro',
     innName: 'lanadelumab',
+    // Verified via src/data/competitors.json's own existing company/product
+    // record (id "takeda", product "Takhzyro") -- also consistent with this
+    // entry's own suggestedCompetitors list excluding "takeda".
+    company: 'Takeda',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
     diseaseAreaId: 'hae',
@@ -126,6 +147,9 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     id: 'orladeyo',
     brandName: 'Orladeyo',
     innName: 'berotralstat',
+    // Verified via src/data/competitors.json's own existing company/product
+    // record (id "biocryst", product "Orladeyo").
+    company: 'BioCryst',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
     diseaseAreaId: 'hae',
@@ -146,6 +170,9 @@ export const ASSETS_CONFIG: AssetConfig[] = [
     id: 'deucrictibant',
     brandName: 'Deucrictibant',
     innName: 'deucrictibant',
+    // Verified via src/data/competitors.json's own existing company/product
+    // record (id "pharvaris", product "Deucrictibant").
+    company: 'Pharvaris',
     indication: 'HAE',
     indicationFull: 'Hereditary Angioedema',
     diseaseAreaId: 'hae',
