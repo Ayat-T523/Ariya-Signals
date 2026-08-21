@@ -70,6 +70,11 @@ export default function CompanyEvidenceSheet({
                             </Badge>
                           )}
                         </div>
+                        {asset.historicalOrganizationName && (
+                          <p className="mb-1 text-xs text-muted-foreground">
+                            Historical sponsor: {asset.historicalOrganizationName}
+                          </p>
+                        )}
                         {asset.detail && <p className="text-xs text-muted-foreground">{asset.detail}</p>}
                         {asset.evidenceGaps.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1">

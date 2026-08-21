@@ -1,13 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { THERAPEUTIC_AREAS } from '../../config/therapeutic-areas'
-import {
-  getDiseaseAreasForTherapeuticArea,
-  getAssetsForDiseaseArea,
-} from '../../config/landscape-configuration'
+import { getAssetsForDiseaseArea, getAssetsForResolvedDiseaseArea } from '../../config/landscape-configuration'
 import {
   type SetupDraft,
   selectTherapeuticArea,
-  selectDiseaseArea,
+  selectResolvedDiseaseArea,
+  clearDiseaseArea,
   attachManualDiseaseArea,
   selectKnownHomeAsset,
   attachManualHomeAsset,
@@ -15,40 +13,44 @@ import {
   clearHomeAsset,
   confirmHomeCompany,
   resolveHomeAssetDisplay,
+  resolveDiseaseAreaDisplay,
   needsHomeCompanyConfirmation,
   assetDiseaseAreaAgreement,
   isStage1Valid,
 } from '../../config/setup-draft'
 import { useAssetSearch } from '../../hooks/useAssetSearch'
+import { useDiseaseSearch } from '../../hooks/useDiseaseSearch'
 import type { ResolvedAssetIdentity } from '../../lib/api/assetSearch'
+import type { ResolvedDiseaseArea } from '../../lib/api/diseaseSearch'
+import type { AssetConfig } from '../../config/assets-config'
 import { Button } from '../../components/shadcn/ui/button'
 import { Input } from '../../components/shadcn/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/shadcn/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../../components/shadcn/ui/command'
 import { Field, FieldLabel } from '../../components/shadcn/ui/field'
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from '../../components/shadcn/ui/empty'
 import { Alert, AlertTitle, AlertDescription } from '../../components/shadcn/ui/alert'
 import { Spinner } from '../../components/shadcn/ui/spinner'
-import { CheckIcon, ChevronsUpDownIcon, PlugZapIcon, PlusIcon, SearchXIcon, TriangleAlertIcon } from 'lucide-react'
+import { CheckIcon, ChevronsUpDownIcon, PlugZapIcon, PlusIcon, SearchIcon, TriangleAlertIcon } from 'lucide-react'
 import AddAssetDialog from './AddAssetDialog'
 import AddDiseaseAreaDialog from './AddDiseaseAreaDialog'
 
 /**
  * Stage1Define.tsx — "Define your landscape" (Landscape category -> Disease
- * Area -> Home/Reference Asset). Landscape Input Resolution milestone:
+ * Area -> Home/Reference Asset). Root-Cause Recon implementation:
  *
- *  - Category is now the full 22-entry grouped catalog (therapeutic-areas.ts)
- *    behind the same Popover+Command combobox pattern already used for Home
- *    Asset, grouped by categoryType (Phase 27's own justification for that
- *    pattern applies unchanged: shadcn has no separate first-class Combobox
- *    component, Popover+Command IS the documented composition).
- *  - Disease Area gets the same combobox, with known catalog entries first
- *    and a manual fallback that's always reachable, never a dead end.
- *  - Home Asset search now merges the local catalog (instant) with a
- *    debounced backend resolver (useAssetSearch/assetSearch.ts) — brand,
- *    INN, development code, or alias all converge on one identity server-
- *    side; this component only renders whatever it's handed, never
- *    reclassifies or fabricates a field.
+ * The category combobox stays a Popover+Command trigger (a genuine
+ * SELECT-shaped interaction is correct there — 22 fixed options, no free-
+ * text identity to resolve). Disease Area and Home Asset are DIFFERENT:
+ * both need a real search+dropdown, and the recon found the previous
+ * Button-as-trigger version of that pattern reads as a Select even though
+ * it composes Popover+Command correctly. Fixed here by making the visible
+ * closed-state control an actual <Input> (via InlineSearchField below) —
+ * typing is possible immediately, no click-to-reveal-a-textbox step, and
+ * the results list is a normal in-flow element under the input (never a
+ * Popover), which also sidesteps the shouldFilter={false}-disables-local-
+ * filtering bug: local and remote results are merged and ranked together
+ * in ONE array before render, so there is no second, separately-filtered
+ * group for that prop to break.
  */
 export default function Stage1Define({
   draft,
@@ -60,36 +62,20 @@ export default function Stage1Define({
   onContinue: () => void
 }) {
   const [taOpen, setTaOpen] = useState(false)
-  const [daOpen, setDaOpen] = useState(false)
-  const [assetSearchOpen, setAssetSearchOpen] = useState(false)
   const [addAssetOpen, setAddAssetOpen] = useState(false)
   const [addDiseaseAreaOpen, setAddDiseaseAreaOpen] = useState(false)
   const [companyInput, setCompanyInput] = useState('')
-  const { state: assetSearchState, search: runAssetSearch, reset: resetAssetSearch } = useAssetSearch()
 
   const { therapeuticAreaId, diseaseAreaId, homeAssetId } = draft.landscapeConfiguration
-  const diseaseAreas = therapeuticAreaId ? getDiseaseAreasForTherapeuticArea(therapeuticAreaId) : []
-  const knownAssets = diseaseAreaId ? getAssetsForDiseaseArea(diseaseAreaId) : []
   const homeAssetDisplay = resolveHomeAssetDisplay(draft)
+  const diseaseAreaDisplay = resolveDiseaseAreaDisplay(draft)
   const needsCompany = needsHomeCompanyConfirmation(draft)
   const mismatch = assetDiseaseAreaAgreement(draft)
   const valid = isStage1Valid(draft)
 
   const selectedTa = THERAPEUTIC_AREAS.find((ta) => ta.id === therapeuticAreaId)
-  const selectedDa = diseaseAreas.find((da) => da.id === diseaseAreaId)
   const standardAreas = THERAPEUTIC_AREAS.filter((c) => c.categoryType === 'therapeutic_area')
   const crossCuttingAreas = THERAPEUTIC_AREAS.filter((c) => c.categoryType === 'cross_cutting')
-
-  const knownAssetIds = new Set(knownAssets.map((a) => a.id))
-  const searchResults: ResolvedAssetIdentity[] = assetSearchState.status === 'results'
-    ? assetSearchState.results.filter((r) => !knownAssetIds.has(r.id))
-    : []
-
-  function handleSelectResolvedAsset(identity: ResolvedAssetIdentity) {
-    onChange(selectResolvedAsset(draft, identity))
-    setAssetSearchOpen(false)
-    resetAssetSearch()
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,61 +127,19 @@ export default function Stage1Define({
         <FieldLabel>Disease Area</FieldLabel>
         {!therapeuticAreaId ? (
           <p className="text-sm text-muted-foreground italic">Select a Landscape Category first.</p>
-        ) : draft.manualDiseaseArea && draft.manualDiseaseArea.id === diseaseAreaId ? (
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 sm:w-96">
-            <div className="flex-1">
-              <p className="text-sm font-medium">{draft.manualDiseaseArea.name}</p>
-              <p className="text-xs text-muted-foreground">Added manually</p>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setAddDiseaseAreaOpen(true)}>Change</Button>
-          </div>
+        ) : diseaseAreaDisplay ? (
+          <SelectedSummaryCard
+            title={diseaseAreaDisplay.name}
+            subtitle={diseaseAreaDisplay.source === 'manual' ? 'Added manually' : diseaseAreaDisplay.aliases?.slice(0, 3).join(', ')}
+            onChange={() => onChange(clearDiseaseArea(draft))}
+          />
         ) : (
-          <div className="flex flex-col gap-2 sm:w-96">
-            <Popover open={daOpen} onOpenChange={setDaOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={daOpen} className="w-full justify-between">
-                  {selectedDa?.name ?? 'Search disease / indication…'}
-                  <ChevronsUpDownIcon className="opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full max-h-[60vh] overflow-hidden p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search disease / indication…" />
-                  <CommandList>
-                    <CommandEmpty>
-                      <div className="flex flex-col items-center gap-2 py-2">
-                        <span className="text-sm text-muted-foreground">Not configured yet.</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { setDaOpen(false); setAddDiseaseAreaOpen(true) }}
-                        >
-                          <PlusIcon /> Add disease area
-                        </Button>
-                      </div>
-                    </CommandEmpty>
-                    {diseaseAreas.length > 0 && (
-                      <CommandGroup heading="Known disease areas">
-                        {diseaseAreas.map((da) => (
-                          <CommandItem
-                            key={da.id}
-                            value={da.name}
-                            onSelect={() => { onChange(selectDiseaseArea(draft, da.id)); setDaOpen(false) }}
-                          >
-                            <CheckIcon className={diseaseAreaId === da.id ? 'opacity-100' : 'opacity-0'} />
-                            {da.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <Button variant="ghost" size="sm" className="self-start" onClick={() => setAddDiseaseAreaOpen(true)}>
-              <PlusIcon /> Add disease area manually
-            </Button>
-          </div>
+          <DiseaseAreaSearchField
+            therapeuticAreaId={therapeuticAreaId}
+            homeAssetId={homeAssetId}
+            onSelect={(resolved) => onChange(selectResolvedDiseaseArea(draft, resolved))}
+            onAddManual={() => setAddDiseaseAreaOpen(true)}
+          />
         )}
       </Field>
 
@@ -204,26 +148,18 @@ export default function Stage1Define({
         {!diseaseAreaId ? (
           <p className="text-sm text-muted-foreground italic">Select a Disease Area first.</p>
         ) : draft.manualAsset && draft.manualAsset.id === homeAssetId ? (
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 sm:w-96">
-            <div className="flex-1">
-              <p className="text-sm font-medium">{draft.manualAsset.displayName}</p>
-              <p className="text-xs text-muted-foreground">
-                {[draft.manualAsset.innName, draft.manualAsset.company].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setAddAssetOpen(true)}>Change</Button>
-          </div>
+          <SelectedSummaryCard
+            title={draft.manualAsset.displayName}
+            subtitle={[draft.manualAsset.innName, draft.manualAsset.company].filter(Boolean).join(' · ')}
+            onChange={() => setAddAssetOpen(true)}
+          />
         ) : homeAssetDisplay && homeAssetId ? (
           <div className="flex flex-col gap-2 sm:w-96">
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5">
-              <div className="flex-1">
-                <p className="text-sm font-medium">{homeAssetDisplay.displayName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {[homeAssetDisplay.innName, homeAssetDisplay.companyName].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => onChange(clearHomeAsset(draft))}>Change</Button>
-            </div>
+            <SelectedSummaryCard
+              title={homeAssetDisplay.displayName}
+              subtitle={[homeAssetDisplay.innName, homeAssetDisplay.companyName].filter(Boolean).join(' · ')}
+              onChange={() => onChange(clearHomeAsset(draft))}
+            />
             {(homeAssetDisplay.mechanismOfAction?.length || homeAssetDisplay.indicationContexts?.length || homeAssetDisplay.aliases?.length) ? (
               <div className="rounded-lg border p-3 text-xs">
                 <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Asset context</p>
@@ -243,23 +179,20 @@ export default function Stage1Define({
                 <TriangleAlertIcon />
                 <AlertTitle>Asset not verified for this Disease Area</AlertTitle>
                 <AlertDescription>
-                  This asset's own evidence doesn't confirm it for {selectedDa?.name ?? draft.manualDiseaseArea?.name}. Choose another asset, change the Disease Area, or continue only if you're confident this is correct.
+                  This asset's own evidence doesn't confirm it for {diseaseAreaDisplay?.name}. Choose another asset, change the Disease Area, or continue only if you're confident this is correct.
                 </AlertDescription>
               </Alert>
             )}
           </div>
         ) : (
-          <AssetSearchCombobox
-            open={assetSearchOpen}
-            onOpenChange={setAssetSearchOpen}
-            knownAssets={knownAssets}
+          <AssetSearchField
+            diseaseAreaId={diseaseAreaId}
+            diseaseAreaName={diseaseAreaDisplay?.name}
+            diseaseAreaAliases={diseaseAreaDisplay?.aliases}
             homeAssetId={homeAssetId}
-            searchState={assetSearchState}
-            searchResults={searchResults}
-            onSearchChange={runAssetSearch}
-            onSelectKnown={(assetId) => { onChange(selectKnownHomeAsset(draft, assetId)); setAssetSearchOpen(false); resetAssetSearch() }}
-            onSelectResolved={handleSelectResolvedAsset}
-            onAddManual={() => { setAssetSearchOpen(false); setAddAssetOpen(true) }}
+            onSelectKnown={(assetId) => onChange(selectKnownHomeAsset(draft, assetId))}
+            onSelectResolved={(identity) => onChange(selectResolvedAsset(draft, identity))}
+            onAddManual={() => setAddAssetOpen(true)}
           />
         )}
       </Field>
@@ -301,182 +234,308 @@ export default function Stage1Define({
   )
 }
 
-/**
- * Home Asset search combobox — merges local catalog matches (instant) with
- * a debounced backend resolver (Step 20). idle/searching/results/no_results/
- * error all render distinctly (Step 22); manual entry remains reachable
- * from every state, never hidden behind a successful search.
- */
-function AssetSearchCombobox({
-  open,
-  onOpenChange,
-  knownAssets,
-  homeAssetId,
-  searchState,
-  searchResults,
-  onSearchChange,
-  onSelectKnown,
-  onSelectResolved,
-  onAddManual,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  knownAssets: { id: string; brandName: string; innName: string }[]
-  homeAssetId: string | null
-  searchState: ReturnType<typeof useAssetSearch>['state']
-  searchResults: ResolvedAssetIdentity[]
-  onSearchChange: (query: string) => void
-  onSelectKnown: (assetId: string) => void
-  onSelectResolved: (identity: ResolvedAssetIdentity) => void
-  onAddManual: () => void
-}) {
-  if (knownAssets.length === 0) {
-    return (
-      <>
-        <Popover open={open} onOpenChange={onOpenChange}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between sm:w-96">
-              Search by brand / generic name / development code
-              <ChevronsUpDownIcon className="opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <AssetSearchPopoverContent
-            searchState={searchState} searchResults={searchResults} knownAssets={[]} homeAssetId={homeAssetId}
-            onSearchChange={onSearchChange} onSelectKnown={onSelectKnown} onSelectResolved={onSelectResolved} onAddManual={onAddManual}
-          />
-        </Popover>
-        {searchState.status === 'idle' && (
-          <Empty className="mt-2 border">
-            <EmptyHeader>
-              <div className="mb-2 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-                <SearchXIcon className="size-4" />
-              </div>
-              <EmptyTitle>No matching configured assets</EmptyTitle>
-              <EmptyDescription>Search for your home asset above, or add it manually.</EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button variant="outline" onClick={onAddManual}>
-                <PlusIcon /> Add asset manually
-              </Button>
-            </EmptyContent>
-          </Empty>
-        )}
-      </>
-    )
-  }
-
+function SelectedSummaryCard({ title, subtitle, onChange }: { title: string; subtitle?: string; onChange: () => void }) {
   return (
-    <div className="flex flex-col gap-2 sm:w-96">
-      <Popover open={open} onOpenChange={onOpenChange}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-            Search by brand / generic name / development code
-            <ChevronsUpDownIcon className="opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <AssetSearchPopoverContent
-          searchState={searchState} searchResults={searchResults} knownAssets={knownAssets} homeAssetId={homeAssetId}
-          onSearchChange={onSearchChange} onSelectKnown={onSelectKnown} onSelectResolved={onSelectResolved} onAddManual={onAddManual}
-        />
-      </Popover>
-      <Button variant="ghost" size="sm" className="self-start" onClick={onAddManual}>
-        <PlusIcon /> Add another asset
-      </Button>
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 sm:w-96">
+      <div className="flex-1">
+        <p className="text-sm font-medium">{title}</p>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+      </div>
+      <Button variant="ghost" size="sm" onClick={onChange}>Change</Button>
     </div>
   )
 }
 
-function AssetSearchPopoverContent({
-  searchState, searchResults, knownAssets, homeAssetId, onSearchChange, onSelectKnown, onSelectResolved, onAddManual,
+// ── Deterministic ranking (Part B4) — exact match beats prefix beats
+// substring; a primary field (brand/INN/dev-code/preferred name) always
+// outranks the same quality of match on a mere alias. No fuzzy/edit-
+// distance/embeddings anywhere in this function. ──────────────────────────
+function scoreMatch(query: string, primaryFields: string[], aliasFields: string[] = []): number {
+  const q = query.trim().toLowerCase()
+  if (!q) return 0
+  let best = 0
+  for (const f of primaryFields) {
+    const fl = f.toLowerCase()
+    if (fl === q) return 4
+    if (fl.startsWith(q)) best = Math.max(best, 3)
+    else if (fl.includes(q)) best = Math.max(best, 2)
+  }
+  for (const f of aliasFields) {
+    const fl = f.toLowerCase()
+    // An exact alias match ("HAE" for hereditary angioedema) is a strong,
+    // deliberate identity match -- it must outrank a merely coincidental
+    // prefix hit on some OTHER entry's primary name (e.g. "haemophilus
+    // infectious disease" also starting with "hae"), so it sits just
+    // below a primary-field exact match, not tied with a primary prefix.
+    if (fl === q) best = Math.max(best, 3.5)
+    else if (fl.includes(q)) best = Math.max(best, 1)
+  }
+  return best
+}
+
+/**
+ * Disease Area search field — Root-Cause Recon implementation, Part A4.
+ * Always-visible <Input> (never a hidden-until-clicked Button), curated
+ * suggestions for the selected category shown immediately on focus with
+ * no query, local+remote merged into ONE ranked list once typing starts.
+ */
+function DiseaseAreaSearchField({
+  therapeuticAreaId, homeAssetId, onSelect, onAddManual,
 }: {
-  searchState: ReturnType<typeof useAssetSearch>['state']
-  searchResults: ResolvedAssetIdentity[]
-  knownAssets: { id: string; brandName: string; innName: string }[]
+  therapeuticAreaId: string
   homeAssetId: string | null
-  onSearchChange: (query: string) => void
+  onSelect: (resolved: ResolvedDiseaseArea) => void
+  onAddManual: () => void
+}) {
+  const [query, setQuery] = useState('')
+  const [focused, setFocused] = useState(false)
+  const { state, search, reset } = useDiseaseSearch()
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleQueryChange(value: string) {
+    setQuery(value)
+    if (value.trim()) search(value, therapeuticAreaId)
+    else reset()
+  }
+
+  const results: ResolvedDiseaseArea[] = state.status === 'results' ? state.results : []
+  const ranked = useMemo(() => {
+    if (!query.trim()) return results
+    // Descending sort directly -- NOT an ascending sort + .reverse(), which
+    // would flip the relative order of tied entries (e.g. a curated exact-
+    // alias match and an unrelated live prefix match scoring equally) and
+    // silently undo the backend's own curated-first ordering for ties.
+    return [...results].sort((a, b) => scoreMatch(query, [b.preferredName], b.aliases) - scoreMatch(query, [a.preferredName], a.aliases))
+  }, [results, query])
+
+  const open = focused
+  void homeAssetId
+
+  return (
+    <div className="relative sm:w-96">
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          onFocus={() => {
+            if (blurTimeout.current) clearTimeout(blurTimeout.current)
+            setFocused(true)
+            // Part B2: curated suggestions for this category appear as
+            // soon as the field opens, even before the user types anything.
+            if (!query.trim() && state.status === 'idle') search('', therapeuticAreaId)
+          }}
+          onBlur={() => { blurTimeout.current = setTimeout(() => setFocused(false), 150) }}
+          placeholder="Search disease / indication…"
+          className="pl-8"
+        />
+      </div>
+      {open && (
+        <div className="mt-1.5 overflow-hidden rounded-lg border bg-popover shadow-md">
+          <Command shouldFilter={false}>
+            <CommandList className="max-h-[min(50vh,20rem)]">
+              {state.status === 'searching' && (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Spinner className="size-4" /> Searching…
+                </div>
+              )}
+              {state.status === 'error' && (
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <PlugZapIcon className="size-4 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Disease search is currently unavailable.</p>
+                </div>
+              )}
+              {!query.trim() && ranked.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">Type to search, or add it directly.</p>
+              )}
+              {query.trim() && state.status === 'no_results' && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">No verified disease area found for "{query}".</p>
+              )}
+              {ranked.length > 0 && (
+                <CommandGroup heading={query.trim() ? undefined : 'Common in this category'}>
+                  {ranked.map((r) => (
+                    <CommandItem
+                      key={r.id}
+                      value={r.id}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onSelect={() => { onSelect(r); setQuery(''); reset(); setFocused(false) }}
+                    >
+                      <div className="flex flex-col">
+                        <span>{r.preferredName}</span>
+                        {r.aliases.length > 0 && <span className="text-xs text-muted-foreground">{r.aliases.slice(0, 3).join(', ')}</span>}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <div className="border-t p-1.5">
+                <Button
+                  size="sm" variant="ghost" className="w-full justify-start"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={onAddManual}
+                >
+                  <PlusIcon /> Can't find it? Add disease area manually
+                </Button>
+              </div>
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface AssetOption {
+  key: string
+  kind: 'known' | 'resolved'
+  primaryLabel: string
+  secondaryLabel: string
+  contextLabel?: string
+  score: number
+  known?: AssetConfig
+  resolved?: ResolvedAssetIdentity
+}
+
+/**
+ * Home Asset search field — Root-Cause Recon implementation, Part B.
+ * Fixes the recon's three exact defects: (1) the closed-state control is
+ * a real <Input>, not a Button-styled-as-Select; (2) local known assets
+ * and backend results are merged into ONE array before render (so there
+ * is no separate unfiltered group for shouldFilter to break); (3) that
+ * merged array is deterministically ranked (Part B4), not two stacked,
+ * unranked groups.
+ */
+function AssetSearchField({
+  diseaseAreaId, diseaseAreaName, diseaseAreaAliases, homeAssetId, onSelectKnown, onSelectResolved, onAddManual,
+}: {
+  diseaseAreaId: string
+  /** Root-Cause Recon implementation, Part A/B: a resolvedDiseaseArea's own name/aliases, used to bridge to ASSETS_CONFIG's legacy diseaseAreaId when diseaseAreaId itself is a MONDO id ASSETS_CONFIG doesn't carry. Undefined for a manual Disease Area (no bridge possible, and none needed). */
+  diseaseAreaName?: string
+  diseaseAreaAliases?: string[]
+  homeAssetId: string | null
   onSelectKnown: (assetId: string) => void
   onSelectResolved: (identity: ResolvedAssetIdentity) => void
   onAddManual: () => void
 }) {
+  const [query, setQuery] = useState('')
+  const [focused, setFocused] = useState(false)
+  const { state, search, reset } = useAssetSearch()
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const knownAssets = useMemo(() => {
+    const byId = getAssetsForDiseaseArea(diseaseAreaId)
+    const byName = diseaseAreaName ? getAssetsForResolvedDiseaseArea(diseaseAreaName, diseaseAreaAliases) : []
+    const seen = new Set<string>()
+    return [...byId, ...byName].filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)))
+  }, [diseaseAreaId, diseaseAreaName, diseaseAreaAliases])
+
+  function handleQueryChange(value: string) {
+    setQuery(value)
+    if (value.trim()) search(value)
+    else reset()
+  }
+
+  const backendResults: ResolvedAssetIdentity[] = state.status === 'results' ? state.results : []
+
+  const merged: AssetOption[] = useMemo(() => {
+    const knownIds = new Set(knownAssets.map((a) => a.id))
+    const q = query.trim()
+    const knownOptions: AssetOption[] = knownAssets
+      .map((a) => ({
+        key: `known-${a.id}`,
+        kind: 'known' as const,
+        primaryLabel: a.brandName,
+        secondaryLabel: a.innName,
+        score: q ? scoreMatch(q, [a.brandName, a.innName]) : 1,
+        known: a,
+      }))
+      .filter((o) => !q || o.score > 0)
+    const resolvedOptions: AssetOption[] = backendResults
+      .filter((r) => !knownIds.has(r.id))
+      .map((r) => ({
+        key: `resolved-${r.id}`,
+        kind: 'resolved' as const,
+        primaryLabel: r.preferredName,
+        secondaryLabel: [r.innNames[0], r.ownerCompanies[0]].filter(Boolean).join(' · ') || 'Development asset',
+        contextLabel: r.indicationContexts[0],
+        score: q ? scoreMatch(q, [r.preferredName, ...r.brandNames, ...r.innNames, ...r.developmentCodes], r.aliases) : 0.5,
+        resolved: r,
+      }))
+    return [...knownOptions, ...resolvedOptions].sort((a, b) => b.score - a.score)
+  }, [knownAssets, backendResults, query])
+
+  const open = focused
+
   return (
-    <PopoverContent className="w-full max-h-[60vh] overflow-hidden p-0" align="start">
-      <Command shouldFilter={false}>
-        <CommandInput placeholder="Search by brand / generic name / development code…" onValueChange={onSearchChange} />
-        <CommandList>
-          {searchState.status === 'searching' && (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-              <Spinner className="size-4" /> Searching…
-            </div>
-          )}
-          {searchState.status === 'error' && (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <PlugZapIcon className="size-4 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Asset search is currently unavailable.</p>
-              <Button size="sm" variant="outline" onClick={onAddManual}><PlusIcon /> Add asset manually</Button>
-            </div>
-          )}
-          {searchState.status === 'no_results' && (
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <p className="text-xs text-muted-foreground">No verified asset found.</p>
-              <Button size="sm" variant="outline" onClick={onAddManual}><PlusIcon /> Add asset manually</Button>
-            </div>
-          )}
-          {(searchState.status === 'idle' || searchState.status === 'results') && knownAssets.length === 0 && searchResults.length === 0 && (
-            <CommandEmpty>
-              <div className="flex flex-col items-center gap-2 py-2">
-                <span className="text-sm text-muted-foreground">Type to search, or add it directly.</span>
-                <Button size="sm" variant="outline" onClick={onAddManual}><PlusIcon /> Add asset manually</Button>
+    <div className="relative sm:w-96">
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          onFocus={() => { if (blurTimeout.current) clearTimeout(blurTimeout.current); setFocused(true) }}
+          onBlur={() => { blurTimeout.current = setTimeout(() => setFocused(false), 150) }}
+          placeholder="Search or select an asset…"
+          className="pl-8"
+        />
+      </div>
+      {open && (
+        <div className="mt-1.5 overflow-hidden rounded-lg border bg-popover shadow-md">
+          <Command shouldFilter={false}>
+            <CommandList className="max-h-[min(50vh,20rem)]">
+              {state.status === 'searching' && (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                  <Spinner className="size-4" /> Searching…
+                </div>
+              )}
+              {state.status === 'error' && (
+                <div className="flex flex-col items-center gap-2 py-2 text-center">
+                  <PlugZapIcon className="size-4 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Asset search is currently unavailable.</p>
+                </div>
+              )}
+              {!query.trim() && merged.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">No known assets for this Disease Area yet. Search by brand, INN, or development code.</p>
+              )}
+              {query.trim() && state.status === 'no_results' && merged.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">No verified asset found for "{query}".</p>
+              )}
+              {merged.length > 0 && (
+                <CommandGroup heading={query.trim() ? undefined : 'Known / relevant assets'}>
+                  {merged.map((o) => (
+                    <CommandItem
+                      key={o.key}
+                      value={o.key}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onSelect={() => {
+                        if (o.kind === 'known' && o.known) onSelectKnown(o.known.id)
+                        else if (o.resolved) onSelectResolved(o.resolved)
+                        setQuery(''); reset(); setFocused(false)
+                      }}
+                    >
+                      <CheckIcon className={homeAssetId === (o.known?.id ?? o.resolved?.id) ? 'opacity-100' : 'opacity-0'} />
+                      <div className="flex flex-col">
+                        <span>{o.primaryLabel}</span>
+                        <span className="text-xs text-muted-foreground">{o.secondaryLabel}</span>
+                        {o.contextLabel && <span className="text-xs text-muted-foreground italic">{o.contextLabel}</span>}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <div className="border-t p-1.5">
+                <Button
+                  size="sm" variant="ghost" className="w-full justify-start"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={onAddManual}
+                >
+                  <PlusIcon /> Can't find it? Add asset manually
+                </Button>
               </div>
-            </CommandEmpty>
-          )}
-          {knownAssets.length > 0 && (
-            <CommandGroup heading="Known results">
-              {knownAssets.map((asset) => (
-                <CommandItem
-                  key={asset.id}
-                  value={`known-${asset.id}`}
-                  onSelect={() => onSelectKnown(asset.id)}
-                >
-                  <CheckIcon className={homeAssetId === asset.id ? 'opacity-100' : 'opacity-0'} />
-                  <div className="flex flex-col">
-                    <span>{asset.brandName}</span>
-                    <span className="text-xs text-muted-foreground">{asset.innName}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-          {searchResults.length > 0 && (
-            <CommandGroup heading="Search results">
-              {searchResults.map((identity) => (
-                <CommandItem
-                  key={identity.id}
-                  value={`resolved-${identity.id}`}
-                  onSelect={() => onSelectResolved(identity)}
-                >
-                  <CheckIcon className={homeAssetId === identity.id ? 'opacity-100' : 'opacity-0'} />
-                  <div className="flex flex-col">
-                    <span>{identity.preferredName}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {[identity.innNames[0], identity.ownerCompanies[0]].filter(Boolean).join(' · ') || 'Development asset'}
-                    </span>
-                    {identity.indicationContexts[0] && (
-                      <span className="text-xs text-muted-foreground italic">{identity.indicationContexts[0]}</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-          {(searchState.status === 'results' || knownAssets.length > 0) && (
-            <div className="border-t p-1.5">
-              <Button size="sm" variant="ghost" className="w-full justify-start" onClick={onAddManual}>
-                <PlusIcon /> Can't find it? Add asset manually
-              </Button>
-            </div>
-          )}
-        </CommandList>
-      </Command>
-    </PopoverContent>
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    </div>
   )
 }

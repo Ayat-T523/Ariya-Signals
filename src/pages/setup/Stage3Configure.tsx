@@ -1,8 +1,9 @@
-import { getTherapeuticAreaById, getDiseaseAreaById } from '../../config/therapeutic-areas'
+import { getTherapeuticAreaById } from '../../config/therapeutic-areas'
 import {
   type SetupDraft,
   type UserRelationship,
   resolveHomeAssetDisplay,
+  resolveDiseaseAreaDisplay,
   setCompanyRelationship,
   isStage3Valid,
   reviewCounts,
@@ -42,9 +43,10 @@ export default function Stage3Configure({
   const therapeuticArea = draft.landscapeConfiguration.therapeuticAreaId
     ? getTherapeuticAreaById(draft.landscapeConfiguration.therapeuticAreaId)
     : undefined
-  const diseaseArea = draft.landscapeConfiguration.diseaseAreaId
-    ? getDiseaseAreaById(draft.landscapeConfiguration.diseaseAreaId)
-    : undefined
+  // Root-Cause Recon implementation, Part A: same 3-tier resolution as
+  // Stage1Define.tsx/Stage2Discover.tsx -- a MONDO-resolved Disease Area
+  // has no entry in the old static catalog at all.
+  const diseaseArea = resolveDiseaseAreaDisplay(draft)
   const homeAsset = resolveHomeAssetDisplay(draft)
 
   const valid = isStage3Valid(draft)

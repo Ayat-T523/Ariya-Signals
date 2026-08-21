@@ -38,6 +38,9 @@ import {
   selectTherapeuticArea,
   selectDiseaseArea,
   attachManualDiseaseArea,
+  selectResolvedDiseaseArea,
+  clearDiseaseArea,
+  resolveDiseaseAreaDisplay,
   selectKnownHomeAsset,
   attachManualHomeAsset,
   selectResolvedAsset,
@@ -49,6 +52,7 @@ import {
   addManualCompany,
   toggleCompanySelection,
   isCompanySelected,
+  clearCompanySelections,
   setCompanyRelationship,
   setSuggestedCompanies,
   suggestedCompanyToEntry,
@@ -63,6 +67,7 @@ import {
   clearSetupDraft,
   type SetupDraft,
 } from './setup-draft.js'
+import type { ResolvedDiseaseArea } from '../lib/api/diseaseSearch.js'
 import { getDiseaseAreasForTherapeuticArea, getAssetsForDiseaseArea } from './landscape-configuration.js'
 import { THERAPEUTIC_AREAS } from './therapeutic-areas.js'
 import type { SuggestedCompanySuggestion } from '../lib/api/discovery.js'
@@ -97,6 +102,7 @@ function fakeSuggestion(companyKey: string, companyName: string, assetKey: strin
     relevantAssets: [{
       identityKey: assetKey, candidateStatus: 'presentable_candidate', aiProposedRelationship: null,
       evidenceGaps: [], sourceReferences: ['https://clinicaltrials.gov/study/NCT00000001'], reasonDetail: [], unresolvedQuestions: [], detail: null,
+      historicalOrganizationName: null,
     }],
     aiProposedRelationship: 'direct',
     evidenceRefs: ['NCT00000001'],
@@ -316,8 +322,8 @@ let multiAssetDraft = withHae()
 const multiAssetSuggestion: SuggestedCompanySuggestion = {
   ...fakeSuggestion('takeda', 'Takeda', 'Takhzyro'),
   relevantAssets: [
-    { identityKey: 'Takhzyro', candidateStatus: 'presentable_candidate', aiProposedRelationship: null, evidenceGaps: [], sourceReferences: [], reasonDetail: [], unresolvedQuestions: [], detail: null },
-    { identityKey: 'TAK-018', candidateStatus: 'needs_more_evidence', aiProposedRelationship: null, evidenceGaps: ['development_stage_unresolved'], sourceReferences: [], reasonDetail: [], unresolvedQuestions: [], detail: null },
+    { identityKey: 'Takhzyro', candidateStatus: 'presentable_candidate', aiProposedRelationship: null, evidenceGaps: [], sourceReferences: [], reasonDetail: [], unresolvedQuestions: [], detail: null, historicalOrganizationName: null },
+    { identityKey: 'TAK-018', candidateStatus: 'needs_more_evidence', aiProposedRelationship: null, evidenceGaps: ['development_stage_unresolved'], sourceReferences: [], reasonDetail: [], unresolvedQuestions: [], detail: null, historicalOrganizationName: null },
   ],
 }
 multiAssetDraft = setSuggestedCompanies(multiAssetDraft, [multiAssetSuggestion])
@@ -396,7 +402,7 @@ assertTrue('useAssetSearch.ts debounces rather than firing on every keystroke', 
 
 // ── 31. local known assets may appear immediately ─────────────────────────
 console.log('31. Known local/catalog assets render immediately alongside (not blocked by) the backend search')
-assertTrue('Stage1Define.tsx renders a "Known results" group independent of search state', stage1Source.includes('Known results'))
+assertTrue('Stage1Define.tsx renders a "Known / relevant assets" group independent of search state (Root-Cause Recon implementation, Part B2)', stage1Source.includes('Known / relevant assets'))
 
 // ── 32. brand and INN results converge to one asset identity ──────────────
 console.log('32. Selecting a resolvedAsset (whatever alias the user searched) sets one canonical homeAssetId')
@@ -428,7 +434,7 @@ assertTrue('HomeAssetDisplay has no dosage/regimen field at all -- structurally 
 
 // ── 37. manual asset fallback remains available ────────────────────────────
 console.log('37. Manual asset entry remains reachable from every Home Asset search state, never hidden behind a successful search')
-assertTrue('Stage1Define.tsx always offers "Add asset manually" regardless of search outcome', (stage1Source.match(/Add asset manually/g) || []).length >= 3)
+assertTrue('Stage1Define.tsx always offers "Add asset manually" as a persistent, always-rendered action (Root-Cause Recon implementation, Part B: one control outside every idle/searching/no_results/error branch, not duplicated per-branch)', stage1Source.includes('Add asset manually'))
 
 // ── 38. manual asset requires company (regression, now covering the dev-code field too) ──
 console.log('38. Manual asset still refuses without a company, and now preserves an optional development code')
@@ -472,6 +478,88 @@ console.log('43. No paid data service reference anywhere in the new asset-resolu
 for (const [label, src] of [['assetSearch.ts', assetSearchClientSource], ['useAssetSearch.ts', useAssetSearchSource], ['Stage1Define.tsx', stage1Source]] as const) {
   assertTrue(`${label} references no paid provider (openai/anthropic/stripe/rxnorm-api-key etc.)`, !/openai|anthropic-api|stripe|paid[_-]?api/i.test(src))
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Root-Cause Recon implementation — Disease Area search, Home Asset combobox
+// fix, Stage 2 hierarchy/footer (Parts G/H/I).
+// ═══════════════════════════════════════════════════════════════════════════
+
+function fakeDiseaseArea(overrides: Partial<ResolvedDiseaseArea> = {}): ResolvedDiseaseArea {
+  return { id: 'MONDO:1060006', preferredName: 'generalized myasthenia gravis', aliases: ['gMG'], source: 'mondo', sourceId: 'MONDO:1060006', ...overrides }
+}
+
+// ── 44. selecting a resolved Disease Area sets canonical id, clears stale asset ──
+console.log('44. selectResolvedDiseaseArea sets the canonical MONDO id and clears a previously selected Home Asset')
+let diseaseSearchDraft = createEmptySetupDraft()
+diseaseSearchDraft = selectTherapeuticArea(diseaseSearchDraft, 'neurology')
+diseaseSearchDraft = attachManualHomeAsset(diseaseSearchDraft, { displayName: 'Placeholder', company: 'Placeholder Co' })
+diseaseSearchDraft = selectResolvedDiseaseArea(diseaseSearchDraft, fakeDiseaseArea())
+assert('diseaseAreaId set to the canonical MONDO id', diseaseSearchDraft.landscapeConfiguration.diseaseAreaId, 'MONDO:1060006')
+assert('the previously selected Home Asset is cleared', diseaseSearchDraft.landscapeConfiguration.homeAssetId, null)
+assert('resolveDiseaseAreaDisplay surfaces the resolved name and aliases', resolveDiseaseAreaDisplay(diseaseSearchDraft), { name: 'generalized myasthenia gravis', aliases: ['gMG'], source: 'mondo' })
+
+// ── 45. clearDiseaseArea resets to the search UI without touching category ──
+console.log('45. clearDiseaseArea resets Disease Area + Home Asset, never the category')
+const clearedDiseaseDraft = clearDiseaseArea(diseaseSearchDraft)
+assert('diseaseAreaId cleared', clearedDiseaseDraft.landscapeConfiguration.diseaseAreaId, null)
+assert('category untouched', clearedDiseaseDraft.landscapeConfiguration.therapeuticAreaId, 'neurology')
+
+// ── 46. manual Disease Area fallback remains reachable and source=manual ──
+console.log('46. Manual Disease Area fallback remains reachable, source=manual, no fabricated canonical id')
+let manualDiseaseDraft = createEmptySetupDraft()
+manualDiseaseDraft = selectTherapeuticArea(manualDiseaseDraft, 'oncology')
+manualDiseaseDraft = attachManualDiseaseArea(manualDiseaseDraft, 'A Rare Sarcoma Subtype')
+assert('manual disease area source is manual', manualDiseaseDraft.manualDiseaseArea?.source, 'manual')
+assert('resolveDiseaseAreaDisplay reflects the manual entry', resolveDiseaseAreaDisplay(manualDiseaseDraft)?.source, 'manual')
+
+// ── 47. changing category clears an incompatible Disease Area + Asset ────
+console.log('47. Changing the Landscape Category clears a resolved Disease Area and Home Asset (Part G item 10)')
+let categoryChangeDraft = createEmptySetupDraft()
+categoryChangeDraft = selectTherapeuticArea(categoryChangeDraft, 'neurology')
+categoryChangeDraft = selectResolvedDiseaseArea(categoryChangeDraft, fakeDiseaseArea())
+categoryChangeDraft = selectTherapeuticArea(categoryChangeDraft, 'oncology')
+assert('resolvedDiseaseArea cleared on category change', categoryChangeDraft.resolvedDiseaseArea, null)
+assert('diseaseAreaId cleared on category change', categoryChangeDraft.landscapeConfiguration.diseaseAreaId, null)
+
+// ── 48. Home Asset ComboBox fix -- closed control is a real Input, not a Button-as-Select ──
+console.log('48. Stage1Define.tsx exposes the search affordance immediately (real <Input>, not a click-to-reveal Button)')
+assertTrue('Disease Area search uses a real Input as the always-visible control', stage1Source.includes("placeholder=\"Search disease / indication…\""))
+assertTrue('Home Asset search uses a real Input as the always-visible control', stage1Source.includes('placeholder="Search or select an asset…"'))
+assertTrue('local Known/relevant assets and backend results are merged into ONE ranked array before render (no separate unfiltered local group)', stage1Source.includes('const merged: AssetOption[]'))
+assertTrue('a deterministic scoreMatch function ranks results -- no fuzzy/embeddings dependency', stage1Source.includes('function scoreMatch'))
+const stage1ImportLines = stage1Source.split('\n').filter((line: string) => line.trim().startsWith('import '))
+assertTrue('scoreMatch never imports an embeddings/fuzzy-matching package', !stage1ImportLines.some((line: string) => /fuse\.js|embedding|cosine|levenshtein/i.test(line)))
+
+// ── 49. Stage 2 -- relevant assets render as capped badges, not comma-joined prose ──
+console.log('49. Stage2Discover.tsx renders relevant assets as capped Badge tags, never plain comma-separated prose')
+assertTrue('Stage2Discover.tsx caps visible asset badges (Part C2)', stage2Source.includes('MAX_VISIBLE_ASSET_BADGES'))
+assertTrue('Stage2Discover.tsx shows an overflow count once the cap is exceeded', stage2Source.includes('overflowCount'))
+assertTrue('Stage2Discover.tsx no longer joins asset names with a comma for display', !stage2Source.includes("a.identityKey).join(', ')"))
+
+// ── 50. Stage 2 -- the old why_suggested sentence is retired from the card ──
+console.log('50. Stage2Discover.tsx no longer renders company.whySuggested on the primary card (Part C3)')
+assertTrue('whySuggested is never read in Stage2Discover.tsx\'s own card JSX', !stage2Source.includes('company.whySuggested'))
+assertTrue('whySuggested remains available in CompanyEvidenceSheet.tsx as evidence context (Part C3 option B)', fs.readFileSync(path.join(setupDir, '..', 'pages', 'setup', 'CompanyEvidenceSheet.tsx'), 'utf-8').includes('whySuggested'))
+
+// ── 51. Stage 2 -- fixed selection footer exists, reserves content space, disabled correctly ──
+console.log('51. SetupPage.tsx renders a fixed selection footer for Stage 2, Stage2Discover.tsx reserves bottom padding for it')
+const setupPageSource = fs.readFileSync(path.join(setupDir, '..', 'pages', 'setup', 'SetupPage.tsx'), 'utf-8')
+assertTrue('SetupPage.tsx renders a fixed (not sticky) footer only during Stage 2', setupPageSource.includes("draft.stage === 'discover'") && setupPageSource.includes('fixed inset-x-0 bottom-0'))
+assertTrue('the footer shows the live selection count', setupPageSource.includes('selections.length'))
+assertTrue('the footer wires Clear selection to clearCompanySelections', setupPageSource.includes('clearCompanySelections(draft)'))
+assertTrue('the footer disables Continue when nothing is selected', (setupPageSource.match(/disabled=\{draft\.selections\.length === 0\}/g) || []).length >= 2)
+assertTrue('Stage2Discover.tsx reserves bottom padding so the fixed footer never covers the last row (Part D2)', stage2Source.includes('pb-24'))
+assertTrue('the footer accounts for the mobile safe-area inset', setupPageSource.includes('safe-area-inset-bottom'))
+
+// ── 52. clearCompanySelections is a pure, all-or-nothing reset ───────────
+console.log('52. clearCompanySelections clears every Stage 2 selection at once')
+let selectionDraft = withHae()
+selectionDraft = setSuggestedCompanies(selectionDraft, [fakeSuggestion('a', 'Company A', 'Asset A'), fakeSuggestion('b', 'Company B', 'Asset B')])
+selectionDraft = toggleCompanySelection(selectionDraft, 'a')
+selectionDraft = toggleCompanySelection(selectionDraft, 'b')
+assert('two companies selected before clearing', selectionDraft.selections.length, 2)
+const clearedSelectionDraft = clearCompanySelections(selectionDraft)
+assert('zero companies selected after clearing', clearedSelectionDraft.selections.length, 0)
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 declare const process: { exit(code: number): void }

@@ -35,11 +35,13 @@ import {
   applyTherapeuticAreaSelection,
   applyDiseaseAreaSelection,
   isLandscapeConfigurationConsistent,
+  getAssetsForResolvedDiseaseArea,
 } from './landscape-configuration'
 import { getAssetById, type AssetConfig } from './assets-config'
 import { getDiseaseAreaById } from './therapeutic-areas'
 import type { SuggestedCompanySuggestion } from '../lib/api/discovery'
 import type { ResolvedAssetIdentity } from '../lib/api/assetSearch'
+import type { ResolvedDiseaseArea } from '../lib/api/diseaseSearch'
 
 export type SetupStage = 'define' | 'discover' | 'configure'
 
@@ -82,6 +84,8 @@ export interface RelevantAssetEntry {
   reasonDetail: string[]
   unresolvedQuestions: string[]
   detail: string | null
+  /** Root-Cause Recon implementation, Part E4 -- the original CT.gov-declared sponsor (e.g. "Shire"), preserved only when the company's current identity (e.g. "Takeda") differs from it. Null otherwise -- never fabricated. */
+  historicalOrganizationName: string | null
 }
 
 export interface CompanyEntry {
@@ -111,6 +115,8 @@ export interface SetupDraft {
   manualAsset: ManualAssetIdentity | null
   /** A user-entered Disease Area (Step 5/24) -- mutually exclusive with a catalogued diseaseAreaId, same discipline as manualAsset/homeAssetId. */
   manualDiseaseArea: ManualDiseaseArea | null
+  /** The Disease Area identity selected from Disease Area search (Root-Cause Recon implementation, Part A) -- backend-resolved (curated or live MONDO), distinct from both a catalog DiseaseArea match and a fully manual entry. */
+  resolvedDiseaseArea: ResolvedDiseaseArea | null
   /** The asset identity selected from Home Asset search (Step 20/28) -- backend-resolved (known_catalog or clinicaltrials_gov), distinct from both a catalog AssetConfig match and a fully manual entry. */
   resolvedAsset: ResolvedAssetIdentity | null
   /**
@@ -131,6 +137,7 @@ export function createEmptySetupDraft(landscapeConfiguration?: LandscapeConfigur
     landscapeConfiguration: landscapeConfiguration ?? { ...EMPTY_LANDSCAPE_CONFIGURATION },
     manualAsset: null,
     manualDiseaseArea: null,
+    resolvedDiseaseArea: null,
     resolvedAsset: null,
     homeCompanyOverride: null,
     companies: [],
@@ -151,7 +158,7 @@ export function selectTherapeuticArea(draft: SetupDraft, therapeuticAreaId: stri
   if (nextConfig === draft.landscapeConfiguration) return draft
   return {
     ...draft, landscapeConfiguration: nextConfig,
-    manualAsset: null, manualDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
+    manualAsset: null, manualDiseaseArea: null, resolvedDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
   }
 }
 
@@ -160,7 +167,7 @@ export function selectDiseaseArea(draft: SetupDraft, diseaseAreaId: string): Set
   if (nextConfig === draft.landscapeConfiguration) return draft
   return {
     ...draft, landscapeConfiguration: nextConfig,
-    manualAsset: null, manualDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
+    manualAsset: null, manualDiseaseArea: null, resolvedDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
   }
 }
 
@@ -178,15 +185,60 @@ export function attachManualDiseaseArea(draft: SetupDraft, name: string): SetupD
   return {
     ...draft,
     manualDiseaseArea,
+    resolvedDiseaseArea: null,
     manualAsset: null, resolvedAsset: null, homeCompanyOverride: null,
     landscapeConfiguration: { ...draft.landscapeConfiguration, diseaseAreaId: manualDiseaseArea.id, homeAssetId: null },
+  }
+}
+
+/**
+ * Attaches a Disease Area search result (Root-Cause Recon implementation,
+ * Part A4) -- the backend already did the real identity resolution
+ * (curated or live MONDO); this just adopts it as the draft's Disease
+ * Area, the same way selectDiseaseArea adopts a static catalog entry.
+ * Clears any previously selected Home Asset -- a Disease Area change
+ * invalidates whatever asset was selected under the old one.
+ */
+export function selectResolvedDiseaseArea(draft: SetupDraft, resolved: ResolvedDiseaseArea): SetupDraft {
+  const { therapeuticAreaId } = draft.landscapeConfiguration
+  if (!therapeuticAreaId) return draft
+  return {
+    ...draft,
+    resolvedDiseaseArea: resolved,
+    manualDiseaseArea: null,
+    manualAsset: null, resolvedAsset: null, homeCompanyOverride: null,
+    landscapeConfiguration: { ...draft.landscapeConfiguration, diseaseAreaId: resolved.id, homeAssetId: null },
+  }
+}
+
+/** Clears the currently selected Disease Area (manual/resolved/catalog) so Stage 1 falls back to the search UI -- the "Change" action. Also clears the Home Asset, which can no longer be valid once the Disease Area changes. Never touches the category. */
+export function clearDiseaseArea(draft: SetupDraft): SetupDraft {
+  return {
+    ...draft,
+    manualDiseaseArea: null,
+    resolvedDiseaseArea: null,
+    manualAsset: null,
+    resolvedAsset: null,
+    homeCompanyOverride: null,
+    landscapeConfiguration: { ...draft.landscapeConfiguration, diseaseAreaId: null, homeAssetId: null },
   }
 }
 
 /** Selecting a catalogued Home Asset -- refuses silently if it doesn't belong to the selected Disease Area, same discipline as applyHomeAssetSelection. */
 export function selectKnownHomeAsset(draft: SetupDraft, assetId: string): SetupDraft {
   const asset = getAssetById(assetId)
-  if (!asset || asset.diseaseAreaId !== draft.landscapeConfiguration.diseaseAreaId) return draft
+  if (!asset) return draft
+  // Root-Cause Recon implementation, Part A/B: an exact diseaseAreaId match
+  // still works for the legacy short-id path, but a Disease Area selected
+  // via the new canonical MONDO search carries an id ASSETS_CONFIG never
+  // uses -- bridge via the same name/alias cross-reference
+  // getAssetsForResolvedDiseaseArea() already uses for the search UI's own
+  // "known assets" list, so a result that field legitimately offered can
+  // actually be selected.
+  const idMatches = asset.diseaseAreaId === draft.landscapeConfiguration.diseaseAreaId
+  const display = resolveDiseaseAreaDisplay(draft)
+  const nameMatches = !!display && getAssetsForResolvedDiseaseArea(display.name, display.aliases).some((a) => a.id === assetId)
+  if (!idMatches && !nameMatches) return draft
   return {
     ...draft,
     landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: assetId },
@@ -303,6 +355,26 @@ export function needsHomeCompanyConfirmation(draft: SetupDraft): boolean {
   return !!display && !display.companyName
 }
 
+export interface DiseaseAreaDisplay {
+  name: string
+  aliases?: string[]
+  source: 'manual' | 'catalog' | 'mondo'
+}
+
+/** Resolves the Disease Area identity for display, whichever source it came from (Root-Cause Recon implementation, Part A). Null when nothing is selected yet. */
+export function resolveDiseaseAreaDisplay(draft: SetupDraft): DiseaseAreaDisplay | null {
+  const { diseaseAreaId } = draft.landscapeConfiguration
+  if (draft.manualDiseaseArea && draft.manualDiseaseArea.id === diseaseAreaId) {
+    return { name: draft.manualDiseaseArea.name, source: 'manual' }
+  }
+  if (draft.resolvedDiseaseArea && draft.resolvedDiseaseArea.id === diseaseAreaId) {
+    return { name: draft.resolvedDiseaseArea.preferredName, aliases: draft.resolvedDiseaseArea.aliases, source: 'mondo' }
+  }
+  const catalogEntry = diseaseAreaId ? getDiseaseAreaById(diseaseAreaId) : undefined
+  if (catalogEntry) return { name: catalogEntry.name, source: 'catalog' }
+  return null
+}
+
 /**
  * Step 26: whether the resolvedAsset's own real evidence (indicationContexts,
  * raw CT.gov condition text) agrees with the user's selected Disease Area.
@@ -315,8 +387,7 @@ export function needsHomeCompanyConfirmation(draft: SetupDraft): boolean {
 export function assetDiseaseAreaAgreement(draft: SetupDraft): 'match' | 'mismatch' | 'unknown' {
   const r = draft.resolvedAsset
   if (!r || r.id !== draft.landscapeConfiguration.homeAssetId || r.indicationContexts.length === 0) return 'unknown'
-  const diseaseArea = draft.landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(draft.landscapeConfiguration.diseaseAreaId) : undefined
-  const diseaseAreaName = diseaseArea?.name ?? draft.manualDiseaseArea?.name
+  const diseaseAreaName = resolveDiseaseAreaDisplay(draft)?.name
   if (!diseaseAreaName) return 'unknown'
   const targetWords = diseaseAreaName.toLowerCase().split(/\s+/).filter(Boolean)
   const matches = r.indicationContexts.some((c) => {
@@ -363,6 +434,7 @@ export function suggestedCompanyToEntry(s: SuggestedCompanySuggestion): CompanyE
       reasonDetail: a.reasonDetail,
       unresolvedQuestions: a.unresolvedQuestions,
       detail: a.detail,
+      historicalOrganizationName: a.historicalOrganizationName,
     })),
     ariyaAssessment: s.aiProposedRelationship,
     evidenceStatus: 'evidence_available',
@@ -410,6 +482,7 @@ export function addManualCompany(
       reasonDetail: [],
       unresolvedQuestions: [],
       detail: null,
+      historicalOrganizationName: null,
     }]
     : []
   const company: CompanyEntry = {
@@ -434,6 +507,12 @@ export function toggleCompanySelection(draft: SetupDraft, companyId: string): Se
     ? draft.selections.filter((s) => s.companyId !== companyId)
     : [...draft.selections, { companyId, userRelationship: null }]
   return { ...draft, selections }
+}
+
+/** Clears every Stage 2 selection at once -- the fixed footer's "Clear selection" action (Root-Cause Recon implementation, Part D1). */
+export function clearCompanySelections(draft: SetupDraft): SetupDraft {
+  if (draft.selections.length === 0) return draft
+  return { ...draft, selections: [] }
 }
 
 export function isCompanySelected(draft: SetupDraft, companyId: string): boolean {

@@ -11,6 +11,7 @@ import {
   hasDownstreamData,
   clearDownstreamData,
   draftToTrackedCompetitors,
+  clearCompanySelections,
 } from '../../config/setup-draft'
 import { Progress } from '../../components/shadcn/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/shadcn/ui/dialog'
@@ -168,7 +169,6 @@ export default function SetupPage() {
               draft={draft}
               onChange={applyDraft}
               onBack={() => goToStage('define')}
-              onContinue={() => goToStage('configure')}
             />
           )}
           {draft.stage === 'configure' && (
@@ -182,6 +182,36 @@ export default function SetupPage() {
           )}
         </div>
       </div>
+
+      {/* Root-Cause Recon implementation, Part D — persistent Stage 2
+          selection footer. `fixed`, not `sticky`: SetupPage renders outside
+          the app's own sidebar-08 shell and scrolls at the document level
+          (no inner overflow-y-auto ancestor exists for `sticky` to bind
+          to), and there is no other persistent header/footer chrome here
+          to coordinate with -- see this milestone's own recon report,
+          Section O, for the live-DOM investigation behind this choice. */}
+      {draft.stage === 'discover' && (
+        <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <p className="text-sm font-medium">
+              {draft.selections.length} {draft.selections.length === 1 ? 'company' : 'companies'} selected
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost" size="sm"
+                className="hidden sm:inline-flex"
+                disabled={draft.selections.length === 0}
+                onClick={() => applyDraft(clearCompanySelections(draft))}
+              >
+                Clear selection
+              </Button>
+              <Button size="sm" disabled={draft.selections.length === 0} onClick={() => goToStage('configure')}>
+                Continue →
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NAV 2 — stale landscape confirmation */}
       <Dialog open={!!pendingChange} onOpenChange={(open) => { if (!open) setPendingChange(null) }}>

@@ -124,7 +124,13 @@ export function isLandscapeConfigurationConsistent(config: LandscapeConfiguratio
     const asset = getAssetById(config.homeAssetId)
     // A homeAssetId absent from the catalog (synthetic/manual/resolved asset)
     // is valid on its own -- only check consistency when the asset IS catalogued.
-    if (asset && config.diseaseAreaId && asset.diseaseAreaId !== config.diseaseAreaId) return false
+    // Root-Cause Recon implementation, Part A/B: likewise, only enforce
+    // exact-id agreement when config.diseaseAreaId ITSELF is a catalogued
+    // legacy short id -- a Disease Area selected via the new canonical
+    // MONDO search carries an id this catalog never uses at all, and its
+    // real relationship to the asset was already validated by name/alias
+    // at selection time (see setup-draft.ts's selectKnownHomeAsset).
+    if (asset && config.diseaseAreaId && getDiseaseAreaById(config.diseaseAreaId) && asset.diseaseAreaId !== config.diseaseAreaId) return false
   }
   if (config.diseaseAreaId) {
     const diseaseArea = getDiseaseAreaById(config.diseaseAreaId)
@@ -155,6 +161,30 @@ export function getDiseaseAreasForTherapeuticArea(therapeuticAreaId: string): Di
 /** Catalogued (AssetConfig) Home Assets belonging to the given Disease Area, in catalog order. */
 export function getAssetsForDiseaseArea(diseaseAreaId: string): AssetConfig[] {
   return ASSETS_CONFIG.filter(a => a.diseaseAreaId === diseaseAreaId)
+}
+
+/**
+ * Root-Cause Recon implementation, Part A/B: a Disease Area selected via
+ * the new canonical search (setup-draft.ts's resolvedDiseaseArea) carries
+ * a MONDO id, not one of the four legacy short ids ('hae'/'pnh'/'pbc'/
+ * 'gmg') ASSETS_CONFIG's own `diseaseAreaId` field still uses -- so
+ * getAssetsForDiseaseArea(mondoId) alone would never find Ekterly/
+ * Takhzyro/etc. again. Bridges the two by NAME/shortCode, matched
+ * case-insensitively against the resolved entry's own preferred name and
+ * real MONDO aliases (never a fuzzy/edit-distance match) -- e.g. the
+ * curated MONDO entry for hereditary angioedema genuinely lists "HAE" as
+ * an exact_synonym, which is also this catalog's own existing shortCode
+ * for the same disease area, so the bridge is real evidence-based overlap,
+ * not a coincidence this function invents.
+ */
+export function getAssetsForResolvedDiseaseArea(preferredName: string, aliases: string[] = []): AssetConfig[] {
+  const candidates = new Set([preferredName, ...aliases].map(s => s.toLowerCase()))
+  return ASSETS_CONFIG.filter(a => {
+    if (!a.diseaseAreaId) return false
+    const da = getDiseaseAreaById(a.diseaseAreaId)
+    if (!da) return false
+    return candidates.has(da.name.toLowerCase()) || candidates.has(da.shortCode.toLowerCase())
+  })
 }
 
 /**

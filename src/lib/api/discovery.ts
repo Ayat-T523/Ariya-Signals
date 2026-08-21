@@ -79,6 +79,15 @@ export interface RelevantAssetInfo {
   reasonDetail: string[]
   unresolvedQuestions: string[]
   detail: string | null
+  /**
+   * Root-Cause Recon implementation, Part E4: the ORIGINAL CT.gov-declared
+   * sponsor name (e.g. "Shire"), preserved only when the Organization
+   * Resolution Gate redirected it to a different current-company identity
+   * (e.g. "Takeda") -- null for every candidate whose sponsor was never
+   * redirected. Never a replacement for the company's current name, which
+   * remains the top-level identity everywhere else.
+   */
+  historicalOrganizationName: string | null
 }
 
 /**
@@ -174,6 +183,7 @@ function toRelevantAssetInfo(raw: any): RelevantAssetInfo {
     reasonDetail: raw.reason_detail ?? [],
     unresolvedQuestions: raw.unresolved_questions ?? [],
     detail: raw.detail ?? null,
+    historicalOrganizationName: raw.historical_organization_name ?? null,
   }
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { getTherapeuticAreaById, getDiseaseAreaById } from '../../config/therapeutic-areas'
+import { getTherapeuticAreaById } from '../../config/therapeutic-areas'
 import {
   type SetupDraft,
   type CompanyEntry,
   resolveHomeAssetDisplay,
+  resolveDiseaseAreaDisplay,
   addManualCompany,
   setSuggestedCompanies,
   toggleCompanySelection,
@@ -26,6 +27,8 @@ import CompanyEvidenceSheet from './CompanyEvidenceSheet'
 
 const RELATIONSHIP_LABEL: Record<string, string> = { direct: 'Direct', indirect: 'Indirect', unclear: 'Unclear' }
 
+const MAX_VISIBLE_ASSET_BADGES = 3
+
 /**
  * Stage2Discover.tsx — "Find + select competitors" (Phase 15/16). Calls the
  * REAL discovery client (useDiscovery()/src/lib/api/discovery.ts) directly.
@@ -34,21 +37,27 @@ const RELATIONSHIP_LABEL: Record<string, string> = { direct: 'Direct', indirect:
  * suggestedCompanyToEntry, the one place that shape conversion happens.
  *
  * Selection happens HERE (Checkbox, Phase 16/20) -- Stage 3 only classifies
- * what was already selected. `needs_more_evidence` is never the dominant
- * visible text (Phase 17): a card leads with company name, relevant assets,
- * why Ariya suggested it, and its advisory assessment; candidate-status is
- * only a small badge inside "Review evidence".
+ * what was already selected. The persistent selection footer lives in
+ * SetupPage.tsx (Root-Cause Recon implementation, Part D), not here --
+ * this component only renders the company list and reserves bottom padding
+ * (Part D2) so that fixed footer never covers the last row.
+ *
+ * Card hierarchy (Root-Cause Recon implementation, Part C): company name,
+ * relevant assets as capped badges (never comma-joined prose), a concise
+ * relevance signal ONLY when a genuinely non-redundant fact is available
+ * (never filler text), Ariya's advisory assessment, evidence action. The
+ * old `why_suggested` sentence is retired from this card entirely -- it
+ * restates the same asset names the badges already show -- and remains
+ * available only as evidence/diagnostic context in CompanyEvidenceSheet.
  */
 export default function Stage2Discover({
   draft,
   onChange,
   onBack,
-  onContinue,
 }: {
   draft: SetupDraft
   onChange: (draft: SetupDraft) => void
   onBack: () => void
-  onContinue: () => void
 }) {
   const { state, run } = useDiscovery()
   const [addOpen, setAddOpen] = useState(false)
@@ -59,9 +68,14 @@ export default function Stage2Discover({
   const therapeuticArea = draft.landscapeConfiguration.therapeuticAreaId
     ? getTherapeuticAreaById(draft.landscapeConfiguration.therapeuticAreaId)
     : undefined
-  const diseaseArea = draft.landscapeConfiguration.diseaseAreaId
-    ? getDiseaseAreaById(draft.landscapeConfiguration.diseaseAreaId)
-    : undefined
+  // Root-Cause Recon implementation, Part A: a Disease Area selected via
+  // the new canonical search carries a MONDO id the OLD static catalog
+  // (therapeutic-areas.ts's own DISEASE_AREAS) never has -- resolving via
+  // resolveDiseaseAreaDisplay (manual/resolved/catalog, in that priority
+  // order) is the same 3-tier lookup Stage1Define.tsx already uses, so
+  // discovery keeps working regardless of which source the Disease Area
+  // came from.
+  const diseaseArea = resolveDiseaseAreaDisplay(draft)
   const homeAsset = resolveHomeAssetDisplay(draft)
 
   function runDiscovery() {
@@ -106,7 +120,10 @@ export default function Stage2Discover({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    // Part D2: bottom padding reserved so the fixed selection footer
+    // (SetupPage.tsx) never covers the last company row.
+    <div className="flex flex-col gap-6 pb-24">
+      <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={onBack}>← Back</Button>
       {/* ── Stage 2.1 summary header ── */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5">
         <Badge variant="secondary">{therapeuticArea?.name ?? '—'}</Badge>
@@ -174,6 +191,13 @@ export default function Stage2Discover({
             <ItemGroup>
               {filtered.map((company) => {
                 const selected = isCompanySelected(draft, company.id)
+                const visibleAssets = company.relevantAssets.slice(0, MAX_VISIBLE_ASSET_BADGES)
+                const overflowCount = company.relevantAssets.length - visibleAssets.length
+                // Part C4: only a genuinely new, non-redundant fact -- never
+                // filler restating what the badges/Ariya-assessment badge
+                // already show. verifiedDomains is real evidence (STEP 9's
+                // own official-source verification), not a guess.
+                const verifiedIdentity = company.source !== 'manual' && company.verifiedDomains.length > 0
                 return (
                   <Item key={company.id} variant={selected ? 'outline' : 'muted'}>
                     <ItemMedia>
@@ -185,13 +209,22 @@ export default function Stage2Discover({
                     </ItemMedia>
                     <ItemContent>
                       <ItemTitle>{company.companyName}</ItemTitle>
-                      <ItemDescription>
-                        {company.relevantAssets.length > 0
-                          ? company.relevantAssets.map((a) => a.identityKey).join(', ')
-                          : company.source === 'manual' ? 'No specific asset recorded' : 'Relevant asset not identified'}
-                      </ItemDescription>
-                      {company.whySuggested && (
-                        <p className="mt-1 text-xs text-muted-foreground">{company.whySuggested}</p>
+                      {visibleAssets.length > 0 ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {visibleAssets.map((a) => (
+                            <Badge key={a.identityKey} variant="secondary" className="text-xs font-normal">{a.identityKey}</Badge>
+                          ))}
+                          {overflowCount > 0 && (
+                            <Badge variant="outline" className="text-xs font-normal text-muted-foreground">+{overflowCount}</Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <ItemDescription>
+                          {company.source === 'manual' ? 'No specific asset recorded' : 'Relevant asset not identified'}
+                        </ItemDescription>
+                      )}
+                      {verifiedIdentity && (
+                        <p className="mt-1 text-xs text-muted-foreground">Verified company identity</p>
                       )}
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         {company.source === 'manual' ? (
@@ -236,11 +269,6 @@ export default function Stage2Discover({
         isHomeCompany={(companyName) => isHomeCompany(draft, companyName)}
       />
       <CompanyEvidenceSheet company={reviewing} open={!!reviewing} onOpenChange={(open) => { if (!open) setReviewing(null) }} />
-
-      <div className="flex justify-between pt-2">
-        <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button onClick={onContinue} disabled={draft.selections.length === 0}>Continue</Button>
-      </div>
     </div>
   )
 }
