@@ -122,13 +122,19 @@ export function migrateLegacyToLandscapeConfiguration(
 export function isLandscapeConfigurationConsistent(config: LandscapeConfiguration): boolean {
   if (config.homeAssetId) {
     const asset = getAssetById(config.homeAssetId)
-    // A homeAssetId absent from the catalog (synthetic asset) is valid on its
-    // own -- only check consistency when the asset IS catalogued.
+    // A homeAssetId absent from the catalog (synthetic/manual/resolved asset)
+    // is valid on its own -- only check consistency when the asset IS catalogued.
     if (asset && config.diseaseAreaId && asset.diseaseAreaId !== config.diseaseAreaId) return false
   }
   if (config.diseaseAreaId) {
-    const ta = getTherapeuticAreaForDiseaseArea(config.diseaseAreaId)
-    if (config.therapeuticAreaId && ta?.id !== config.therapeuticAreaId) return false
+    const diseaseArea = getDiseaseAreaById(config.diseaseAreaId)
+    // Same discipline as homeAssetId above: a diseaseAreaId absent from the
+    // catalog (a manual Disease Area, Landscape Input Resolution milestone)
+    // is valid on its own -- only check TA/DA agreement when it IS catalogued.
+    if (diseaseArea) {
+      const ta = getTherapeuticAreaForDiseaseArea(config.diseaseAreaId)
+      if (config.therapeuticAreaId && ta?.id !== config.therapeuticAreaId) return false
+    }
   }
   return true
 }

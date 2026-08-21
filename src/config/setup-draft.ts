@@ -37,7 +37,9 @@ import {
   isLandscapeConfigurationConsistent,
 } from './landscape-configuration'
 import { getAssetById, type AssetConfig } from './assets-config'
+import { getDiseaseAreaById } from './therapeutic-areas'
 import type { SuggestedCompanySuggestion } from '../lib/api/discovery'
+import type { ResolvedAssetIdentity } from '../lib/api/assetSearch'
 
 export type SetupStage = 'define' | 'discover' | 'configure'
 
@@ -54,6 +56,21 @@ export interface ManualAssetIdentity {
   /** REQUIRED (Phase 6): without a resolved company, home-company exclusion cannot work -- see attachManualHomeAsset. */
   company: string
   diseaseAreaId: string
+  therapeuticAreaId: string
+  /** Optional user-supplied development code/alias (Landscape Input Resolution milestone, Step 23) -- preserved verbatim, never fabricated. */
+  developmentCode: string | null
+}
+
+/**
+ * A user-entered Disease Area for a category with no configured catalog
+ * entry (Landscape Input Resolution milestone, Step 5/24). Minimal on
+ * purpose -- no fabricated disease metadata, just the name and which
+ * category it was added under.
+ */
+export interface ManualDiseaseArea {
+  source: 'manual'
+  id: string
+  name: string
   therapeuticAreaId: string
 }
 
@@ -92,12 +109,16 @@ export interface SetupDraft {
   stage: SetupStage
   landscapeConfiguration: LandscapeConfiguration
   manualAsset: ManualAssetIdentity | null
+  /** A user-entered Disease Area (Step 5/24) -- mutually exclusive with a catalogued diseaseAreaId, same discipline as manualAsset/homeAssetId. */
+  manualDiseaseArea: ManualDiseaseArea | null
+  /** The asset identity selected from Home Asset search (Step 20/28) -- backend-resolved (known_catalog or clinicaltrials_gov), distinct from both a catalog AssetConfig match and a fully manual entry. */
+  resolvedAsset: ResolvedAssetIdentity | null
   /**
-   * A user-confirmed company for a KNOWN catalog asset that has no
-   * `company` recorded in assets-config.ts (Phase 6's "known/resolved drug
-   * with an honest data gap" case -- distinct from a fully manual asset,
-   * which carries its own `company` directly on ManualAssetIdentity).
-   * Cleared whenever the Home Asset selection changes.
+   * A user-confirmed company for a KNOWN catalog asset OR a resolvedAsset
+   * that has no owner company recorded (Phase 6 / Step 13's "honest data
+   * gap" case -- distinct from a fully manual asset, which carries its own
+   * `company` directly on ManualAssetIdentity). Cleared whenever the Home
+   * Asset selection changes.
    */
   homeCompanyOverride: string | null
   companies: CompanyEntry[]
@@ -109,6 +130,8 @@ export function createEmptySetupDraft(landscapeConfiguration?: LandscapeConfigur
     stage: 'define',
     landscapeConfiguration: landscapeConfiguration ?? { ...EMPTY_LANDSCAPE_CONFIGURATION },
     manualAsset: null,
+    manualDiseaseArea: null,
+    resolvedAsset: null,
     homeCompanyOverride: null,
     companies: [],
     selections: [],
@@ -126,13 +149,38 @@ export function createLocalId(prefix: string): string {
 export function selectTherapeuticArea(draft: SetupDraft, therapeuticAreaId: string): SetupDraft {
   const nextConfig = applyTherapeuticAreaSelection(draft.landscapeConfiguration, therapeuticAreaId)
   if (nextConfig === draft.landscapeConfiguration) return draft
-  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null, homeCompanyOverride: null }
+  return {
+    ...draft, landscapeConfiguration: nextConfig,
+    manualAsset: null, manualDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
+  }
 }
 
 export function selectDiseaseArea(draft: SetupDraft, diseaseAreaId: string): SetupDraft {
   const nextConfig = applyDiseaseAreaSelection(draft.landscapeConfiguration, diseaseAreaId)
   if (nextConfig === draft.landscapeConfiguration) return draft
-  return { ...draft, landscapeConfiguration: nextConfig, manualAsset: null, homeCompanyOverride: null }
+  return {
+    ...draft, landscapeConfiguration: nextConfig,
+    manualAsset: null, manualDiseaseArea: null, resolvedAsset: null, homeCompanyOverride: null,
+  }
+}
+
+/**
+ * A user-entered Disease Area for the CURRENTLY selected category (Step
+ * 5/24) -- never a dead end when the catalog has nothing configured.
+ * Refuses if no category is selected yet, or the name is blank.
+ */
+export function attachManualDiseaseArea(draft: SetupDraft, name: string): SetupDraft {
+  const { therapeuticAreaId } = draft.landscapeConfiguration
+  if (!therapeuticAreaId || !name.trim()) return draft
+  const manualDiseaseArea: ManualDiseaseArea = {
+    source: 'manual', id: createLocalId('manual-disease-area'), name: name.trim(), therapeuticAreaId,
+  }
+  return {
+    ...draft,
+    manualDiseaseArea,
+    manualAsset: null, resolvedAsset: null, homeCompanyOverride: null,
+    landscapeConfiguration: { ...draft.landscapeConfiguration, diseaseAreaId: manualDiseaseArea.id, homeAssetId: null },
+  }
 }
 
 /** Selecting a catalogued Home Asset -- refuses silently if it doesn't belong to the selected Disease Area, same discipline as applyHomeAssetSelection. */
@@ -143,11 +191,12 @@ export function selectKnownHomeAsset(draft: SetupDraft, assetId: string): SetupD
     ...draft,
     landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: assetId },
     manualAsset: null,
+    resolvedAsset: null,
     homeCompanyOverride: null,
   }
 }
 
-/** Confirms a company for the currently-selected KNOWN asset when assets-config.ts has no `company` recorded for it (Phase 6). No-op for a manual asset (which carries its own required `company` already) or when nothing is selected. */
+/** Confirms a company for the currently-selected asset when neither the catalog nor a resolvedAsset has one recorded (Phase 6 / Step 13). No-op for a manual asset (which carries its own required `company` already) or when nothing is selected. */
 export function confirmHomeCompany(draft: SetupDraft, company: string): SetupDraft {
   if (!company.trim() || draft.manualAsset || !draft.landscapeConfiguration.homeAssetId) return draft
   return { ...draft, homeCompanyOverride: company.trim() }
@@ -163,7 +212,7 @@ export function confirmHomeCompany(draft: SetupDraft, company: string): SetupDra
  */
 export function attachManualHomeAsset(
   draft: SetupDraft,
-  input: { displayName: string; innName?: string | null; company: string },
+  input: { displayName: string; innName?: string | null; company: string; developmentCode?: string | null },
 ): SetupDraft {
   const { therapeuticAreaId, diseaseAreaId } = draft.landscapeConfiguration
   if (!therapeuticAreaId || !diseaseAreaId || !input.displayName.trim() || !input.company.trim()) return draft
@@ -174,28 +223,72 @@ export function attachManualHomeAsset(
     displayName: input.displayName.trim(),
     innName: input.innName?.trim() || null,
     company: input.company.trim(),
+    developmentCode: input.developmentCode?.trim() || null,
     diseaseAreaId,
     therapeuticAreaId,
   }
   return {
     ...draft,
     manualAsset,
+    resolvedAsset: null,
     homeCompanyOverride: null,
     landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: manualAsset.id },
+  }
+}
+
+/**
+ * Attaches a Home Asset search result (Step 20/28) -- the backend already
+ * did the real identity resolution (known_catalog or live CT.gov alias
+ * convergence); this just adopts it as the draft's Home Asset, the same
+ * way selectKnownHomeAsset adopts a static catalog entry.
+ */
+export function selectResolvedAsset(draft: SetupDraft, identity: ResolvedAssetIdentity): SetupDraft {
+  return {
+    ...draft,
+    resolvedAsset: identity,
+    manualAsset: null,
+    homeCompanyOverride: null,
+    landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: identity.id },
+  }
+}
+
+/** Clears the currently selected Home Asset (manual/resolved/catalog) so Stage 1 falls back to the search UI -- the "Change" action. Never touches the Disease Area/category. */
+export function clearHomeAsset(draft: SetupDraft): SetupDraft {
+  return {
+    ...draft,
+    manualAsset: null,
+    resolvedAsset: null,
+    homeCompanyOverride: null,
+    landscapeConfiguration: { ...draft.landscapeConfiguration, homeAssetId: null },
   }
 }
 
 export interface HomeAssetDisplay {
   displayName: string
   innName: string | null
-  /** null only for a catalogued asset with no recorded company yet -- a genuine, honest gap, never fabricated. See needsHomeCompanyConfirmation(). */
+  /** null only when the source has no recorded company yet -- a genuine, honest gap, never fabricated. See needsHomeCompanyConfirmation(). */
   companyName: string | null
+  /** Populated only for a resolvedAsset (Step 21/25) -- undefined for a manual/catalog asset, never fabricated to fill the panel. */
+  aliases?: string[]
+  mechanismOfAction?: string[]
+  indicationContexts?: string[]
 }
 
 /** Resolves the Home Asset identity for display, whichever source it came from. Null when nothing is selected yet. */
 export function resolveHomeAssetDisplay(draft: SetupDraft): HomeAssetDisplay | null {
   if (draft.manualAsset && draft.manualAsset.id === draft.landscapeConfiguration.homeAssetId) {
     return { displayName: draft.manualAsset.displayName, innName: draft.manualAsset.innName, companyName: draft.manualAsset.company }
+  }
+  if (draft.resolvedAsset && draft.resolvedAsset.id === draft.landscapeConfiguration.homeAssetId) {
+    const r = draft.resolvedAsset
+    return {
+      displayName: r.preferredName,
+      innName: r.innNames[0] ?? null,
+      companyName: r.ownerCompanies[0] ?? draft.homeCompanyOverride,
+      aliases: r.aliases,
+      mechanismOfAction: r.mechanismOfAction,
+      indicationContexts: r.indicationContexts,
+    }
   }
   const asset: AssetConfig | undefined = draft.landscapeConfiguration.homeAssetId
     ? getAssetById(draft.landscapeConfiguration.homeAssetId)
@@ -204,10 +297,33 @@ export function resolveHomeAssetDisplay(draft: SetupDraft): HomeAssetDisplay | n
   return null
 }
 
-/** True when a Home Asset is selected but its company is genuinely unknown -- Stage 1 must prompt for it (Phase 6) rather than proceed or guess. */
+/** True when a Home Asset is selected but its company is genuinely unknown -- Stage 1 must prompt for it (Phase 6/Step 13) rather than proceed or guess. */
 export function needsHomeCompanyConfirmation(draft: SetupDraft): boolean {
   const display = resolveHomeAssetDisplay(draft)
   return !!display && !display.companyName
+}
+
+/**
+ * Step 26: whether the resolvedAsset's own real evidence (indicationContexts,
+ * raw CT.gov condition text) agrees with the user's selected Disease Area.
+ * 'unknown' when there's nothing to compare (no resolvedAsset, or it has no
+ * indication evidence at all) -- absence of evidence is never treated as a
+ * mismatch. Deliberately simple token-overlap, not a synonym/ontology
+ * lookup: every word in the Disease Area's own name must appear in at least
+ * one indication context string for a 'match'.
+ */
+export function assetDiseaseAreaAgreement(draft: SetupDraft): 'match' | 'mismatch' | 'unknown' {
+  const r = draft.resolvedAsset
+  if (!r || r.id !== draft.landscapeConfiguration.homeAssetId || r.indicationContexts.length === 0) return 'unknown'
+  const diseaseArea = draft.landscapeConfiguration.diseaseAreaId ? getDiseaseAreaById(draft.landscapeConfiguration.diseaseAreaId) : undefined
+  const diseaseAreaName = diseaseArea?.name ?? draft.manualDiseaseArea?.name
+  if (!diseaseAreaName) return 'unknown'
+  const targetWords = diseaseAreaName.toLowerCase().split(/\s+/).filter(Boolean)
+  const matches = r.indicationContexts.some((c) => {
+    const contextLower = c.toLowerCase()
+    return targetWords.every((w: string) => contextLower.includes(w))
+  })
+  return matches ? 'match' : 'mismatch'
 }
 
 export function isStage1Valid(draft: SetupDraft): boolean {
@@ -219,9 +335,14 @@ export function isStage1Valid(draft: SetupDraft): boolean {
     if (draft.manualAsset.id !== homeAssetId
       || draft.manualAsset.diseaseAreaId !== diseaseAreaId
       || draft.manualAsset.therapeuticAreaId !== therapeuticAreaId) return false
+  } else if (draft.resolvedAsset) {
+    if (draft.resolvedAsset.id !== homeAssetId) return false
   } else if (!getAssetById(homeAssetId)) {
     return false
   }
+  // A manual Disease Area must genuinely be attached to this exact draft's category.
+  if (draft.manualDiseaseArea && draft.manualDiseaseArea.id === diseaseAreaId
+    && draft.manualDiseaseArea.therapeuticAreaId !== therapeuticAreaId) return false
   // A resolved company is required before Ariya can run discovery at all (Phase 6/13).
   return !needsHomeCompanyConfirmation(draft)
 }

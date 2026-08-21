@@ -37,11 +37,14 @@ import {
   createEmptySetupDraft,
   selectTherapeuticArea,
   selectDiseaseArea,
+  attachManualDiseaseArea,
   selectKnownHomeAsset,
   attachManualHomeAsset,
+  selectResolvedAsset,
   confirmHomeCompany,
   needsHomeCompanyConfirmation,
   resolveHomeAssetDisplay,
+  assetDiseaseAreaAgreement,
   isStage1Valid,
   addManualCompany,
   toggleCompanySelection,
@@ -61,7 +64,9 @@ import {
   type SetupDraft,
 } from './setup-draft.js'
 import { getDiseaseAreasForTherapeuticArea, getAssetsForDiseaseArea } from './landscape-configuration.js'
+import { THERAPEUTIC_AREAS } from './therapeutic-areas.js'
 import type { SuggestedCompanySuggestion } from '../lib/api/discovery.js'
+import type { ResolvedAssetIdentity } from '../lib/api/assetSearch.js'
 
 let passed = 0
 let failed = 0
@@ -142,7 +147,7 @@ assert('draft unchanged when company is blank', refused, gmgNoCompanyDraft)
 // ── 7. manual asset does not receive fabricated metadata ─────────────────
 console.log('7. Manual asset carries only user-supplied identity fields, nothing fabricated')
 assert('manualAsset shape has exactly the identity fields a user can supply', Object.keys(gmgDraft.manualAsset!).sort(), [
-  'company', 'diseaseAreaId', 'displayName', 'id', 'innName', 'source', 'therapeuticAreaId',
+  'company', 'developmentCode', 'diseaseAreaId', 'displayName', 'id', 'innName', 'source', 'therapeuticAreaId',
 ])
 assertTrue('no mechanism/phase/lexicon/evidence field exists on the manual asset', !('mechanism' in gmgDraft.manualAsset!) && !('lexiconInns' in gmgDraft.manualAsset!))
 
@@ -337,6 +342,136 @@ const layoutCode = layoutSource
 assertTrue('Layout.tsx no longer imports the retired NavPanel in real code', !layoutCode.includes('NavPanel'))
 assertTrue('Layout.tsx now uses the official SidebarProvider', layoutCode.includes('SidebarProvider'))
 assertTrue('Layout.tsx now uses AppSidebar (sidebar-08-derived shell)', layoutCode.includes('AppSidebar'))
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Landscape Input Resolution milestone (Step 33) — 22-category taxonomy,
+// manual Disease Area, canonical asset search/resolution at the draft layer.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── 24. all 22 categories present ─────────────────────────────────────────
+console.log('24. All 22 landscape categories are present')
+assert('exactly 22 top-level categories', THERAPEUTIC_AREAS.length, 22)
+
+// ── 25. 18 standard TAs grouped correctly ─────────────────────────────────
+console.log('25. The 18 standard organ-system Therapeutic Areas are grouped as therapeutic_area')
+const standardCount = THERAPEUTIC_AREAS.filter((c) => c.categoryType === 'therapeutic_area').length
+assert('18 standard Therapeutic Areas', standardCount, 18)
+
+// ── 26. 4 cross-cutting categories grouped separately ─────────────────────
+console.log('26. The 4 Special/Cross-Cutting categories are grouped separately as cross_cutting')
+const crossCuttingIds = THERAPEUTIC_AREAS.filter((c) => c.categoryType === 'cross_cutting').map((c) => c.id).sort()
+assert('exactly 4 cross-cutting categories, matching the fixed product decision', crossCuttingIds, [
+  'medical-imaging-contrast-agents', 'pediatrics-neonatology', 'rare-diseases', 'vaccines',
+])
+
+// ── 27. category selector search works ────────────────────────────────────
+console.log('27. Stage1Define.tsx renders the category selector as a grouped, searchable Command combobox')
+const stage1Path = path.join(setupDir, '..', 'pages', 'setup', 'Stage1Define.tsx')
+const stage1Source = fs.readFileSync(stage1Path, 'utf-8')
+assertTrue('Stage1Define.tsx groups the category combobox into Therapeutic Areas / Special-Cross-Cutting', stage1Source.includes('Therapeutic Areas') && stage1Source.includes('Special / Cross-Cutting'))
+assertTrue('Stage1Define.tsx never renders 22 individual radio/card options (uses CommandItem inside a mapped group)', stage1Source.includes('standardAreas.map') && stage1Source.includes('crossCuttingAreas.map'))
+
+// ── 28. Disease list filters by selected category ─────────────────────────
+console.log('28. Disease Area options are filtered to the selected category (unchanged mechanism, now over 22 categories)')
+assertTrue('oncology (a new category) has zero configured Disease Areas -- not a hardcoded 2-category assumption', getDiseaseAreasForTherapeuticArea('oncology').length === 0)
+assertTrue('immunology (existing category) still resolves its known Disease Areas', getDiseaseAreasForTherapeuticArea('immunology').some((da) => da.id === 'hae'))
+
+// ── 29. manual Disease Area can be added ──────────────────────────────────
+console.log('29. A manual Disease Area can be added for a category with no configured catalog, never a dead end')
+let oncologyDraft = createEmptySetupDraft()
+oncologyDraft = selectTherapeuticArea(oncologyDraft, 'oncology')
+assertTrue('oncology is not submittable before a Disease Area is attached', !isStage1Valid(oncologyDraft))
+oncologyDraft = attachManualDiseaseArea(oncologyDraft, 'Non-Small Cell Lung Cancer')
+assert('manual Disease Area attached to the correct category', oncologyDraft.manualDiseaseArea?.therapeuticAreaId, 'oncology')
+assert('landscapeConfiguration.diseaseAreaId points at the manual entry', oncologyDraft.landscapeConfiguration.diseaseAreaId, oncologyDraft.manualDiseaseArea?.id)
+
+// ── 30. Home Asset search uses the backend resolver ───────────────────────
+console.log('30. Stage1Define.tsx wires Home Asset search through the real backend resolver, not a second local-only mechanism')
+assertTrue('Stage1Define.tsx imports useAssetSearch', stage1Source.includes("from '../../hooks/useAssetSearch'"))
+assertTrue('Stage1Define.tsx never imports the discovery/competitor client for asset search', !stage1Source.includes("from '../../hooks/useDiscovery'"))
+const useAssetSearchPath = path.join(setupDir, '..', 'hooks', 'useAssetSearch.ts')
+const useAssetSearchSource = fs.readFileSync(useAssetSearchPath, 'utf-8')
+assertTrue('useAssetSearch.ts calls the real searchAssets API client', useAssetSearchSource.includes('searchAssets'))
+assertTrue('useAssetSearch.ts debounces rather than firing on every keystroke', /DEBOUNCE_MS|setTimeout/.test(useAssetSearchSource))
+
+// ── 31. local known assets may appear immediately ─────────────────────────
+console.log('31. Known local/catalog assets render immediately alongside (not blocked by) the backend search')
+assertTrue('Stage1Define.tsx renders a "Known results" group independent of search state', stage1Source.includes('Known results'))
+
+// ── 32. brand and INN results converge to one asset identity ──────────────
+console.log('32. Selecting a resolvedAsset (whatever alias the user searched) sets one canonical homeAssetId')
+function fakeResolvedAsset(overrides: Partial<ResolvedAssetIdentity> = {}): ResolvedAssetIdentity {
+  return {
+    id: 'rystiggo', preferredName: 'RYSTIGGO', brandNames: ['RYSTIGGO'],
+    innNames: ['rozanolixizumab'], developmentCodes: [], aliases: [],
+    ownerCompanies: ['UCB'], mechanismOfAction: [], indicationContexts: [],
+    source: 'known_catalog', evidenceRefs: [], ...overrides,
+  }
+}
+let searchDraft = createEmptySetupDraft()
+searchDraft = selectTherapeuticArea(searchDraft, 'neurology')
+searchDraft = selectDiseaseArea(searchDraft, 'gmg')
+searchDraft = selectResolvedAsset(searchDraft, fakeResolvedAsset())
+assert('homeAssetId set to the resolved identity id regardless of which alias was searched', searchDraft.landscapeConfiguration.homeAssetId, 'rystiggo')
+
+// ── 33. selected asset persists canonical company identity ────────────────
+console.log('33. resolveHomeAssetDisplay surfaces the resolved asset\'s real owner company')
+assert('company identity carried through', resolveHomeAssetDisplay(searchDraft)?.companyName, 'UCB')
+
+// ── 34/35/36. mechanism/population/dosage shown only when present, never fabricated ──
+console.log('34/35/36. Mechanism and population render only when the resolved identity actually carries them; there is no dosage field to fabricate at all')
+const noEvidenceDraft = selectResolvedAsset(createEmptySetupDraft(), fakeResolvedAsset({ id: 'bare', mechanismOfAction: [], indicationContexts: [] }))
+const bareDisplay = resolveHomeAssetDisplay(noEvidenceDraft)
+assert('no mechanism fabricated when the resolver returned none', bareDisplay?.mechanismOfAction, [])
+assert('no indication context fabricated when the resolver returned none', bareDisplay?.indicationContexts, [])
+assertTrue('HomeAssetDisplay has no dosage/regimen field at all -- structurally impossible to fabricate', !('dosage' in (bareDisplay ?? {})) && !('regimen' in (bareDisplay ?? {})))
+
+// ── 37. manual asset fallback remains available ────────────────────────────
+console.log('37. Manual asset entry remains reachable from every Home Asset search state, never hidden behind a successful search')
+assertTrue('Stage1Define.tsx always offers "Add asset manually" regardless of search outcome', (stage1Source.match(/Add asset manually/g) || []).length >= 3)
+
+// ── 38. manual asset requires company (regression, now covering the dev-code field too) ──
+console.log('38. Manual asset still refuses without a company, and now preserves an optional development code')
+const withDevCode = attachManualHomeAsset(oncologyDraft, { displayName: 'Testolimab', company: 'Acme Oncology', developmentCode: 'ACM-100' })
+assert('development code preserved verbatim', withDevCode.manualAsset?.developmentCode, 'ACM-100')
+
+// ── 39. changing Disease Area invalidates the previously selected asset ────
+console.log('39. Changing Disease Area clears a previously selected Home Asset (existing mechanism, now exercised through a manual Disease Area too)')
+let cascadeDraft = createEmptySetupDraft()
+cascadeDraft = selectTherapeuticArea(cascadeDraft, 'oncology')
+cascadeDraft = attachManualDiseaseArea(cascadeDraft, 'Melanoma')
+cascadeDraft = attachManualHomeAsset(cascadeDraft, { displayName: 'Melanolimab', company: 'Acme Oncology' })
+assertTrue('asset attached', isStage1Valid(cascadeDraft))
+cascadeDraft = attachManualDiseaseArea(cascadeDraft, 'Renal Cell Carcinoma')
+assert('the previously attached asset no longer matches the new Disease Area\'s homeAssetId', cascadeDraft.landscapeConfiguration.homeAssetId, null)
+
+// ── 40. asset mismatch is surfaced, never silently mutates the landscape ──
+console.log('40. assetDiseaseAreaAgreement flags a real mismatch without ever changing the draft itself')
+let mismatchDraft = createEmptySetupDraft()
+mismatchDraft = selectTherapeuticArea(mismatchDraft, 'immunology')
+mismatchDraft = selectDiseaseArea(mismatchDraft, 'hae')
+mismatchDraft = selectResolvedAsset(mismatchDraft, fakeResolvedAsset({ id: 'oncology-drug', indicationContexts: ['Non-Small Cell Lung Cancer'] }))
+assert('a genuinely unrelated indication context is flagged as a mismatch', assetDiseaseAreaAgreement(mismatchDraft), 'mismatch')
+assert('checking agreement never mutates landscapeConfiguration', mismatchDraft.landscapeConfiguration.diseaseAreaId, 'hae')
+const unknownMismatchDraft = selectResolvedAsset(createEmptySetupDraft(), fakeResolvedAsset({ id: 'no-context', indicationContexts: [] }))
+assert('no indication evidence at all is "unknown", never treated as a mismatch', assetDiseaseAreaAgreement(unknownMismatchDraft), 'unknown')
+
+// ── 41. Home Asset selector remains viewport-safe ──────────────────────────
+console.log('41. Home Asset / category / Disease Area popovers cap their own height for viewport safety')
+assertTrue('Stage1Define.tsx caps popover content height (max-h) rather than letting a 22-entry or search-result list overflow the viewport', (stage1Source.match(/max-h-\[/g) || []).length >= 2)
+
+// ── 42. no Supabase in the new modules ─────────────────────────────────────
+console.log('42. No Supabase reference anywhere in the new asset-resolution modules')
+const assetSearchClientSource = fs.readFileSync(path.join(setupDir, '..', 'lib', 'api', 'assetSearch.ts'), 'utf-8')
+assertTrue('assetSearch.ts never imports/references supabase', !/supabase/i.test(assetSearchClientSource))
+assertTrue('useAssetSearch.ts never imports/references supabase', !/supabase/i.test(useAssetSearchSource))
+assertTrue('Stage1Define.tsx never imports/references supabase', !/supabase/i.test(stage1Source))
+
+// ── 43. no paid data service introduced ────────────────────────────────────
+console.log('43. No paid data service reference anywhere in the new asset-resolution modules')
+for (const [label, src] of [['assetSearch.ts', assetSearchClientSource], ['useAssetSearch.ts', useAssetSearchSource], ['Stage1Define.tsx', stage1Source]] as const) {
+  assertTrue(`${label} references no paid provider (openai/anthropic/stripe/rxnorm-api-key etc.)`, !/openai|anthropic-api|stripe|paid[_-]?api/i.test(src))
+}
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 declare const process: { exit(code: number): void }

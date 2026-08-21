@@ -33,14 +33,10 @@ export class ApiUnreachableError extends Error {
   }
 }
 
-export async function apiPost<TResponse>(path: string, body: unknown): Promise<TResponse> {
+async function _handleResponse<TResponse>(responsePromise: Promise<Response>): Promise<TResponse> {
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    response = await responsePromise
   } catch (cause) {
     throw new ApiUnreachableError(cause)
   }
@@ -52,4 +48,18 @@ export async function apiPost<TResponse>(path: string, body: unknown): Promise<T
     throw new ApiError(response.status, errorCode, message)
   }
   return payload as TResponse
+}
+
+export async function apiPost<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  return _handleResponse<TResponse>(fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }))
+}
+
+/** GET with query params -- asset search (Landscape Input Resolution milestone) is the first consumer; same error/unreachable handling as apiPost. */
+export async function apiGet<TResponse>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<TResponse> {
+  const query = params ? `?${new URLSearchParams(params).toString()}` : ''
+  return _handleResponse<TResponse>(fetch(`${API_BASE_URL}${path}${query}`, { signal }))
 }

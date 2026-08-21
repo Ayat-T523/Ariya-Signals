@@ -1,25 +1,35 @@
 /**
- * therapeutic-areas.ts — canonical Therapeutic Area / Disease Area catalog.
+ * therapeutic-areas.ts — canonical landscape category / Disease Area catalog.
  *
- * Frontend Step 2 of the Ariya Light CI landscape-configuration model. Establishes
- * the two levels of the hierarchy that sat above `AssetConfig` in name only until
- * now: every asset in assets-config.ts previously carried its own `indication`/
- * `indicationFull` strings with no shared, stable id and no broader Therapeutic
- * Area concept at all. This file is that missing layer — assets-config.ts's
- * entries link into it via `diseaseAreaId` (see that file).
+ * Landscape Input Resolution milestone: the user-facing top-level catalog is
+ * now the fixed 22-category list (18 standard Therapeutic Areas + 4 Special/
+ * Cross-Cutting categories) — replacing the previous 2-entry placeholder.
+ * `TherapeuticArea` is kept as the type/field name throughout the codebase
+ * (avoids a large, low-value rename across setup-draft.ts, AppContext.tsx,
+ * Stage1Define.tsx, etc.) but now carries `categoryType` so a cross-cutting
+ * category (Rare Diseases, Vaccines, Pediatrics/Neonatology, Medical Imaging
+ * & Contrast Agents) is never silently treated as an organ-system TA. See
+ * `LandscapeCategory` below for the semantically-named alias.
  *
- * Therapeutic Area → Disease Area is a first-pass organisational grouping for V1,
- * not a claim of authoritative clinical taxonomy — it exists to prove the
- * three-level model, not to encode a definitive classification. Only the disease
- * areas the existing asset catalog already covers (HAE, PNH, PBC) plus one new
- * entry (Generalized Myasthenia Gravis, see the RYSTIGGO/ZILBRYSQ note below) are
- * represented. Do not add more without a real asset behind them.
+ * Disease Area stays a SEPARATE, smaller, controlled catalog on purpose —
+ * this milestone does not attempt to populate every disease in medicine
+ * (explicitly out of scope). Only the disease areas the existing asset
+ * catalog already covers (HAE, PNH, PBC) plus gMG are represented; the
+ * architecture (see setup-draft.ts's ManualDiseaseArea) no longer treats
+ * that smallness as a dead end — a category with zero configured Disease
+ * Areas gets a manual-entry path instead of an empty state.
  */
+
+export type LandscapeCategoryType = 'therapeutic_area' | 'cross_cutting'
 
 export interface TherapeuticArea {
   id: string
   name: string
+  categoryType: LandscapeCategoryType
 }
+
+/** Semantic alias — same shape, the name this milestone's own spec uses. */
+export type LandscapeCategory = TherapeuticArea
 
 export interface DiseaseArea {
   id: string
@@ -35,30 +45,49 @@ export interface DiseaseArea {
   therapeuticAreaId: string
 }
 
-export const THERAPEUTIC_AREAS: TherapeuticArea[] = [
-  { id: 'immunology', name: 'Immunology' },
-  // Added for RYSTIGGO/ZILBRYSQ (see DISEASE_AREAS below) — matches the product
-  // contract's own worked example (Neurology → Generalized Myasthenia Gravis →
-  // RYSTIGGO). No asset entry exists for this disease area yet; see the note there.
-  { id: 'neurology', name: 'Neurology' },
+// GROUP A — standard, organ-system-rooted Therapeutic Areas (18).
+const _STANDARD_THERAPEUTIC_AREAS: TherapeuticArea[] = [
+  { id: 'oncology', name: 'Oncology', categoryType: 'therapeutic_area' },
+  { id: 'immunology', name: 'Immunology & Inflammation', categoryType: 'therapeutic_area' },
+  { id: 'cardiovascular', name: 'Cardiovascular', categoryType: 'therapeutic_area' },
+  { id: 'metabolism-endocrinology', name: 'Metabolism & Endocrinology', categoryType: 'therapeutic_area' },
+  // 'neurology' id preserved unchanged from the prior 2-entry catalog — gMG's
+  // existing DiseaseArea entry below already references it; renaming the id
+  // here would silently break that link for no benefit.
+  { id: 'neurology', name: 'Neurology & Neuroscience', categoryType: 'therapeutic_area' },
+  { id: 'gastroenterology-hepatology', name: 'Gastroenterology / Hepatology', categoryType: 'therapeutic_area' },
+  { id: 'pulmonology-respiratory', name: 'Pulmonology / Respiratory', categoryType: 'therapeutic_area' },
+  { id: 'nephrology-renal', name: 'Nephrology / Renal', categoryType: 'therapeutic_area' },
+  { id: 'hematology', name: 'Hematology', categoryType: 'therapeutic_area' },
+  { id: 'dermatology', name: 'Dermatology', categoryType: 'therapeutic_area' },
+  { id: 'urology', name: 'Urology', categoryType: 'therapeutic_area' },
+  { id: 'gynecology-obstetrics', name: 'Gynecology / Obstetrics', categoryType: 'therapeutic_area' },
+  { id: 'ophthalmology', name: 'Ophthalmology', categoryType: 'therapeutic_area' },
+  { id: 'psychiatry-mental-health', name: 'Psychiatry / Mental Health', categoryType: 'therapeutic_area' },
+  { id: 'analgesia-pain-anesthesiology', name: 'Analgesia, Pain & Anesthesiology', categoryType: 'therapeutic_area' },
+  { id: 'orthopedics-rheumatology', name: 'Orthopedics & Rheumatology', categoryType: 'therapeutic_area' },
+  { id: 'otolaryngology-ent', name: 'Otolaryngology (ENT)', categoryType: 'therapeutic_area' },
+  { id: 'infectious-diseases-virology', name: 'Infectious Diseases & Virology', categoryType: 'therapeutic_area' },
 ]
+
+// GROUP B — special / cross-cutting categories (4). Never collapsed into a
+// standard organ-system Therapeutic Area — each spans multiple TAs by
+// definition (a vaccine can be infectious-disease OR oncology-adjacent; a
+// rare disease can occur in any organ system), so filing one under a single
+// TA would misrepresent it.
+const _CROSS_CUTTING_CATEGORIES: TherapeuticArea[] = [
+  { id: 'vaccines', name: 'Vaccines', categoryType: 'cross_cutting' },
+  { id: 'rare-diseases', name: 'Rare Diseases', categoryType: 'cross_cutting' },
+  { id: 'pediatrics-neonatology', name: 'Pediatrics / Neonatology', categoryType: 'cross_cutting' },
+  { id: 'medical-imaging-contrast-agents', name: 'Medical Imaging & Contrast Agents', categoryType: 'cross_cutting' },
+]
+
+export const THERAPEUTIC_AREAS: TherapeuticArea[] = [..._STANDARD_THERAPEUTIC_AREAS, ..._CROSS_CUTTING_CATEGORIES]
 
 export const DISEASE_AREAS: DiseaseArea[] = [
   { id: 'hae', name: 'Hereditary Angioedema', shortCode: 'HAE', therapeuticAreaId: 'immunology' },
   { id: 'pnh', name: 'Paroxysmal Nocturnal Haemoglobinuria', shortCode: 'PNH', therapeuticAreaId: 'immunology' },
   { id: 'pbc', name: 'Primary Biliary Cholangitis', shortCode: 'PBC', therapeuticAreaId: 'immunology' },
-  /**
-   * GAP FLAGGED, not filled: RYSTIGGO and ZILBRYSQ (UCB, per
-   * docs/multi-asset-seed-pool.md's "Next wave: Myasthenia gravis" note — the
-   * only local source that names them) are real reference/home assets used in
-   * the ariya-lightci-python backend's live acceptance work, but neither has an
-   * AssetConfig entry in assets-config.ts. Their INN, mechanism, suggested
-   * competitors, and lexicon terms are not established in any local fixture —
-   * inventing them here would be exactly the hallucination this step was told
-   * to avoid. This Disease Area entry exists so the TA/DA hierarchy is ready for
-   * them; the asset-level entries themselves are deliberately not added until
-   * that metadata is sourced from the backend/product side.
-   */
   { id: 'gmg', name: 'Generalized Myasthenia Gravis', shortCode: 'gMG', therapeuticAreaId: 'neurology' },
 ]
 

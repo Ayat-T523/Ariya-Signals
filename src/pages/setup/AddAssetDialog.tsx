@@ -24,21 +24,23 @@ export default function AddAssetDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAdd: (input: { displayName: string; innName: string | null; company: string }) => void
+  onAdd: (input: { displayName: string; innName: string | null; company: string; developmentCode: string | null }) => void
 }) {
   const [displayName, setDisplayName] = useState('')
   const [innName, setInnName] = useState('')
   const [company, setCompany] = useState('')
+  const [developmentCode, setDevelopmentCode] = useState('')
 
   function reset() {
     setDisplayName('')
     setInnName('')
     setCompany('')
+    setDevelopmentCode('')
   }
 
   function handleAdd() {
     if (!displayName.trim() || !company.trim()) return
-    onAdd({ displayName, innName: innName || null, company })
+    onAdd({ displayName, innName: innName || null, company, developmentCode: developmentCode || null })
     reset()
     onOpenChange(false)
   }
@@ -75,12 +77,21 @@ export default function AddAssetDialog({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="manual-asset-company">Company *</FieldLabel>
+              <FieldLabel htmlFor="manual-asset-company">Owner company *</FieldLabel>
               <Input
                 id="manual-asset-company"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="e.g. KalVista Pharmaceuticals"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="manual-asset-dev-code">Development code / alias</FieldLabel>
+              <Input
+                id="manual-asset-dev-code"
+                value={developmentCode}
+                onChange={(e) => setDevelopmentCode(e.target.value)}
+                placeholder="e.g. KVD900"
               />
             </Field>
           </FieldGroup>
