@@ -585,11 +585,15 @@ console.log('55. Changing Disease Area cancels a stale in-flight request and fet
 assertTrue('the auto-trigger effect is keyed on diseaseAreaName, so it re-fires whenever the Disease Area changes', /\}, \[diseaseAreaName\]\)/.test(stage1Source))
 assertTrue('searchByIndication cancels any in-flight request the same way search() already does (shared abortRef), so a disease change never leaves a stale response to land later', (useAssetSearchSource.match(/abortRef\.current\.abort\(\)/g) || []).length >= 2)
 
-// ── 56. Existing typed asset search is unaffected ─────────────────────────
-console.log('56. Existing typed asset search (search()/searchAssets) is unchanged by this addition')
-assertTrue('handleQueryChange still calls search(value) for typed input, unchanged', stage1Source.includes('if (value.trim()) search(value)'))
-assertTrue('search() still debounces on every keystroke (DEBOUNCE_MS/setTimeout), unchanged', /const search = useCallback\(\(query: string\) => \{[\s\S]*?setTimeout\(/.test(useAssetSearchSource))
-assertTrue('searchAssets() (typed) still sends q, never indication', assetSearchClientSource.includes("{ q: query }"))
+// ── 56. Typed asset search is disease-aware (Issue #4) ────────────────────
+console.log('56. Typed asset search (search()/searchAssets) carries the selected Disease Area through as disease context')
+assertTrue('handleQueryChange only searches when the typed value is non-empty, resetting (never searching) otherwise', /if \(value\.trim\(\)\) search\(value, diseaseAreaName\)\s*\n\s*else reset\(\)/.test(stage1Source))
+assertTrue('Stage1Define passes the selected diseaseAreaName into the typed asset search call, the SAME name the automatic pre-typing suggestion effect uses', stage1Source.includes('search(value, diseaseAreaName)'))
+assertTrue('search() still debounces on every keystroke (DEBOUNCE_MS/setTimeout), unchanged', /const search = useCallback\(\(query: string, indication\?: string\) => \{[\s\S]*?setTimeout\(/.test(useAssetSearchSource))
+assertTrue('useAssetSearch() accepts an optional indication parameter alongside query', /const search = useCallback\(\(query: string, indication\?: string\) => \{/.test(useAssetSearchSource))
+assertTrue('useAssetSearch() forwards indication to searchAssets() alongside the query and abort signal', /searchAssets\(trimmed, indication, signal\)/.test(useAssetSearchSource))
+assertTrue('searchAssets() accepts an optional indication parameter', /export async function searchAssets\(query: string, indication\?: string, signal\?: AbortSignal\)/.test(assetSearchClientSource))
+assertTrue('searchAssets() adds indication to the request params ONLY when provided -- conditional, never unconditional or fabricated when no Disease Area is selected', /if \(indication\) params\.indication = indication/.test(assetSearchClientSource))
 assertTrue('the "No known assets" message never renders while a remote attempt is in flight or failed (only idle/no_results)', stage1Source.includes("(state.status === 'idle' || state.status === 'no_results')"))
 
 // ── Targeted Implementation 2: setup -> main-app Disease Area persistence ──

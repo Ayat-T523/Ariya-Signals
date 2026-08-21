@@ -70,8 +70,18 @@ export function mapAssetSearchResponse(raw: any): AssetSearchResponse {
   }
 }
 
-export async function searchAssets(query: string, signal?: AbortSignal): Promise<AssetSearchResponse> {
-  const raw = await apiGet<any>('/api/assets/search', { q: query }, signal)
+/**
+ * Issue #4 — disease-aware typed Home Asset search. `indication`, when
+ * given, is the currently-selected Disease Area's own display name
+ * (catalog, MONDO-resolved, or manually-entered alike -- this function
+ * treats it as an opaque string, same as the backend route it calls).
+ * Omitted/undefined sends the exact original query-only request shape --
+ * no fabricated disease context when none is selected.
+ */
+export async function searchAssets(query: string, indication?: string, signal?: AbortSignal): Promise<AssetSearchResponse> {
+  const params: Record<string, string> = { q: query }
+  if (indication) params.indication = indication
+  const raw = await apiGet<any>('/api/assets/search', params, signal)
   return mapAssetSearchResponse(raw)
 }
 

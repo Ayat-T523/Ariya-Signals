@@ -443,9 +443,15 @@ function AssetSearchField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diseaseAreaName])
 
+  // Issue #4 — typed search now carries the currently-selected Disease
+  // Area through as disease context, same diseaseAreaName the automatic
+  // pre-typing suggestion effect above already uses (already correct for
+  // catalog, MONDO-resolved, OR manually-entered Disease Area alike).
+  // Undefined when no Disease Area is selected -- search() then sends the
+  // original query-only request, no fabricated disease context.
   function handleQueryChange(value: string) {
     setQuery(value)
-    if (value.trim()) search(value)
+    if (value.trim()) search(value, diseaseAreaName)
     else reset()
   }
 

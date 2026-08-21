@@ -57,7 +57,14 @@ export function useAssetSearch() {
     })()
   }, [])
 
-  const search = useCallback((query: string) => {
+  /**
+   * Issue #4 — `indication`, when given, is the currently-selected Disease
+   * Area's display name; forwarded to searchAssets() so typed search
+   * narrows to that disease alongside the query. Optional and omitted by
+   * every existing caller that has no Disease Area selected -- no
+   * fabricated disease context in that case.
+   */
+  const search = useCallback((query: string, indication?: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (abortRef.current) abortRef.current.abort()
 
@@ -69,7 +76,7 @@ export function useAssetSearch() {
 
     setState({ status: 'searching' })
     debounceRef.current = setTimeout(() => {
-      runFetch((signal) => searchAssets(trimmed, signal))
+      runFetch((signal) => searchAssets(trimmed, indication, signal))
     }, DEBOUNCE_MS)
   }, [runFetch])
 
