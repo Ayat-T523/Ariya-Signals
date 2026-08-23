@@ -631,9 +631,27 @@ export default function WarRoom() {
     .filter((e) => !/^\d{1,2}:\d{2}$/.test(e.title ?? ''))
     .map((e) => ({ id: e.id, date: e.start_date ?? '', title: e.title ?? `${e.event_type} Meeting`, sourceUrl: e.source_url }))
   const liveTitles = new Set(liveEventItems.map((e) => e.title.toLowerCase()))
-  const staticEventItems: NextUpEvent[] = (eventsData as unknown as Array<{ id: string; date: string; title: string; sourceUrl?: string | null }>)
+  const staticEventItems: NextUpEvent[] = (eventsData as unknown as Array<{ id: string; date: string; title: string; sourceUrl?: string | null; attendingCompetitors?: string[] }>)
     .filter((e) => new Date(e.date) >= new Date())
     .filter((e) => !liveTitles.has((e.title ?? '').toLowerCase()))
+    // Landscape scoping (same rule Portal.tsx's Events tab already applies):
+    // an event naming competitors only shows when at least one is in the
+    // CURRENT active landscape -- otherwise this legacy HAE-only dataset
+    // leaks demo events (Pharvaris/HAEi etc.) into every landscape
+    // regardless of which competitors are actually being tracked. Every
+    // entry here is static by construction (staticEventItems never mixes in
+    // live calendar data -- that's liveEventItems, a separate array), so an
+    // entry with NO attendingCompetitors at all (e.g. "FDA Advisory
+    // Committee: HAE Therapeutic Area") has no real disease tag to check
+    // relevance against either -- once a real landscape exists, it must not
+    // resurface just because it happens to name no company (Bug sweep
+    // 2026-08-24 follow-up: the original "no attendingCompetitors -> always
+    // show" rule missed this exact case).
+    .filter((e) => {
+      const comps = e.attendingCompetitors ?? []
+      if (comps.length > 0) return comps.some((id) => effectiveCompetitorIds.has(id))
+      return !hasActiveLandscape
+    })
     .map((e) => ({ id: e.id, date: e.date, title: e.title, sourceUrl: e.sourceUrl }))
   const upcomingEvents = [...liveEventItems, ...staticEventItems]
     .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))

@@ -16,7 +16,7 @@ import { SkeletonPortalList } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
-import { activeLandscapeSignalScope } from '../lib/activeLandscape'
+import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { buildSourceLabel } from '../lib/transformers'
@@ -352,9 +352,14 @@ const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: numb
   { label: 'Market Developments', icon: TrendingUp   },
 ]
 
-const TAB_COUNTS = [eventsData.length, marketData.length]
+// Fallback shown only until EventsTab/MarketTab report their own real,
+// landscape-scoped counts via onCountChange -- see Portal()'s own tabCounts
+// state. Kept as the raw dataset length so the badge never flashes "00"
+// on first paint; NEVER used as the final displayed number once the tabs
+// (always mounted, just display:none-toggled) have run their first effect.
+const TAB_COUNTS_FALLBACK = [eventsData.length, marketData.length]
 
-function TabBar({ active, onChange }: { active: number; onChange: (i: number) => void }) {
+function TabBar({ active, onChange, counts }: { active: number; onChange: (i: number) => void; counts: number[] }) {
   return (
     <div style={{ padding: '10px 36px' }}>
       <Tabs value={String(active)} onValueChange={(v) => onChange(Number(v))}>
@@ -384,7 +389,7 @@ function TabBar({ active, onChange }: { active: number; onChange: (i: number) =>
                     color: isActive ? 'var(--indigo-600)' : 'var(--neutral-600)',
                     fontSize: '12px', fontWeight: 500, lineHeight: 1,
                   }}>
-                    {String(TAB_COUNTS[i]).padStart(2, '0')}
+                    {String(counts[i]).padStart(2, '0')}
                   </span>
                 )}
               </TabsTrigger>
@@ -764,7 +769,7 @@ function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations
   )
 }
 
-function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
+function EventsTab({ liveCalendarEvents, liveTrialCells, onCountChange }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>>; onCountChange?: (count: number) => void }) {
   const { watchedCompetitors, trackedCompetitors } = useApp()
   // SETUP PROPAGATION: same active-landscape scope as War Room -- once a real
   // completed landscape exists, it is authoritative over the legacy HAE
@@ -816,15 +821,32 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
     .filter((e) => e.date)
     .sort((a, b) => a.date.localeCompare(b.date))
 
-  const filtered = allEvents.filter((e) => {
+  // Congress/conference events only show if a watched competitor is
+  // attending. A LIVE EMA calendar entry has no attendingCompetitors by
+  // construction (mappedCalendarEvents above always sets `_isLive: true`)
+  // and is genuinely company/disease-agnostic real regulatory data --
+  // always show it. A STATIC demo-dataset entry with no attendingCompetitors
+  // (e.g. "FDA Advisory Committee: HAE Therapeutic Area", event-005) has no
+  // real disease/indication tag to check relevance against at all -- once a
+  // real, non-legacy landscape exists, it must not surface untagged legacy
+  // HAE content just because it happens to name no company (same "never
+  // resurface" principle activeLandscapeSignalScope's own docstring already
+  // establishes for the legacy company default). Bug sweep 2026-08-24,
+  // follow-up: the original "no attendingCompetitors -> always show" rule
+  // (preserved from before this sweep) never distinguished the two cases.
+  const landscapeScopedEvents = allEvents.filter((e) => {
+    const comps = (e.attendingCompetitors as string[] | undefined) ?? []
+    if (comps.length > 0) return comps.some((id: string) => effectiveCompetitorIds.has(id))
+    return e._isLive === true || !hasActiveLandscape
+  })
+
+  const filtered = landscapeScopedEvents.filter((e) => {
     if (viewFilter === 'leadership' && !LEADERSHIP_TYPES.has(e.type)) return false
     if (selectedDate && e.date.substring(0, 10) !== selectedDate) return false
-    // EMA regulatory events have no attendingCompetitors — always show.
-    // Congress/conference events only show if a watched competitor is attending.
-    const comps = (e.attendingCompetitors as string[] | undefined) ?? []
-    if (comps.length > 0 && !comps.some((id: string) => effectiveCompetitorIds.has(id))) return false
     return true
   })
+
+  useEffect(() => { onCountChange?.(landscapeScopedEvents.length) }, [landscapeScopedEvents.length])
 
   const upcoming = filtered
     .filter((e) => new Date(e.date) >= TODAY)
@@ -1057,13 +1079,6 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
 // TAB 3: MARKET DEVELOPMENTS
 // ──────────────────────────────────────────────────────────────────────────────
 
-function formatMonthYear(dateStr) {
-  if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  if (isNaN(d)) return dateStr
-  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-}
-
 // ── Market Development card type config ──────────────────────────────────────
 // Same constraint as EVENT_TYPE: DESIGN.md defines no categorical palette, only
 // functional-state meanings. Nearest fit: deal/launch-performance (commercial
@@ -1234,7 +1249,7 @@ function MarketDevCard({ item }) {
   )
 }
 
-function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
+function MarketTab({ liveDeals, onCountChange }: { liveDeals: DbRecentSignal[]; onCountChange?: (count: number) => void }) {
   const { watchedCompetitors, trackedCompetitors } = useApp()
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
@@ -1262,8 +1277,30 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
     _sourceUrl: row.source_url ?? null,
   }))
 
-  const sorted = [...(marketData as any[]), ...liveDealItems]
+  // Landscape scoping (same principle as EventsTab's attendingCompetitors
+  // filter): an item that names companies only shows when at least one is
+  // in the CURRENT active landscape -- otherwise this legacy HAE-only
+  // dataset leaks demo deals (BioCryst/Astria/Ionis etc.) into every
+  // landscape regardless of which competitors are actually being tracked.
+  // Live items always carry exactly one `parties` entry (built above from
+  // competitorName(row.competitor_id)), so `parties.length === 0` can only
+  // ever be a STATIC item -- a pure HTA/regulatory decision (an agency
+  // approving a drug, e.g. "FDA approves Dawnzera... for HAE prophylaxis")
+  // with no real disease tag to check relevance against at all. Once a
+  // real landscape exists, it must not resurface just because it happens
+  // to name no company (Bug sweep 2026-08-24 follow-up: the original
+  // "no parties -> always show" rule missed this exact case, mirroring the
+  // identical gap just fixed in EventsTab above).
+  const scoped = [...(marketData as any[]), ...liveDealItems].filter((m: any) => {
+    const parties = (m.parties as string[] | undefined) ?? []
+    if (parties.length > 0) return partyMatchesLegacyScope(parties, competitorsData, effectiveCompetitorIds)
+    return !hasActiveLandscape
+  })
+
+  const sorted = scoped
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  useEffect(() => { onCountChange?.(scoped.length) }, [scoped.length])
 
   const filtered = activeFilter === 'all'
     ? sorted
@@ -1378,6 +1415,13 @@ export default function Portal() {
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
   const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
   const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
+  // Bug sweep 2026-08-24: the tab badges used to be a module-level constant
+  // (raw eventsData.length/marketData.length) that never reflected the
+  // active landscape -- EventsTab/MarketTab now report their own real,
+  // landscape-scoped counts here via onCountChange, since they already
+  // compute the correct scoped list and duplicating that filter logic here
+  // would risk it drifting out of sync with what the tabs actually show.
+  const [tabCounts, setTabCounts] = useState<number[]>(TAB_COUNTS_FALLBACK)
   const { trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea } = useApp()
   const { indication } = useConfig()
   const discoveredCompanyIds = useMemo(
@@ -1425,7 +1469,7 @@ export default function Portal() {
 
       {/* Tab bar — sticky so it stays visible while scrolling events */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)', borderBottom: '1px solid var(--border-default)' }}>
-        <TabBar active={activeTab} onChange={setActiveTab} />
+        <TabBar active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
 
       <RecentEvidenceStrip items={evidenceItems} loading={evidenceLoading} />
@@ -1439,8 +1483,8 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} /></div>
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} onCountChange={(n) => setTabCounts((prev) => [n, prev[1]])} /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} onCountChange={(n) => setTabCounts((prev) => [prev[0], n])} /></div>
           </motion.div>
         )}
       </div>

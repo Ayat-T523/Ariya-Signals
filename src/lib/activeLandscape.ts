@@ -66,3 +66,33 @@ export function activeLandscapeSignalScope(
   )
   return { hasActiveLandscape, legacyIds, matches }
 }
+
+/**
+ * Whether a legacy static item's free-text `parties` (e.g. market-
+ * developments.json's `["BioCryst", "Astria Therapeutics"]`, display names,
+ * NOT ids) names anyone currently in the active landscape scope. Same
+ * deterministic, exact-normalized-name discipline as
+ * matchTrackedCompetitorsToLegacyIds() above -- never fuzzy -- just applied
+ * in the other direction: a raw display string normalized and compared
+ * against each legacy competitor's own name/id, same as this module's own
+ * matching already does.
+ *
+ * Mirrors events.json's `attendingCompetitors` (already legacy ids, so
+ * checked directly against `effectiveCompetitorIds` at the call site with
+ * no helper needed) -- `parties` is looser (display text, not always
+ * present), which is exactly why this needs its own normalized lookup
+ * rather than a plain Set.has().
+ */
+export function partyMatchesLegacyScope(
+  parties: string[],
+  legacyCompetitors: LegacyCompetitorRef[],
+  effectiveCompetitorIds: Set<string>,
+): boolean {
+  return parties.some((party) => {
+    const normalized = normalizeCompanyName(party)
+    return legacyCompetitors.some(
+      (c) => effectiveCompetitorIds.has(c.id)
+        && (normalizeCompanyName(c.name) === normalized || normalizeCompanyName(c.id) === normalized),
+    )
+  })
+}
