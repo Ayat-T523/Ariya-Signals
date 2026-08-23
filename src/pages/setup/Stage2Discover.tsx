@@ -5,6 +5,7 @@ import {
   type CompanyEntry,
   resolveHomeAssetDisplay,
   resolveDiseaseAreaDisplay,
+  resolveCanonicalIndicationId,
   addManualCompany,
   setSuggestedCompanies,
   toggleCompanySelection,
@@ -83,7 +84,23 @@ export default function Stage2Discover({
     // Home company travels with the request (Phase 3/6) so the backend can
     // deterministically exclude it -- never resolved by asking an AI model
     // whether the home company competes with itself.
-    run({ homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName })
+    //
+    // Canonical Disease Area identity regression fix: this is the PRIMARY,
+    // mandatory onboarding discovery request (every user without a
+    // completed setup is routed to /setup -> SetupPage -> here) -- it must
+    // send the SAME canonical `indicationId` DiscoverCompetitors.tsx/
+    // WarRoom.tsx/Portal.tsx already use, via the ONE shared
+    // resolveCanonicalIndicationId() implementation, so durable evidence
+    // persisted from a real onboarding run is actually findable later.
+    // Read from `draft` directly (not useApp()) because this runs BEFORE
+    // completeSetup() has persisted anything to AppContext -- draft's own
+    // landscapeConfiguration.diseaseAreaId/resolvedDiseaseArea are the
+    // exact same shape resolveCanonicalIndicationId() already expects.
+    const canonicalIndicationId = resolveCanonicalIndicationId(draft.landscapeConfiguration.diseaseAreaId, draft.resolvedDiseaseArea)
+    run({
+      homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName,
+      indicationId: canonicalIndicationId,
+    })
   }
 
   // Attempt discovery once per stage visit -- skipped when resuming a draft

@@ -64,14 +64,26 @@ function toLandscapeEvidenceItem(raw: any): LandscapeEvidenceItem {
  * (see WarRoom.tsx/Portal.tsx's own filtering). An empty `companyIds` array
  * short-circuits to an empty result without a network call -- there is
  * nothing a canonical-id query could honestly return for zero ids.
+ *
+ * `indicationId`, when supplied, is the SAME canonical Disease Area id
+ * (ResolvedDiseaseArea.id, e.g. a real MONDO term) DiscoveryRequest.indicationId
+ * already forwards on the write side -- see that field's own docstring.
+ * Regression fix: evidence persisted under a canonical disease id was
+ * invisible to a read that only ever filtered on the plain `indication`
+ * label, since the two are normalized into different storage keys. Passing
+ * `indicationId` through here (backend precedence: canonical id first, the
+ * plain label only as a fallback -- never both required to match) is what
+ * makes previously-persisted canonical evidence actually retrievable again.
  */
 export async function fetchLandscapeEvidence(
   companyIds: string[],
   indication?: string | null,
+  indicationId?: string | null,
 ): Promise<LandscapeEvidenceItem[]> {
   if (companyIds.length === 0) return []
   const params: Record<string, string> = { companies: companyIds.join(',') }
   if (indication) params.indication = indication
+  if (indicationId) params.indication_id = indicationId
   const raw = await apiGet<{ items: any[] }>('/api/landscape/evidence', params)
   return (raw.items ?? []).map(toLandscapeEvidenceItem)
 }

@@ -410,6 +410,44 @@ export function resolveDiseaseAreaDisplayFrom(
   return null
 }
 
+/**
+ * The globally-stable CANONICAL Disease Area identity for durable
+ * persistence/read (the Ariya HTTP API's `indication_id`) -- the ONE
+ * shared implementation DiscoverCompetitors.tsx/WarRoom.tsx/Portal.tsx
+ * must all call, so the write and read sides can never independently
+ * drift onto different notions of "the id."
+ *
+ * NOT `resolvedDiseaseArea.id`: on ResolvedDiseaseArea, `id` is merely
+ * "this result's own identity as the backend happened to key it" -- for
+ * every real code path (disease_resolution.py's `_curated()` AND
+ * `_live_mondo_search()`, confirmed by reading both directly) `id` and
+ * `sourceId` are always the SAME real MONDO term, so this distinction is
+ * usually invisible -- but `sourceId` is the field EXPLICITLY documented
+ * as "the underlying ontology/source system's own identifier" (backend:
+ * `ResolvedDiseaseArea.source_id`), null whenever no real canonical
+ * source id exists. Trusting `id` blindly is what let a hand-seeded/
+ * malformed local fixture (id="gmg-mondo", sourceId="MONDO:...") pass as
+ * "canonical" purely because it agreed with itself -- `sourceId` cannot
+ * silently do that, since a fabricated object would have to fabricate a
+ * PLAUSIBLE ontology-shaped string there too, and more importantly a
+ * genuinely manual/catalog Disease Area has no ResolvedDiseaseArea at
+ * all, so this function already returns null for those without needing
+ * to inspect `source`.
+ *
+ * The staleness guard (`resolvedDiseaseArea.id === diseaseAreaId`) is
+ * unchanged from resolveDiseaseAreaDisplayFrom()'s own -- it only proves
+ * "this resolvedDiseaseArea object still backs the ACTIVE selection,"
+ * never "its own id is a real ontology term." Only `sourceId` proves
+ * that second, separate claim.
+ */
+export function resolveCanonicalIndicationId(
+  diseaseAreaId: string | null,
+  resolvedDiseaseArea: ResolvedDiseaseArea | null,
+): string | null {
+  if (!resolvedDiseaseArea || resolvedDiseaseArea.id !== diseaseAreaId) return null
+  return resolvedDiseaseArea.sourceId ?? null
+}
+
 /** Resolves the Disease Area identity for display, whichever source it came from (Root-Cause Recon implementation, Part A). Null when nothing is selected yet. */
 export function resolveDiseaseAreaDisplay(draft: SetupDraft): DiseaseAreaDisplay | null {
   return resolveDiseaseAreaDisplayFrom(draft.landscapeConfiguration.diseaseAreaId, draft.manualDiseaseArea, draft.resolvedDiseaseArea)

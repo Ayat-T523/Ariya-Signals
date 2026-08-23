@@ -58,6 +58,7 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
+import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import {
   getRegulatoryCalendar,
   getRecentSignals,
@@ -412,9 +413,15 @@ function RecentEvidenceCard({ items, loading }: { items: LandscapeEvidenceItem[]
 export default function WarRoom() {
   const {
     openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
-    savedAlerts, toggleSavedAlert,
+    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea,
   } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
+  // Regression fix: resolveCanonicalIndicationId() is the ONE shared
+  // implementation DiscoverCompetitors.tsx/Portal.tsx also call, so this
+  // read query can find evidence persisted under a canonical Disease Area
+  // id instead of only the plain indication label -- see that function's
+  // own docstring for why it reads `sourceId`, never `resolvedDiseaseArea.id`.
+  const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
   // SETUP PROPAGATION: once a real completed landscape exists, it is
   // authoritative over the legacy HAE default -- see activeLandscape.ts.
@@ -438,12 +445,12 @@ export default function WarRoom() {
     if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
     let cancelled = false
     setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId)
       .then((items) => { if (!cancelled) setEvidenceItems(items) })
       .catch(() => { if (!cancelled) setEvidenceItems([]) })
       .finally(() => { if (!cancelled) setEvidenceLoading(false) })
     return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication])
+  }, [discoveredCompanyIds, indication, canonicalIndicationId])
 
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')

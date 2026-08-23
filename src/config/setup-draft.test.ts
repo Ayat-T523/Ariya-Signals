@@ -606,7 +606,7 @@ assertTrue('the "No known assets" message never renders while a remote attempt i
 // resolution LOGIC (resolveDiseaseAreaDisplayFrom, the exact function
 // useConfig() calls) is exercised directly and behaviorally below.
 
-import { resolveDiseaseAreaDisplayFrom } from './setup-draft.js'
+import { resolveDiseaseAreaDisplayFrom, resolveCanonicalIndicationId } from './setup-draft.js'
 
 // Normalized to LF regardless of the file's actual on-disk line-ending
 // convention (CRLF on this checkout) -- every multi-line substring check
@@ -1042,7 +1042,21 @@ assertTrue('an unrelated company is still never blocked', !isHomeCompany(withHae
 // ── 106. Implementation 2/2A/3/4 setup-state tests remain green ────────────
 console.log('106. Implementation 2/2A/3/4\'s own tests all still pass in this same run (see the full pass/fail count below) -- none of their code was touched by this task')
 assertTrue('Stage2Discover.tsx still derives diseaseArea/homeAsset via the SAME shared resolvers (resolveDiseaseAreaDisplay/resolveHomeAssetDisplay) Implementation 2/4 established -- never a competing resolution path', stage2Source.includes('const diseaseArea = resolveDiseaseAreaDisplay(draft)') && stage2Source.includes('const homeAsset = resolveHomeAssetDisplay(draft)'))
-assertTrue('the discovery request itself is completely unchanged (still sends homeAsset.displayName/diseaseArea.name/homeAsset.companyName)', stage2Source.includes("run({ homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName })"))
+assertTrue('the discovery request still sends homeAsset.displayName/diseaseArea.name/homeAsset.companyName unchanged (canonical Disease Area identity regression fix adds indicationId ADDITIVELY, never replacing these)', stage2Source.includes('homeAsset: homeAsset.displayName, indication: diseaseArea.name, homeCompany: homeAsset.companyName,'))
+
+// ── 107. Canonical Disease Area identity regression fix: Stage2Discover.tsx (the PRIMARY, mandatory onboarding discovery path) sends indicationId via the SAME shared helper as DiscoverCompetitors/WarRoom/Portal ──
+console.log('107. Stage2Discover.tsx -- the actual mandatory onboarding discovery path -- forwards the canonical Disease Area id, not just DiscoverCompetitors.tsx')
+assertTrue('Stage2Discover.tsx imports the ONE shared resolveCanonicalIndicationId() implementation, never a competing/duplicated inline check', stage2Source.includes('resolveCanonicalIndicationId'))
+assertTrue('Stage2Discover.tsx computes canonicalIndicationId from draft.landscapeConfiguration.diseaseAreaId/draft.resolvedDiseaseArea (the pre-completeSetup() setup-state shape), not from useApp()', stage2Source.includes('resolveCanonicalIndicationId(draft.landscapeConfiguration.diseaseAreaId, draft.resolvedDiseaseArea)'))
+assertTrue('the discovery request forwards indicationId alongside the unchanged homeAsset/indication/homeCompany fields', stage2Source.includes('indicationId: canonicalIndicationId'))
+
+// ── 108. resolveCanonicalIndicationId() itself: only sourceId, never id, never for manual/catalog ──
+console.log('108. resolveCanonicalIndicationId() reads sourceId (the proven ontology field), never the bare id field, and returns null for anything without a real ResolvedDiseaseArea')
+assert('a genuine MONDO-resolved Disease Area (id === sourceId, the ONLY shape disease_resolution.py ever actually produces) yields its real MONDO id', resolveCanonicalIndicationId('MONDO:1060006', fakeDiseaseArea()), 'MONDO:1060006')
+assert('a MALFORMED/mismatched resolvedDiseaseArea (id="gmg-mondo", sourceId="MONDO:0018318" -- the exact shape of the stale local fixture this regression fix targets) yields the sourceId, NEVER the local placeholder id', resolveCanonicalIndicationId('gmg-mondo', fakeDiseaseArea({ id: 'gmg-mondo', sourceId: 'MONDO:0018318' })), 'MONDO:0018318')
+assert('a resolvedDiseaseArea with no sourceId at all (defensive case) yields null rather than fabricating one from id', resolveCanonicalIndicationId('some-id', fakeDiseaseArea({ id: 'some-id', sourceId: null })), null)
+assert('a STALE resolvedDiseaseArea (its own id no longer matches the active diseaseAreaId -- the user switched selections) yields null, same staleness guard as resolveDiseaseAreaDisplayFrom()', resolveCanonicalIndicationId('a-different-currently-active-id', fakeDiseaseArea()), null)
+assert('no resolvedDiseaseArea at all (manual or legacy-catalog Disease Area, which structurally never has one) yields null -- the conservative text fallback remains functional', resolveCanonicalIndicationId('hae', null), null)
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 declare const process: { exit(code: number): void }

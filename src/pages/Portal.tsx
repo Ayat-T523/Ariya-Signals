@@ -18,6 +18,7 @@ import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
+import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
@@ -1377,24 +1378,30 @@ export default function Portal() {
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
   const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
   const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
-  const { trackedCompetitors } = useApp()
+  const { trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea } = useApp()
   const { indication } = useConfig()
   const discoveredCompanyIds = useMemo(
     () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     [trackedCompetitors],
   )
+  // Regression fix: resolveCanonicalIndicationId() is the ONE shared
+  // implementation DiscoverCompetitors.tsx/WarRoom.tsx also call, so this
+  // read query can find evidence persisted under a canonical Disease Area
+  // id instead of only the plain indication label -- see that function's
+  // own docstring for why it reads `sourceId`, never `resolvedDiseaseArea.id`.
+  const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
   const [evidenceItems, setEvidenceItems] = useState<LandscapeEvidenceItem[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   useEffect(() => {
     if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
     let cancelled = false
     setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId)
       .then((items) => { if (!cancelled) setEvidenceItems(items) })
       .catch(() => { if (!cancelled) setEvidenceItems([]) })
       .finally(() => { if (!cancelled) setEvidenceLoading(false) })
     return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication])
+  }, [discoveredCompanyIds, indication, canonicalIndicationId])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {

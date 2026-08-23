@@ -4,6 +4,7 @@ import { useApp, useConfig } from '../context/AppContext'
 import { getTherapeuticAreaById } from '../config/therapeutic-areas'
 import { getAssetById } from '../config/assets-config'
 import { isLandscapeConfigurationSubmittable } from '../config/landscape-configuration'
+import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { useDiscovery } from '../hooks/useDiscovery'
 import type { DiscoveredCandidate } from '../lib/api/discovery'
 import { Button } from '../components/shadcn/ui/button'
@@ -121,18 +122,12 @@ export default function DiscoverCompetitors() {
 
   // The canonical Disease Area id (a real MONDO term), forwarded ADDITIVELY
   // for durable persistence identity only -- see DiscoveryRequest.indicationId's
-  // own docstring. The SAME staleness guard resolveDiseaseAreaDisplayFrom()
-  // already uses internally (setup-draft.ts) to decide whether
-  // `resolvedDiseaseArea` is genuinely the one backing the CURRENT
-  // selection, reused here rather than re-implemented: `resolvedDiseaseArea`
-  // is a separate, independently-persisted piece of setup state, so without
-  // this check it could still hold a PREVIOUS MONDO selection after the
-  // user switched to a manual or legacy-catalog Disease Area (source !==
-  // 'mondo'), which has no real canonical id of its own to offer.
-  const canonicalIndicationId =
-    resolvedDiseaseArea && resolvedDiseaseArea.id === landscapeConfiguration.diseaseAreaId
-      ? resolvedDiseaseArea.id
-      : null
+  // own docstring. resolveCanonicalIndicationId() is the ONE shared
+  // implementation WarRoom.tsx/Portal.tsx also call, so the write and read
+  // sides can never independently drift onto different notions of "the id"
+  // -- see that function's own docstring for why it reads `sourceId`, never
+  // `resolvedDiseaseArea.id` itself.
+  const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
 
   // "Unsupported configuration" per this step's own contract: the frontend
   // can only build a discovery request when it has a catalogued Home Asset
