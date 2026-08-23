@@ -25,4 +25,8 @@ export default defineConfig({
     port: parseInt(process.env.PORT) || 5173,
     strictPort: true,
   },
+  preview: {
+    port: parseInt(process.env.PORT) || 4173,
+    strictPort: true,
+  },
 })
