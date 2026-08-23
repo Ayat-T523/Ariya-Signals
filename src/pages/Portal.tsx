@@ -17,6 +17,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
+import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
@@ -1330,6 +1331,44 @@ function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 
+// ── Recent Evidence — ingestion -> persistence -> landscape bridge (V1) ──────
+// Deliberately labeled "Recent Evidence", never "Signals": every item here is
+// a durably-recorded, source-backed observation from real discovery ingestion
+// -- no change-detection, no significance judgment, no narrative has been
+// derived from it. See landscapeEvidence.ts's own module docstring. Shown
+// above the tab bar so it's visible regardless of which tab is active.
+function RecentEvidenceStrip({ items, loading }: { items: LandscapeEvidenceItem[]; loading: boolean }) {
+  if (!loading && items.length === 0) return null
+  return (
+    <div style={{ padding: '10px 36px 0' }}>
+      <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
+        <h2 style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
+          Recent evidence
+        </h2>
+        {loading ? (
+          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
+        ) : (
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {items.slice(0, 5).map((item) => (
+              <li key={item.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-800)' }}>
+                <a href={item.sourceLocator} target="_blank" rel="noreferrer" style={{ color: 'var(--indigo-600)', textDecoration: 'none', fontWeight: 600 }}>
+                  {item.companyName ?? item.assetName ?? 'Unknown source'}
+                </a>
+                {item.assetName && item.companyName && <span style={{ color: 'var(--ink-600)' }}> · {item.assetName}</span>}
+                <span style={{ color: 'var(--ink-600)' }}>
+                  {' — '}{item.sourceType ?? 'source'}
+                  {item.sourcePublishedDate ? ` · published ${item.sourcePublishedDate}` : ''}
+                  {' · last confirmed '}{item.lastObservedAt.slice(0, 10)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Portal() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
@@ -1338,6 +1377,24 @@ export default function Portal() {
   const [liveCalendarEvents, setLiveCalendarEvents] = useState<DbRegulatoryCalendarEvent[]>([])
   const [liveDeals, setLiveDeals] = useState<DbRecentSignal[]>([])
   const [liveTrialCells, setLiveTrialCells] = useState<Record<string, Record<number, CalCell>>>({})
+  const { trackedCompetitors } = useApp()
+  const { indication } = useConfig()
+  const discoveredCompanyIds = useMemo(
+    () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
+    [trackedCompetitors],
+  )
+  const [evidenceItems, setEvidenceItems] = useState<LandscapeEvidenceItem[]>([])
+  const [evidenceLoading, setEvidenceLoading] = useState(false)
+  useEffect(() => {
+    if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
+    let cancelled = false
+    setEvidenceLoading(true)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication)
+      .then((items) => { if (!cancelled) setEvidenceItems(items) })
+      .catch(() => { if (!cancelled) setEvidenceItems([]) })
+      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
+    return () => { cancelled = true }
+  }, [discoveredCompanyIds, indication])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1363,6 +1420,8 @@ export default function Portal() {
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)', borderBottom: '1px solid var(--border-default)' }}>
         <TabBar active={activeTab} onChange={setActiveTab} />
       </div>
+
+      <RecentEvidenceStrip items={evidenceItems} loading={evidenceLoading} />
 
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>

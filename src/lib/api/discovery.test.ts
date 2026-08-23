@@ -289,6 +289,52 @@ await (async () => {
   assert('StrictMode\'s double-invoke pattern results in exactly one real network request', callCount, 1)
 })()
 
+// ── 17. indicationId (canonical Disease Area id) forwards additively, never replaces indication ──
+console.log('17. indicationId forwards to the backend as indication_id, additive to indication')
+await (async () => {
+  let capturedBody: any = null
+  await withMockFetch(
+    (async (_url: any, init: any) => {
+      capturedBody = JSON.parse(init.body)
+      return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 })
+    }) as typeof fetch,
+    () => fetchDiscoveredCompetitors({
+      homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', indicationId: 'MONDO:1060006',
+    }),
+  )
+  assert('indication is still sent verbatim', capturedBody.indication, 'generalized myasthenia gravis')
+  assert('indication_id is sent alongside it', capturedBody.indication_id, 'MONDO:1060006')
+})()
+
+// ── 18. Omitting indicationId is completely backward compatible ─────────────
+console.log('18. A request with no indicationId never sends the field at all')
+await (async () => {
+  let capturedBody: any = null
+  await withMockFetch(
+    (async (_url: any, init: any) => {
+      capturedBody = JSON.parse(init.body)
+      return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 })
+    }) as typeof fetch,
+    () => fetchDiscoveredCompetitors({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis' }),
+  )
+  assertTrue('no indication_id key present in the request body', !('indication_id' in capturedBody))
+})()
+
+// ── 19. Two requests differing ONLY by indicationId are never deduplicated together ──
+console.log('19. Same homeAsset/indication/homeCompany but a different indicationId still issues two separate fetches')
+await (async () => {
+  let callCount = 0
+  await withMockFetch(
+    (async () => { callCount++; return new Response(JSON.stringify(RAW_RESPONSE), { status: 200 }) }) as typeof fetch,
+    async () => {
+      const call1 = fetchDiscoveredCompetitors({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', indicationId: 'MONDO:1060006' })
+      const call2 = fetchDiscoveredCompetitors({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', indicationId: 'MONDO:9999999' })
+      await Promise.all([call1, call2])
+    },
+  )
+  assert('two distinct fetches, not deduplicated together', callCount, 2)
+})()
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 
 declare const process: { exit(code: number): void }

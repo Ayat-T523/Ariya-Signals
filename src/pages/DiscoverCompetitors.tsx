@@ -101,7 +101,7 @@ function CandidateCard({ candidate }: { candidate: DiscoveredCandidate }) {
 }
 
 export default function DiscoverCompetitors() {
-  const { landscapeConfiguration } = useApp()
+  const { landscapeConfiguration, resolvedDiseaseArea } = useApp()
   // Targeted Implementation 2: resolves the SAME manual/MONDO/catalog
   // Disease Area source AppContext/AppSidebar already use (via
   // useConfig().diseaseAreaDisplay) instead of independently assuming
@@ -118,6 +118,21 @@ export default function DiscoverCompetitors() {
   const homeAsset = landscapeConfiguration.homeAssetId
     ? getAssetById(landscapeConfiguration.homeAssetId)
     : undefined
+
+  // The canonical Disease Area id (a real MONDO term), forwarded ADDITIVELY
+  // for durable persistence identity only -- see DiscoveryRequest.indicationId's
+  // own docstring. The SAME staleness guard resolveDiseaseAreaDisplayFrom()
+  // already uses internally (setup-draft.ts) to decide whether
+  // `resolvedDiseaseArea` is genuinely the one backing the CURRENT
+  // selection, reused here rather than re-implemented: `resolvedDiseaseArea`
+  // is a separate, independently-persisted piece of setup state, so without
+  // this check it could still hold a PREVIOUS MONDO selection after the
+  // user switched to a manual or legacy-catalog Disease Area (source !==
+  // 'mondo'), which has no real canonical id of its own to offer.
+  const canonicalIndicationId =
+    resolvedDiseaseArea && resolvedDiseaseArea.id === landscapeConfiguration.diseaseAreaId
+      ? resolvedDiseaseArea.id
+      : null
 
   // "Unsupported configuration" per this step's own contract: the frontend
   // can only build a discovery request when it has a catalogued Home Asset
@@ -137,7 +152,7 @@ export default function DiscoverCompetitors() {
 
   function handleDiscover() {
     if (!homeAsset || !diseaseArea) return
-    run({ homeAsset: homeAsset.brandName, indication: diseaseArea.name })
+    run({ homeAsset: homeAsset.brandName, indication: diseaseArea.name, indicationId: canonicalIndicationId })
   }
 
   return (

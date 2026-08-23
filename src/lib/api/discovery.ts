@@ -132,10 +132,20 @@ export interface DiscoveryResult {
 export interface DiscoveryRequest {
   /** The Home/Reference Asset's brand name, e.g. AssetConfig.brandName -- the backend's own real domain identity for "home asset" (see resolve_home_asset_indication()'s docstring). Never a frontend-internal AssetConfig.id. */
   homeAsset: string
-  /** A canonical indication string, e.g. DiseaseArea.name -- forwarded verbatim to the backend's explicit-indication discovery path. */
+  /** A canonical indication string, e.g. DiseaseArea.name -- forwarded verbatim to the backend's explicit-indication discovery path. Still what actually drives source discovery, regardless of whether `indicationId` is also present. */
   indication: string
   /** The Home Asset's own resolved company -- the ONLY thing that makes deterministic home-company exclusion possible. Omit when genuinely unknown; never guessed. */
   homeCompany?: string | null
+  /**
+   * The canonical Disease Area id already resolved by disease search
+   * (ResolvedDiseaseArea.id, e.g. a real MONDO term such as
+   * "MONDO:1060006") -- ADDITIVE, for durable persistence identity only
+   * (see evidence_store.record_discovery_evidence()'s own docstring on the
+   * backend). Never substituted into `indication`/source discovery. Omit
+   * when the current Disease Area came from the manual or legacy static
+   * catalog path, which has no real canonical id to offer; never guessed.
+   */
+  indicationId?: string | null
 }
 
 function toSourceExecutionInfo(raw: any): SourceExecutionInfo {
@@ -268,7 +278,7 @@ export function mapDiscoveryResponse(raw: any): DiscoveryResult {
 const _inFlightDiscoveryRequests = new Map<string, Promise<DiscoveryResult>>()
 
 function _discoveryRequestKey(request: DiscoveryRequest): string {
-  return JSON.stringify([request.homeAsset, request.indication, request.homeCompany ?? null])
+  return JSON.stringify([request.homeAsset, request.indication, request.homeCompany ?? null, request.indicationId ?? null])
 }
 
 export async function fetchDiscoveredCompetitors(request: DiscoveryRequest): Promise<DiscoveryResult> {
@@ -281,6 +291,7 @@ export async function fetchDiscoveredCompetitors(request: DiscoveryRequest): Pro
       home_asset: request.homeAsset,
       indication: request.indication,
       ...(request.homeCompany ? { home_company: request.homeCompany } : {}),
+      ...(request.indicationId ? { indication_id: request.indicationId } : {}),
     })
     return mapDiscoveryResponse(raw)
   })()

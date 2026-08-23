@@ -57,6 +57,7 @@ import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
+import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import {
   getRegulatoryCalendar,
   getRecentSignals,
@@ -369,6 +370,44 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
     </div>
   )
 }
+// ── Recent Evidence — ingestion -> persistence -> landscape bridge (V1) ──────
+// Deliberately labeled "Recent Evidence", never "Signals": every item here is
+// a durably-recorded, source-backed observation from real discovery ingestion
+// -- no change-detection, no significance judgment, no narrative has been
+// derived from it. See landscapeEvidence.ts's own module docstring.
+function RecentEvidenceCard({ items, loading }: { items: LandscapeEvidenceItem[]; loading: boolean }) {
+  return (
+    <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '10px 16px' }}>
+      <h2 style={{ margin: '0 0 8px', fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>
+        Recent evidence
+      </h2>
+      {loading ? (
+        <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)' }}>Loading…</p>
+      ) : items.length === 0 ? (
+        <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)', fontStyle: 'italic' }}>
+          No persisted evidence yet for your tracked companies in this landscape — evidence accumulates as discovery runs.
+        </p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {items.slice(0, 6).map((item) => (
+            <li key={item.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-800)' }}>
+              <a href={item.sourceLocator} target="_blank" rel="noreferrer" style={{ color: 'var(--indigo-600)', textDecoration: 'none', fontWeight: 600 }}>
+                {item.companyName ?? item.assetName ?? 'Unknown source'}
+              </a>
+              {item.assetName && item.companyName && <span style={{ color: 'var(--neutral-600)' }}> · {item.assetName}</span>}
+              <span style={{ color: 'var(--neutral-600)' }}>
+                {' — '}{item.sourceType ?? 'source'}
+                {item.sourcePublishedDate ? ` · published ${item.sourcePublishedDate}` : ''}
+                {' · last confirmed '}{item.lastObservedAt.slice(0, 10)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const {
@@ -384,6 +423,28 @@ export default function WarRoom() {
     [trackedCompetitors],
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+
+  // INGESTION -> PERSISTENCE -> LANDSCAPE BRIDGE (V1): canonical company ids
+  // only -- a manually-added competitor's companyId is a locally-generated
+  // id with no durable evidence to match, so it is excluded here rather than
+  // sent to a query that could never honestly return anything for it.
+  const discoveredCompanyIds = useMemo(
+    () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
+    [trackedCompetitors],
+  )
+  const [evidenceItems, setEvidenceItems] = useState<LandscapeEvidenceItem[]>([])
+  const [evidenceLoading, setEvidenceLoading] = useState(false)
+  useEffect(() => {
+    if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
+    let cancelled = false
+    setEvidenceLoading(true)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication)
+      .then((items) => { if (!cancelled) setEvidenceItems(items) })
+      .catch(() => { if (!cancelled) setEvidenceItems([]) })
+      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
+    return () => { cancelled = true }
+  }, [discoveredCompanyIds, indication])
+
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
   const [inspecting, setInspecting] = useState<MappedAlert | null>(null)
@@ -816,6 +877,12 @@ export default function WarRoom() {
           <NextUpCarousel events={upcomingEvents} />
         </div>
       </div>
+
+      {discoveredCompanyIds.length > 0 && (
+        <div style={{ marginTop: '10px' }}>
+          <RecentEvidenceCard items={evidenceItems} loading={evidenceLoading} />
+        </div>
+      )}
 
       <SlideOver open={!!inspecting} onClose={() => setInspecting(null)} title="Signal detail">
         {inspecting && (
