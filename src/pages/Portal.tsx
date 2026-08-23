@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { REDUCED_MOTION } from '../lib/motion'
@@ -16,6 +16,7 @@ import { SkeletonPortalList } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
+import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
@@ -762,7 +763,15 @@ function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations
 }
 
 function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>> }) {
-  const { watchedCompetitors } = useApp()
+  const { watchedCompetitors, trackedCompetitors } = useApp()
+  // SETUP PROPAGATION: same active-landscape scope as War Room -- once a real
+  // completed landscape exists, it is authoritative over the legacy HAE
+  // default. See activeLandscape.ts.
+  const { hasActiveLandscape, legacyIds: activeLandscapeIds } = useMemo(
+    () => activeLandscapeSignalScope(trackedCompetitors, competitorsData),
+    [trackedCompetitors],
+  )
+  const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
   const [viewFilter, setViewFilter]         = useState('all')
@@ -811,7 +820,7 @@ function EventsTab({ liveCalendarEvents, liveTrialCells }: { liveCalendarEvents:
     // EMA regulatory events have no attendingCompetitors — always show.
     // Congress/conference events only show if a watched competitor is attending.
     const comps = (e.attendingCompetitors as string[] | undefined) ?? []
-    if (comps.length > 0 && !comps.some((id: string) => watchedCompetitors.has(id))) return false
+    if (comps.length > 0 && !comps.some((id: string) => effectiveCompetitorIds.has(id))) return false
     return true
   })
 
@@ -1224,12 +1233,21 @@ function MarketDevCard({ item }) {
 }
 
 function MarketTab({ liveDeals }: { liveDeals: DbRecentSignal[] }) {
-  const { watchedCompetitors } = useApp()
+  const { watchedCompetitors, trackedCompetitors } = useApp()
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
 
-  // Map live company_signals deals to market-dev card format — scoped to watched competitors
-  const liveDealItems = liveDeals.filter(row => watchedCompetitors.has(row.competitor_id ?? '')).map((row) => ({
+  // SETUP PROPAGATION: same active-landscape scope as EventsTab/War Room --
+  // once a real completed landscape exists, it is authoritative over the
+  // legacy HAE default. See activeLandscape.ts.
+  const { hasActiveLandscape, legacyIds: activeLandscapeIds } = useMemo(
+    () => activeLandscapeSignalScope(trackedCompetitors, competitorsData),
+    [trackedCompetitors],
+  )
+  const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+
+  // Map live company_signals deals to market-dev card format — scoped to the active landscape
+  const liveDealItems = liveDeals.filter(row => effectiveCompetitorIds.has(row.competitor_id ?? '')).map((row) => ({
     id: `sig-${row.id}`,
     date: row.date ?? '',
     type: 'deal' as const,

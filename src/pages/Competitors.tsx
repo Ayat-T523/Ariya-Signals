@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { ChevronRight, FileText, BarChart2 } from 'lucide-react'
@@ -15,6 +15,11 @@ import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
 import { useApp } from '../context/AppContext'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import { currentQuarterStart, daysSince } from '../lib/clock'
+import { Badge } from '../components/shadcn/ui/badge'
+import { activeLandscapeSignalScope } from '../lib/activeLandscape'
+import type { TrackedCompetitor } from '../config/setup-draft'
+
+const RELATIONSHIP_LABEL: Record<'direct' | 'indirect', string> = { direct: 'Direct', indirect: 'Indirect' }
 
 // ── Threat classification (for KPI count) ────────────────────────────────────
 const HIGH_THREAT_POSTURES = new Set([
@@ -189,7 +194,7 @@ function isHaeProphylaxis(c) {
 }
 
 // ── Competitor Card ────────────────────────────────────────────────────────
-function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor: any; liveSignals?: DbSignalSummary | null; haeAssetCount: number }) {
+function CompetitorCard({ competitor, liveSignals, haeAssetCount, userRelationship }: { competitor: any; liveSignals?: DbSignalSummary | null; haeAssetCount: number; userRelationship?: 'direct' | 'indirect' | null }) {
   const pipelineCount  = haeAssetCount
   const signalCount    = liveSignals?.count ?? 0
   const lastSignalDate = liveSignals?.latestDate ?? null
@@ -209,6 +214,17 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor
             {competitor.strategicPosture}
           </span>
         </div>
+        {/* SETUP PROPAGATION: the user's own Direct/Indirect classification from
+            setup -- never Ariya's advisory read, and never shown unless the
+            active landscape actually classified this company. */}
+        {userRelationship && (
+          <Badge
+            variant={userRelationship === 'direct' ? 'default' : 'outline'}
+            style={{ alignSelf: 'flex-start', flexShrink: 0 }}
+          >
+            {RELATIONSHIP_LABEL[userRelationship]}
+          </Badge>
+        )}
       </div>
 
       {/* Auto-composed descriptor */}
@@ -246,14 +262,59 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount }: { competitor
   )
 }
 
+// ── TrackedCompetitorCard ─────────────────────────────────────────────────────
+// SETUP PROPAGATION: a real, backend-discovered tracked competitor with no
+// legacy static/live-data profile (competitors.json / company_signals) to
+// enrich it with. Deliberately does NOT reuse CompetitorCard's posture pill,
+// marketedProducts/pipeline descriptor, or signal/last-signal stats -- none
+// of that data truthfully exists for a company outside the legacy HAE
+// roster. Shows only what setup actually produced: company name, the user's
+// own Direct/Indirect classification, and the real relevant-assets evidence
+// from discovery. Reuses the same .competitor-card/.cc-* classes so it sits
+// visually consistent in the grid without introducing new styling.
+function TrackedCompetitorCard({ competitor }: { competitor: TrackedCompetitor }) {
+  return (
+    <div className="competitor-card" style={{ cursor: 'default' }}>
+      <div className="cc-header">
+        <CompetitorBadge name={competitor.companyName} size={44} />
+        <div className="cc-title-group">
+          <p className="cc-name">{competitor.companyName}</p>
+          <span className="cc-posture tier-incumbent">
+            {competitor.source === 'manual' ? 'Manually added' : 'Discovered'}
+          </span>
+        </div>
+        <Badge
+          variant={competitor.userRelationship === 'direct' ? 'default' : 'outline'}
+          style={{ alignSelf: 'flex-start', flexShrink: 0 }}
+        >
+          {RELATIONSHIP_LABEL[competitor.userRelationship]}
+        </Badge>
+      </div>
+
+      <p className="cc-descriptor">
+        {competitor.relevantAssets.length > 0
+          ? `Relevant assets: ${competitor.relevantAssets.map((a) => a.identityKey).join(', ')}`
+          : 'No relevant assets recorded.'}
+      </p>
+
+      <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '11px', color: 'var(--ink-600)' }}>
+        {competitor.evidenceStatus === 'evidence_available'
+          ? `${competitor.evidenceRefs.length} evidence reference${competitor.evidenceRefs.length === 1 ? '' : 's'} from discovery`
+          : 'Not yet evaluated for live signals.'}
+      </p>
+    </div>
+  )
+}
+
 // ── KeyCompetitorTimeline ─────────────────────────────────────────────────────
-function KeyCompetitorTimeline() {
-  const { watchedCompetitors } = useApp()
+function KeyCompetitorTimeline({ effectiveCompetitorIds }: { effectiveCompetitorIds: Set<string> }) {
   const [qw, setQw]              = useState(52)
   const [hiddenComps, setHidden] = useState(new Set<string>())
 
-  // Strict config scoping: only show timeline rows for watched competitors
-  const watchedTimelineRows = TIMELINE_ROWS.filter(r => watchedCompetitors.has(r.competitorId))
+  // Strict config scoping: only show timeline rows for the active landscape's
+  // competitors (falls back to legacy watchedCompetitors when no landscape
+  // has been completed yet -- see activeLandscape.ts / Competitors()).
+  const watchedTimelineRows = TIMELINE_ROWS.filter(r => effectiveCompetitorIds.has(r.competitorId))
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Bump counter on viewport resize so re-render reads the current clientWidth
@@ -621,7 +682,28 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
 ]
 
 export default function Competitors() {
-  const { watchedCompetitors } = useApp()
+  const { watchedCompetitors, trackedCompetitors } = useApp()
+  // SETUP PROPAGATION: once a real completed landscape exists, it is
+  // authoritative over the legacy HAE default -- see activeLandscape.ts.
+  // `matches` also drives which trackedCompetitors get a real legacy card
+  // (below) vs. the honest minimal TrackedCompetitorCard.
+  const { hasActiveLandscape, legacyIds: activeLandscapeIds, matches } = useMemo(
+    () => activeLandscapeSignalScope(trackedCompetitors, competitors),
+    [trackedCompetitors],
+  )
+  const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+  // legacyId -> userRelationship, so the legacy CompetitorCard branch can show
+  // the user's real Direct/Indirect classification for a matched company.
+  const relationshipByLegacyId = useMemo(() => {
+    const map = new Map<string, 'direct' | 'indirect'>()
+    for (const m of matches) if (m.legacyId) map.set(m.legacyId, m.competitor.userRelationship)
+    return map
+  }, [matches])
+  // Tracked competitors with no legacy profile at all -- rendered via the
+  // honest minimal card, never fabricated into a rich legacy one.
+  const unmatchedTrackedCompetitors: TrackedCompetitor[] = hasActiveLandscape
+    ? matches.filter((m) => m.legacyId === null).map((m) => m.competitor)
+    : []
   const [filter, setFilter]           = useState('all')
   const [showTimeline, setShowTimeline] = useState(false)
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
@@ -655,7 +737,7 @@ export default function Competitors() {
 
   // "Activity this quarter" — the sort's primary criterion (§2.2/§2.5). Window
   // is the real current quarter via the shared clock, not a frozen date.
-  const watchedIds = Array.from(watchedCompetitors).sort()
+  const watchedIds = Array.from(effectiveCompetitorIds).sort()
   useEffect(() => {
     if (watchedIds.length === 0) { setQuarterActivity(new Map()); return }
     const days = daysSince(currentQuarterStart())
@@ -668,7 +750,7 @@ export default function Competitors() {
   }, [watchedIds.join(',')])
 
   const postureFiltered = competitors.filter(c => {
-    if (!watchedCompetitors.has(c.id)) return false
+    if (!effectiveCompetitorIds.has(c.id)) return false
     if (filter === 'hae-acute')       return isHaeAcute(c)
     if (filter === 'hae-prophylaxis') return isHaeProphylaxis(c)
     return true
@@ -768,7 +850,7 @@ export default function Competitors() {
             height: '520px',
             display: 'flex', flexDirection: 'column',
           }}>
-            <KeyCompetitorTimeline />
+            <KeyCompetitorTimeline effectiveCompetitorIds={effectiveCompetitorIds} />
           </div>
         )}
 
@@ -805,12 +887,12 @@ export default function Competitors() {
           )}
 
           <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', marginLeft: 'auto' }}>
-            {sorted.length} shown
+            {sorted.length + unmatchedTrackedCompetitors.length} shown
           </span>
         </div>
 
         {/* Responsive card grid */}
-        {sorted.length === 0 ? (
+        {sorted.length === 0 && unmatchedTrackedCompetitors.length === 0 ? (
           <EmptyState message="No competitors match this filter." />
         ) : (!loaded || !liveDataReady) ? (
           <SkeletonCompetitorGrid count={competitors.length} />
@@ -826,7 +908,25 @@ export default function Competitors() {
                 whileHover={REDUCED_MOTION ? {} : { y: -2 }}
                 transition={{ duration: 0.12 }}
               >
-                <CompetitorCard competitor={c} liveSignals={signalsSummary.get(c.id) ?? null} haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length} />
+                <CompetitorCard
+                  competitor={c}
+                  liveSignals={signalsSummary.get(c.id) ?? null}
+                  haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length}
+                  userRelationship={relationshipByLegacyId.get(c.id) ?? null}
+                />
+              </motion.div>
+            ))}
+            {/* SETUP PROPAGATION: real tracked competitors from the active
+                landscape with no legacy profile -- honest minimal card, never
+                fabricated into the rich legacy shape above. */}
+            {unmatchedTrackedCompetitors.map((tc) => (
+              <motion.div
+                key={tc.companyId}
+                variants={listItem}
+                whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+                transition={{ duration: 0.12 }}
+              >
+                <TrackedCompetitorCard competitor={tc} />
               </motion.div>
             ))}
           </motion.div>

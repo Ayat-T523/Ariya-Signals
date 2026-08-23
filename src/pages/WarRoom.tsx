@@ -56,6 +56,7 @@ import { CountingNumber } from '../components/animate-ui/primitives/texts/counti
 import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
+import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import {
   getRegulatoryCalendar,
   getRecentSignals,
@@ -371,11 +372,18 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const {
-    openAskModal, watchedCompetitors, handlingStates, getHandlingState, setHandlingState,
+    openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
     savedAlerts, toggleSavedAlert,
   } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
+  // SETUP PROPAGATION: once a real completed landscape exists, it is
+  // authoritative over the legacy HAE default -- see activeLandscape.ts.
+  const { hasActiveLandscape, legacyIds: activeLandscapeIds } = useMemo(
+    () => activeLandscapeSignalScope(trackedCompetitors, competitorsData),
+    [trackedCompetitors],
+  )
+  const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
   const [inspecting, setInspecting] = useState<MappedAlert | null>(null)
@@ -387,7 +395,7 @@ export default function WarRoom() {
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const [weatherWindow, setWeatherWindow] = useState<7 | 30 | 90>(90)
 
-  const watchedIds = Array.from(watchedCompetitors).sort()
+  const watchedIds = Array.from(effectiveCompetitorIds).sort()
   const filterIds = watchedIds.length > 0 ? watchedIds : undefined
 
   const { data: liveData, isSuccess: liveDataLoaded, isError: liveDataFailed, dataUpdatedAt, refetch } = useQuery({
@@ -410,7 +418,7 @@ export default function WarRoom() {
   // Readable + watchlist-scoped, same order as the rest of the app: strip
   // XBRL/accession boilerplate first, then confirm competitor scope.
   const readableSignals = recentLiveSignals.filter(isSignalReadable)
-  const relevantSignals = readableSignals.filter((s) => watchedCompetitors.has(s.competitor_id ?? ''))
+  const relevantSignals = readableSignals.filter((s) => effectiveCompetitorIds.has(s.competitor_id ?? ''))
 
   // Alert objects + severity come from the same mapSignal() pipeline the
   // Alerts page and its drawer use (signalMapping.ts) — so a row's severity
@@ -773,7 +781,7 @@ export default function WarRoom() {
               <div className="icon-circle"><Inbox size={26} aria-hidden="true" /></div>
               <h3>You&rsquo;re caught up</h3>
               <p>
-                {watchedCompetitors.size === 0
+                {effectiveCompetitorIds.size === 0
                   ? 'Track competitors to see what needs you here.'
                   : 'Nothing needs triage right now — check back as new signals arrive.'}
               </p>
@@ -796,7 +804,7 @@ export default function WarRoom() {
             timeframe={(`${weatherWindow}D` as '7D' | '30D' | '90D')}
             onTimeframeChange={(tf) => setWeatherWindow(Number(tf.slice(0, -1)) as 7 | 30 | 90)}
             rows={weatherRows}
-            rowsEmptyMessage={watchedCompetitors.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.'}
+            rowsEmptyMessage={effectiveCompetitorIds.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.'}
             implications={weatherImplications}
             readMoreTo="/alerts"
             compact
