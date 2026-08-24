@@ -59,6 +59,9 @@ import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
+import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
+import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
+import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
 import {
   getRegulatoryCalendar,
   getRecentSignals,
@@ -376,12 +379,31 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
 // a durably-recorded, source-backed observation from real discovery ingestion
 // -- no change-detection, no significance judgment, no narrative has been
 // derived from it. See landscapeEvidence.ts's own module docstring.
-function RecentEvidenceCard({ items, loading }: { items: LandscapeEvidenceItem[]; loading: boolean }) {
+function RecentEvidenceCard({
+  items, loading, timeHorizon, onTimeHorizonChange, hydrationStatus,
+}: {
+  items: LandscapeEvidenceItem[]
+  loading: boolean
+  timeHorizon: TimeHorizon
+  onTimeHorizonChange: (horizon: TimeHorizon) => void
+  hydrationStatus: HydrationUIStatus
+}) {
+  const hydrationLabel = hydrationStatusLabel(hydrationStatus)
   return (
     <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '10px 16px' }}>
-      <h2 style={{ margin: '0 0 8px', fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>
-        Recent evidence
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>
+            Recent evidence
+          </h2>
+          {hydrationLabel && (
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 500, color: hydrationStatus === 'failed' ? 'var(--status-red)' : 'var(--neutral-600)' }}>
+              {hydrationLabel}
+            </span>
+          )}
+        </div>
+        <TimeHorizonSelector value={timeHorizon} onChange={onTimeHorizonChange} />
+      </div>
       {loading ? (
         <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)' }}>Loading…</p>
       ) : items.length === 0 ? (
@@ -413,7 +435,8 @@ function RecentEvidenceCard({ items, loading }: { items: LandscapeEvidenceItem[]
 export default function WarRoom() {
   const {
     openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
-    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea,
+    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea, timeHorizon, setTimeHorizon,
+    hydrationStatus, ensureHydration,
   } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   // Regression fix: resolveCanonicalIndicationId() is the ONE shared
@@ -445,12 +468,21 @@ export default function WarRoom() {
     if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
     let cancelled = false
     setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
       .then((items) => { if (!cancelled) setEvidenceItems(items) })
       .catch(() => { if (!cancelled) setEvidenceItems([]) })
       .finally(() => { if (!cancelled) setEvidenceLoading(false) })
     return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication, canonicalIndicationId])
+  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+
+  // CORRECTNESS GATE FIX (report section 5): "existing configured workspace
+  // opens" hydration trigger -- ensureHydration() itself is idempotent
+  // (backend freshness/retry-suppression policy), so mounting this effect
+  // on every War Room visit is safe; it does NOT re-run on every render
+  // (only when the discovered-company scope itself changes).
+  useEffect(() => {
+    if (discoveredCompanyIds.length > 0) ensureHydration()
+  }, [discoveredCompanyIds])
 
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
@@ -905,7 +937,10 @@ export default function WarRoom() {
 
       {discoveredCompanyIds.length > 0 && (
         <div style={{ marginTop: '10px' }}>
-          <RecentEvidenceCard items={evidenceItems} loading={evidenceLoading} />
+          <RecentEvidenceCard
+            items={evidenceItems} loading={evidenceLoading} timeHorizon={timeHorizon} onTimeHorizonChange={setTimeHorizon}
+            hydrationStatus={hydrationStatus}
+          />
         </div>
       )}
 

@@ -19,6 +19,9 @@ import { competitorsData, eventsData, marketDevelopments as marketData } from '.
 import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
+import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
+import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
+import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
@@ -1375,16 +1378,41 @@ const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 // -- no change-detection, no significance judgment, no narrative has been
 // derived from it. See landscapeEvidence.ts's own module docstring. Shown
 // above the tab bar so it's visible regardless of which tab is active.
-function RecentEvidenceStrip({ items, loading }: { items: LandscapeEvidenceItem[]; loading: boolean }) {
-  if (!loading && items.length === 0) return null
+function RecentEvidenceStrip({
+  items, loading, hasDiscoveredCompanies, timeHorizon, onTimeHorizonChange, hydrationStatus,
+}: {
+  items: LandscapeEvidenceItem[]
+  loading: boolean
+  /** Whether the landscape has any canonical-id companies evidence could ever exist for -- distinct from "zero evidence in the CURRENT horizon", which must still show the selector so the user can widen it. */
+  hasDiscoveredCompanies: boolean
+  timeHorizon: TimeHorizon
+  onTimeHorizonChange: (horizon: TimeHorizon) => void
+  hydrationStatus: HydrationUIStatus
+}) {
+  if (!hasDiscoveredCompanies) return null
+  const hydrationLabel = hydrationStatusLabel(hydrationStatus)
   return (
     <div style={{ padding: '10px 36px 0' }}>
       <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
-        <h2 style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
-          Recent evidence
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
+              Recent evidence
+            </h2>
+            {hydrationLabel && (
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 500, color: hydrationStatus === 'failed' ? 'var(--status-red)' : 'var(--ink-600)' }}>
+                {hydrationLabel}
+              </span>
+            )}
+          </div>
+          <TimeHorizonSelector value={timeHorizon} onChange={onTimeHorizonChange} />
+        </div>
         {loading ? (
           <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
+        ) : items.length === 0 ? (
+          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
+            No persisted evidence in this time horizon for your tracked companies — try widening it, or check back as discovery runs.
+          </p>
         ) : (
           <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {items.slice(0, 5).map((item) => (
@@ -1422,7 +1450,10 @@ export default function Portal() {
   // compute the correct scoped list and duplicating that filter logic here
   // would risk it drifting out of sync with what the tabs actually show.
   const [tabCounts, setTabCounts] = useState<number[]>(TAB_COUNTS_FALLBACK)
-  const { trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea } = useApp()
+  const {
+    trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea, timeHorizon, setTimeHorizon,
+    hydrationStatus, ensureHydration,
+  } = useApp()
   const { indication } = useConfig()
   const discoveredCompanyIds = useMemo(
     () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
@@ -1440,12 +1471,20 @@ export default function Portal() {
     if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
     let cancelled = false
     setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId)
+    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
       .then((items) => { if (!cancelled) setEvidenceItems(items) })
       .catch(() => { if (!cancelled) setEvidenceItems([]) })
       .finally(() => { if (!cancelled) setEvidenceLoading(false) })
     return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication, canonicalIndicationId])
+  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+
+  // CORRECTNESS GATE FIX (report section 5): the SAME "existing configured
+  // workspace opens" ensure-hydration trigger WarRoom.tsx's own mount
+  // effect uses -- one shared AppContext function, never a second,
+  // divergent implementation.
+  useEffect(() => {
+    if (discoveredCompanyIds.length > 0) ensureHydration()
+  }, [discoveredCompanyIds])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1472,7 +1511,10 @@ export default function Portal() {
         <TabBar active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
 
-      <RecentEvidenceStrip items={evidenceItems} loading={evidenceLoading} />
+      <RecentEvidenceStrip
+        items={evidenceItems} loading={evidenceLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
+        timeHorizon={timeHorizon} onTimeHorizonChange={setTimeHorizon} hydrationStatus={hydrationStatus}
+      />
 
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>

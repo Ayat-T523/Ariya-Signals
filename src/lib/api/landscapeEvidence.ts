@@ -74,16 +74,26 @@ function toLandscapeEvidenceItem(raw: any): LandscapeEvidenceItem {
  * `indicationId` through here (backend precedence: canonical id first, the
  * plain label only as a fallback -- never both required to match) is what
  * makes previously-persisted canonical evidence actually retrievable again.
+ *
+ * `lookbackDays`, when supplied, is the ONE shared Month(30)/Quarter(90)/
+ * Year(365) time-horizon contract (see src/lib/timeHorizon.ts) forwarded
+ * verbatim to the backend's own `lookback_days` pure read-side filter --
+ * see evidence_store.query_landscape_evidence()'s own docstring. Omitted
+ * entirely (not even sent as a param) when absent, so an existing caller
+ * that never passes it is completely unaffected -- every persisted item,
+ * no horizon applied, byte-for-byte the pre-existing behavior.
  */
 export async function fetchLandscapeEvidence(
   companyIds: string[],
   indication?: string | null,
   indicationId?: string | null,
+  lookbackDays?: number | null,
 ): Promise<LandscapeEvidenceItem[]> {
   if (companyIds.length === 0) return []
   const params: Record<string, string> = { companies: companyIds.join(',') }
   if (indication) params.indication = indication
   if (indicationId) params.indication_id = indicationId
+  if (lookbackDays) params.lookback_days = String(lookbackDays)
   const raw = await apiGet<{ items: any[] }>('/api/landscape/evidence', params)
   return (raw.items ?? []).map(toLandscapeEvidenceItem)
 }

@@ -14,12 +14,15 @@ import {
   type TrackedCompetitor, type ManualAssetIdentity, type ManualDiseaseArea,
   type DiseaseAreaDisplay, resolveDiseaseAreaDisplayFrom,
   type HomeAssetDisplay, resolveHomeAssetDisplayFrom,
+  resolveCanonicalIndicationId,
 } from '../config/setup-draft'
 import type { ResolvedDiseaseArea } from '../lib/api/diseaseSearch'
 import type { ResolvedAssetIdentity } from '../lib/api/assetSearch'
 import { expandLexiconInns } from '../lib/lexicon'
 import { getAssetLexicon, type HandlingState } from '../lib/db'
 import { useAuth } from './AuthContext'
+import { type TimeHorizon, DEFAULT_TIME_HORIZON, isTimeHorizon } from '../lib/timeHorizon'
+import { triggerLandscapeHydration, toHydrationUIStatus, type HydrationUIStatus } from '../lib/api/landscapeHydration'
 
 /**
  * Everything the provider supplies.
@@ -130,6 +133,33 @@ export interface AppContextValue {
    */
   expandedLexiconInns: string[] | null
   resetWatchedCompetitors: (ids: string[]) => void
+  /**
+   * Historical evidence hydration (Step 1, 2026-08-24) — the ONE shared
+   * Month/Quarter/Year time-horizon selection, read/written identically by
+   * WarRoom.tsx and Portal.tsx (see src/lib/timeHorizon.ts). Living here,
+   * not as independent per-page state, is what makes it genuinely "one
+   * shared contract" rather than two components that happen to default to
+   * the same value today and can silently drift apart later.
+   */
+  timeHorizon: TimeHorizon
+  setTimeHorizon: (horizon: TimeHorizon) => void
+  /**
+   * CORRECTNESS GATE FIX (report section 5/6) — the ONE shared hydration
+   * coverage-status indicator, read/written identically by WarRoom.tsx and
+   * Portal.tsx. 'idle' before any hydration attempt has been made this
+   * session; never blanked back to 'idle' by a later attempt failing --
+   * see ensureHydration()'s own docstring on why persisted evidence, and
+   * the last-known status, both survive a subsequent hydration outcome.
+   */
+  hydrationStatus: HydrationUIStatus
+  /**
+   * Idempotent, safe to call from multiple mount effects (WarRoom.tsx AND
+   * Portal.tsx) without duplicating logic or double-triggering an
+   * expensive live discovery run — see this function's own docstring in
+   * AppProvider for the full contract (shared with completeSetup()'s own
+   * post-setup trigger).
+   */
+  ensureHydration: () => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -455,6 +485,74 @@ export function AppProvider({ children }) {
     } catch { return null }
   })
 
+  // ── Historical evidence hydration coverage (Step 1, 2026-08-24) ──────────
+  // CORRECTNESS GATE FIX (report section 5/6/8): ONE shared implementation
+  // for BOTH the post-setup automatic trigger and the "existing configured
+  // workspace opens" trigger -- never two independently-drifting copies of
+  // the identity-derivation + hydration-request logic. `idle` until the
+  // first attempt this session; a later attempt's outcome always overwrites
+  // it (never silently reset back to `idle`), so a compact status line can
+  // always show the LAST KNOWN coverage quality, not just "nothing has
+  // happened yet."
+  const [hydrationStatus, setHydrationStatus] = useState<HydrationUIStatus>('idle')
+
+  async function _runEnsureHydration(
+    homeAssetId: string | null,
+    diseaseAreaId: string | null,
+    manualAsset: ManualAssetIdentity | null,
+    resolvedAsset: ResolvedAssetIdentity | null,
+    manualDisease: ManualDiseaseArea | null,
+    resolvedDisease: ResolvedDiseaseArea | null,
+  ): Promise<void> {
+    // SAME resolvers (resolveHomeAssetDisplayFrom/resolveDiseaseAreaDisplayFrom/
+    // resolveCanonicalIndicationId) every other write call site already
+    // uses -- never a second, competing identity derivation.
+    const homeAssetDisplay = resolveHomeAssetDisplayFrom(homeAssetId, manualAsset, resolvedAsset)
+    const catalogAsset = homeAssetId ? getAssetById(homeAssetId) : undefined
+    const homeAssetName = homeAssetDisplay?.displayName ?? catalogAsset?.brandName ?? null
+    const homeCompanyName = homeAssetDisplay?.companyName ?? catalogAsset?.company ?? null
+
+    const diseaseAreaDisplay = resolveDiseaseAreaDisplayFrom(diseaseAreaId, manualDisease, resolvedDisease)
+    const catalogDisease = diseaseAreaId ? getDiseaseAreaById(diseaseAreaId) : undefined
+    const indicationName = diseaseAreaDisplay?.name ?? catalogDisease?.name ?? null
+    const canonicalIndicationId = resolveCanonicalIndicationId(diseaseAreaId, resolvedDisease)
+
+    if (!homeAssetName || !indicationName) return  // No real landscape configured yet -- nothing to hydrate.
+
+    setHydrationStatus('hydrating')
+    try {
+      const result = await triggerLandscapeHydration({
+        homeAsset: homeAssetName, indication: indicationName,
+        homeCompany: homeCompanyName, indicationId: canonicalIndicationId,
+      })
+      setHydrationStatus(toHydrationUIStatus(result.status))
+    } catch {
+      // A genuine backend/network failure (e.g. 502 discovery_source_
+      // unavailable) -- honestly surfaced as 'failed', never silently
+      // swallowed back to 'idle': existing persisted evidence (fetched
+      // completely independently by WarRoom.tsx/Portal.tsx) remains
+      // visible regardless of this outcome.
+      setHydrationStatus('failed')
+    }
+  }
+
+  /**
+   * The "existing configured workspace opens" trigger (report section 5) --
+   * called from WarRoom.tsx/Portal.tsx's own mount effect. Reads CURRENT
+   * state (unlike completeSetup() below, which must use the freshly-passed
+   * values before this render's state update lands). Fire-and-forget by
+   * design: the backend's own freshness/retry-suppression policy (see
+   * run_hydration()'s docstring) is what actually prevents redundant
+   * re-hydration on every page visit -- this function does not need its
+   * own separate "have I already fired this session" guard beyond that.
+   */
+  function ensureHydration() {
+    _runEnsureHydration(
+      landscapeConfiguration.homeAssetId, landscapeConfiguration.diseaseAreaId,
+      manualHomeAsset, resolvedHomeAsset, manualDiseaseArea, resolvedDiseaseArea,
+    ).catch(() => { /* noop -- already handled inside _runEnsureHydration */ })
+  }
+
   function completeSetup(
     competitors: TrackedCompetitor[],
     nextManualHomeAsset: ManualAssetIdentity | null,
@@ -481,6 +579,17 @@ export function AppProvider({ children }) {
     localStorage.setItem('onboardingComplete', 'true')
     localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
     setOnboardingComplete(true)
+
+    // Historical evidence hydration (Step 1, 2026-08-24) — automatic,
+    // NON-BLOCKING trigger fired right after setup persists a real
+    // landscape, via the SAME _runEnsureHydration() the workspace-open
+    // trigger uses (see ensureHydration()'s own docstring) -- passes the
+    // freshly-provided identities directly, since this render's own state
+    // update for them has not landed yet.
+    _runEnsureHydration(
+      landscapeConfiguration.homeAssetId, landscapeConfiguration.diseaseAreaId,
+      nextManualHomeAsset, nextResolvedHomeAsset, nextManualDiseaseArea, nextResolvedDiseaseArea,
+    ).catch(() => { /* noop -- already handled inside _runEnsureHydration */ })
   }
 
   // ── Guided tour ──────────────────────────────────────────────────────────
@@ -518,6 +627,22 @@ export function AppProvider({ children }) {
 
   // Track which AI buttons were clicked (valuable feedback signal per §5)
   const [aiClickLog, setAiClickLog] = useState<{ source: string | null; question: string | null; timestamp: string }[]>([])
+
+  // ── Historical evidence hydration time horizon (Step 1, 2026-08-24) ────────
+  // ONE shared Month/Quarter/Year selection -- see src/lib/timeHorizon.ts and
+  // this field's own docstring on AppContextValue for why this lives here
+  // rather than as independent per-page state.
+  const TIME_HORIZON_KEY = 'ariya-time-horizon'
+  const [timeHorizon, setTimeHorizonState] = useState<TimeHorizon>(() => {
+    try {
+      const stored = localStorage.getItem(TIME_HORIZON_KEY)
+      return isTimeHorizon(stored) ? stored : DEFAULT_TIME_HORIZON
+    } catch { return DEFAULT_TIME_HORIZON }
+  })
+  function setTimeHorizon(horizon: TimeHorizon) {
+    setTimeHorizonState(horizon)
+    try { localStorage.setItem(TIME_HORIZON_KEY, horizon) } catch { /* noop */ }
+  }
 
   // ── Persistence ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -610,6 +735,10 @@ export function AppProvider({ children }) {
         setLandscapeConfiguration,
         expandedLexiconInns,
         resetWatchedCompetitors,
+        timeHorizon,
+        setTimeHorizon,
+        hydrationStatus,
+        ensureHydration,
       }}
     >
       {children}
