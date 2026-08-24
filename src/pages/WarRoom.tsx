@@ -58,7 +58,6 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
-import { TIME_HORIZON_DAYS } from '../lib/timeHorizon'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import { rankSignalsForAttention, isAttentionWorthy } from '../lib/signalRanking'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
@@ -378,7 +377,7 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
 export default function WarRoom() {
   const {
     openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
-    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea, timeHorizon,
+    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea,
     ensureHydration,
   } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
@@ -417,20 +416,23 @@ export default function WarRoom() {
   // V1 Signal engine (2026-08-24): real, source-backed Signals for a
   // configured landscape -- see landscapeSignals.ts's own module docstring
   // on why this NEVER falls back to the legacy Supabase company_signals
-  // pipeline once hasActiveLandscape is true (report section 13). Same
-  // Month/Quarter/Year state (`timeHorizon`) evidence already uses.
+  // pipeline once hasActiveLandscape is true (report section 13). All-time
+  // (no lookback_days) -- a healthy landscape can have zero recent activity
+  // and still have a real, qualifying historical Signal set (pre-freeze
+  // fix 2026-08-24: see Competitors.tsx's own latest-Signal fetch, which
+  // already used this same no-lookback contract).
   const [landscapeSignals, setLandscapeSignals] = useState<LandscapeSignal[]>([])
   const [landscapeSignalsLoading, setLandscapeSignalsLoading] = useState(false)
   useEffect(() => {
     if (!hasActiveLandscape || discoveredCompanyIds.length === 0) { setLandscapeSignals([]); return }
     let cancelled = false
     setLandscapeSignalsLoading(true)
-    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
+    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)
       .then((items) => { if (!cancelled) setLandscapeSignals(items) })
       .catch(() => { if (!cancelled) setLandscapeSignals([]) })
       .finally(() => { if (!cancelled) setLandscapeSignalsLoading(false) })
     return () => { cancelled = true }
-  }, [hasActiveLandscape, discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+  }, [hasActiveLandscape, discoveredCompanyIds, indication, canonicalIndicationId])
 
   // Direct/Indirect presentation ranking only -- see signalRanking.ts's own
   // docstring for why this never touches the Signal's own `importance`.
@@ -610,11 +612,11 @@ export default function WarRoom() {
 
   const mostActiveName = hasActiveLandscape ? landscapeMostActiveName : legacyMostActiveName
 
-  // "N signals · Xd" -- for a configured landscape, the real V1 Signal
-  // count in the shared Month/Quarter/Year horizon (report section 14: "12
-  // signals · 30d"), never the legacy 90-day Supabase count.
+  // "N signals" -- for a configured landscape, the real, all-time V1
+  // Signal count (pre-freeze fix 2026-08-24: no arbitrary 30-day/Xd
+  // window -- a healthy landscape with only old activity must still show
+  // its qualifying Signals), never the legacy 90-day Supabase count.
   const signalVolume = hasActiveLandscape ? landscapeSignals.length : relevantSignals.length
-  const signalVolumeWindowDays = hasActiveLandscape ? TIME_HORIZON_DAYS[timeHorizon] : NARRATION_DAYS
 
   // Market weather — windowed to whatever the card's own 7D/30D/90D toggle
   // selects (critique 2026-07-28), not hardcoded to the page's NARRATION_DAYS.
@@ -828,7 +830,7 @@ export default function WarRoom() {
           <TooltipContent>Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items.</TooltipContent>
         </Tooltip>
         <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} initiallyStable /></span> signals · {signalVolumeWindowDays}d</span>
+        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} initiallyStable /></span> signals</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
           Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
@@ -905,8 +907,8 @@ export default function WarRoom() {
                       // Volume/Intelligence Feed) but none cleared the
                       // HIGH/MEDIUM attention bar, never conflated with "no
                       // Signals at all".
-                      ? 'No high-priority Signals in this time horizon — see the Intelligence Feed for everything tracked.'
-                      : 'No source-backed Signals in this time horizon — check back as discovery runs, or widen the horizon.'}
+                      ? 'No high-priority Signals yet — see the Intelligence Feed for everything tracked.'
+                      : 'No source-backed Signals yet — check back as discovery runs.'}
                 </p>
               </div>
             )

@@ -18,7 +18,6 @@ import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
-import { TIME_HORIZON_DAYS } from '../lib/timeHorizon'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import { buildSourceLabel } from '../lib/transformers'
@@ -1393,7 +1392,7 @@ function RecentSignalsStrip({
           <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
         ) : signalsList.length === 0 ? (
           <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
-            No source-backed Signals in this time horizon — try widening it, or check back as discovery runs.
+            No source-backed Signals yet — check back as discovery runs.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1421,7 +1420,7 @@ export default function Portal() {
   // would risk it drifting out of sync with what the tabs actually show.
   const [tabCounts, setTabCounts] = useState<number[]>(TAB_COUNTS_FALLBACK)
   const {
-    trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea, timeHorizon,
+    trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea,
     ensureHydration,
   } = useApp()
   const { indication } = useConfig()
@@ -1444,21 +1443,24 @@ export default function Portal() {
   }, [discoveredCompanyIds])
 
   // V1 Signal engine (2026-08-24): real, source-backed Signals for a
-  // configured landscape -- same scope/horizon Evidence already uses, own
-  // section (RecentSignalsStrip), never folded into the legacy Events/
-  // Market Developments tabs below.
+  // configured landscape, own section (RecentSignalsStrip), never folded
+  // into the legacy Events/Market Developments tabs below. All-time (no
+  // lookback_days) -- pre-freeze fix 2026-08-24: a healthy landscape can
+  // have zero recent activity and still have a real, qualifying
+  // historical Signal set (see Competitors.tsx's own latest-Signal fetch,
+  // which already used this same no-lookback contract).
   const [landscapeSignals, setLandscapeSignals] = useState<LandscapeSignal[]>([])
   const [landscapeSignalsLoading, setLandscapeSignalsLoading] = useState(false)
   useEffect(() => {
     if (discoveredCompanyIds.length === 0) { setLandscapeSignals([]); return }
     let cancelled = false
     setLandscapeSignalsLoading(true)
-    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
+    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)
       .then((items) => { if (!cancelled) setLandscapeSignals(items) })
       .catch(() => { if (!cancelled) setLandscapeSignals([]) })
       .finally(() => { if (!cancelled) setLandscapeSignalsLoading(false) })
     return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+  }, [discoveredCompanyIds, indication, canonicalIndicationId])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {

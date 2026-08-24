@@ -29,6 +29,12 @@
  *       posture filter and both tracked-competitor rendering paths survive.
  * Signal-count/Signal-list correctness itself is already covered by
  * src/pages/signalIntegration.test.ts (unmodified by this pass, still green).
+ *
+ * SECTION 12 (2026-08-24, pre-freeze): the removal of the default 30-day
+ * lookback restriction on the primary War Room / Intelligence Feed Signal
+ * view. See signalIntegration.test.ts section 2/3 for the fetch-call-level
+ * proof; this section proves the remaining scoping/copy/zero-state
+ * guarantees the task itself required.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -122,6 +128,25 @@ assertTrue('no generic replacement labels were invented in its place', !competit
 assertTrue('the unrelated strategic-posture filter (a real, disease-neutral feature) is untouched', competitorsSource.includes('const [postureFilter, setPostureFilter] = useState(new Set<string>())') && competitorsSource.includes('<FilterDropdown label="Posture"'))
 assertTrue('tracked-competitor rendering (legacy-matched + unmatched honest-card paths) is untouched', competitorsSource.includes('{sorted.map(c =>') && competitorsSource.includes('{unmatchedTrackedCompetitors.map((tc) =>'))
 assertTrue('the "N shown" count still sums both rendering paths', competitorsSource.includes('{sorted.length + unmatchedTrackedCompetitors.length} shown'))
+
+console.log('12. WarRoom.tsx/Portal.tsx: the primary Signal fetch is all-time, disease/company scoping and honest zero-states are preserved (pre-freeze fix 2026-08-24)')
+const landscapeSignalsClientSource = fs.readFileSync(
+  path.join(pagesDir, '..', 'lib', 'api', 'landscapeSignals.ts'), 'utf-8',
+).replace(/\r\n/g, '\n')
+assertTrue('the API client still gates lookback_days behind an optional 4th param -- omitting it (as WarRoom/Portal now do) already reaches the existing all-time contract, no second endpoint was created', landscapeSignalsClientSource.includes('if (lookbackDays) params.lookback_days = String(lookbackDays)'))
+assertTrue('WarRoom.tsx never passes a params.lookback_days / TIME_HORIZON_DAYS value into its primary Signal fetch (comment mentions of "lookback_days" are fine -- only real param construction is checked)', !warRoomSource.includes('params.lookback_days') && !warRoomSource.includes('TIME_HORIZON_DAYS'))
+assertTrue('Portal.tsx never passes a params.lookback_days / TIME_HORIZON_DAYS value into its primary Signal fetch (comment mentions of "lookback_days" are fine -- only real param construction is checked)', !portalSource.includes('params.lookback_days') && !portalSource.includes('TIME_HORIZON_DAYS'))
+assertTrue('WarRoom.tsx still scopes the fetch to companyIds + indication + indicationId, unchanged by the lookback removal', warRoomSource.includes('fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)'))
+assertTrue('Portal.tsx still scopes the fetch to companyIds + indication + indicationId, unchanged by the lookback removal', portalSource.includes('fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)'))
+assertTrue('WarRoom.tsx still derives discoveredCompanyIds from ONLY this landscape\'s own discovered tracked competitors -- never all tracked/watched competitors', warRoomSource.includes("trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId)"))
+assertTrue('Portal.tsx still derives discoveredCompanyIds from ONLY this landscape\'s own discovered tracked competitors -- never all tracked/watched competitors', portalSource.includes("trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId)"))
+assertTrue('WarRoom.tsx: a zero-Signal all-time result still renders an honest "you\'re caught up" / no-Signals message, never a fabricated non-zero count', warRoomSource.includes('No source-backed Signals yet') && warRoomSource.includes('No high-priority Signals yet'))
+assertTrue('Portal.tsx: a zero-Signal all-time result still renders an honest empty message, never a fabricated non-zero count', portalSource.includes('No source-backed Signals yet'))
+assertTrue('the stat-bar "need you" count still derives from the SAME landscapeSignals/attentionWorthySignals dataset the all-time fetch now populates -- no separate, un-migrated count', warRoomSource.includes('const needsYouCount = hasActiveLandscape ? attentionWorthySignals.length : dedupedNeedsYou.length'))
+assertTrue('rankSignalsForAttention/isAttentionWorthy filter by importance only, never a hardcoded date cutoff -- so the all-time fetch correctly makes "need you" all-time too', (() => {
+  const signalRankingSource = fs.readFileSync(path.join(pagesDir, '..', 'lib', 'signalRanking.ts'), 'utf-8').replace(/\r\n/g, '\n')
+  return signalRankingSource.includes("return signal.importance === 'HIGH' || signal.importance === 'MEDIUM'") && !/Date\.now|new Date\(\)/.test(signalRankingSource.split('rankSignalsForAttention')[0])
+})())
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
