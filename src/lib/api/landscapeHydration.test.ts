@@ -180,5 +180,44 @@ assert('hydrating -> "Updating evidence…"', hydrationStatusLabel('hydrating'),
 assert('partial -> "Some sources unavailable"', hydrationStatusLabel('partial'), 'Some sources unavailable')
 assert('failed -> "Couldn\'t refresh evidence"', hydrationStatusLabel('failed'), "Couldn't refresh evidence")
 
+console.log('11. FDA V1 scope hardening: trackedCompetitorIds forwarded as tracked_company_ids when non-empty')
+await (async () => {
+  let capturedBody: any = null
+  await withMockFetch(
+    (async (_url: any, init: any) => { capturedBody = JSON.parse(init.body); return new Response(JSON.stringify(RAW_COMPLETE_RESPONSE), { status: 200 }) }) as typeof fetch,
+    () => triggerLandscapeHydration({
+      homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', trackedCompetitorIds: ['ucb', 'argenx'],
+    }),
+  )
+  assert('tracked_company_ids sent verbatim', capturedBody.tracked_company_ids, ['ucb', 'argenx'])
+})()
+
+console.log('12. An omitted or empty trackedCompetitorIds never sends the key at all -- byte-for-byte the pre-existing request')
+await (async () => {
+  let capturedBody: any = null
+  await withMockFetch(
+    (async (_url: any, init: any) => { capturedBody = JSON.parse(init.body); return new Response(JSON.stringify(RAW_COMPLETE_RESPONSE), { status: 200 }) }) as typeof fetch,
+    () => triggerLandscapeHydration({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', trackedCompetitorIds: [] }),
+  )
+  assert('no tracked_company_ids key when the array is empty', capturedBody, {
+    home_asset: 'RYSTIGGO', indication: 'generalized myasthenia gravis',
+  })
+})()
+
+console.log('13. A different tracked-competitor scope is a genuinely different in-flight request, never deduplicated together')
+await (async () => {
+  let fetchCalls = 0
+  await withMockFetch(
+    (async () => { fetchCalls++; return new Response(JSON.stringify(RAW_COMPLETE_RESPONSE), { status: 200 }) }) as typeof fetch,
+    async () => {
+      await Promise.all([
+        triggerLandscapeHydration({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', trackedCompetitorIds: ['ucb'] }),
+        triggerLandscapeHydration({ homeAsset: 'RYSTIGGO', indication: 'generalized myasthenia gravis', trackedCompetitorIds: ['argenx'] }),
+      ])
+    },
+  )
+  assert('two distinct fetch calls -- trackedCompetitorIds is part of request identity', fetchCalls, 2)
+})()
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)

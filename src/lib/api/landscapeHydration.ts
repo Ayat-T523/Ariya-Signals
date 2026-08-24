@@ -25,6 +25,17 @@ export interface HydrationRequest {
   indicationId?: string | null
   /** Bypasses the backend's freshness-window skip -- an explicit user "refresh now" action only, never the automatic post-setup trigger. */
   force?: boolean
+  /**
+   * FDA V1 scope hardening (multi-source recon unit 2 follow-up): the
+   * setup-selected competitor company_ids (TrackedCompetitor.companyId for
+   * every `source: "discovered"` competitor), forwarded so the backend can
+   * target regulatory-source enrichment at the tracked landscape instead of
+   * an arbitrary disease-wide slice. Never changes discovery/identity/
+   * persistence scope itself -- omitting this field entirely (or sending an
+   * empty array) is byte-for-byte the same request this endpoint already
+   * accepted before this field existed.
+   */
+  trackedCompetitorIds?: string[]
 }
 
 export interface HydrationRun {
@@ -120,6 +131,11 @@ const _inFlightHydrationRequests = new Map<string, Promise<HydrationResult>>()
 function _hydrationRequestKey(request: HydrationRequest): string {
   return JSON.stringify([
     request.homeAsset, request.indication, request.homeCompany ?? null, request.indicationId ?? null, !!request.force,
+    // A different tracked-competitor scope is a genuinely different
+    // enrichment request, even for the same home_asset/indication -- sorted
+    // so the SAME set in a different array order never misses the in-flight
+    // dedup cache for no reason.
+    [...(request.trackedCompetitorIds ?? [])].sort(),
   ])
 }
 
@@ -135,6 +151,7 @@ export async function triggerLandscapeHydration(request: HydrationRequest): Prom
       ...(request.homeCompany ? { home_company: request.homeCompany } : {}),
       ...(request.indicationId ? { indication_id: request.indicationId } : {}),
       ...(request.force ? { force: true } : {}),
+      ...(request.trackedCompetitorIds?.length ? { tracked_company_ids: request.trackedCompetitorIds } : {}),
     })
     return { status: raw.status, hydration: toHydrationRun(raw.hydration) } as HydrationResult
   })()

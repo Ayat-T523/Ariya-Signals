@@ -137,10 +137,18 @@ export default function SetupPage() {
   async function handleEnterAriya() {
     setIsEnteringWorkspace(true)
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
+    const competitors = draftToTrackedCompetitors(draft)
+    completeSetup(competitors, draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
     await hydrateNewLandscape(
       draft.landscapeConfiguration.homeAssetId, draft.landscapeConfiguration.diseaseAreaId,
       draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea,
+      // FDA V1 scope hardening (multi-source recon unit 2 follow-up): the
+      // freshly-completed draft's OWN selected competitors, same "use the
+      // draft's values, never context state" discipline as every other
+      // argument here -- this is the exact Stage-3-selection state the
+      // backend enrichment scope needs, and until this fix it never
+      // reached hydrateNewLandscape() at all.
+      competitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     )
     clearSetupDraft()
     navigate('/')
@@ -149,10 +157,12 @@ export default function SetupPage() {
   async function handleStartTour() {
     setIsEnteringWorkspace(true)
     setLandscapeConfiguration(draft.landscapeConfiguration)
-    completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
+    const competitors = draftToTrackedCompetitors(draft)
+    completeSetup(competitors, draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
     await hydrateNewLandscape(
       draft.landscapeConfiguration.homeAssetId, draft.landscapeConfiguration.diseaseAreaId,
       draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea,
+      competitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     )
     clearSetupDraft()
     startTour()

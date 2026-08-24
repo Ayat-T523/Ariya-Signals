@@ -182,6 +182,7 @@ export interface AppContextValue {
     resolvedAsset: ResolvedAssetIdentity | null,
     manualDisease: ManualDiseaseArea | null,
     resolvedDisease: ResolvedDiseaseArea | null,
+    trackedCompetitorIds: string[],
   ) => Promise<void>
 }
 
@@ -526,6 +527,7 @@ export function AppProvider({ children }) {
     resolvedAsset: ResolvedAssetIdentity | null,
     manualDisease: ManualDiseaseArea | null,
     resolvedDisease: ResolvedDiseaseArea | null,
+    trackedCompetitorIds: string[],
   ): Promise<void> {
     // SAME resolvers (resolveHomeAssetDisplayFrom/resolveDiseaseAreaDisplayFrom/
     // resolveCanonicalIndicationId) every other write call site already
@@ -547,6 +549,7 @@ export function AppProvider({ children }) {
       const result = await triggerLandscapeHydration({
         homeAsset: homeAssetName, indication: indicationName,
         homeCompany: homeCompanyName, indicationId: canonicalIndicationId,
+        trackedCompetitorIds,
       })
       setHydrationStatus(toHydrationUIStatus(result.status))
     } catch {
@@ -573,6 +576,7 @@ export function AppProvider({ children }) {
     _runEnsureHydration(
       landscapeConfiguration.homeAssetId, landscapeConfiguration.diseaseAreaId,
       manualHomeAsset, resolvedHomeAsset, manualDiseaseArea, resolvedDiseaseArea,
+      trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     ).catch(() => { /* noop -- already handled inside _runEnsureHydration */ })
   }
 
@@ -612,6 +616,11 @@ export function AppProvider({ children }) {
     _runEnsureHydration(
       landscapeConfiguration.homeAssetId, landscapeConfiguration.diseaseAreaId,
       nextManualHomeAsset, nextResolvedHomeAsset, nextManualDiseaseArea, nextResolvedDiseaseArea,
+      // The freshly-provided `competitors` param, not `trackedCompetitors`
+      // state -- this render's own state update for it has not landed yet
+      // (same discipline this function already applies to every other
+      // freshly-provided identity above).
+      competitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     ).catch(() => { /* noop -- already handled inside _runEnsureHydration */ })
   }
 
