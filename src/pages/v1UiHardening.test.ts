@@ -140,13 +140,28 @@ assertTrue('WarRoom.tsx still scopes the fetch to companyIds + indication + indi
 assertTrue('Portal.tsx still scopes the fetch to companyIds + indication + indicationId, unchanged by the lookback removal', portalSource.includes('fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)'))
 assertTrue('WarRoom.tsx still derives discoveredCompanyIds from ONLY this landscape\'s own discovered tracked competitors -- never all tracked/watched competitors', warRoomSource.includes("trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId)"))
 assertTrue('Portal.tsx still derives discoveredCompanyIds from ONLY this landscape\'s own discovered tracked competitors -- never all tracked/watched competitors', portalSource.includes("trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId)"))
-assertTrue('WarRoom.tsx: a zero-Signal all-time result still renders an honest "you\'re caught up" / no-Signals message, never a fabricated non-zero count', warRoomSource.includes('No source-backed Signals yet') && warRoomSource.includes('No high-priority Signals yet'))
+assertTrue('WarRoom.tsx: a zero-Signal all-time result still renders an honest "you\'re caught up" / no-Signals message, never a fabricated non-zero count', warRoomSource.includes('No source-backed Signals yet'))
 assertTrue('Portal.tsx: a zero-Signal all-time result still renders an honest empty message, never a fabricated non-zero count', portalSource.includes('No source-backed Signals yet'))
-assertTrue('the stat-bar "need you" count still derives from the SAME landscapeSignals/attentionWorthySignals dataset the all-time fetch now populates -- no separate, un-migrated count', warRoomSource.includes('const needsYouCount = hasActiveLandscape ? attentionWorthySignals.length : dedupedNeedsYou.length'))
-assertTrue('rankSignalsForAttention/isAttentionWorthy filter by importance only, never a hardcoded date cutoff -- so the all-time fetch correctly makes "need you" all-time too', (() => {
+assertTrue('the stat-bar "need you" count still derives from the SAME landscapeSignals dataset the all-time fetch now populates -- no separate, un-migrated count', warRoomSource.includes('const needsYouCount = hasActiveLandscape ? landscapeSignals.length : dedupedNeedsYou.length'))
+assertTrue('rankSignalsForAttention/rankSignalsByRecency contain no hardcoded date cutoff -- so the all-time fetch correctly makes Priority Signals all-time too', (() => {
   const signalRankingSource = fs.readFileSync(path.join(pagesDir, '..', 'lib', 'signalRanking.ts'), 'utf-8').replace(/\r\n/g, '\n')
-  return signalRankingSource.includes("return signal.importance === 'HIGH' || signal.importance === 'MEDIUM'") && !/Date\.now|new Date\(\)/.test(signalRankingSource.split('rankSignalsForAttention')[0])
+  return !/Date\.now|new Date\(\)/.test(signalRankingSource)
 })())
+
+console.log('13. War Room semantic-integrity checkpoint (2026-08-25): Priority Signals rename, no hidden HIGH/MEDIUM-only gate, Market Weather/Upcoming Events legacy-source isolation')
+assertTrue('the worklist heading renders "Priority Signals" for an active V1 landscape', warRoomSource.includes("hasActiveLandscape ? 'Priority Signals' : 'What needs your attention'"))
+assertTrue('Priority Signals no longer defines/uses an attentionWorthySignals variable as its own worklist gate (a plain historical comment mentioning the old name is fine)', !/\battentionWorthySignals\s*=/.test(warRoomSource) && !warRoomSource.includes('.filter(isAttentionWorthy)'))
+assertTrue('both ranking modes are computed via signalRanking.ts, never a WarRoom-local reimplementation', warRoomSource.includes('rankSignalsForAttention') && warRoomSource.includes('rankSignalsByRecency'))
+assertTrue('Market Weather V1 data comes from fetchMarketWeather(), never a direct company_signals/market_intelligence read for the active-landscape branch', warRoomSource.includes('fetchMarketWeather'))
+assertTrue('Upcoming Events V1 behavior is delegated to buildUpcomingEvents() (lib/upcomingEvents.ts), not an inline eventsData merge', warRoomSource.includes('buildUpcomingEvents') && !warRoomSource.includes('isRelevantEMAEvent(e, lexicon)'))
+const marketWeatherSynthesisSource = fs.readFileSync(
+  path.join(pagesDir, '..', 'lib', 'api', 'marketWeather.ts'), 'utf-8',
+).replace(/\r\n/g, '\n')
+assertTrue('the Market Weather API client never imports a Groq/API-key reference -- Groq stays server-side', !marketWeatherSynthesisSource.includes('GROQ') && !marketWeatherSynthesisSource.includes('groq'))
+const upcomingEventsSource = fs.readFileSync(
+  path.join(pagesDir, '..', 'lib', 'upcomingEvents.ts'), 'utf-8',
+).replace(/\r\n/g, '\n')
+assertTrue('active V1 Upcoming Events never merges the static eventsData fixture', upcomingEventsSource.includes('if (hasActiveLandscape)') && upcomingEventsSource.includes('return [...liveEventItems]'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)

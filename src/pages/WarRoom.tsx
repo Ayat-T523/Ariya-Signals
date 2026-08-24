@@ -59,7 +59,8 @@ import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
-import { rankSignalsForAttention, isAttentionWorthy } from '../lib/signalRanking'
+import { rankSignalsForAttention, rankSignalsByRecency } from '../lib/signalRanking'
+import { fetchMarketWeather, type MarketWeatherResult, type MarketWeatherWindowDays } from '../lib/api/marketWeather'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import {
   getRegulatoryCalendar,
@@ -73,6 +74,7 @@ import { mapSignals, type MappedAlert } from '../lib/signalMapping'
 import { cleanSignalText, SIGNAL_FALLBACK } from '../lib/signalText'
 import { summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
 import type { DbRecentSignal } from '../lib/db'
+import { buildUpcomingEvents, type NextUpEvent as UpcomingEventItem } from '../lib/upcomingEvents'
 
 /** Days window for the worklist + market weather — must match buildNarration.mjs. */
 const NARRATION_DAYS = 90
@@ -137,18 +139,10 @@ function dayMonthParts(date: string) {
 }
 
 // ── Events: merge live EMA calendar + static eventsData, condensed to 3 ───────
-type NextUpEvent = { id: string; date: string; title: string; sourceUrl?: string | null }
-
-const ALLOWED_EMA_EVENT_TYPES = new Set(['CHMP', 'PRAC', 'OTHER'])
-function isRelevantEMAEvent(e: DbRegulatoryCalendarEvent, lexicon: Lexicon): boolean {
-  if (!ALLOWED_EMA_EVENT_TYPES.has(e.event_type)) return false
-  if (e.event_type === 'CHMP' || e.event_type === 'PRAC') return true
-  const title = (e.title ?? '').toLowerCase()
-  return (
-    lexicon.inns.some((t) => title.includes(t.toLowerCase())) ||
-    lexicon.ta_terms.some((t) => title.includes(t.toLowerCase()))
-  )
-}
+// (V1 semantic-integrity checkpoint, 2026-08-25: type + relevance gate now
+// live in lib/upcomingEvents.ts as UpcomingEventItem/isRelevantEMAEvent --
+// aliased here as NextUpEvent for a minimal render-layer diff.)
+type NextUpEvent = UpcomingEventItem
 
 // ── Handling-state menu ────────────────────────────────────────────────────────
 // icon: NavIcon (not `typeof Circle`) — Circle/PauseCircle are plain lucide-react
@@ -338,7 +332,27 @@ function NextUpCard({ event }: { event: NextUpEvent }) {
       </div>
       <div className="next-up-card-body">
         <span className="next-up-title">{event.title}</span>
-        <span className="next-up-countdown">{daysUntilLabel(event.date)}</span>
+        <span className="next-up-countdown">
+          {event.sourceLabel && (
+            // Provenance restoration (War Room semantic-integrity checkpoint,
+            // 2026-08-25 recon): the earlier implementation showed a source
+            // badge per event; this carousel's condensed card had silently
+            // dropped it. A user must be able to tell a real EMA date apart
+            // from anything else -- never a raw internal id, just the real
+            // source family.
+            <span
+              title={`Source: ${event.sourceLabel}`}
+              style={{
+                display: 'inline-block', marginRight: '6px', padding: '1px 6px', borderRadius: '9999px',
+                fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', fontWeight: 700, letterSpacing: '0.04em',
+                background: 'rgba(79,70,229,0.10)', color: 'var(--indigo-600)',
+              }}
+            >
+              {event.sourceLabel}
+            </span>
+          )}
+          {daysUntilLabel(event.date)}
+        </span>
       </div>
     </Link>
   )
@@ -447,14 +461,13 @@ export default function WarRoom() {
     () => rankSignalsForAttention(landscapeSignals, userRelationshipByCompanyId),
     [landscapeSignals, userRelationshipByCompanyId],
   )
-  // SIGNAL QUALITY GATE (2026-08-24, report section 7): "What needs your
-  // attention" is for the most CONSEQUENTIAL Signals (HIGH/MEDIUM) only --
-  // a LOW-importance item still counts toward signalVolume/the Intelligence
-  // Feed below, but must never fill this panel merely because Signals
-  // exist. Deterministic filter (signalRanking.ts), no Groq.
-  const attentionWorthySignals = useMemo(
-    () => rankedLandscapeSignals.filter(isAttentionWorthy),
-    [rankedLandscapeSignals],
+  // Priority Signals recency ordering (War Room semantic-integrity
+  // checkpoint, 2026-08-25): pure event-date-descending reorder of the
+  // SAME `landscapeSignals` universe rankedLandscapeSignals draws from --
+  // never a different backend fetch, never a global recency cutoff.
+  const recencyOrderedLandscapeSignals = useMemo(
+    () => rankSignalsByRecency(landscapeSignals),
+    [landscapeSignals],
   )
 
   const loaded = usePageLoad('war-room')
@@ -487,6 +500,22 @@ export default function WarRoom() {
   const calendarEvents = liveData?.calendar ?? ([] as DbRegulatoryCalendarEvent[])
   const marketImplications = liveData?.implications ?? ([] as DbMarketImplication[])
   const lastRefreshedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date()
+
+  // Market Weather V1 data (War Room semantic-integrity checkpoint,
+  // 2026-08-25): server-side Groq synthesis over the SAME real landscape
+  // Signals powering Priority Signals -- NEVER company_signals/
+  // market_intelligence (the legacy `liveData` query above). Groq is
+  // called from the backend only; this is a plain read. Reruns only when
+  // the landscape scope or the selected window genuinely changes (react-
+  // query's own queryKey identity + staleTime -- no new caching layer).
+  const marketWeatherEnabled = hasActiveLandscape && discoveredCompanyIds.length > 0
+  const { data: marketWeatherData, isLoading: marketWeatherLoading } = useQuery({
+    queryKey: ['market-weather', discoveredCompanyIds, indication, canonicalIndicationId, weatherWindow],
+    queryFn: () => fetchMarketWeather(discoveredCompanyIds, indication, canonicalIndicationId, weatherWindow as MarketWeatherWindowDays),
+    enabled: marketWeatherEnabled,
+    staleTime: 5 * 60 * 1000,
+  })
+  const marketWeatherResult: MarketWeatherResult | null = marketWeatherEnabled ? (marketWeatherData ?? null) : null
 
   // Readable + watchlist-scoped, same order as the rest of the app: strip
   // XBRL/accession boilerplate first, then confirm competitor scope.
@@ -544,7 +573,15 @@ export default function WarRoom() {
   // `dedupedNeedsYou`/`needsYouCount` below still compute (cheap, and every
   // downstream keyboard-nav/drawer helper keeps a valid MappedAlert[] to
   // operate on) but are overridden the moment a real landscape exists.
-  const needsYouCount = hasActiveLandscape ? attentionWorthySignals.length : dedupedNeedsYou.length
+  //
+  // PRIORITY SIGNALS (War Room semantic-integrity checkpoint, 2026-08-25):
+  // "needs you" for an active landscape is now the FULL qualifying Signal
+  // universe (`landscapeSignals.length`) -- never `attentionWorthySignals`
+  // (that HIGH/MEDIUM-only filter no longer gates Priority Signals'
+  // membership; see below). LOW-importance Signals were never excluded by
+  // the underlying Signal engine itself, so removing the frontend's own
+  // display-only filter here is correct, not a new fact.
+  const needsYouCount = hasActiveLandscape ? landscapeSignals.length : dedupedNeedsYou.length
 
   function sortComparator(a: MappedAlert, b: MappedAlert): number {
     if (sortMode === 'importance') {
@@ -583,14 +620,22 @@ export default function WarRoom() {
     return [...capped, ...overflow].slice(0, WORKLIST_SIZE).sort(sortComparator)
   })()
   // For a configured landscape, the worklist itself is rendered from
-  // `rankedLandscapeSignals` directly (see the JSX below) -- `worklistItems`
-  // stays a safe, valid (empty) MappedAlert[] purely so the pre-existing
-  // keyboard-nav/drawer machinery below (which is generic over MappedAlert,
-  // not legacy-Signal-specific) never breaks; it simply has nothing to
-  // navigate, since the new Signal rows don't use that inspect/drawer flow.
-  const landscapeWorklistSignals = attentionWorthySignals.slice(0, WORKLIST_SIZE)
+  // `rankedLandscapeSignals`/`recencyOrderedLandscapeSignals` directly (see
+  // the JSX below) -- `worklistItems` stays a safe, valid (empty)
+  // MappedAlert[] purely so the pre-existing keyboard-nav/drawer machinery
+  // below (which is generic over MappedAlert, not legacy-Signal-specific)
+  // never breaks; it simply has nothing to navigate, since the new Signal
+  // rows don't use that inspect/drawer flow.
+  //
+  // PRIORITY SIGNALS two modes (War Room semantic-integrity checkpoint,
+  // 2026-08-25): both operate over the SAME qualifying universe
+  // (`landscapeSignals`, all-time, no HIGH/MEDIUM-only gate) -- switching
+  // `sortMode` only changes ORDERING, never scope, never a different
+  // backend call, never a recency cutoff. Cap stays 6 either way.
+  const priorityOrderedLandscapeSignals = sortMode === 'importance' ? rankedLandscapeSignals : recencyOrderedLandscapeSignals
+  const landscapeWorklistSignals = priorityOrderedLandscapeSignals.slice(0, WORKLIST_SIZE)
   const hiddenCount = hasActiveLandscape
-    ? Math.max(0, attentionWorthySignals.length - landscapeWorklistSignals.length)
+    ? Math.max(0, priorityOrderedLandscapeSignals.length - landscapeWorklistSignals.length)
     : Math.max(0, needsYouCount - worklistItems.length)
 
   // Most-active tracked competitor — highest relevant-signal count in the
@@ -620,28 +665,43 @@ export default function WarRoom() {
 
   // Market weather — windowed to whatever the card's own 7D/30D/90D toggle
   // selects (critique 2026-07-28), not hardcoded to the page's NARRATION_DAYS.
-  // Both signals and implications are fetched once at the max (90d) and
-  // filtered client-side per window, same pattern the rest of the page
-  // already uses for relevantSignals -- avoids a refetch on every toggle.
   const weatherCutoffDate = new Date(); weatherCutoffDate.setDate(weatherCutoffDate.getDate() - weatherWindow)
   const weatherCutoff = weatherCutoffDate.toISOString().slice(0, 10)
 
-  const windowedMarketSignals = recentLiveSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
-  const weatherSeverity = summarizeSeverity(windowedMarketSignals, lexicon, new Date())
-  const pressureState: WeatherState =
-    weatherSeverity.high >= 2 ? 'pressure'
-    : (weatherSeverity.high >= 1 || weatherSeverity.medium >= 3) ? 'stable'
+  // War Room semantic-integrity checkpoint (2026-08-25): for an active V1
+  // landscape, Market Weather is a Groq-backed synthesis of the SAME real
+  // landscape Signals powering Priority Signals -- never company_signals/
+  // market_intelligence (`recentLiveSignals`/`marketImplications` above).
+  // A real Groq `state` maps onto the SAME WeatherState the legacy path
+  // already renders (storm/HIGH_PRESSURE is a real, reachable value here
+  // for the first time -- the legacy computation below can never reach
+  // it). Zero real Signals in the window, or any Groq/validation failure,
+  // renders an honest quiet/unavailable message -- never legacy content,
+  // never a fabricated narrative (this module never even fetches those
+  // legacy tables' content into this branch).
+  const MARKET_WEATHER_STATE_MAP: Record<string, WeatherState> = {
+    CALM: 'clearing', ACTIVE: 'stable', PRESSURE_BUILDING: 'pressure', HIGH_PRESSURE: 'storm',
+  }
+  const legacyWindowedMarketSignals = recentLiveSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
+  const legacyWeatherSeverity = summarizeSeverity(legacyWindowedMarketSignals, lexicon, new Date())
+  const legacyPressureState: WeatherState =
+    legacyWeatherSeverity.high >= 2 ? 'pressure'
+    : (legacyWeatherSeverity.high >= 1 || legacyWeatherSeverity.medium >= 3) ? 'stable'
     : 'clearing'
+
+  const pressureState: WeatherState = hasActiveLandscape
+    ? (marketWeatherResult?.status === 'ok' && marketWeatherResult.state ? MARKET_WEATHER_STATE_MAP[marketWeatherResult.state] : 'clearing')
+    : legacyPressureState
   const pressureQualifier = `over the last ${weatherWindow} days`
 
-  const windowedRelevantSignals = relevantSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
-  const windowedSignalsByCompetitor = new Map<string, DbRecentSignal[]>()
-  for (const s of windowedRelevantSignals) {
-    const arr = windowedSignalsByCompetitor.get(s.competitor_id) ?? []
+  const legacyWindowedRelevantSignals = relevantSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
+  const legacyWindowedSignalsByCompetitor = new Map<string, DbRecentSignal[]>()
+  for (const s of legacyWindowedRelevantSignals) {
+    const arr = legacyWindowedSignalsByCompetitor.get(s.competitor_id) ?? []
     arr.push(s)
-    windowedSignalsByCompetitor.set(s.competitor_id, arr)
+    legacyWindowedSignalsByCompetitor.set(s.competitor_id, arr)
   }
-  const weatherRows: WeatherRow[] = [...windowedSignalsByCompetitor.entries()]
+  const weatherRows: WeatherRow[] = hasActiveLandscape ? [] : [...legacyWindowedSignalsByCompetitor.entries()]
     .slice(0, 5)
     .map(([competitorId, sigs]) => {
       const name = competitorById(competitorId)?.name ?? competitorId
@@ -657,42 +717,45 @@ export default function WarRoom() {
       }
     })
 
-  const windowedImplications = marketImplications.filter((imp) => imp.created_at >= weatherCutoffDate.toISOString())
-  const weatherImplications = windowedImplications.slice(0, 3).map((imp) => decodeEntities(imp.content))
+  // Cross-Signal grounded synthesis rows -- "What moved", V1 only. Each
+  // movement already references real Signal ids server-side-validated
+  // against the bundle actually sent to Groq (market_weather_synthesis.
+  // validate_synthesis()) -- this component only ever displays title +
+  // summary text, never re-derives or re-validates.
+  const weatherMovements = hasActiveLandscape && marketWeatherResult?.status === 'ok'
+    ? marketWeatherResult.movements.map((m) => ({ title: m.title, summary: m.summary }))
+    : undefined
+  const weatherMovementsEmptyMessage =
+    marketWeatherResult?.status === 'no_signals'
+      ? 'No material competitive movement detected in this window.'
+      : marketWeatherResult?.status === 'unavailable' || marketWeatherResult?.status === 'invalid'
+        ? 'Market Weather synthesis unavailable.'
+        : effectiveCompetitorIds.size === 0
+          ? 'Track competitors to see their weekly moves here.'
+          : 'No material competitive movement detected in this window.'
 
-  // Upcoming events — merged live EMA calendar + static eventsData, condensed to 3.
+  const legacyWindowedImplications = marketImplications.filter((imp) => imp.created_at >= weatherCutoffDate.toISOString())
+  const legacyWeatherImplications = legacyWindowedImplications.slice(0, 3).map((imp) => decodeEntities(imp.content))
+  const weatherImplications = hasActiveLandscape
+    ? (marketWeatherResult?.status === 'ok' ? marketWeatherResult.implications.map((i) => i.text) : [])
+    : legacyWeatherImplications
+
+  // Upcoming events (War Room semantic-integrity checkpoint, 2026-08-25):
+  // see lib/upcomingEvents.ts's own docstring -- for an active V1
+  // landscape, the static eventsData fixture (Company PR/SEC/congress/
+  // illustrative) is never merged at all, only real, landscape-relevant
+  // live EMA calendar entries. Legacy behavior (merge + per-entry
+  // landscape gating) is preserved byte-for-byte.
   const nowStr = new Date().toISOString().slice(0, 10)
-  const liveEventItems: NextUpEvent[] = calendarEvents
-    .filter((e) => e.start_date !== null && (e.start_date as string) >= nowStr)
-    .filter((e) => isRelevantEMAEvent(e, lexicon))
-    .filter((e) => !/^\d{1,2}:\d{2}$/.test(e.title ?? ''))
-    .map((e) => ({ id: e.id, date: e.start_date ?? '', title: e.title ?? `${e.event_type} Meeting`, sourceUrl: e.source_url }))
-  const liveTitles = new Set(liveEventItems.map((e) => e.title.toLowerCase()))
-  const staticEventItems: NextUpEvent[] = (eventsData as unknown as Array<{ id: string; date: string; title: string; sourceUrl?: string | null; attendingCompetitors?: string[] }>)
-    .filter((e) => new Date(e.date) >= new Date())
-    .filter((e) => !liveTitles.has((e.title ?? '').toLowerCase()))
-    // Landscape scoping (same rule Portal.tsx's Events tab already applies):
-    // an event naming competitors only shows when at least one is in the
-    // CURRENT active landscape -- otherwise this legacy HAE-only dataset
-    // leaks demo events (Pharvaris/HAEi etc.) into every landscape
-    // regardless of which competitors are actually being tracked. Every
-    // entry here is static by construction (staticEventItems never mixes in
-    // live calendar data -- that's liveEventItems, a separate array), so an
-    // entry with NO attendingCompetitors at all (e.g. "FDA Advisory
-    // Committee: HAE Therapeutic Area") has no real disease tag to check
-    // relevance against either -- once a real landscape exists, it must not
-    // resurface just because it happens to name no company (Bug sweep
-    // 2026-08-24 follow-up: the original "no attendingCompetitors -> always
-    // show" rule missed this exact case).
-    .filter((e) => {
-      const comps = e.attendingCompetitors ?? []
-      if (comps.length > 0) return comps.some((id) => effectiveCompetitorIds.has(id))
-      return !hasActiveLandscape
-    })
-    .map((e) => ({ id: e.id, date: e.date, title: e.title, sourceUrl: e.sourceUrl }))
-  const upcomingEvents = [...liveEventItems, ...staticEventItems]
-    .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-    .slice(0, 8) // horizontally scrollable now (critique 2026-07-28), not vertically listed -- no longer height-constrained the way the old rail list was
+  const upcomingEvents = buildUpcomingEvents({
+    hasActiveLandscape,
+    calendarEvents,
+    staticEvents: eventsData as unknown as Array<{ id: string; date: string; title: string; sourceUrl?: string | null; attendingCompetitors?: string[] }>,
+    lexicon,
+    effectiveCompetitorIds,
+    nowStr,
+    maxItems: 8, // horizontally scrollable now (critique 2026-07-28), not vertically listed -- no longer height-constrained the way the old rail list was
+  })
 
   function openInspect(alert: MappedAlert) { setInspecting(alert); setFocusedId(alert.id) }
 
@@ -863,7 +926,7 @@ export default function WarRoom() {
         <div style={{ gridArea: 'worklist', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--neutral-900)' }}>
-              What needs your attention
+              {hasActiveLandscape ? 'Priority Signals' : 'What needs your attention'}
             </h2>
             <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as 'importance' | 'recency')}>
               <TabsList aria-label="Sort worklist by" style={{ height: '26px', padding: '2px' }}>
@@ -874,10 +937,13 @@ export default function WarRoom() {
           </div>
 
           {hasActiveLandscape ? (
-            // V1 Signal engine (2026-08-24): for a configured landscape,
-            // "What needs your attention" is populated ONLY from real
-            // landscape Signals (report section 13/14) -- never the legacy
-            // Supabase worklist above, regardless of its own load state.
+            // V1 Signal engine (2026-08-24, extended 2026-08-25): for a
+            // configured landscape, Priority Signals is populated ONLY
+            // from real landscape Signals (report section 13/14) -- never
+            // the legacy Supabase worklist above, regardless of its own
+            // load state. Both Importance/Recency modes draw from the SAME
+            // qualifying universe -- no HIGH/MEDIUM-only pre-filter (War
+            // Room semantic-integrity checkpoint, 2026-08-25).
             landscapeSignalsLoading ? (
               <div className="digest-plate worklist-plate" style={FLAT_CARD_STYLE} aria-busy="true" aria-label="Loading worklist">
                 {[0, 1, 2].map((i) => (
@@ -899,16 +965,16 @@ export default function WarRoom() {
                 <div className="icon-circle"><Inbox size={26} aria-hidden="true" /></div>
                 <h3>You&rsquo;re caught up</h3>
                 <p>
+                  {/* War Room semantic-integrity checkpoint (2026-08-25):
+                      landscapeWorklistSignals is now a full reorder of
+                      landscapeSignals (no HIGH/MEDIUM pre-filter), so an
+                      empty worklist here always means zero qualifying
+                      Signals exist yet -- never "Signals exist but were
+                      filtered out", which the removed HIGH/MEDIUM-only
+                      copy used to (misleadingly) imply. */}
                   {discoveredCompanyIds.length === 0
                     ? 'Track competitors to see what needs you here.'
-                    : landscapeSignals.length > 0
-                      // SIGNAL QUALITY GATE (report section 7): honest about
-                      // WHY the panel is empty -- Signals exist (see signal
-                      // Volume/Intelligence Feed) but none cleared the
-                      // HIGH/MEDIUM attention bar, never conflated with "no
-                      // Signals at all".
-                      ? 'No high-priority Signals yet — see the Intelligence Feed for everything tracked.'
-                      : 'No source-backed Signals yet — check back as discovery runs.'}
+                    : 'No source-backed Signals yet — check back as discovery runs.'}
                 </p>
               </div>
             )
@@ -975,15 +1041,17 @@ export default function WarRoom() {
         <div className="inf-raised-lg" style={{ gridArea: 'weather', minWidth: 0 }}>
           <MarketWeather
             asset={assetName}
-            isLive={liveDataLoaded}
+            isLive={hasActiveLandscape ? !marketWeatherLoading : liveDataLoaded}
             state={pressureState}
             qualifier={pressureQualifier}
             timeframe={(`${weatherWindow}D` as '7D' | '30D' | '90D')}
             onTimeframeChange={(tf) => setWeatherWindow(Number(tf.slice(0, -1)) as 7 | 30 | 90)}
             rows={weatherRows}
-            rowsEmptyMessage={effectiveCompetitorIds.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.'}
+            movements={weatherMovements}
+            rowsEmptyMessage={hasActiveLandscape ? weatherMovementsEmptyMessage : (effectiveCompetitorIds.size === 0 ? 'Track competitors to see their weekly moves here.' : 'No notable moves from your tracked competitors this week.')}
             implications={weatherImplications}
-            readMoreTo="/alerts"
+            implicationEmptyMessage={hasActiveLandscape ? weatherMovementsEmptyMessage : undefined}
+            readMoreTo={hasActiveLandscape ? '/intelligence' : '/alerts'}
             compact
           />
         </div>

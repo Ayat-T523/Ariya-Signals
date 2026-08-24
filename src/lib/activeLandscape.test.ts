@@ -100,9 +100,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const warRoomSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'WarRoom.tsx'), 'utf-8').replace(/\r\n/g, '\n')
 const portalSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'Portal.tsx'), 'utf-8').replace(/\r\n/g, '\n')
 
-console.log('8. WarRoom.tsx: staticEventItems applies the SAME company-scope-then-hasActiveLandscape-fallback rule proven above, not a competing inline reimplementation')
-assertTrue('attendingCompetitors-present branch requires a match in effectiveCompetitorIds', warRoomSource.includes('if (comps.length > 0) return comps.some((id) => effectiveCompetitorIds.has(id))'))
-assertTrue('attendingCompetitors-absent branch falls back to !hasActiveLandscape, never an unconditional "always show"', warRoomSource.includes('return !hasActiveLandscape\n    })\n    .map((e) => ({ id: e.id, date: e.date, title: e.title, sourceUrl: e.sourceUrl }))'))
+console.log('8. lib/upcomingEvents.ts (War Room semantic-integrity checkpoint, 2026-08-25): the static-fixture company-scope rule extracted from WarRoom.tsx applies the SAME rule proven above, not a competing reimplementation -- and the static fixture is now structurally unreachable at all for an active V1 landscape (never merely a fallback truthy check)')
+const upcomingEventsLibSource = fs.readFileSync(path.join(__dirname, 'upcomingEvents.ts'), 'utf-8').replace(/\r\n/g, '\n')
+assertTrue('WarRoom.tsx delegates Upcoming Events to buildUpcomingEvents(), no competing inline reimplementation remains', warRoomSource.includes('buildUpcomingEvents(') && !warRoomSource.includes('staticEventItems'))
+assertTrue('an active V1 landscape returns before the static fixture is ever read at all', upcomingEventsLibSource.includes('if (hasActiveLandscape) {') && /if \(hasActiveLandscape\) \{[\s\S]*?return \[\.\.\.liveEventItems\][\s\S]*?\}/.test(upcomingEventsLibSource))
+assertTrue('attendingCompetitors-present branch requires a match in effectiveCompetitorIds (legacy-only code path)', upcomingEventsLibSource.includes('if (comps.length > 0) return comps.some((id) => effectiveCompetitorIds.has(id))'))
+assertTrue('attendingCompetitors-absent branch always shows -- this code is reachable ONLY on the legacy path (the V1 early-return above already excluded it), so an unconditional true here is the correct equivalent of the old !hasActiveLandscape fallback', /if \(comps\.length > 0\)[^\n]*\n\s*return true/.test(upcomingEventsLibSource))
 
 // ── 9. Source-text proof: Portal.tsx EventsTab distinguishes live vs static company-less entries ──
 console.log('9. Portal.tsx EventsTab: a company-less entry only always-shows when it is genuinely live (_isLive), never merely because it names no company')

@@ -54,3 +54,23 @@ export function rankSignalsForAttention(
     return new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
   })
 }
+
+/**
+ * Priority Signals "Recency" mode (War Room semantic-integrity checkpoint,
+ * 2026-08-25) -- newest event/occurrence date first, over the SAME
+ * qualifying Signal universe rankSignalsForAttention() operates on (never
+ * a different backend scope, never a new global recency cutoff -- this is
+ * a pure in-memory reorder of an already-fetched LandscapeSignal[]).
+ * Deliberately does NOT apply an importance or Direct/Indirect tiebreak --
+ * "Recency genuinely means the newest qualifying Signals" is this mode's
+ * entire contract. `id` is the final deterministic tiebreak for two
+ * Signals sharing the identical occurredAt instant, so ordering never
+ * depends on input array order.
+ */
+export function rankSignalsByRecency(signalsList: LandscapeSignal[]): LandscapeSignal[] {
+  return [...signalsList].sort((a, b) => {
+    const dateDiff = new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return a.id.localeCompare(b.id)
+  })
+}

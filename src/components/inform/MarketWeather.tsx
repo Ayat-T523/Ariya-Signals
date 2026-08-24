@@ -16,6 +16,18 @@ const STATE_META: Record<WeatherState, { label: string; icon: typeof TrendingUp;
   storm: { label: 'Storm warning', icon: AlertTriangle, color: 'var(--crimson-600)' },
 }
 
+/** A cross-Signal grounded synthesis statement (War Room semantic-
+ *  integrity checkpoint, 2026-08-25 -- the real V1 landscape's own "what
+ *  moved" content, produced server-side from real Signals). Distinct from
+ *  `WeatherRow`: a movement is a pattern across the whole landscape (e.g.
+ *  "three competitors generated clinical activity"), never one row per
+ *  competitor -- so it renders without a competitor badge/count/severity
+ *  dot. When `movements` is supplied, it takes priority over `rows`. */
+export interface MarketWeatherMovementRow {
+  title: string
+  summary: string
+}
+
 export interface MarketWeatherProps {
   asset: string
   isLive?: boolean
@@ -24,6 +36,10 @@ export interface MarketWeatherProps {
   timeframe: '7D' | '30D' | '90D'
   onTimeframeChange?: (tf: '7D' | '30D' | '90D') => void
   rows: WeatherRow[]
+  /** Real V1 cross-Signal synthesis rows -- see MarketWeatherMovementRow's
+   *  own docstring. Takes priority over `rows` when present (same
+   *  precedence convention `implications` already has over `implication`). */
+  movements?: MarketWeatherMovementRow[]
   rowsEmptyMessage?: string
   /** Single takeaway. Use `implications` instead to show a short capped list (e.g. the War
    *  Room rail's "top 2-3"); when both are passed, `implications` wins. */
@@ -36,11 +52,14 @@ export interface MarketWeatherProps {
 
 export function MarketWeather({
   asset, isLive = true, state, qualifier, timeframe, onTimeframeChange,
-  rows, rowsEmptyMessage, implication, implications, implicationEmptyMessage, readMoreTo, compact = false,
+  rows, movements, rowsEmptyMessage, implication, implications, implicationEmptyMessage, readMoreTo, compact = false,
 }: MarketWeatherProps) {
   const [showAll, setShowAll] = useState(false)
   const meta = STATE_META[state]
   const Icon = meta.icon
+  const usingMovements = movements !== undefined
+  const movementCount = usingMovements ? movements.length : rows.length
+  const visibleMovements = usingMovements ? (compact && !showAll ? movements.slice(0, 2) : movements) : []
   const visibleRows = compact && !showAll ? rows.slice(0, 2) : rows
 
   return (
@@ -72,8 +91,24 @@ export function MarketWeather({
 
       <div>
         <div className="mw-section-label">What moved in {timeframe.toLowerCase()}</div>
-        {rows.length === 0 ? (
+        {movementCount === 0 ? (
           <div className="mw-empty"><p>{rowsEmptyMessage ?? 'Not enough signal yet — check back as data builds.'}</p></div>
+        ) : usingMovements ? (
+          <>
+            <div className="mw-rows">
+              {visibleMovements.map((m, i) => (
+                <div className="mw-row" tabIndex={0} key={i}>
+                  <div className="mw-row-top">
+                    <span className="mw-row-name">{m.title}</span>
+                  </div>
+                  <div className="mw-row-implication">{m.summary}</div>
+                </div>
+              ))}
+            </div>
+            {compact && !showAll && movements!.length > 2 && (
+              <button type="button" className="mw-show-all" onClick={() => setShowAll(true)}>Show all ({movements!.length})</button>
+            )}
+          </>
         ) : (
           <>
             <div className="mw-rows">

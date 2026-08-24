@@ -5,7 +5,7 @@
  * run with:  npx tsx src/lib/signalRanking.test.ts
  * Exit code 0 = all pass. Exit code 1 = one or more failures.
  */
-import { rankSignalsForAttention, toSeverity, isAttentionWorthy } from './signalRanking.js'
+import { rankSignalsForAttention, rankSignalsByRecency, toSeverity, isAttentionWorthy } from './signalRanking.js'
 import type { LandscapeSignal } from './api/landscapeSignals.js'
 
 let passed = 0
@@ -89,6 +89,46 @@ const allLow = rankSignalsForAttention(
   new Map(),
 ).filter(isAttentionWorthy)
 assert('empty result', allLow, [])
+
+console.log('10. rankSignalsByRecency (Priority Signals "Recency" mode) sorts by occurredAt DESC only -- no importance/relationship tiebreak')
+const recencyOnly = rankSignalsByRecency([
+  sig({ id: 'old-high', importance: 'HIGH', occurredAt: '2026-01-01T00:00:00+00:00' }),
+  sig({ id: 'new-low', importance: 'LOW', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'mid-medium', importance: 'MEDIUM', occurredAt: '2026-05-01T00:00:00+00:00' }),
+])
+assert('newest first regardless of importance', recencyOnly.map((s) => s.id), ['new-low', 'mid-medium', 'old-high'])
+
+console.log('11. rankSignalsByRecency includes LOW-importance Signals (they are never pre-filtered)')
+const withLow = rankSignalsByRecency([sig({ id: 'only-low', importance: 'LOW' })])
+assert('LOW Signal is present', withLow.map((s) => s.id), ['only-low'])
+
+console.log('12. rankSignalsByRecency is deterministic for two Signals sharing the identical occurredAt instant')
+const tie = rankSignalsByRecency([
+  sig({ id: 'zzz', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'aaa', occurredAt: '2026-08-20T00:00:00+00:00' }),
+])
+assert('id breaks the tie deterministically', tie.map((s) => s.id), ['aaa', 'zzz'])
+const tieReversed = rankSignalsByRecency([
+  sig({ id: 'aaa', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'zzz', occurredAt: '2026-08-20T00:00:00+00:00' }),
+])
+assert('same result regardless of input order', tieReversed.map((s) => s.id), tie.map((s) => s.id))
+
+console.log('13. rankSignalsByRecency never mutates the input array')
+const recencyInput = [sig({ id: 'a', occurredAt: '2026-01-01T00:00:00+00:00' }), sig({ id: 'b', occurredAt: '2026-08-01T00:00:00+00:00' })]
+const recencyInputCopy = JSON.stringify(recencyInput)
+rankSignalsByRecency(recencyInput)
+assert('input array order/content unchanged', JSON.stringify(recencyInput), recencyInputCopy)
+
+console.log('14. Importance mode and Recency mode over the SAME Signal universe produce genuinely different orderings')
+const sameUniverse = [
+  sig({ id: 'high-old', importance: 'HIGH', occurredAt: '2026-01-01T00:00:00+00:00' }),
+  sig({ id: 'low-new', importance: 'LOW', occurredAt: '2026-08-20T00:00:00+00:00' }),
+]
+const byImportanceMode = rankSignalsForAttention(sameUniverse, new Map()).map((s) => s.id)
+const byRecencyMode = rankSignalsByRecency(sameUniverse).map((s) => s.id)
+assert('importance mode ranks high-old first', byImportanceMode, ['high-old', 'low-new'])
+assert('recency mode ranks low-new first', byRecencyMode, ['low-new', 'high-old'])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
