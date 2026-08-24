@@ -33,12 +33,19 @@ export default function Stage3Configure({
   onBack,
   onEnterAriya,
   onStartTour,
+  submitting = false,
 }: {
   draft: SetupDraft
   onChange: (draft: SetupDraft) => void
   onBack: () => void
   onEnterAriya: () => void
   onStartTour: () => void
+  /** NEW LANDSCAPE SIGNAL BOOTSTRAP (2026-08-24): true while awaiting
+   * hydration between clicking Enter Ariya/Start tour and actually
+   * navigating -- disables both buttons and relabels Enter Ariya so the
+   * real (sometimes multi-second) discovery+enrichment wait is never
+   * silent. */
+  submitting?: boolean
 }) {
   const therapeuticArea = draft.landscapeConfiguration.therapeuticAreaId
     ? getTherapeuticAreaById(draft.landscapeConfiguration.therapeuticAreaId)
@@ -134,10 +141,12 @@ export default function Stage3Configure({
       </Card>
 
       <div className="flex flex-col-reverse items-stretch justify-between gap-3 pt-2 sm:flex-row sm:items-center">
-        <Button variant="outline" onClick={onBack}>Back</Button>
+        <Button variant="outline" onClick={onBack} disabled={submitting}>Back</Button>
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
-          <Button variant="outline" onClick={onStartTour}>Start tour</Button>
-          <Button onClick={onEnterAriya} disabled={!valid}>Enter Ariya</Button>
+          <Button variant="outline" onClick={onStartTour} disabled={submitting}>Start tour</Button>
+          <Button onClick={onEnterAriya} disabled={!valid || submitting}>
+            {submitting ? 'Preparing your workspace…' : 'Enter Ariya'}
+          </Button>
         </div>
       </div>
       {!valid && hasUnclassifiedSelection && (

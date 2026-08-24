@@ -160,6 +160,29 @@ export interface AppContextValue {
    * post-setup trigger).
    */
   ensureHydration: () => void
+  /**
+   * NEW LANDSCAPE SIGNAL BOOTSTRAP (2026-08-24) — the awaitable counterpart
+   * to ensureHydration() above, for the ONE call site that must NOT be
+   * fire-and-forget: SetupPage.tsx's own handleEnterAriya/handleStartTour,
+   * called with the freshly-completed draft's own values (never read from
+   * context state, which has not re-rendered with this draft yet -- same
+   * "must use the freshly-passed values" contract _runEnsureHydration()'s
+   * own docstring already documents). Awaiting this before navigating into
+   * the workspace closes the real, proven gap: a brand-new landscape's
+   * hydration (discovery + evidence enrichment + Signal derivation) is a
+   * real backend call that can take real time, and ensureHydration()'s own
+   * fire-and-forget mount-effect trigger races War Room/Intelligence
+   * Feed's OWN first Signal fetch -- the exact same underlying hydration
+   * call, just awaited here instead of backgrounded.
+   */
+  hydrateNewLandscape: (
+    homeAssetId: string | null,
+    diseaseAreaId: string | null,
+    manualAsset: ManualAssetIdentity | null,
+    resolvedAsset: ResolvedAssetIdentity | null,
+    manualDisease: ManualDiseaseArea | null,
+    resolvedDisease: ResolvedDiseaseArea | null,
+  ) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -739,6 +762,7 @@ export function AppProvider({ children }) {
         setTimeHorizon,
         hydrationStatus,
         ensureHydration,
+        hydrateNewLandscape: _runEnsureHydration,
       }}
     >
       {children}

@@ -43,8 +43,17 @@ const STAGE_INDEX: Record<SetupStage, number> = { define: 0, discover: 1, config
  * AdminPage's "Edit landscape").
  */
 export default function SetupPage() {
-  const { landscapeConfiguration, trackedCompetitors, completeSetup, setLandscapeConfiguration, startTour } = useApp()
+  const {
+    landscapeConfiguration, trackedCompetitors, completeSetup, setLandscapeConfiguration, startTour,
+    hydrateNewLandscape,
+  } = useApp()
   const navigate = useNavigate()
+  // NEW LANDSCAPE SIGNAL BOOTSTRAP (2026-08-24): true only while awaiting
+  // hydrateNewLandscape() below, between clicking Enter Ariya/Start tour and
+  // actually navigating into the workspace -- see that function's own
+  // docstring for why this specific call site must await hydration instead
+  // of firing it in the background the way ensureHydration() does.
+  const [isEnteringWorkspace, setIsEnteringWorkspace] = useState(false)
 
   const [draft, setDraft] = useState<SetupDraft>(() => {
     const persisted = loadSetupDraft()
@@ -116,16 +125,35 @@ export default function SetupPage() {
     setDraft((prev) => ({ ...prev, stage }))
   }
 
-  function handleEnterAriya() {
+  // NEW LANDSCAPE SIGNAL BOOTSTRAP (2026-08-24): both handlers now await
+  // hydrateNewLandscape() -- using the draft's OWN freshly-completed values,
+  // never context state (setLandscapeConfiguration/completeSetup's own
+  // setState calls have not been reflected back into this render's
+  // landscapeConfiguration/manualHomeAsset/etc. yet) -- before doing
+  // anything the workspace's own first render depends on. This closes the
+  // proven race: without it, War Room/Intelligence Feed's own Signal fetch
+  // could run before this SAME hydration call (discovery + evidence
+  // enrichment + Signal derivation) had finished.
+  async function handleEnterAriya() {
+    setIsEnteringWorkspace(true)
     setLandscapeConfiguration(draft.landscapeConfiguration)
     completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
+    await hydrateNewLandscape(
+      draft.landscapeConfiguration.homeAssetId, draft.landscapeConfiguration.diseaseAreaId,
+      draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea,
+    )
     clearSetupDraft()
     navigate('/')
   }
 
-  function handleStartTour() {
+  async function handleStartTour() {
+    setIsEnteringWorkspace(true)
     setLandscapeConfiguration(draft.landscapeConfiguration)
     completeSetup(draftToTrackedCompetitors(draft), draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea)
+    await hydrateNewLandscape(
+      draft.landscapeConfiguration.homeAssetId, draft.landscapeConfiguration.diseaseAreaId,
+      draft.manualAsset, draft.resolvedAsset, draft.manualDiseaseArea, draft.resolvedDiseaseArea,
+    )
     clearSetupDraft()
     startTour()
   }
@@ -178,6 +206,7 @@ export default function SetupPage() {
               onBack={() => goToStage('discover')}
               onEnterAriya={handleEnterAriya}
               onStartTour={handleStartTour}
+              submitting={isEnteringWorkspace}
             />
           )}
         </div>
