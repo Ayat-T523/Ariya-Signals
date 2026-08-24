@@ -12,12 +12,13 @@ import { usePageLoad } from '../hooks/usePageLoad'
 import { SkeletonCompetitorGrid } from '../components/ui/Skeleton'
 import EmptyState from '../components/ui/EmptyState'
 import { useEnrichedTimelineRows } from '../hooks/useTimelineData'
-import { useApp } from '../context/AppContext'
+import { useApp, useConfig } from '../context/AppContext'
 import FilterDropdown from '../components/ui/FilterDropdown'
 import { currentQuarterStart, daysSince } from '../lib/clock'
 import { Badge } from '../components/shadcn/ui/badge'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
-import type { TrackedCompetitor } from '../config/setup-draft'
+import { resolveCanonicalIndicationId, type TrackedCompetitor } from '../config/setup-draft'
+import { fetchLandscapeSignals, SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../lib/api/landscapeSignals'
 
 const RELATIONSHIP_LABEL: Record<'direct' | 'indirect', string> = { direct: 'Direct', indirect: 'Indirect' }
 
@@ -272,7 +273,7 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount, userRelationsh
 // own Direct/Indirect classification, and the real relevant-assets evidence
 // from discovery. Reuses the same .competitor-card/.cc-* classes so it sits
 // visually consistent in the grid without introducing new styling.
-function TrackedCompetitorCard({ competitor }: { competitor: TrackedCompetitor }) {
+function TrackedCompetitorCard({ competitor, latestSignals }: { competitor: TrackedCompetitor; latestSignals: LandscapeSignal[] }) {
   return (
     <div className="competitor-card" style={{ cursor: 'default' }}>
       <div className="cc-header">
@@ -302,6 +303,26 @@ function TrackedCompetitorCard({ competitor }: { competitor: TrackedCompetitor }
           ? `${competitor.evidenceRefs.length} evidence reference${competitor.evidenceRefs.length === 1 ? '' : 's'} from discovery`
           : 'Not yet evaluated for live signals.'}
       </p>
+
+      {/* V1 Signal engine (2026-08-24, report section 16): latest Signal(s)
+          for THIS company, via canonical company_id matching only (the
+          `latestSignals` prop is already grouped by exact companyId
+          equality upstream -- never a fuzzy name match, so a signal for
+          Alexion can never surface under argenx's card). */}
+      {latestSignals.length > 0 && (
+        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600, color: 'var(--ink-700)' }}>
+            Latest signal{latestSignals.length > 1 ? 's' : ''}
+          </span>
+          {latestSignals.map((s) => (
+            <p key={s.id} style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '11px', color: 'var(--ink-600)' }}>
+              <span style={{ fontWeight: 500 }}>{SIGNAL_TYPE_LABELS[s.signalType]}</span>
+              {s.assetName ? ` · ${s.assetName}` : ''}
+              {' · '}{s.occurredAt.slice(0, 10)}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -682,7 +703,8 @@ const SORT_OPTIONS: { value: SortMode; label: string }[] = [
 ]
 
 export default function Competitors() {
-  const { watchedCompetitors, trackedCompetitors } = useApp()
+  const { watchedCompetitors, trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea } = useApp()
+  const { indication } = useConfig()
   // SETUP PROPAGATION: once a real completed landscape exists, it is
   // authoritative over the legacy HAE default -- see activeLandscape.ts.
   // `matches` also drives which trackedCompetitors get a real legacy card
@@ -692,6 +714,32 @@ export default function Competitors() {
     [trackedCompetitors],
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+  // Regression fix: SAME shared resolver WarRoom.tsx/Portal.tsx use -- never
+  // a competing/duplicated inline check (see that function's own docstring).
+  const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
+  const discoveredCompanyIds = useMemo(
+    () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
+    [trackedCompetitors],
+  )
+  // V1 Signal engine (2026-08-24, report section 16): latest Signal(s) per
+  // tracked competitor -- all-time (no lookback_days), since "latest" is a
+  // per-company concept independent of any page-level horizon, and this
+  // page has no shared TimeHorizonSelector of its own. Grouped by EXACT
+  // canonical companyId equality only -- never fuzzy company-name matching.
+  const [landscapeSignalsByCompany, setLandscapeSignalsByCompany] = useState(new Map<string, LandscapeSignal[]>())
+  useEffect(() => {
+    if (discoveredCompanyIds.length === 0) { setLandscapeSignalsByCompany(new Map()); return }
+    let cancelled = false
+    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)
+      .then((items) => {
+        if (cancelled) return
+        const grouped = new Map<string, LandscapeSignal[]>()
+        for (const s of items) grouped.set(s.companyId, [...(grouped.get(s.companyId) ?? []), s])
+        setLandscapeSignalsByCompany(grouped)
+      })
+      .catch(() => { if (!cancelled) setLandscapeSignalsByCompany(new Map()) })
+    return () => { cancelled = true }
+  }, [discoveredCompanyIds, indication, canonicalIndicationId])
   // legacyId -> userRelationship, so the legacy CompetitorCard branch can show
   // the user's real Direct/Indirect classification for a matched company.
   const relationshipByLegacyId = useMemo(() => {
@@ -926,7 +974,7 @@ export default function Competitors() {
                 whileHover={REDUCED_MOTION ? {} : { y: -2 }}
                 transition={{ duration: 0.12 }}
               >
-                <TrackedCompetitorCard competitor={tc} />
+                <TrackedCompetitorCard competitor={tc} latestSignals={landscapeSignalsByCompany.get(tc.companyId)?.slice(0, 2) ?? []} />
               </motion.div>
             ))}
           </motion.div>

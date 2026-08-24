@@ -62,6 +62,9 @@ import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
 import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
 import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
+import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { rankSignalsForAttention, isAttentionWorthy } from '../lib/signalRanking'
+import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import {
   getRegulatoryCalendar,
   getRecentSignals,
@@ -484,6 +487,47 @@ export default function WarRoom() {
     if (discoveredCompanyIds.length > 0) ensureHydration()
   }, [discoveredCompanyIds])
 
+  // V1 Signal engine (2026-08-24): real, source-backed Signals for a
+  // configured landscape -- see landscapeSignals.ts's own module docstring
+  // on why this NEVER falls back to the legacy Supabase company_signals
+  // pipeline once hasActiveLandscape is true (report section 13). Same
+  // Month/Quarter/Year state (`timeHorizon`) evidence already uses.
+  const [landscapeSignals, setLandscapeSignals] = useState<LandscapeSignal[]>([])
+  const [landscapeSignalsLoading, setLandscapeSignalsLoading] = useState(false)
+  useEffect(() => {
+    if (!hasActiveLandscape || discoveredCompanyIds.length === 0) { setLandscapeSignals([]); return }
+    let cancelled = false
+    setLandscapeSignalsLoading(true)
+    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
+      .then((items) => { if (!cancelled) setLandscapeSignals(items) })
+      .catch(() => { if (!cancelled) setLandscapeSignals([]) })
+      .finally(() => { if (!cancelled) setLandscapeSignalsLoading(false) })
+    return () => { cancelled = true }
+  }, [hasActiveLandscape, discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+
+  // Direct/Indirect presentation ranking only -- see signalRanking.ts's own
+  // docstring for why this never touches the Signal's own `importance`.
+  const userRelationshipByCompanyId = useMemo(() => {
+    const map = new Map<string, 'direct' | 'indirect'>()
+    for (const c of trackedCompetitors) {
+      if (c.userRelationship === 'direct' || c.userRelationship === 'indirect') map.set(c.companyId, c.userRelationship)
+    }
+    return map
+  }, [trackedCompetitors])
+  const rankedLandscapeSignals = useMemo(
+    () => rankSignalsForAttention(landscapeSignals, userRelationshipByCompanyId),
+    [landscapeSignals, userRelationshipByCompanyId],
+  )
+  // SIGNAL QUALITY GATE (2026-08-24, report section 7): "What needs your
+  // attention" is for the most CONSEQUENTIAL Signals (HIGH/MEDIUM) only --
+  // a LOW-importance item still counts toward signalVolume/the Intelligence
+  // Feed below, but must never fill this panel merely because Signals
+  // exist. Deterministic filter (signalRanking.ts), no Groq.
+  const attentionWorthySignals = useMemo(
+    () => rankedLandscapeSignals.filter(isAttentionWorthy),
+    [rankedLandscapeSignals],
+  )
+
   const loaded = usePageLoad('war-room')
   const [sortMode, setSortMode] = useState<'importance' | 'recency'>('importance')
   const [inspecting, setInspecting] = useState<MappedAlert | null>(null)
@@ -565,7 +609,13 @@ export default function WarRoom() {
   // otherwise "N need you" could promise more distinct items than the
   // worklist could ever actually show, repeating the P0 trust problem at
   // one remove.
-  const needsYouCount = dedupedNeedsYou.length
+  // V1 Signal engine (2026-08-24): for a configured, non-HAE landscape, the
+  // legacy Supabase-backed worklist NEVER drives "needs you"/the worklist
+  // itself -- see report section 13's own "new Signal system wins" rule.
+  // `dedupedNeedsYou`/`needsYouCount` below still compute (cheap, and every
+  // downstream keyboard-nav/drawer helper keeps a valid MappedAlert[] to
+  // operate on) but are overridden the moment a real landscape exists.
+  const needsYouCount = hasActiveLandscape ? attentionWorthySignals.length : dedupedNeedsYou.length
 
   function sortComparator(a: MappedAlert, b: MappedAlert): number {
     if (sortMode === 'importance') {
@@ -588,7 +638,7 @@ export default function WarRoom() {
   // chosen display order across the now-diverse selection.
   const WORKLIST_SIZE = 6
   const PER_COMPETITOR_CAP = 2
-  const worklistItems = (() => {
+  const worklistItems = hasActiveLandscape ? [] : (() => {
     const capped: MappedAlert[] = []
     const overflow: MappedAlert[] = []
     const countByCompetitor = new Map<string, number>()
@@ -603,15 +653,41 @@ export default function WarRoom() {
     }
     return [...capped, ...overflow].slice(0, WORKLIST_SIZE).sort(sortComparator)
   })()
-  const hiddenCount = Math.max(0, needsYouCount - worklistItems.length)
+  // For a configured landscape, the worklist itself is rendered from
+  // `rankedLandscapeSignals` directly (see the JSX below) -- `worklistItems`
+  // stays a safe, valid (empty) MappedAlert[] purely so the pre-existing
+  // keyboard-nav/drawer machinery below (which is generic over MappedAlert,
+  // not legacy-Signal-specific) never breaks; it simply has nothing to
+  // navigate, since the new Signal rows don't use that inspect/drawer flow.
+  const landscapeWorklistSignals = attentionWorthySignals.slice(0, WORKLIST_SIZE)
+  const hiddenCount = hasActiveLandscape
+    ? Math.max(0, attentionWorthySignals.length - landscapeWorklistSignals.length)
+    : Math.max(0, needsYouCount - worklistItems.length)
 
-  // Most-active tracked competitor — highest relevant-signal count in the window.
+  // Most-active tracked competitor — highest relevant-signal count in the
+  // window. For a configured landscape this must ALSO come from real
+  // landscape Signals, never the legacy pipeline (report section 13/"no
+  // HAE leakage") -- computed from the SAME rankedLandscapeSignals/
+  // companyName fields already fetched above, never a second query.
   const countsByCompetitor = new Map<string, number>()
   for (const s of relevantSignals) countsByCompetitor.set(s.competitor_id, (countsByCompetitor.get(s.competitor_id) ?? 0) + 1)
-  const mostActive = [...countsByCompetitor.entries()].sort((a, b) => b[1] - a[1])[0]
-  const mostActiveName = mostActive ? competitorById(mostActive[0])?.name ?? mostActive[0] : null
+  const legacyMostActive = [...countsByCompetitor.entries()].sort((a, b) => b[1] - a[1])[0]
+  const legacyMostActiveName = legacyMostActive ? competitorById(legacyMostActive[0])?.name ?? legacyMostActive[0] : null
 
-  const signalVolume = relevantSignals.length // total in the window; read/unread state lives on the Alerts page, not here
+  const landscapeCountsByCompany = new Map<string, number>()
+  for (const s of landscapeSignals) landscapeCountsByCompany.set(s.companyId, (landscapeCountsByCompany.get(s.companyId) ?? 0) + 1)
+  const landscapeMostActive = [...landscapeCountsByCompany.entries()].sort((a, b) => b[1] - a[1])[0]
+  const landscapeMostActiveName = landscapeMostActive
+    ? (landscapeSignals.find((s) => s.companyId === landscapeMostActive[0])?.companyName ?? landscapeMostActive[0])
+    : null
+
+  const mostActiveName = hasActiveLandscape ? landscapeMostActiveName : legacyMostActiveName
+
+  // "N signals · Xd" -- for a configured landscape, the real V1 Signal
+  // count in the shared Month/Quarter/Year horizon (report section 14: "12
+  // signals · 30d"), never the legacy 90-day Supabase count.
+  const signalVolume = hasActiveLandscape ? landscapeSignals.length : relevantSignals.length
+  const signalVolumeWindowDays = hasActiveLandscape ? TIME_HORIZON_DAYS[timeHorizon] : NARRATION_DAYS
 
   // Market weather — windowed to whatever the card's own 7D/30D/90D toggle
   // selects (critique 2026-07-28), not hardcoded to the page's NARRATION_DAYS.
@@ -816,7 +892,7 @@ export default function WarRoom() {
           <TooltipContent>Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items.</TooltipContent>
         </Tooltip>
         <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} /></span> signals · {NARRATION_DAYS}d</span>
+        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} /></span> signals · {signalVolumeWindowDays}d</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
           Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
@@ -859,7 +935,46 @@ export default function WarRoom() {
             </Tabs>
           </div>
 
-          {liveDataFailed ? (
+          {hasActiveLandscape ? (
+            // V1 Signal engine (2026-08-24): for a configured landscape,
+            // "What needs your attention" is populated ONLY from real
+            // landscape Signals (report section 13/14) -- never the legacy
+            // Supabase worklist above, regardless of its own load state.
+            landscapeSignalsLoading ? (
+              <div className="digest-plate worklist-plate" style={FLAT_CARD_STYLE} aria-busy="true" aria-label="Loading worklist">
+                {[0, 1, 2].map((i) => (
+                  <div className="worklist-row" key={i}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div className="inf-sk" style={{ width: 40, height: 12, borderRadius: 6 }} />
+                      <div className="inf-sk" style={{ width: 90, height: 12, borderRadius: 6 }} />
+                    </div>
+                    <div className="inf-sk" style={{ width: `${70 - i * 10}%`, height: 16, borderRadius: 6 }} />
+                  </div>
+                ))}
+              </div>
+            ) : landscapeWorklistSignals.length > 0 ? (
+              <div className="digest-plate worklist-plate" style={FLAT_CARD_STYLE}>
+                {landscapeWorklistSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+              </div>
+            ) : (
+              <div className="digest-plate worklist-empty" style={FLAT_CARD_STYLE}>
+                <div className="icon-circle"><Inbox size={26} aria-hidden="true" /></div>
+                <h3>You&rsquo;re caught up</h3>
+                <p>
+                  {discoveredCompanyIds.length === 0
+                    ? 'Track competitors to see what needs you here.'
+                    : landscapeSignals.length > 0
+                      // SIGNAL QUALITY GATE (report section 7): honest about
+                      // WHY the panel is empty -- Signals exist (see signal
+                      // Volume/Intelligence Feed) but none cleared the
+                      // HIGH/MEDIUM attention bar, never conflated with "no
+                      // Signals at all".
+                      ? 'No high-priority Signals in this time horizon — see the Intelligence Feed for everything tracked.'
+                      : 'No source-backed Signals in this time horizon — check back as discovery runs, or widen the horizon.'}
+                </p>
+              </div>
+            )
+          ) : liveDataFailed ? (
             <div className="digest-plate worklist-empty" style={FLAT_CARD_STYLE}>
               <div className="icon-circle is-error"><AlertTriangle size={26} aria-hidden="true" /></div>
               <h3>Couldn&rsquo;t load your worklist</h3>
@@ -906,8 +1021,14 @@ export default function WarRoom() {
             </div>
           )}
           {hiddenCount > 0 && (
-            <Link to="/alerts" style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none', alignSelf: 'flex-start' }}>
-              +{hiddenCount} more waiting · Open Alerts
+            // A configured landscape's remaining Signals live in the
+            // Intelligence Feed (report section 15), never the legacy
+            // Alerts page, which only ever reads the Supabase pipeline.
+            <Link
+              to={hasActiveLandscape ? '/intelligence' : '/alerts'}
+              style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none', alignSelf: 'flex-start' }}
+            >
+              {hasActiveLandscape ? `+${hiddenCount} more · View Intelligence Feed` : `+${hiddenCount} more waiting · Open Alerts`}
             </Link>
           )}
         </div>

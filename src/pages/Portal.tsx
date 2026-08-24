@@ -22,6 +22,8 @@ import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
 import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
 import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
+import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
@@ -1435,6 +1437,42 @@ function RecentEvidenceStrip({
   )
 }
 
+// ── V1 Signal engine (2026-08-24) — real, source-backed Signals for a
+// configured landscape, chronologically. Deliberately its OWN section, NOT
+// folded into the Events/Market Developments tabs (report section 15: "do
+// not fill unrelated legacy tabs with invented content") and NOT a
+// replacement for RecentEvidenceStrip above (Evidence and Signals are
+// different sections). Same Month/Quarter/Year horizon Evidence uses.
+function RecentSignalsStrip({
+  signalsList, loading, hasDiscoveredCompanies,
+}: {
+  signalsList: LandscapeSignal[]
+  loading: boolean
+  hasDiscoveredCompanies: boolean
+}) {
+  if (!hasDiscoveredCompanies) return null
+  return (
+    <div style={{ padding: '10px 36px 0' }}>
+      <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
+        <h2 style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
+          Recent signals
+        </h2>
+        {loading ? (
+          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
+        ) : signalsList.length === 0 ? (
+          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
+            No source-backed Signals in this time horizon — try widening it, or check back as discovery runs.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {signalsList.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Portal() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
@@ -1486,6 +1524,23 @@ export default function Portal() {
     if (discoveredCompanyIds.length > 0) ensureHydration()
   }, [discoveredCompanyIds])
 
+  // V1 Signal engine (2026-08-24): real, source-backed Signals for a
+  // configured landscape -- same scope/horizon Evidence already uses, own
+  // section (RecentSignalsStrip), never folded into the legacy Events/
+  // Market Developments tabs below.
+  const [landscapeSignals, setLandscapeSignals] = useState<LandscapeSignal[]>([])
+  const [landscapeSignalsLoading, setLandscapeSignalsLoading] = useState(false)
+  useEffect(() => {
+    if (discoveredCompanyIds.length === 0) { setLandscapeSignals([]); return }
+    let cancelled = false
+    setLandscapeSignalsLoading(true)
+    fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
+      .then((items) => { if (!cancelled) setLandscapeSignals(items) })
+      .catch(() => { if (!cancelled) setLandscapeSignals([]) })
+      .finally(() => { if (!cancelled) setLandscapeSignalsLoading(false) })
+    return () => { cancelled = true }
+  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
+
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl)
@@ -1510,6 +1565,10 @@ export default function Portal() {
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)', borderBottom: '1px solid var(--border-default)' }}>
         <TabBar active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
+
+      <RecentSignalsStrip
+        signalsList={landscapeSignals} loading={landscapeSignalsLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
+      />
 
       <RecentEvidenceStrip
         items={evidenceItems} loading={evidenceLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
