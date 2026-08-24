@@ -6,9 +6,6 @@ import {
   Building2Icon,
   BarChart3Icon,
   DollarSignIcon,
-  BellIcon,
-  SparklesIcon,
-  UserIcon,
   SettingsIcon,
   HelpCircleIcon,
 } from 'lucide-react'
@@ -80,20 +77,8 @@ function LandscapeContext() {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [helpOpen, setHelpOpen] = useState(false)
-  const { unreadCount, startTour } = useApp()
+  const { startTour } = useApp()
   const navigate = useNavigate()
-
-  const decide: NavMainItem[] = [
-    { url: '/alerts', icon: <BellIcon />, title: 'Alerts', badge: unreadCount },
-    { url: '/ask', icon: <SparklesIcon />, title: 'Ask Ariya' },
-    {
-      url: '/myspace', icon: <UserIcon />, title: 'My Space', end: true,
-      items: [
-        { url: '/myspace/alerts', title: 'My Alerts' },
-        { url: '/myspace/documents', title: 'My Documents', disabled: true },
-      ],
-    },
-  ]
 
   const secondary: NavSecondaryItem[] = [
     { title: 'Help', icon: <HelpCircleIcon />, onClick: () => setHelpOpen(true) },
@@ -123,7 +108,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <NavMain label="Monitor" items={MONITOR} />
-        <NavMain label="Decide" items={decide} />
         <NavSecondary items={secondary} className="mt-auto" />
       </SidebarContent>
 

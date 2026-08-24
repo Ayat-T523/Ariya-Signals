@@ -57,11 +57,8 @@ import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
-import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
-import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
-import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
-import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
+import { TIME_HORIZON_DAYS } from '../lib/timeHorizon'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import { rankSignalsForAttention, isAttentionWorthy } from '../lib/signalRanking'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
@@ -377,69 +374,12 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
     </div>
   )
 }
-// ── Recent Evidence — ingestion -> persistence -> landscape bridge (V1) ──────
-// Deliberately labeled "Recent Evidence", never "Signals": every item here is
-// a durably-recorded, source-backed observation from real discovery ingestion
-// -- no change-detection, no significance judgment, no narrative has been
-// derived from it. See landscapeEvidence.ts's own module docstring.
-function RecentEvidenceCard({
-  items, loading, timeHorizon, onTimeHorizonChange, hydrationStatus,
-}: {
-  items: LandscapeEvidenceItem[]
-  loading: boolean
-  timeHorizon: TimeHorizon
-  onTimeHorizonChange: (horizon: TimeHorizon) => void
-  hydrationStatus: HydrationUIStatus
-}) {
-  const hydrationLabel = hydrationStatusLabel(hydrationStatus)
-  return (
-    <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '10px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>
-            Recent evidence
-          </h2>
-          {hydrationLabel && (
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 500, color: hydrationStatus === 'failed' ? 'var(--status-red)' : 'var(--neutral-600)' }}>
-              {hydrationLabel}
-            </span>
-          )}
-        </div>
-        <TimeHorizonSelector value={timeHorizon} onChange={onTimeHorizonChange} />
-      </div>
-      {loading ? (
-        <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)' }}>Loading…</p>
-      ) : items.length === 0 ? (
-        <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)', fontStyle: 'italic' }}>
-          No persisted evidence yet for your tracked companies in this landscape — evidence accumulates as discovery runs.
-        </p>
-      ) : (
-        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {items.slice(0, 6).map((item) => (
-            <li key={item.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-800)' }}>
-              <a href={item.sourceLocator} target="_blank" rel="noreferrer" style={{ color: 'var(--indigo-600)', textDecoration: 'none', fontWeight: 600 }}>
-                {item.companyName ?? item.assetName ?? 'Unknown source'}
-              </a>
-              {item.assetName && item.companyName && <span style={{ color: 'var(--neutral-600)' }}> · {item.assetName}</span>}
-              <span style={{ color: 'var(--neutral-600)' }}>
-                {' — '}{item.sourceType ?? 'source'}
-                {item.sourcePublishedDate ? ` · published ${item.sourcePublishedDate}` : ''}
-                {' · last confirmed '}{item.lastObservedAt.slice(0, 10)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const {
     openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
-    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea, timeHorizon, setTimeHorizon,
-    hydrationStatus, ensureHydration,
+    savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea, timeHorizon,
+    ensureHydration,
   } = useApp()
   const { assetName, indication, lexiconInns, lexiconTaTerms } = useConfig()
   // Regression fix: resolveCanonicalIndicationId() is the ONE shared
@@ -465,19 +405,6 @@ export default function WarRoom() {
     () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
     [trackedCompetitors],
   )
-  const [evidenceItems, setEvidenceItems] = useState<LandscapeEvidenceItem[]>([])
-  const [evidenceLoading, setEvidenceLoading] = useState(false)
-  useEffect(() => {
-    if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
-    let cancelled = false
-    setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
-      .then((items) => { if (!cancelled) setEvidenceItems(items) })
-      .catch(() => { if (!cancelled) setEvidenceItems([]) })
-      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
-    return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
-
   // CORRECTNESS GATE FIX (report section 5): "existing configured workspace
   // opens" hydration trigger -- ensureHydration() itself is idempotent
   // (backend freshness/retry-suppression policy), so mounting this effect
@@ -882,17 +809,26 @@ export default function WarRoom() {
       </div>
 
       {/* Glass stat bar */}
+      {/* `initiallyStable` on both CountingNumbers (2026-08-24 fix): without it,
+          CountingNumber always renders a literal "0" text node on every render
+          (see its own initialText logic) and relies purely on an imperative,
+          timing-sensitive spring animation to visually reach the real number —
+          proven to get stuck at 0 while landscapeSignals/needsYouCount had
+          already resolved to their real, non-zero value (worklist below showed
+          the real signals; the tile did not). `initiallyStable` makes
+          initialText track the live `number` prop on every render, so React's
+          own reconciliation keeps the tile correct regardless of the spring. */}
       <div className="stat-bar" data-tour="war-room">
         <Tooltip>
           <TooltipTrigger asChild>
             <span className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}>
-              <span className="num"><CountingNumber number={needsYouCount} /></span> need{needsYouCount === 1 ? 's' : ''} you
+              <span className="num"><CountingNumber number={needsYouCount} initiallyStable /></span> need{needsYouCount === 1 ? 's' : ''} you
             </span>
           </TooltipTrigger>
           <TooltipContent>Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items.</TooltipContent>
         </Tooltip>
         <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} /></span> signals · {signalVolumeWindowDays}d</span>
+        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} initiallyStable /></span> signals · {signalVolumeWindowDays}d</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
           Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
@@ -1055,15 +991,6 @@ export default function WarRoom() {
           <NextUpCarousel events={upcomingEvents} />
         </div>
       </div>
-
-      {discoveredCompanyIds.length > 0 && (
-        <div style={{ marginTop: '10px' }}>
-          <RecentEvidenceCard
-            items={evidenceItems} loading={evidenceLoading} timeHorizon={timeHorizon} onTimeHorizonChange={setTimeHorizon}
-            hydrationStatus={hydrationStatus}
-          />
-        </div>
-      )}
 
       <SlideOver open={!!inspecting} onClose={() => setInspecting(null)} title="Signal detail">
         {inspecting && (

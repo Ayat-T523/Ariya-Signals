@@ -17,11 +17,8 @@ import EmptyState from '../components/ui/EmptyState'
 import { NEU_PLATE_STYLE } from '../components/inform/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
-import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
-import { TIME_HORIZON_DAYS, type TimeHorizon } from '../lib/timeHorizon'
-import TimeHorizonSelector from '../components/ui/TimeHorizonSelector'
-import { hydrationStatusLabel, type HydrationUIStatus } from '../lib/api/landscapeHydration'
+import { TIME_HORIZON_DAYS } from '../lib/timeHorizon'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import { buildSourceLabel } from '../lib/transformers'
@@ -1374,75 +1371,10 @@ function MarketTab({ liveDeals, onCountChange }: { liveDeals: DbRecentSignal[]; 
 // ── Page ──────────────────────────────────────────────────────────────────────
 const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 
-// ── Recent Evidence — ingestion -> persistence -> landscape bridge (V1) ──────
-// Deliberately labeled "Recent Evidence", never "Signals": every item here is
-// a durably-recorded, source-backed observation from real discovery ingestion
-// -- no change-detection, no significance judgment, no narrative has been
-// derived from it. See landscapeEvidence.ts's own module docstring. Shown
-// above the tab bar so it's visible regardless of which tab is active.
-function RecentEvidenceStrip({
-  items, loading, hasDiscoveredCompanies, timeHorizon, onTimeHorizonChange, hydrationStatus,
-}: {
-  items: LandscapeEvidenceItem[]
-  loading: boolean
-  /** Whether the landscape has any canonical-id companies evidence could ever exist for -- distinct from "zero evidence in the CURRENT horizon", which must still show the selector so the user can widen it. */
-  hasDiscoveredCompanies: boolean
-  timeHorizon: TimeHorizon
-  onTimeHorizonChange: (horizon: TimeHorizon) => void
-  hydrationStatus: HydrationUIStatus
-}) {
-  if (!hasDiscoveredCompanies) return null
-  const hydrationLabel = hydrationStatusLabel(hydrationStatus)
-  return (
-    <div style={{ padding: '10px 36px 0' }}>
-      <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
-              Recent evidence
-            </h2>
-            {hydrationLabel && (
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 500, color: hydrationStatus === 'failed' ? 'var(--status-red)' : 'var(--ink-600)' }}>
-                {hydrationLabel}
-              </span>
-            )}
-          </div>
-          <TimeHorizonSelector value={timeHorizon} onChange={onTimeHorizonChange} />
-        </div>
-        {loading ? (
-          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
-        ) : items.length === 0 ? (
-          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
-            No persisted evidence in this time horizon for your tracked companies — try widening it, or check back as discovery runs.
-          </p>
-        ) : (
-          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {items.slice(0, 5).map((item) => (
-              <li key={item.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-800)' }}>
-                <a href={item.sourceLocator} target="_blank" rel="noreferrer" style={{ color: 'var(--indigo-600)', textDecoration: 'none', fontWeight: 600 }}>
-                  {item.companyName ?? item.assetName ?? 'Unknown source'}
-                </a>
-                {item.assetName && item.companyName && <span style={{ color: 'var(--ink-600)' }}> · {item.assetName}</span>}
-                <span style={{ color: 'var(--ink-600)' }}>
-                  {' — '}{item.sourceType ?? 'source'}
-                  {item.sourcePublishedDate ? ` · published ${item.sourcePublishedDate}` : ''}
-                  {' · last confirmed '}{item.lastObservedAt.slice(0, 10)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── V1 Signal engine (2026-08-24) — real, source-backed Signals for a
 // configured landscape, chronologically. Deliberately its OWN section, NOT
 // folded into the Events/Market Developments tabs (report section 15: "do
-// not fill unrelated legacy tabs with invented content") and NOT a
-// replacement for RecentEvidenceStrip above (Evidence and Signals are
-// different sections). Same Month/Quarter/Year horizon Evidence uses.
+// not fill unrelated legacy tabs with invented content").
 function RecentSignalsStrip({
   signalsList, loading, hasDiscoveredCompanies,
 }: {
@@ -1489,8 +1421,8 @@ export default function Portal() {
   // would risk it drifting out of sync with what the tabs actually show.
   const [tabCounts, setTabCounts] = useState<number[]>(TAB_COUNTS_FALLBACK)
   const {
-    trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea, timeHorizon, setTimeHorizon,
-    hydrationStatus, ensureHydration,
+    trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea, timeHorizon,
+    ensureHydration,
   } = useApp()
   const { indication } = useConfig()
   const discoveredCompanyIds = useMemo(
@@ -1503,19 +1435,6 @@ export default function Portal() {
   // id instead of only the plain indication label -- see that function's
   // own docstring for why it reads `sourceId`, never `resolvedDiseaseArea.id`.
   const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
-  const [evidenceItems, setEvidenceItems] = useState<LandscapeEvidenceItem[]>([])
-  const [evidenceLoading, setEvidenceLoading] = useState(false)
-  useEffect(() => {
-    if (discoveredCompanyIds.length === 0) { setEvidenceItems([]); return }
-    let cancelled = false
-    setEvidenceLoading(true)
-    fetchLandscapeEvidence(discoveredCompanyIds, indication, canonicalIndicationId, TIME_HORIZON_DAYS[timeHorizon])
-      .then((items) => { if (!cancelled) setEvidenceItems(items) })
-      .catch(() => { if (!cancelled) setEvidenceItems([]) })
-      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
-    return () => { cancelled = true }
-  }, [discoveredCompanyIds, indication, canonicalIndicationId, timeHorizon])
-
   // CORRECTNESS GATE FIX (report section 5): the SAME "existing configured
   // workspace opens" ensure-hydration trigger WarRoom.tsx's own mount
   // effect uses -- one shared AppContext function, never a second,
@@ -1568,11 +1487,6 @@ export default function Portal() {
 
       <RecentSignalsStrip
         signalsList={landscapeSignals} loading={landscapeSignalsLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
-      />
-
-      <RecentEvidenceStrip
-        items={evidenceItems} loading={evidenceLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
-        timeHorizon={timeHorizon} onTimeHorizonChange={setTimeHorizon} hydrationStatus={hydrationStatus}
       />
 
       {/* Tab content */}
