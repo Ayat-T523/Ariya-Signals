@@ -180,20 +180,6 @@ const TIMELINE_ROWS = [
 ]
 
 
-function isHaeAcute(c) {
-  return (
-    c.pipeline?.some(p => p.indicationSubtype?.toLowerCase().includes('on-demand')) ||
-    c.marketedProducts?.some(p => p.indication?.toLowerCase().includes('on-demand'))
-  )
-}
-
-function isHaeProphylaxis(c) {
-  return (
-    c.pipeline?.some(p => p.indicationSubtype?.toLowerCase().includes('prophylaxis')) ||
-    c.marketedProducts?.some(p => p.indication?.toLowerCase().includes('prophylaxis'))
-  )
-}
-
 // ── Competitor Card ────────────────────────────────────────────────────────
 function CompetitorCard({ competitor, liveSignals, haeAssetCount, userRelationship }: { competitor: any; liveSignals?: DbSignalSummary | null; haeAssetCount: number; userRelationship?: 'direct' | 'indirect' | null }) {
   const pipelineCount  = haeAssetCount
@@ -752,7 +738,6 @@ export default function Competitors() {
   const unmatchedTrackedCompetitors: TrackedCompetitor[] = hasActiveLandscape
     ? matches.filter((m) => m.legacyId === null).map((m) => m.competitor)
     : []
-  const [filter, setFilter]           = useState('all')
   const [showTimeline, setShowTimeline] = useState(false)
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
   const [haeAssetCountMap, setHaeAssetCountMap] = useState(new Map<string, number>())
@@ -797,12 +782,7 @@ export default function Competitors() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedIds.join(',')])
 
-  const postureFiltered = competitors.filter(c => {
-    if (!effectiveCompetitorIds.has(c.id)) return false
-    if (filter === 'hae-acute')       return isHaeAcute(c)
-    if (filter === 'hae-prophylaxis') return isHaeProphylaxis(c)
-    return true
-  })
+  const postureFiltered = competitors.filter(c => effectiveCompetitorIds.has(c.id))
   const filtered = postureFiltered.filter(c => postureFilter.size === 0 || postureFilter.has(c.strategicPosture))
 
   const sorted = [...filtered].sort((a, b) => {
@@ -829,29 +809,8 @@ export default function Competitors() {
     <div className="inform-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
       <div data-tour="competitors-page" style={{ padding: '8px 36px 36px' }}>
 
-        {/* Header: subtitle + filter pills + View Timeline button */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Filter pills */}
-            <div className="seg">
-              {[
-                { value: 'all',             label: 'All'             },
-                { value: 'hae-acute',       label: 'HAE acute'       },
-                { value: 'hae-prophylaxis', label: 'HAE prophylaxis' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`seg-item${filter === opt.value ? ' is-active' : ''}`}
-                  onClick={() => setFilter(opt.value)}
-                  style={{ border: 'none', background: filter === opt.value ? undefined : 'transparent' }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Header: Discover competitors link + View Timeline button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
             {/* Discover competitors — Frontend Step 4 of 7 entry point */}

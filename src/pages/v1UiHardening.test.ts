@@ -1,6 +1,7 @@
 /**
  * v1UiHardening.test.ts — V1 release hardening: Decide sidebar removal +
- * Recent Evidence removal (2026-08-24).
+ * Recent Evidence removal + HAE-specific Competitors filter removal
+ * (2026-08-24).
  *
  * No test runner is configured in this repo (see src/lib/signalText.test.ts);
  * run with:  npx tsx src/pages/v1UiHardening.test.ts
@@ -11,7 +12,7 @@
  * testing library in this repo, so these contracts are proven by reading the
  * actual shipped source, not by rendering.
  *
- * SCOPE: this file proves two things only --
+ * SCOPE: this file proves three things only --
  *   (1) the sidebar's "Decide" section (Alerts/Ask Ariya/My Space) is gone,
  *       while the "Monitor" section and the unrelated top-right SiteHeader
  *       "Ask Ariya" button (a DIFFERENT implementation, deliberately
@@ -19,7 +20,13 @@
  *   (2) the generic "Recent Evidence" section is gone from every page that
  *       used to render it, while the SEPARATE "Recent signals"/worklist
  *       Signal rendering (a different section, backed by landscapeSignals,
- *       never evidence) is untouched.
+ *       never evidence) is untouched;
+ *   (3) Competitors.tsx's hardcoded "HAE acute"/"HAE prophylaxis" filter
+ *       pills are gone -- they only ever filtered the legacy static
+ *       competitors.json dataset (disjoint from any real tracked landscape's
+ *       own competitor ids), so they were dead weight for every real V1
+ *       landscape -- while the unrelated, real, disease-neutral strategic-
+ *       posture filter and both tracked-competitor rendering paths survive.
  * Signal-count/Signal-list correctness itself is already covered by
  * src/pages/signalIntegration.test.ts (unmodified by this pass, still green).
  */
@@ -103,6 +110,18 @@ const competitorsSource = readPage('Competitors.tsx')
 assertTrue('company grouping still keys signals by exact companyId', competitorsSource.includes('grouped.set(s.companyId, [...(grouped.get(s.companyId) ?? []), s])'))
 assertTrue('the render call site still looks up the same tc.companyId', competitorsSource.includes('landscapeSignalsByCompany.get(tc.companyId)'))
 assertTrue('Competitors.tsx never imported the Recent-Evidence-only fetch', !competitorsSource.includes('fetchLandscapeEvidence'))
+
+console.log('11. Competitors.tsx: the hardcoded HAE-specific "HAE acute"/"HAE prophylaxis" filter pills are removed (2026-08-24)')
+assertTrue('no "HAE acute" label text remains', !competitorsSource.includes('HAE acute'))
+assertTrue('no "HAE prophylaxis" label text remains', !competitorsSource.includes('HAE prophylaxis'))
+assertTrue('the hae-acute filter value is gone', !competitorsSource.includes("'hae-acute'"))
+assertTrue('the hae-prophylaxis filter value is gone', !competitorsSource.includes("'hae-prophylaxis'"))
+assertTrue('the now-dead isHaeAcute predicate is gone (it only ever matched the legacy static competitors.json dataset, disjoint from any real tracked landscape)', !competitorsSource.includes('function isHaeAcute'))
+assertTrue('the now-dead isHaeProphylaxis predicate is gone', !competitorsSource.includes('function isHaeProphylaxis'))
+assertTrue('no generic replacement labels were invented in its place', !competitorsSource.includes("label: 'Acute'") && !competitorsSource.includes("label: 'Prophylaxis'") && !competitorsSource.includes("label: 'Primary'") && !competitorsSource.includes("label: 'Core'"))
+assertTrue('the unrelated strategic-posture filter (a real, disease-neutral feature) is untouched', competitorsSource.includes('const [postureFilter, setPostureFilter] = useState(new Set<string>())') && competitorsSource.includes('<FilterDropdown label="Posture"'))
+assertTrue('tracked-competitor rendering (legacy-matched + unmatched honest-card paths) is untouched', competitorsSource.includes('{sorted.map(c =>') && competitorsSource.includes('{unmatchedTrackedCompetitors.map((tc) =>'))
+assertTrue('the "N shown" count still sums both rendering paths', competitorsSource.includes('{sorted.length + unmatchedTrackedCompetitors.length} shown'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
