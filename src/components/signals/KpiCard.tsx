@@ -6,6 +6,7 @@ import { AlertCircle } from 'lucide-react'
 import { ArrowUp } from '../animate-ui/icons/arrow-up'
 import { ArrowDown } from '../animate-ui/icons/arrow-down'
 import { ArrowRight } from '../animate-ui/icons/arrow-right'
+import { KPI_CARD_STYLE } from './primitives'
 import type { KpiDatum, DeltaTone } from './types'
 
 const DELTA_ICON: Record<DeltaTone, typeof ArrowUp> = { up: ArrowUp, down: ArrowDown, flat: ArrowRight }
@@ -86,10 +87,10 @@ export function KpiCard({ kpi, compact = false }: { kpi: KpiDatum; compact?: boo
 
   if (isLinkable) {
     return (
-      <Link to={kpi.linkTo!} className={className}>
+      <Link to={kpi.linkTo!} className={className} style={KPI_CARD_STYLE}>
         {body}
       </Link>
     )
   }
-  return <div className={className}>{body}</div>
+  return <div className={className} style={KPI_CARD_STYLE}>{body}</div>
 }

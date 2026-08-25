@@ -29,7 +29,6 @@ import { Link } from 'react-router-dom'
 // registry.json, same check as NavPanel.tsx).
 import { Circle, PauseCircle, Inbox, AlertTriangle, Bookmark, BookmarkCheck } from 'lucide-react'
 import type { NavIcon } from '../components/animate-ui/icons/types'
-import { ArrowRight } from '../components/animate-ui/icons/arrow-right'
 import { Plus } from '../components/animate-ui/icons/plus'
 import { CircleCheckBig as CheckCircle2 } from '../components/animate-ui/icons/circle-check-big'
 import { CircleX as XCircle } from '../components/animate-ui/icons/circle-x'
@@ -45,14 +44,14 @@ import CompetitorBadge from '../components/ui/CompetitorBadge'
 import SlideOver from '../components/ui/SlideOver'
 import { AlertDetail } from '../components/signals/AlertDetail'
 import { MarketWeather } from '../components/signals/MarketWeather'
+import { KpiCard } from '../components/signals/KpiCard'
 import { SeverityDot, severityLabel, severityText, FLAT_CARD_STYLE } from '../components/signals/primitives'
-import type { WeatherRow, WeatherState } from '../components/signals/types'
+import type { WeatherRow, WeatherState, KpiDatum } from '../components/signals/types'
 import { Accordion, AccordionItem } from '../components/shadcn/ui/accordion'
 import { Accordion as AccordionPrimitive } from 'radix-ui'
 import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
 import { Button } from '../components/shadcn/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/animate-ui/components/radix/tooltip'
-import { CountingNumber } from '../components/animate-ui/primitives/texts/counting-number'
 import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
@@ -892,38 +891,37 @@ export default function WarRoom() {
         </Shine>
       </div>
 
-      {/* Glass stat bar */}
-      {/* `initiallyStable` on both CountingNumbers (2026-08-24 fix): without it,
-          CountingNumber always renders a literal "0" text node on every render
-          (see its own initialText logic) and relies purely on an imperative,
-          timing-sensitive spring animation to visually reach the real number —
-          proven to get stuck at 0 while landscapeSignals/needsYouCount had
-          already resolved to their real, non-zero value (worklist below showed
-          the real signals; the tile did not). `initiallyStable` makes
-          initialText track the live `number` prop on every render, so React's
-          own reconciliation keeps the tile correct regardless of the spring. */}
-      <div className="stat-bar" data-tour="war-room">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={`stat-bar-item${needsYouCount > 0 ? ' is-urgent' : ''}`}>
-              <span className="num"><CountingNumber number={needsYouCount} initiallyStable /></span> need{needsYouCount === 1 ? 's' : ''} you
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Signals not yet marked handled or dismissed — includes anything still in progress, not just untouched items.</TooltipContent>
-        </Tooltip>
-        <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} initiallyStable /></span> signals</span>
-        <span className="stat-bar-sep" aria-hidden="true" />
-        <span className="stat-bar-item">
-          Pressure {pressureState === 'pending' ? 'unknown' : pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
-        </span>
-        {mostActiveName && (
-          <>
-            <span className="stat-bar-sep" aria-hidden="true" />
-            <span className="stat-bar-item">{mostActiveName} most active</span>
-          </>
-        )}
-        <Link to="/alerts" className="stat-bar-link">Open Alerts <ArrowRight size={11} aria-hidden="true" animateOnHover /></Link>
+      {/* KPI card row — screenshot-matched restoration (pre-freeze unit 2,
+          2026-08-26): the reference product shows three distinct bordered
+          KPI cards here, not a single pill-strip stat bar. Reuses the
+          existing KpiCard/KpiDatum component + .kpi-card CSS (already
+          Signals-token-based, previously unused since the old Market
+          Performance page that originated it was removed) -- same real
+          data as before (needsYouCount/signalVolume/pressureState/
+          mostActiveName), just three cards instead of one strip. No new
+          metric invented: real V1 Signal history is all-time, never a
+          30-day window (see V1_PRODUCT_CONTRACT.md rule 7), so captions
+          stay honestly time-neutral rather than claiming a window this
+          data doesn't have. */}
+      <div data-tour="war-room" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+        {([
+          {
+            label: 'Needs you',
+            value: needsYouCount,
+            caption: 'not yet handled or dismissed',
+            link: 'Open Alerts', linkTo: '/alerts',
+          },
+          {
+            label: 'Signals',
+            value: signalVolume,
+            caption: 'on file',
+          },
+          {
+            label: 'Market pressure',
+            value: pressureState === 'pending' ? 'Unknown' : pressureState === 'pressure' ? 'Building' : pressureState === 'clearing' ? 'Easing' : 'Stable',
+            caption: mostActiveName ? `${mostActiveName} most active` : undefined,
+          },
+        ] as KpiDatum[]).map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
       </div>
 
       {/* Bento grid: worklist + weather side by side, Next up widened to a

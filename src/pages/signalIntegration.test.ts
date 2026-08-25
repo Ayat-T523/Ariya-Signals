@@ -39,7 +39,13 @@ assertTrue('the configured-landscape branch renders LandscapeSignalRow, never Wo
 console.log('2. WarRoom.tsx: the primary Signal fetch and stat-bar copy are all-time, no arbitrary 30-day/Xd presentation restriction (pre-freeze fix 2026-08-24)')
 assertTrue('the primary landscape Signal fetch omits lookback_days entirely -- reuses the existing all-time API contract, never a second endpoint', warRoomSource.includes('fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)') && !warRoomSource.includes('TIME_HORIZON_DAYS[timeHorizon]'))
 assertTrue('no leftover signalVolumeWindowDays/TIME_HORIZON_DAYS import for the Signal fetch', !warRoomSource.includes('signalVolumeWindowDays') && !warRoomSource.includes("import { TIME_HORIZON_DAYS } from '../lib/timeHorizon'"))
-assertTrue('the stat bar renders a disease/time-neutral "N signals" label, never a "30d"/"Xd" suffix', warRoomSource.includes('</span> signals</span>') && !warRoomSource.includes('signals · '))
+// Pre-freeze unit 2 (2026-08-26): stat bar became a 3-card KPI row
+// (KpiCard/.kpi-card, screenshot-matched restoration) -- same underlying
+// value/label pair, just rendered via label: 'Signals'/value: signalVolume
+// instead of a literal "N signals" template string. The semantic guarantee
+// this assertion actually protects (never a "30d"/"Xd" suffix on this
+// specific label) still holds; the markup shape it checks moved.
+assertTrue('the KPI row renders a disease/time-neutral "Signals" label, never a "30d"/"Xd" suffix', warRoomSource.includes("label: 'Signals'") && !warRoomSource.includes('signals · '))
 assertTrue('the worklist empty-state copy no longer claims a "time horizon" scarcity that the all-time fetch does not have', !warRoomSource.includes('in this time horizon'))
 assertTrue('NARRATION_DAYS (the unrelated legacy pre-landscape path) is left untouched', warRoomSource.includes('const NARRATION_DAYS = 90') && warRoomSource.includes('getRecentSignals(NARRATION_DAYS, filterIds)'))
 

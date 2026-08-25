@@ -60,3 +60,19 @@ export const NEU_PLATE_STYLE: React.CSSProperties = { background: 'var(--cream-1
 // material layer" -- content-area containers are sharp-cornered, not just
 // flat). Also sidesteps the .sig-raised silent-drop build bug by staying inline.
 export const FLAT_CARD_STYLE: React.CSSProperties = { background: 'var(--white)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-flat-content)' }
+
+// Same silent-drop bug hits .kpi-card specifically (confirmed live,
+// 2026-08-26: KpiCard.tsx's rendered className is exactly "kpi-card", but
+// getComputedStyle reports display:block/transparent/0px-everything --
+// every OTHER kpi-* selector in the same stylesheet region, e.g.
+// .kpi-label/.kpi-value/.kpi-footer, computes correctly, so this is
+// narrowly the container rule, not the whole component). className is
+// still applied for descendant selectors and :hover/:focus-visible/
+// .compact modifiers, which do work -- only the base shell needs the
+// inline sidestep.
+export const KPI_CARD_STYLE: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 'var(--s-3)',
+  padding: 'var(--s-5)', borderRadius: 'var(--r-flat-content)',
+  background: 'var(--white)', border: '1px solid var(--border-default)',
+  textDecoration: 'none', color: 'inherit', outline: 'none',
+}
