@@ -19,6 +19,7 @@ import { Badge } from '../components/shadcn/ui/badge'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId, type TrackedCompetitor } from '../config/setup-draft'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { fetchLandscapeCanonicalAssets, type LandscapeCanonicalAsset } from '../lib/api/landscapeAssets'
 import { computeCompanyOverviewStats, buildCompactCompanySummary } from '../lib/competitorOverview'
 
 const RELATIONSHIP_LABEL: Record<'direct' | 'indirect', string> = { direct: 'Direct', indirect: 'Indirect' }
@@ -258,8 +259,8 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount, userRelationsh
 // from the user's own Direct/Indirect setup classification or a real,
 // already disease-scoped Signal (fetchLandscapeSignals, grouped by exact
 // companyId equality upstream -- see landscapeSignalsByCompany below).
-function V1CompetitorCard({ competitor, signals }: { competitor: TrackedCompetitor; signals: LandscapeSignal[] }) {
-  const stats = computeCompanyOverviewStats(signals)
+function V1CompetitorCard({ competitor, signals, canonicalAssets }: { competitor: TrackedCompetitor; signals: LandscapeSignal[]; canonicalAssets: LandscapeCanonicalAsset[] }) {
+  const stats = computeCompanyOverviewStats(signals, canonicalAssets.length)
   const dotCount = Math.min(5, stats.signalCount)
 
   return (
@@ -732,6 +733,27 @@ export default function Competitors() {
       .catch(() => { if (!cancelled) setLandscapeSignalsByCompany(new Map()) })
     return () => { cancelled = true }
   }, [discoveredCompanyIds, indication, canonicalIndicationId])
+  // Pre-freeze unit 1 (2026-08-25): canonical company+disease Pipeline
+  // asset universe -- "Pipeline assets" must count these, never distinct
+  // assetIds appearing in Signals (see competitorOverview.ts's own
+  // docstring). Same fetch shape/deps as the Signals effect above, kept
+  // deliberately separate: Signals and canonical assets are two different
+  // questions read from two different endpoints, never one derived from
+  // the other client-side.
+  const [canonicalAssetsByCompany, setCanonicalAssetsByCompany] = useState(new Map<string, LandscapeCanonicalAsset[]>())
+  useEffect(() => {
+    if (discoveredCompanyIds.length === 0) { setCanonicalAssetsByCompany(new Map()); return }
+    let cancelled = false
+    fetchLandscapeCanonicalAssets(discoveredCompanyIds, indication, canonicalIndicationId)
+      .then((items) => {
+        if (cancelled) return
+        const grouped = new Map<string, LandscapeCanonicalAsset[]>()
+        for (const a of items) grouped.set(a.companyId, [...(grouped.get(a.companyId) ?? []), a])
+        setCanonicalAssetsByCompany(grouped)
+      })
+      .catch(() => { if (!cancelled) setCanonicalAssetsByCompany(new Map()) })
+    return () => { cancelled = true }
+  }, [discoveredCompanyIds, indication, canonicalIndicationId])
   // legacyId -> userRelationship, so the legacy CompetitorCard branch can show
   // the user's real Direct/Indirect classification for a matched company.
   const relationshipByLegacyId = useMemo(() => {
@@ -947,7 +969,11 @@ export default function Competitors() {
                   whileHover={REDUCED_MOTION ? {} : { y: -2 }}
                   transition={{ duration: 0.12 }}
                 >
-                  <V1CompetitorCard competitor={tc} signals={landscapeSignalsByCompany.get(tc.companyId) ?? []} />
+                  <V1CompetitorCard
+                    competitor={tc}
+                    signals={landscapeSignalsByCompany.get(tc.companyId) ?? []}
+                    canonicalAssets={canonicalAssetsByCompany.get(tc.companyId) ?? []}
+                  />
                 </motion.div>
               ))}
             </motion.div>

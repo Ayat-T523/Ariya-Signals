@@ -1,10 +1,15 @@
 /**
  * PipelineTabV1.tsx — restored Competitors Pipeline tab for a REAL tracked
  * V1 company (2026-08-25, "RESTORE COMPETITORS PAGES" checkpoint, report
- * sections 9-13). Reproduces the historical reference's lifecycle band +
- * asset-card structure, but every field is real: assets are grouped from
+ * sections 9-13; asset universe hardened to canonical company+disease scope
+ * in the pre-freeze unit 1 checkpoint, same date). Reproduces the
+ * historical reference's lifecycle band + asset-card structure, but every
+ * field is real: the asset CARD LIST is seeded from the canonical
+ * company+disease asset universe (fetchLandscapeCanonicalAssets() --
+ * PipelineTabV1's own CandidateDisposition.ELIGIBLE_CANDIDATE gate, never
+ * distinct assetIds appearing in Signals), then each card is ENRICHED from
  * the SAME scoped LandscapeSignal/LandscapeEvidenceItem universe already
- * fetched by CompetitorProfileV1, stage is inferred conservatively (see
+ * fetched by CompetitorProfileV1. Stage is inferred conservatively (see
  * pipelineStage.ts -- never guessed), "Next expected" is a real CT.gov
  * ESTIMATED milestone, and Trial ID is a real NCT id extracted from a
  * source locator or omitted -- never a placeholder NCT0XXXXXXX.
@@ -19,6 +24,7 @@ import EmptyState from '../../ui/EmptyState'
 import { SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../../../lib/api/landscapeSignals'
 import type { LandscapeEvidenceItem } from '../../../lib/api/landscapeEvidence'
 import type { CtgovUpcomingMilestone } from '../../../lib/api/upcomingMilestones'
+import type { LandscapeCanonicalAsset } from '../../../lib/api/landscapeAssets'
 import { inferPipelineStage, PIPELINE_LIFECYCLE_BAND, pipelineStageRank, type PipelineStage } from '../../../lib/pipelineStage'
 import { formatDateAbs } from '../../../utils/formatDate'
 
@@ -52,26 +58,37 @@ interface PipelineAssetGroup {
 }
 
 function buildAssetGroups(
+  canonicalAssets: LandscapeCanonicalAsset[],
   signals: LandscapeSignal[],
   evidence: LandscapeEvidenceItem[],
   milestones: CtgovUpcomingMilestone[],
 ): PipelineAssetGroup[] {
-  // Seeded from Signals ONLY (report section 4/10): a durably-persisted
-  // evidence row can exist for many raw CT.gov trial arms/interventions that
-  // never became a disease-scoped, qualifying Signal for this company (e.g.
-  // "Placebo to match saxagliptin", "Blood samples") -- restoring those as
-  // pipeline "assets" would be exactly the noisy raw CT.gov intervention
-  // list section 10 forbids, and would silently diverge from the overview
-  // card's own asset count (computeCompanyOverviewStats, same Signal-only
-  // universe). Evidence is used only to ENRICH an asset that already
-  // qualified via a real Signal -- never to introduce a new one.
-  const ids = new Set<string>()
-  signals.forEach((s) => { if (s.assetId) ids.add(s.assetId) })
+  // Pre-freeze unit 1 (2026-08-25): seeded from the CANONICAL company+
+  // disease asset universe (fetchLandscapeCanonicalAssets()), never from
+  // Signals. Signals only ENRICH an asset that already exists canonically
+  // -- they never decide whether it exists. A canonical asset with zero
+  // qualifying Signals still renders (Latest/Next expected/Trial ID all
+  // honestly "-"), never hidden merely because nothing has happened yet.
+  //
+  // A Signal whose assetId falls OUTSIDE the canonical set is a scoping/
+  // identity integrity concern, not a reason to fabricate a fallback asset
+  // card from a raw Signal/Evidence name -- reported to the console, never
+  // silently appended as its own card.
+  const canonicalIds = new Set(canonicalAssets.map((a) => a.assetId))
+  const unknownSignalAssetIds = new Set(
+    signals.map((s) => s.assetId).filter((id): id is string => id != null && !canonicalIds.has(id)),
+  )
+  if (unknownSignalAssetIds.size > 0 && typeof console !== 'undefined') {
+    console.warn(
+      '[PipelineTabV1] Signal(s) reference asset id(s) outside the canonical company+disease scope -- ' +
+      'not rendered as Pipeline assets (scoping/identity integrity concern):',
+      Array.from(unknownSignalAssetIds),
+    )
+  }
 
-  return Array.from(ids).map((assetId) => {
+  return canonicalAssets.map(({ assetId, assetName }) => {
     const assetSignals = signals.filter((s) => s.assetId === assetId).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     const assetEvidence = evidence.filter((e) => e.assetId === assetId)
-    const assetName = assetSignals[0]?.assetName ?? assetEvidence.find((e) => e.assetName)?.assetName ?? assetId
     const milestone = milestones.find((m) => m.assetId === assetId) ?? null
     const nctId = extractNctId(
       milestone?.nctId ?? null,
@@ -235,12 +252,13 @@ function AssetCardV1({ group }: { group: PipelineAssetGroup }) {
   )
 }
 
-export default function PipelineTabV1({ signals, evidence, milestones }: {
+export default function PipelineTabV1({ canonicalAssets, signals, evidence, milestones }: {
+  canonicalAssets: LandscapeCanonicalAsset[]
   signals: LandscapeSignal[]
   evidence: LandscapeEvidenceItem[]
   milestones: CtgovUpcomingMilestone[]
 }) {
-  const groups = buildAssetGroups(signals, evidence, milestones)
+  const groups = buildAssetGroups(canonicalAssets, signals, evidence, milestones)
 
   if (groups.length === 0) {
     return <EmptyState message="No canonical pipeline assets recorded yet for this competitor in the active disease area." />

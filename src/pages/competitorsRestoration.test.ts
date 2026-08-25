@@ -60,11 +60,13 @@ assertTrue('no dead reference to the old legacy-id-matched split remains', !comp
 console.log('3. Overview: Direct/Indirect is the user\'s own setup classification, never inferred')
 assertTrue('V1CompetitorCard renders competitor.userRelationship via the existing RELATIONSHIP_LABEL map', /V1CompetitorCard[\s\S]{0,2000}RELATIONSHIP_LABEL\[competitor\.userRelationship\]/.test(competitorsSource))
 
-console.log('4. Overview: Pipeline asset count / Last signal / Activity are real, derived from the same already-scoped Signal fetch -- never a new fetch, never fabricated')
-assertTrue('computeCompanyOverviewStats derives assetCount from a Set of real signal.assetId values (canonical asset count in the active disease area)', overviewLibSource.includes('new Set(signals.map((s) => s.assetId)') )
+console.log('4. Overview: Pipeline asset count / Last signal / Activity are real -- Pipeline asset count from the canonical company+disease universe (pre-freeze unit 1, 2026-08-25), Last signal/Activity from the already-scoped Signal fetch -- never fabricated')
+assertTrue('computeCompanyOverviewStats accepts an explicit canonicalAssetCount and uses it as the Pipeline asset count when supplied', overviewLibSource.includes('canonicalAssetCount?: number') && overviewLibSource.includes('canonicalAssetCount ?? new Set('))
+assertTrue('the Signal-assetId Set remains only as the no-canonical-fetch fallback, never the primary source of truth', overviewLibSource.includes('signals.map((s) => s.assetId)'))
 assertTrue('lastSignalAt is the real max signal.occurredAt, never fabricated', overviewLibSource.includes('s.occurredAt > lastSignalAt'))
 assertTrue('the overview card summary is a compact deterministic template, never AI-generated prose', overviewLibSource.includes('buildCompactCompanySummary'))
-assertTrue('Competitors.tsx never imports the Recent-Evidence-only fetch for the overview (no new fetch was added for card stats)', !competitorsSource.includes('fetchLandscapeEvidence'))
+assertTrue('Competitors.tsx fetches canonical assets via fetchLandscapeCanonicalAssets, never a new Recent-Evidence-only fetch for the overview', competitorsSource.includes('fetchLandscapeCanonicalAssets') && !competitorsSource.includes('fetchLandscapeEvidence'))
+assertTrue('V1CompetitorCard passes canonicalAssets.length into computeCompanyOverviewStats', competitorsSource.includes('computeCompanyOverviewStats(signals, canonicalAssets.length)'))
 
 console.log('5. Legacy demo path (no active landscape) is completely untouched')
 assertTrue('the legacy CompetitorCard component still exists, unchanged in shape', competitorsSource.includes('function CompetitorCard('))
@@ -118,8 +120,15 @@ assertTrue('an asset with zero real assets renders an honest empty state, not a 
 // asset groups from evidence.assetId too pulled in ~20 raw CT.gov trial
 // arms/interventions ("Placebo to match saxagliptin", "Blood samples") that
 // never became a real Signal, diverging from the overview card's own
-// Signal-only asset count. Assets must come from Signals only.
-assertTrue('pipeline asset groups are seeded from Signals only, never from evidence.assetId (which includes noisy raw CT.gov arms that never qualified as a Signal)', !/const ids = new Set<string>\(\)\s*\n\s*signals\.forEach\(\(s\) => \{ if \(s\.assetId\) ids\.add\(s\.assetId\) \}\)\s*\n\s*evidence\.forEach/.test(pipelineV1Body))
+// Signal-only asset count. Superseded the same day by pre-freeze unit 1:
+// Signal-only seeding was ITSELF proven wrong (a real canonical asset with
+// zero Signals must still count/render) -- asset groups are now seeded
+// from the canonical company+disease universe instead, never from Signals
+// or evidence.assetId.
+assertTrue('pipeline asset groups are seeded from canonicalAssets, never re-derived from signals.assetId or evidence.assetId', pipelineV1Body.includes('canonicalAssets.map(({ assetId, assetName }) =>') && !/const ids = new Set<string>\(\)\s*\n\s*signals\.forEach\(\(s\) => \{ if \(s\.assetId\) ids\.add\(s\.assetId\) \}\)/.test(pipelineV1Body))
+assertTrue('a Signal referencing an assetId outside the canonical scope is reported, never silently rendered as a fallback asset card', pipelineV1Body.includes('unknownSignalAssetIds') && pipelineV1Body.includes('console.warn'))
+assertTrue('asset card names come from the canonical assetName, never a raw Signal/Evidence intervention string', !pipelineV1Body.includes('assetSignals[0]?.assetName') && !pipelineV1Body.includes('assetEvidence.find((e) => e.assetName)'))
+assertTrue('CompetitorProfileV1 fetches canonical assets and passes them into PipelineTabV1', profileV1Source.includes('fetchLandscapeCanonicalAssets') && profileV1Source.includes('<PipelineTabV1 canonicalAssets={canonicalAssets}'))
 
 console.log('12. Company tab (V1): only real, currently-supported aggregates -- financials/personnel/SWOT/hiring are NOT fabricated')
 assertTrue('Company tab renders a Company snapshot with real tracked-asset/Signal/latest-Signal counts', companyV1Source.includes('Company snapshot') && companyV1Source.includes('computeCompanyOverviewStats'))

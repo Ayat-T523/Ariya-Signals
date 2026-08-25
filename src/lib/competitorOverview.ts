@@ -17,13 +17,29 @@ export interface CompanyOverviewStats {
   lastSignalAt: string | null
 }
 
-export function computeCompanyOverviewStats(signals: LandscapeSignal[]): CompanyOverviewStats {
-  const assetIds = new Set(signals.map((s) => s.assetId).filter((id): id is string => Boolean(id)))
+/**
+ * `canonicalAssetCount`, when supplied (pre-freeze unit 1, 2026-08-25), is
+ * the real canonical company+disease Pipeline asset count
+ * (fetchLandscapeCanonicalAssets() -- see that client's own docstring for
+ * why this is NOT the same thing as distinct assetIds appearing in
+ * Signals: a canonical asset can legitimately have zero qualifying
+ * Signals and must still count). When omitted, falls back to the prior
+ * Signal-derived count -- ONLY for callers that have no canonical fetch of
+ * their own (e.g. sort-key comparisons that only need lastSignalAt), never
+ * as the source of truth for a rendered "Pipeline assets" count.
+ */
+export function computeCompanyOverviewStats(
+  signals: LandscapeSignal[],
+  canonicalAssetCount?: number,
+): CompanyOverviewStats {
+  const assetCount = canonicalAssetCount ?? new Set(
+    signals.map((s) => s.assetId).filter((id): id is string => Boolean(id)),
+  ).size
   let lastSignalAt: string | null = null
   for (const s of signals) {
     if (!lastSignalAt || s.occurredAt > lastSignalAt) lastSignalAt = s.occurredAt
   }
-  return { assetCount: assetIds.size, signalCount: signals.length, lastSignalAt }
+  return { assetCount, signalCount: signals.length, lastSignalAt }
 }
 
 /** Compact card-descriptor form: "4 tracked assets · 12 Signals · latest activity Aug 11, 2026" */

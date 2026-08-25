@@ -27,6 +27,7 @@ import { resolveCanonicalIndicationId, type TrackedCompetitor } from '../config/
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import { fetchLandscapeEvidence, type LandscapeEvidenceItem } from '../lib/api/landscapeEvidence'
 import { fetchUpcomingCtgovMilestones, type CtgovUpcomingMilestone } from '../lib/api/upcomingMilestones'
+import { fetchLandscapeCanonicalAssets, type LandscapeCanonicalAsset } from '../lib/api/landscapeAssets'
 import { computeCompanyOverviewStats, buildFactualCompanySummary } from '../lib/competitorOverview'
 
 const RELATIONSHIP_LABEL: Record<'direct' | 'indirect', string> = { direct: 'Direct', indirect: 'Indirect' }
@@ -71,6 +72,7 @@ export default function CompetitorProfileV1({ competitor }: { competitor: Tracke
   const [signals, setSignals] = useState<LandscapeSignal[]>([])
   const [evidence, setEvidence] = useState<LandscapeEvidenceItem[]>([])
   const [milestones, setMilestones] = useState<CtgovUpcomingMilestone[]>([])
+  const [canonicalAssets, setCanonicalAssets] = useState<LandscapeCanonicalAsset[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -80,16 +82,17 @@ export default function CompetitorProfileV1({ competitor }: { competitor: Tracke
       fetchLandscapeSignals([competitor.companyId], indication, canonicalIndicationId),
       fetchLandscapeEvidence([competitor.companyId], indication, canonicalIndicationId),
       fetchUpcomingCtgovMilestones([competitor.companyId], indication, canonicalIndicationId),
+      fetchLandscapeCanonicalAssets([competitor.companyId], indication, canonicalIndicationId),
     ])
-      .then(([s, e, m]) => {
+      .then(([s, e, m, a]) => {
         if (cancelled) return
-        setSignals(s); setEvidence(e); setMilestones(m); setLoading(false)
+        setSignals(s); setEvidence(e); setMilestones(m); setCanonicalAssets(a); setLoading(false)
       })
       .catch(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [competitor.companyId, indication, canonicalIndicationId])
 
-  const stats = useMemo(() => computeCompanyOverviewStats(signals), [signals])
+  const stats = useMemo(() => computeCompanyOverviewStats(signals, canonicalAssets.length), [signals, canonicalAssets])
   const summary = useMemo(
     () => buildFactualCompanySummary(competitor.companyName, stats, indication),
     [competitor.companyName, stats, indication],
@@ -179,7 +182,7 @@ export default function CompetitorProfileV1({ competitor }: { competitor: Tracke
         </div>
 
         <div id={TABS[0].panelId} role="tabpanel" aria-labelledby={TABS[0].id} tabIndex={0} style={{ display: activeTab === 0 ? 'block' : 'none', outline: 'none' }}>
-          <PipelineTabV1 signals={signals} evidence={evidence} milestones={milestones} />
+          <PipelineTabV1 canonicalAssets={canonicalAssets} signals={signals} evidence={evidence} milestones={milestones} />
         </div>
         <div id={TABS[1].panelId} role="tabpanel" aria-labelledby={TABS[1].id} tabIndex={0} style={{ display: activeTab === 1 ? 'block' : 'none', outline: 'none' }}>
           <CompanyTabV1 companyName={competitor.companyName} signals={signals} diseaseAreaLabel={indication} />
