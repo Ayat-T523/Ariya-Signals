@@ -55,13 +55,19 @@
   --font-sans: var(--font-ui);
   --font-mono: var(--font-mono);
 
-  /* Animate UI / shadcn Sidebar */
-  --color-sidebar: var(--white);
-  --color-sidebar-foreground: var(--neutral-600);
-  --color-sidebar-primary: var(--indigo-600);
+  /* Animate UI / shadcn Sidebar — original Ariya navy nav (pre-freeze unit
+     2, 2026-08-26). Was flat white (--white/neutral-600), the single
+     biggest visible gap against the reference screenshots' deep-navy
+     sidebar. Foreground is full white here, not a muted neutral: individual
+     elements (group labels, secondary items) already dial their own opacity
+     down (e.g. text-sidebar-foreground/70) against this base, and a
+     pre-muted base would compound into illegibly-low contrast on navy. */
+  --color-sidebar: var(--navy-900);
+  --color-sidebar-foreground: var(--white);
+  --color-sidebar-primary: var(--indigo-500);
   --color-sidebar-primary-foreground: var(--white);
-  --color-sidebar-accent: var(--indigo-050);
-  --color-sidebar-accent-foreground: var(--indigo-600);
-  --color-sidebar-border: var(--border-default);
+  --color-sidebar-accent: var(--navy-600);
+  --color-sidebar-accent-foreground: var(--white);
+  --color-sidebar-border: var(--navy-800);
   --color-sidebar-ring: var(--indigo-500);
 }

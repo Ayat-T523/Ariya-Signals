@@ -154,7 +154,7 @@
      curved shadow, an incoherent combination). Pills/circular controls stay
      on the shared --r-pill; these two only apply to rectangular surfaces on
      components that have actually moved to the flat/bordered material. */
-  --r-flat-content: 0px;  /* page-level content containers: cards, plates, stat bar, panels */
+  --r-flat-content: 12px;  /* page-level content containers: cards, plates, stat bar, panels -- moderate radius, original Ariya visual-language restoration (pre-freeze unit 2, 2026-08-26); was 0px under the earlier Clean Clinical sharp-corner pass */
   --r-flat-control: 4px;  /* small rectangular controls: nav items, icon buttons, focus outlines */
 
   /* Focus */

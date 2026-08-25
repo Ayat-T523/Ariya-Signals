@@ -45,12 +45,14 @@ export default function SiteHeader() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+            <BreadcrumbPage style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--navy-700)' }}>
+              {pageTitle}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       {!isAskPage && (
-        <Button size="sm" className="ml-auto" onClick={() => navigate('/ask')}>
+        <Button size="sm" className="ml-auto rounded-full" onClick={() => navigate('/ask')}>
           Ask Ariya
         </Button>
       )}
