@@ -11,6 +11,4 @@
 export { default as competitorsData }       from './competitors.json'
 export { default as eventsData }            from './events.json'
 export { default as marketDevelopments }    from './market-developments.json'
-export { default as marketPerformanceData } from './market-performance.json'
-export { default as pricingData }           from './pricing.json'
 export { default as userData }              from './user.json'

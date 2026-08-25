@@ -2,12 +2,12 @@
 // (Phase 0.4 verification -- "render each in isolation" per the build
 // instructions; no Storybook configured in this repo). Not linked from nav.
 import { useState } from 'react'
-import { KpiCard } from '../components/inform/KpiCard'
-import { SignalCard } from '../components/inform/SignalCard'
-import { SignalFeed } from '../components/inform/SignalFeed'
-import { FeedFilterBar, type FeedTab, type SortMode } from '../components/inform/FeedFilterBar'
-import { MarketWeather } from '../components/inform/MarketWeather'
-import type { Signal, KpiDatum, WeatherRow } from '../components/inform/types'
+import { KpiCard } from '../components/signals/KpiCard'
+import { SignalCard } from '../components/signals/SignalCard'
+import { SignalFeed } from '../components/signals/SignalFeed'
+import { FeedFilterBar, type FeedTab, type SortMode } from '../components/signals/FeedFilterBar'
+import { MarketWeather } from '../components/signals/MarketWeather'
+import type { Signal, KpiDatum, WeatherRow } from '../components/signals/types'
 
 const SIGNALS: Signal[] = [
   { id: '1', competitor: 'Pharvaris', competitorId: 'pharvaris', type: 'Publication', severity: 'high', headline: 'FDA accepts NDA for deucrictibant in hereditary angioedema, sets PDUFA date', source: 'FDA.gov', sourceUrl: 'https://fda.gov', time: '2h ago', excerpt: 'the Agency has accepted the New Drug Application and assigned a target action date', why: 'Clinical update from Pharvaris — assess relative positioning vs Ekterly on efficacy and safety.', unread: true },

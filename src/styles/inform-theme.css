@@ -9,7 +9,7 @@
 /* Clean Clinical: flat near-white page canvas, no gradient bloom (that was
    the warm-cream "Analyst's Desk" world's texture, retired per DESIGN.md).
    Cards separate from the page via a 1px border, not a color/shadow step --
-   see FLAT_CARD_STYLE in components/inform/primitives.tsx. */
+   see FLAT_CARD_STYLE in components/signals/primitives.tsx. */
 .inform-app-bg {
   background: var(--neutral-50);
   color: var(--neutral-900);
@@ -1015,7 +1015,7 @@
    reproducibly, silently dropped from both the Vite dev and production
    builds by some tool in the chain, regardless of name or position in this
    file -- reduced to NEU_PLATE_STYLE, an inline-style constant in
-   components/inform/primitives.tsx, instead. .inf-raised-lg (below, near
+   components/signals/primitives.tsx, instead. .inf-raised-lg (below, near
    .mw-card) is unaffected and still works as a real class. */
 
 /* ---------- KPI Card ---------- */

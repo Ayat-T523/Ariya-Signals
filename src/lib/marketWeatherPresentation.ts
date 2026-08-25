@@ -20,7 +20,7 @@
  * `MARKET_WEATHER_STATE_MAP` (the accepted backend-state -> frontend-state
  * mapping) is unchanged from the pre-checkpoint implementation.
  */
-import type { WeatherState } from '../components/inform/types'
+import type { WeatherState } from '../components/signals/types'
 import type { MarketWeatherResult } from './api/marketWeather'
 
 export const MARKET_WEATHER_STATE_MAP: Record<string, WeatherState> = {

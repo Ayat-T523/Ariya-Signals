@@ -248,7 +248,7 @@ function ComparisonTable({ rows, competitorName, competitorId }) {
         background: 'rgba(5,10,68,0.02)',
       }}>
         <AIButton source={`messaging-comparison-${competitorId}`}>
-          Ask InForm to analyze this
+          Ask Ariya to analyze this
         </AIButton>
       </div>
     </div>

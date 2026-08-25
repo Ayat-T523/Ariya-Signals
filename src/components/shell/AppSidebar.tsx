@@ -4,8 +4,6 @@ import {
   HomeIcon,
   LayoutGridIcon,
   Building2Icon,
-  BarChart3Icon,
-  DollarSignIcon,
   SettingsIcon,
   HelpCircleIcon,
 } from 'lucide-react'
@@ -29,8 +27,6 @@ const MONITOR: NavMainItem[] = [
   { url: '/',                   icon: <HomeIcon />,       title: 'War Room',           end: true },
   { url: '/intelligence',       icon: <LayoutGridIcon />, title: 'Intelligence Feed' },
   { url: '/competitors',        icon: <Building2Icon />,  title: 'Competitors' },
-  { url: '/market-performance', icon: <BarChart3Icon />,  title: 'Market Performance' },
-  { url: '/pricing',            icon: <DollarSignIcon />, title: 'Pricing and Access' },
 ]
 
 /** Brand mark -- same vector as the retired NavPanel's NavLogo, unchanged. */

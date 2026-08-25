@@ -1,5 +1,5 @@
 import CompetitorBadge from './CompetitorBadge'
-import { SeverityDot, severityLabel, severityText } from '../inform/primitives'
+import { SeverityDot, severityLabel, severityText } from '../signals/primitives'
 import { toSeverity } from '../../lib/signalRanking'
 import { SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../../lib/api/landscapeSignals'
 

@@ -15,8 +15,8 @@
  * module papers over.
  *
  * Deliberately does not touch AppContext's own watchedCompetitors state --
- * AlertsPage, AskModal, and PricingAndAccess still legitimately read it
- * directly and are out of scope for this task.
+ * AlertsPage and AskModal still legitimately read it directly and are out
+ * of scope for this task.
  */
 import { normalizeCompanyName, type TrackedCompetitor } from '../config/setup-draft'
 

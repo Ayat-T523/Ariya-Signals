@@ -108,8 +108,11 @@ assertTrue('RecentSignalsStrip ("Recent signals") is still defined and rendered'
 assertTrue('Recent signals still renders LandscapeSignalRow, never an evidence row', portalSource.includes('visibleSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)'))
 
 console.log('9. No other active V1 screen under src/pages/ renders a generic "Recent evidence" section')
+// Product cleanup checkpoint (2026-08-25): MarketPerformance.tsx/
+// PricingAndAccess.tsx are removed entirely (not V1) -- listing a deleted
+// file here would throw ENOENT, not merely fail an assertion.
 const OTHER_ACTIVE_PAGES = [
-  'Competitors.tsx', 'CompetitorProfile.tsx', 'MarketPerformance.tsx', 'PricingAndAccess.tsx',
+  'Competitors.tsx', 'CompetitorProfile.tsx',
   'AdminPage.tsx', 'DiscoverCompetitors.tsx', 'SignIn.tsx',
 ]
 for (const page of OTHER_ACTIVE_PAGES) {

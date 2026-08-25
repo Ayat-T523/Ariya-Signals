@@ -13,8 +13,6 @@ export {
   competitorsData,
   eventsData,
   marketDevelopments,
-  marketPerformanceData,
-  pricingData,
   userData,
 } from './dataset-hae'
 

@@ -137,7 +137,7 @@ function ChatInput({ onOpen }) {
           }}>
             <Sparkles size={12} color="#2A76F4" strokeWidth={1.5} />
             <span style={{ fontSize: '14px', fontFamily: 'Satoshi, sans-serif', color: '#2A76F4', lineHeight: '21px' }}>
-              InForm
+              Ariya
             </span>
           </div>
         </div>

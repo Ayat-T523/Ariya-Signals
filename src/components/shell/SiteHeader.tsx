@@ -18,8 +18,6 @@ const PAGE_TITLES: Record<string, string> = {
   '/intelligence':        'Intelligence Feed',
   '/competitors':         'Competitors',
   '/competitors/discover':'Discover Competitors',
-  '/market-performance':  'Market Performance',
-  '/pricing':             'Pricing and Access',
   '/alerts':              'Alerts',
   '/ask':                 'Ask Ariya',
   '/myspace':             'My Space',

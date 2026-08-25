@@ -31,9 +31,12 @@ export const DEMO = {
 
   // ── App branding ────────────────────────────────────────────────────────────
   // Frontend Step 3.5: corrected from 'InForm' -- the product branding is Ariya
-  // Signals. 'InForm' remains the internal design-system name (src/components/
-  // inform/, src/styles/inform-*.css) and is not renamed -- see this step's
-  // checkpoint.
+  // Signals. Product cleanup checkpoint (2026-08-25): the former
+  // src/components/inform/ directory (holding real V1 functionality like
+  // MarketWeather) was renamed to src/components/signals/ to remove the
+  // legacy name from the active product; src/styles/inform-*.css is
+  // internal CSS-only naming, deliberately left alone (no visual/styling
+  // change in that checkpoint).
   appName:    'Ariya Signals',
   appTagline: 'HAE Competitive Intelligence',
   appVendor:  '',

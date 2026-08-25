@@ -43,10 +43,10 @@ import { Sparkles } from '../components/animate-ui/icons/sparkles'
 import { useApp, useConfig } from '../context/AppContext'
 import CompetitorBadge from '../components/ui/CompetitorBadge'
 import SlideOver from '../components/ui/SlideOver'
-import { AlertDetail } from '../components/inform/AlertDetail'
-import { MarketWeather } from '../components/inform/MarketWeather'
-import { SeverityDot, severityLabel, severityText, FLAT_CARD_STYLE } from '../components/inform/primitives'
-import type { WeatherRow, WeatherState } from '../components/inform/types'
+import { AlertDetail } from '../components/signals/AlertDetail'
+import { MarketWeather } from '../components/signals/MarketWeather'
+import { SeverityDot, severityLabel, severityText, FLAT_CARD_STYLE } from '../components/signals/primitives'
+import type { WeatherRow, WeatherState } from '../components/signals/types'
 import { Accordion, AccordionItem } from '../components/shadcn/ui/accordion'
 import { Accordion as AccordionPrimitive } from 'radix-ui'
 import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
@@ -887,7 +887,7 @@ export default function WarRoom() {
             style={{ flexShrink: 0, marginTop: '4px' }}
           >
             <Plus size={14} strokeWidth={2.5} aria-hidden="true" animateOnHover />
-            Ask InForm
+            Ask Ariya
           </Button>
         </Shine>
       </div>

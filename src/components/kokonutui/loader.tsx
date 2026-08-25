@@ -18,7 +18,7 @@ interface LoaderProps extends React.HTMLAttributes<HTMLDivElement> {
 // Suspense fallback and the Supabase auth gate (App.tsx's PageLoader) — never
 // for content-shaped loading (e.g. War Room's worklist keeps its row skeleton).
 export default function Loader({
-  title = "Loading InForm...",
+  title = "Loading Ariya Signals...",
   subtitle = "Pulling in your latest signals",
   size = "md",
   className,

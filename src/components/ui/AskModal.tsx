@@ -22,14 +22,14 @@ function competitorName(id: string) {
 function buildSystemPrompt(assetName: string, indication: string, hasQuestion: boolean) {
   if (hasQuestion) {
     return [
-      `You are the analyst voice inside InForm, a competitive-intelligence platform for a pharma team tracking ${assetName} in ${indication}.`,
+      `You are the analyst voice inside Ariya Signals, a competitive-intelligence platform for a pharma team tracking ${assetName} in ${indication}.`,
       "Answer the user's question directly and concisely (3-6 sentences, plain prose, no headers or bullet points).",
       'Recent competitor signals are provided as supporting context -- use them when relevant, and say so when you do. For anything the signals don\'t cover, you may draw on your own general pharmaceutical and clinical knowledge, but don\'t claim general knowledge is a specific tracked signal.',
       'Do not open with a disclaimer or restate the question -- answer it.',
     ].join(' ')
   }
   return [
-    `You are the analyst voice inside InForm, a competitive-intelligence platform for a pharma team tracking ${assetName} in ${indication}.`,
+    `You are the analyst voice inside Ariya Signals, a competitive-intelligence platform for a pharma team tracking ${assetName} in ${indication}.`,
     'Write a short briefing (2-4 sentences, plain prose, no headers or bullet points) summarizing the most notable recent competitor activity from the signals given.',
     'Only use facts explicitly present in the signals below. Never invent a company name, date, or event that isn\'t there.',
     'If there are no signals, say plainly that there is nothing new to report right now -- do not pad the response.',
@@ -108,7 +108,7 @@ export default function AskModal({ open, onOpenChange, question }: { open: boole
               <Sparkles size={15} color="var(--indigo-600)" animate={status === 'loading' ? 'path-loop' : 'path'} loop={status === 'loading'} />
             </div>
             <DialogTitle style={{ fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)', lineHeight: 1.4 }}>
-              {question ?? "InForm's analysis"}
+              {question ?? "Ariya's analysis"}
             </DialogTitle>
           </div>
         </DialogHeader>

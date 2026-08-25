@@ -21,8 +21,6 @@ const Portal            = lazy(() => import('./pages/Portal'))
 const AlertsPage        = lazy(() => import('./pages/AlertsPage'))
 const Ask               = lazy(() => import('./pages/Ask'))
 const AdminPage         = lazy(() => import('./pages/AdminPage'))
-const MarketPerformance = lazy(() => import('./pages/MarketPerformance'))
-const PricingAndAccess  = lazy(() => import('./pages/PricingAndAccess'))
 const MySpace           = lazy(() => import('./pages/MySpace'))
 const MyAlerts          = lazy(() => import('./pages/MyAlerts'))
 const MyDocuments       = lazy(() => import('./pages/MyDocuments'))
@@ -120,15 +118,13 @@ export default function App() {
                   <Route path="/competitors/discover" element={<><RouteTitle title="Discover Competitors" /><DiscoverCompetitors /></>} />
                   <Route path="/competitors/timeline" element={<Navigate to="/competitors" replace />} />
                   <Route path="/competitors/:id"      element={<CompetitorProfile />} />
-                  <Route path="/market-performance"   element={<><RouteTitle title="Market Performance" /><MarketPerformance /></>} />
                   <Route path="/intelligence"         element={<><RouteTitle title="Intelligence Feed" /><Portal /></>} />
                   <Route path="/portal"               element={<Navigate to="/intelligence" replace />} />
-                  <Route path="/pricing"              element={<><RouteTitle title="Pricing & Access" /><PricingAndAccess /></>} />
                   <Route path="/alerts"               element={<><RouteTitle title="Alerts" /><AlertsPage /></>} />
                   <Route path="/myspace"              element={<><RouteTitle title="My Space" /><MySpace /></>} />
                   <Route path="/myspace/alerts"       element={<><RouteTitle title="Alert Preferences" /><MyAlerts /></>} />
                   <Route path="/myspace/documents"    element={<><RouteTitle title="My Documents" /><MyDocuments /></>} />
-                  <Route path="/ask"                  element={<><RouteTitle title="Ask InForm" /><Ask /></>} />
+                  <Route path="/ask"                  element={<><RouteTitle title="Ask Ariya" /><Ask /></>} />
                   <Route path="/admin"                element={<><RouteTitle title="Admin" /><AdminPage /></>} />
                   <Route path="*"                     element={<NotFoundState />} />
                 </Route>
