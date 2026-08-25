@@ -103,26 +103,58 @@ function buildAssetGroups(
   }).sort((a, b) => pipelineStageRank(b.stage) - pipelineStageRank(a.stage))
 }
 
-// ── Lifecycle band ────────────────────────────────────────────────────────
-function LifecycleBand({ activeStages }: { activeStages: Set<PipelineStage> }) {
+// ── Lifecycle tracker ─────────────────────────────────────────────────────
+// Screenshot-authority pass (pre-freeze unit 2, 2026-08-26): the reference
+// product shows each asset as its OWN horizontal track with a positioned
+// stage marker, not one shared band lit up by whichever stage ANY asset
+// happens to have reached. Same real per-asset stage value as before
+// (inferPipelineStage(), never re-inferred here) -- every canonical asset
+// gets a row, including 'Unknown / Not established' ones, which render an
+// honest text label instead of a fabricated marker position (never guess
+// a stage just to have something to plot).
+function LifecycleTracker({ groups }: { groups: PipelineAssetGroup[] }) {
+  const stages = PIPELINE_LIFECYCLE_BAND
+  const NAME_COL = 168
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      {PIPELINE_LIFECYCLE_BAND.map((stage, i) => {
-        const isActive = activeStages.has(stage)
-        const isLast = i === PIPELINE_LIFECYCLE_BAND.length - 1
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', paddingLeft: NAME_COL + 12 }}>
+        {stages.map((stage) => (
+          <span key={stage} style={{
+            flex: 1, fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-500)', textAlign: 'center',
+          }}>
+            {stage}
+          </span>
+        ))}
+      </div>
+      {groups.map((g) => {
+        const rank = pipelineStageRank(g.stage)
+        const pct = ((rank + 0.5) / stages.length) * 100
         return (
-          <div key={stage} style={{ display: 'flex', alignItems: 'center', flex: isLast ? '0 0 auto' : '1 1 0' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', background: isActive ? 'var(--navy-700)' : 'var(--cream-300)' }} />
-              <span style={{
-                fontFamily: 'var(--font-ui)', fontSize: 11, fontWeight: isActive ? 700 : 500,
-                color: isActive ? 'var(--navy-700)' : 'var(--ink-500)', whiteSpace: 'nowrap',
-              }}>
-                {stage}
+          <div key={g.assetId} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span
+              title={g.assetName}
+              style={{
+                width: NAME_COL, flexShrink: 0, fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600,
+                color: 'var(--ink-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}
+            >
+              {g.assetName}
+            </span>
+            {rank >= 0 ? (
+              <div style={{ flex: 1, position: 'relative', height: 16 }}>
+                <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 2, background: 'var(--cream-300)', transform: 'translateY(-50%)' }} />
+                <div style={{ position: 'absolute', left: 0, width: `${pct}%`, top: '50%', height: 2, background: 'var(--navy-700)', transform: 'translateY(-50%)' }} />
+                <div style={{
+                  position: 'absolute', left: `${pct}%`, top: '50%', width: 12, height: 12, borderRadius: '50%',
+                  background: 'var(--navy-700)', border: '2px solid var(--white)', boxShadow: '0 0 0 1px var(--navy-700)',
+                  transform: 'translate(-50%, -50%)',
+                }} />
+              </div>
+            ) : (
+              <span style={{ flex: 1, fontFamily: 'var(--font-ui)', fontSize: 12, fontStyle: 'italic', color: 'var(--ink-500)' }}>
+                Unknown / Not established
               </span>
-            </div>
-            {!isLast && (
-              <div style={{ flex: 1, height: 2, margin: '0 6px 20px', background: isActive ? 'var(--navy-700)' : 'var(--cream-300)' }} />
             )}
           </div>
         )
@@ -264,14 +296,10 @@ export default function PipelineTabV1({ canonicalAssets, signals, evidence, mile
     return <EmptyState message="No canonical pipeline assets recorded yet for this competitor in the active disease area." />
   }
 
-  const activeStages = new Set(
-    groups.map((g) => g.stage).filter((s): s is PipelineStage => s !== 'Unknown / Not established'),
-  )
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ background: 'var(--white)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--r-lg)', padding: '20px 24px' }}>
-        <LifecycleBand activeStages={activeStages} />
+        <LifecycleTracker groups={groups} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {groups.map((g) => <AssetCardV1 key={g.assetId} group={g} />)}

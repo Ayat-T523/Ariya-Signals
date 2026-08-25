@@ -1380,19 +1380,24 @@
 .mw-empty p { font-family: var(--font-ui); font-size: 13px; color: var(--ink-600); margin: 0; line-height: 1.5; }
 
 /* ---------- Competitor Card (Round 2, R1.2) ---------- */
+/* Screenshot-authority pass (pre-freeze unit 2, 2026-08-26): reference
+   Competitors cards are plain white with a subtle border, no neumorphic
+   emboss -- same flat-card language the War Room/KPI-card restoration
+   already established (--border-default, --r-flat-content), not a new
+   one-off recipe. Was cream-100 + --neu-raised + --r-lg. */
 .competitor-card {
   display: flex; flex-direction: column; gap: var(--s-3);
   height: 100%; box-sizing: border-box;
   padding: var(--s-5);
-  border-radius: var(--r-lg);
-  background: var(--cream-100);
-  box-shadow: var(--neu-raised);
+  border-radius: var(--r-flat-content);
+  background: var(--white);
+  border: 1px solid var(--border-default);
   text-decoration: none; color: inherit;
   outline: none;
-  transition: box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+  transition: border-color var(--dur-fast) var(--ease-standard);
 }
-.competitor-card:hover { box-shadow: var(--neu-raised-strong); }
-.competitor-card:focus-visible { box-shadow: var(--neu-raised), var(--ring-indigo); }
+.competitor-card:hover { border-color: var(--indigo-500); }
+.competitor-card:focus-visible { box-shadow: var(--ring-indigo); outline: none; }
 
 .cc-header { display: flex; align-items: flex-start; gap: var(--s-3); }
 .cc-title-group { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }

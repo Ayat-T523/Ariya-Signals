@@ -1,5 +1,5 @@
 import CompetitorBadge from './CompetitorBadge'
-import { SeverityDot, severityLabel, severityText } from '../signals/primitives'
+import { SeverityDot, severityColor, severityLabel, severityText } from '../signals/primitives'
 import { toSeverity } from '../../lib/signalRanking'
 import { SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../../lib/api/landscapeSignals'
 
@@ -30,7 +30,15 @@ export default function LandscapeSignalRow({ signal }: { signal: LandscapeSignal
   const severity = toSeverity(signal.importance)
   const displayName = signal.companyName ?? signal.companyId
   return (
-    <div className="worklist-row">
+    // Screenshot-authority pass (pre-freeze unit 2, 2026-08-26): the
+    // reference product accents each row with a severity-colored left
+    // border -- current build used dot+text only. Reuses the SAME
+    // severityColor() this row already uses for its dot/label text, never
+    // a new color mapping; inline (not a CSS class) since the color is
+    // per-row/per-severity and this exact pattern (dynamic inline color
+    // alongside a static CSS class) is already how this component applies
+    // severityText() two lines below.
+    <div className="worklist-row" style={{ borderLeft: `3px solid ${severityColor(severity)}` }}>
       <div className="worklist-row-top">
         <span className="worklist-row-sev" style={{ color: severityText(severity) }}>
           <SeverityDot sev={severity} /> {severityLabel(severity)}
