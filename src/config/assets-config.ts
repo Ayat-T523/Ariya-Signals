@@ -1,5 +1,5 @@
 /**
- * assets-config.ts — Curated asset catalog for InForm.
+ * assets-config.ts — Curated asset catalog for Ariya Signals.
  *
  * Each entry describes a trackable asset: brand name, INN, indication,
  * suggested competitor watchlist, and the lexicon arrays used to gate

@@ -1,5 +1,5 @@
 /**
- * motion.ts — Shared animation variants for InForm.
+ * motion.ts — Shared animation variants for Ariya Signals.
  *
  * Rules:
  *   - Nothing bouncy, nothing over 300ms

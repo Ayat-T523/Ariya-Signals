@@ -866,7 +866,7 @@ export default function WarRoom() {
   const showSkeleton = !loaded || !liveDataLoaded
 
   return (
-    <div data-page-pad className="war-room-page inform-app-bg">
+    <div data-page-pad className="war-room-page signals-app-bg">
 
       {/* Header */}
       <div className="war-room-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
@@ -968,10 +968,10 @@ export default function WarRoom() {
                 {[0, 1, 2].map((i) => (
                   <div className="worklist-row" key={i}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <div className="inf-sk" style={{ width: 40, height: 12, borderRadius: 6 }} />
-                      <div className="inf-sk" style={{ width: 90, height: 12, borderRadius: 6 }} />
+                      <div className="sig-sk" style={{ width: 40, height: 12, borderRadius: 6 }} />
+                      <div className="sig-sk" style={{ width: 90, height: 12, borderRadius: 6 }} />
                     </div>
-                    <div className="inf-sk" style={{ width: `${70 - i * 10}%`, height: 16, borderRadius: 6 }} />
+                    <div className="sig-sk" style={{ width: `${70 - i * 10}%`, height: 16, borderRadius: 6 }} />
                   </div>
                 ))}
               </div>
@@ -1009,10 +1009,10 @@ export default function WarRoom() {
               {[0, 1, 2].map((i) => (
                 <div className="worklist-row" key={i}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div className="inf-sk" style={{ width: 40, height: 12, borderRadius: 6 }} />
-                    <div className="inf-sk" style={{ width: 90, height: 12, borderRadius: 6 }} />
+                    <div className="sig-sk" style={{ width: 40, height: 12, borderRadius: 6 }} />
+                    <div className="sig-sk" style={{ width: 90, height: 12, borderRadius: 6 }} />
                   </div>
-                  <div className="inf-sk" style={{ width: `${70 - i * 10}%`, height: 16, borderRadius: 6 }} />
+                  <div className="sig-sk" style={{ width: `${70 - i * 10}%`, height: 16, borderRadius: 6 }} />
                 </div>
               ))}
             </div>
@@ -1057,7 +1057,7 @@ export default function WarRoom() {
         </div>
 
         {/* WEATHER tile */}
-        <div className="inf-raised-lg" style={{ gridArea: 'weather', minWidth: 0 }}>
+        <div className="sig-raised-lg" style={{ gridArea: 'weather', minWidth: 0 }}>
           <MarketWeather
             asset={assetName}
             isLive={hasActiveLandscape ? !marketWeatherLoading : liveDataLoaded}

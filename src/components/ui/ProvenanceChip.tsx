@@ -21,7 +21,7 @@ function relDate(iso: string | null | undefined): string | null {
 }
 
 /**
- * InForm styling (per docs/design/component-references/ProvenanceChip.html):
+ * Ariya Signals styling (per docs/design/component-references/ProvenanceChip.html):
  * flat tinted tag -- never neumorphic, never glass, never pill -- so it reads as
  * metadata on the host card, not a surface of its own. Live = sage/approved
  * (clickable, underlines on hover); illustrative = amber/urgent (never clickable,

@@ -9,7 +9,7 @@ interface LoaderProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: "sm" | "md" | "lg";
 }
 
-// InForm — Clean Clinical adaptation of Kokonut UI's Loader
+// Ariya Signals — Clean Clinical adaptation of Kokonut UI's Loader
 // (src/components/kokonutui/loader.tsx original). Rings recolored from
 // hardcoded black/white to var(--indigo-600); dark-mode ring variants
 // dropped since this app has no dark theme (confirmed: no prefers-color-scheme

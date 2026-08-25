@@ -1,4 +1,4 @@
-// InForm component library — shared types.
+// Signals component library — shared types.
 // Kept intentionally close to what src/lib/signalMapping.ts / src/lib/db already
 // produce, so a later phase can wire these to mapSignal() output without
 // reshaping props here.

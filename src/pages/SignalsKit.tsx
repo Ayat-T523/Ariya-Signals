@@ -1,6 +1,8 @@
-// Dev-only scratch route to render the InForm component set in isolation
-// (Phase 0.4 verification -- "render each in isolation" per the build
-// instructions; no Storybook configured in this repo). Not linked from nav.
+// Dev-only scratch route to render the shared Signals component set in
+// isolation (Phase 0.4 verification -- "render each in isolation" per the
+// build instructions; no Storybook configured in this repo). Not linked
+// from nav. Renamed from InformKit (Inform naming hardening checkpoint,
+// 2026-08-25) -- same file, same purpose, neutral current name.
 import { useState } from 'react'
 import { KpiCard } from '../components/signals/KpiCard'
 import { SignalCard } from '../components/signals/SignalCard'
@@ -27,14 +29,14 @@ const WEATHER_ROWS: WeatherRow[] = [
   { competitor: 'Takeda', competitorId: 'takeda', count: 5, severity: 'low', summary: 'Real-world evidence defending Takhzyro; no new launches.' },
 ]
 
-export default function InformKit() {
+export default function SignalsKit() {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<FeedTab>('All')
   const [sortMode, setSortMode] = useState<SortMode>('importance')
   const [timeframe, setTimeframe] = useState<'7D' | '30D' | '90D'>('30D')
 
   return (
-    <div className="inform-app-bg" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="signals-app-bg" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
         {KPIS.map(k => <KpiCard key={k.label} kpi={k} />)}
       </section>

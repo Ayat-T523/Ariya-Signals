@@ -2,6 +2,9 @@
  * productCleanup.test.ts — Product-surface cleanup checkpoint (2026-08-25):
  * Market Performance removal, Pricing & Access removal, legacy Inform
  * branding removal, src/components/inform/ -> src/components/signals/ rename.
+ * Extended the same day by the Inform naming hardening checkpoint: sections
+ * 8b-8d cover InformKit -> SignalsKit, the stylesheet renames, and the
+ * .inform-app-bg/.inf-* class renames.
  *
  * No test runner is configured in this repo (see src/lib/signalText.test.ts);
  * run with:  npx tsx src/pages/productCleanup.test.ts
@@ -91,7 +94,37 @@ assertTrue('components/signals/AlertDetail.tsx exists at the new location', exis
 assertTrue('components/signals/primitives.tsx exists at the new location', exists('components/signals/primitives.tsx'))
 assertTrue('components/signals/types.ts exists at the new location', exists('components/signals/types.ts'))
 assertTrue('components/signals/FeedFilterBar.tsx exists at the new location', exists('components/signals/FeedFilterBar.tsx'))
-assertTrue('the dev-only InformKit.tsx scratch page (not one of the 2 removed pages) still exists, untouched', exists('pages/InformKit.tsx'))
+
+console.log('8b. Inform naming hardening (2026-08-25): InformKit renamed to SignalsKit -- genuinely useful dev preview kept, not deleted')
+assertTrue('InformKit.tsx no longer exists on disk', !exists('pages/InformKit.tsx'))
+assertTrue('SignalsKit.tsx exists at the new location', exists('pages/SignalsKit.tsx'))
+const signalsKitSource = read('pages/SignalsKit.tsx')
+assertTrue('SignalsKit.tsx exports a SignalsKit component, not InformKit', signalsKitSource.includes('export default function SignalsKit()') && !signalsKitSource.includes('InformKit()'))
+assertTrue('App.tsx no longer imports InformKit', !appSource.includes("import('./pages/InformKit')") && !appSource.includes('InformKit'))
+assertTrue('App.tsx imports SignalsKit instead', appSource.includes("import('./pages/SignalsKit')"))
+assertTrue('the route is /signals-kit, not /inform-kit', appSource.includes('path="/signals-kit"') && !appSource.includes('/inform-kit'))
+assertTrue('the route document title reads "Signals Kit", not "InForm Kit"', appSource.includes('title="Signals Kit"') && !appSource.includes('"InForm Kit"'))
+
+console.log('8c. Inform naming hardening: stylesheets renamed, no visual/token-value change')
+assertTrue('inform-theme.css no longer exists on disk', !exists('styles/inform-theme.css'))
+assertTrue('inform-tokens.css no longer exists on disk', !exists('styles/inform-tokens.css'))
+assertTrue('signals-theme.css exists at the new location', exists('styles/signals-theme.css'))
+assertTrue('signals-tokens.css exists at the new location', exists('styles/signals-tokens.css'))
+const indexCssSource = read('index.css')
+assertTrue('index.css imports signals-tokens.css, not inform-tokens.css', indexCssSource.includes('./styles/signals-tokens.css') && !indexCssSource.includes('inform-tokens.css'))
+assertTrue('index.css imports signals-theme.css, not inform-theme.css', indexCssSource.includes('./styles/signals-theme.css') && !indexCssSource.includes('inform-theme.css'))
+
+console.log('8d. Inform naming hardening: .inform-app-bg / .inf-* classes renamed, rendered appearance preserved (same rule bodies, name only)')
+const signalsThemeSource = read('styles/signals-theme.css')
+assertTrue('.inform-app-bg no longer defined', !signalsThemeSource.includes('.inform-app-bg'))
+assertTrue('.signals-app-bg defined with the SAME rule body as the old .inform-app-bg', signalsThemeSource.includes('.signals-app-bg {'))
+assertTrue('.inf-sk / .inf-raised-lg no longer defined', !signalsThemeSource.includes('.inf-sk') && !signalsThemeSource.includes('.inf-raised'))
+assertTrue('.sig-sk / .sig-raised-lg defined instead', signalsThemeSource.includes('.sig-sk {') && signalsThemeSource.includes('.sig-raised-lg {'))
+assertTrue('WarRoom.tsx skeleton rows use sig-sk, not inf-sk', warRoomSource.includes('className="sig-sk"') && !warRoomSource.includes('inf-sk'))
+assertTrue('WarRoom.tsx Market Weather tile uses sig-raised-lg, not inf-raised-lg', warRoomSource.includes('className="sig-raised-lg"') && !warRoomSource.includes('inf-raised'))
+assertTrue('WarRoom.tsx page root uses signals-app-bg, not inform-app-bg', warRoomSource.includes('signals-app-bg') && !warRoomSource.includes('inform-app-bg'))
+const marketWeatherSource = read('components/signals/MarketWeather.tsx')
+assertTrue('MarketWeather.tsx card uses sig-raised-lg, not inf-raised-lg', marketWeatherSource.includes('sig-raised-lg') && !marketWeatherSource.includes('inf-raised'))
 
 console.log('9. WarRoom.tsx imports its retained V1 widgets from the new components/signals/ path')
 assertTrue('WarRoom.tsx imports AlertDetail from components/signals', warRoomSource.includes("from '../components/signals/AlertDetail'"))

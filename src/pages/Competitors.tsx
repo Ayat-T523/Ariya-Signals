@@ -806,7 +806,7 @@ export default function Competitors() {
     .map(p => ({ value: p, label: p, count: postureFiltered.filter(c => c.strategicPosture === p).length }))
 
   return (
-    <div className="inform-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="signals-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
       <div data-tour="competitors-page" style={{ padding: '8px 36px 36px' }}>
 
         {/* Header: Discover competitors link + View Timeline button */}

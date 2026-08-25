@@ -51,7 +51,7 @@ export const analytics = {
     _ph.capture('competitor_tab_viewed', { tab, competitor_id })
   },
 
-  // ── Ask InForm ──────────────────────────────────────────────────────────────
+  // ── Ask Ariya ────────────────────────────────────────────────────────────────
   ariya_prompt_clicked(prompt_id: string, prompt_text: string) {
     if (!enabled()) return
     _ph.capture('ariya_prompt_clicked', { prompt_id, prompt_text })

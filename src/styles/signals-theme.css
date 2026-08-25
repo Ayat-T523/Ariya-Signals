@@ -1,16 +1,16 @@
 /* ==========================================================
-   InForm — Components
+   Signals — Components
    ========================================================== */
 
 /* ---------- App shell (opt-in) ---------- */
-/* Apply to a page's root element once that page is migrated to InForm.
-   Deliberately NOT a bare `body{}` rule (see inform-tokens.css) — unmigrated
+/* Apply to a page's root element once that page is migrated to this design system.
+   Deliberately NOT a bare `body{}` rule (see signals-tokens.css) — unmigrated
    pages must keep their existing look until they opt in per component/page. */
 /* Clean Clinical: flat near-white page canvas, no gradient bloom (that was
    the warm-cream "Analyst's Desk" world's texture, retired per DESIGN.md).
    Cards separate from the page via a 1px border, not a color/shadow step --
    see FLAT_CARD_STYLE in components/signals/primitives.tsx. */
-.inform-app-bg {
+.signals-app-bg {
   background: var(--neutral-50);
   color: var(--neutral-900);
   font: var(--t-body);
@@ -1004,18 +1004,18 @@
 }
 
 /* ==========================================================
-   InForm — Ariya-specific components (Phase 0.4)
+   Signals — Ariya-specific components (Phase 0.4)
    Built from docs/design/component-references/*.html, ported onto the
    real tokens above (--cream-*/--ink-*/--indigo-*), not the reference kit
    standalone --bg-*/--primary/--text-* names or its outdated teal accent.
    ========================================================== */
 
 /* The base "raised plate" recipe used to live here as a CSS class
-   (.inf-raised, later renamed .neu-plate). Round 2 R5: that selector was
+   (.sig-raised, later renamed .neu-plate). Round 2 R5: that selector was
    reproducibly, silently dropped from both the Vite dev and production
    builds by some tool in the chain, regardless of name or position in this
    file -- reduced to NEU_PLATE_STYLE, an inline-style constant in
-   components/signals/primitives.tsx, instead. .inf-raised-lg (below, near
+   components/signals/primitives.tsx, instead. .sig-raised-lg (below, near
    .mw-card) is unaffected and still works as a real class. */
 
 /* ---------- KPI Card ---------- */
@@ -1222,15 +1222,15 @@
    ui/Skeleton.tsx primitive: that primitive's shimmer colors are hardcoded
    navy-tinted rgba() values baked into the component, not token-driven, and
    changing them would recolor every other page's still-legacy skeletons too. */
-.inf-sk {
+.sig-sk {
   border-radius: 6px;
   background: linear-gradient(90deg, var(--cream-300), var(--cream-200), var(--cream-300));
   background-size: 200% 100%;
-  animation: inf-sk-shimmer 1.3s ease-in-out infinite;
+  animation: sig-sk-shimmer 1.3s ease-in-out infinite;
 }
-@keyframes inf-sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes sig-sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .inf-sk { animation: none; background: var(--cream-300); }
+  .sig-sk { animation: none; background: var(--cream-300); }
 }
 
 .signal-feed-empty { text-align: center; padding: var(--s-8) var(--s-6); }
@@ -1311,7 +1311,7 @@
    synthesized implication. B is always a single indigo-accented takeaway,
    never one bullet per competitor. Content surface: flat white + border,
    Clean Clinical (was neu-raised-lg). */
-.inf-raised-lg { background: var(--white); border: 1px solid var(--border-default); border-radius: var(--r-flat-content); }
+.sig-raised-lg { background: var(--white); border: 1px solid var(--border-default); border-radius: var(--r-flat-content); }
 .mw-card { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5); outline: none; }
 .mw-card.compact { padding: var(--s-4); gap: var(--s-3); }
 .mw-card:focus-visible { box-shadow: var(--ring-indigo); }

@@ -65,7 +65,7 @@ export default function SlideOver({ open, onClose, title, children, width = 480 
           />
 
           {/* Panel — slides in from right. Glass chrome frame around a cream content layer,
-              per the two-layer InForm rule: chrome is glass, the workspace underneath is
+              per the two-layer Ariya Signals rule: chrome is glass, the workspace underneath is
               neumorphic cream (never glass-on-glass, never neumorphic-as-chrome). */}
           <motion.div
             key="panel"

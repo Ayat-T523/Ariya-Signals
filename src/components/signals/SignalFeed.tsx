@@ -1,4 +1,4 @@
-// InForm — Signal Feed wrapper (per docs/design/component-references/
+// Signals — Signal Feed wrapper (per docs/design/component-references/
 // Signal Feed States.html): owns loading / empty / error, renders DigestFeed
 // underneath once signals are ready. Loading and full error hide the filter
 // bar (a sibling component); no-results and partial-load keep it visible --
@@ -29,7 +29,7 @@ export interface SignalFeedProps {
 }
 
 function Skel({ w, h, r = 6, style }: { w: string | number; h: number; r?: number; style?: React.CSSProperties }) {
-  return <div className="inf-sk" style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} />
+  return <div className="sig-sk" style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} />
 }
 
 function LoadingSkeleton() {

@@ -649,10 +649,10 @@ export function AppProvider({ children }) {
 
   // ── AI modal state ────────────────────────────────────────────────────────
   // `question`, when present, is the literal text the user asked (typed into
-  // Ask InForm's chat input, or a specific question card) -- AskModal answers
+  // Ask Ariya's chat input, or a specific question card) -- AskModal answers
   // that exact question via Ollama instead of the generic recent-activity
   // briefing it falls back to when a trigger has no specific question (e.g.
-  // War Room's header "Ask InForm" button).
+  // War Room's header "Ask Ariya" button).
   const [askModal, setAskModal] = useState<{ open: boolean; source: string | null; question: string | null }>(
     { open: false, source: null, question: null }
   )

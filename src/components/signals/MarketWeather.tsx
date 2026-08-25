@@ -1,4 +1,4 @@
-// InForm — Market Weather (per docs/design/component-references/
+// Signals — Market Weather (per docs/design/component-references/
 // Market Weather.html): State (mood) -> Section A (evidence per competitor)
 // -> Section B (one synthesized implication). Content surface, never glass.
 import { useState } from 'react'
@@ -65,7 +65,7 @@ export function MarketWeather({
   const visibleRows = compact && !showAll ? rows.slice(0, 2) : rows
 
   return (
-    <div className={`mw-card inf-raised-lg${compact ? ' compact' : ''}`} tabIndex={0} style={({ '--state-color': meta.color } as React.CSSProperties)}>
+    <div className={`mw-card sig-raised-lg${compact ? ' compact' : ''}`} tabIndex={0} style={({ '--state-color': meta.color } as React.CSSProperties)}>
       <div className="mw-header">
         <div className="mw-title-group">
           <h3 className="mw-title">Market weather</h3>

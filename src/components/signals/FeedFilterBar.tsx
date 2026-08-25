@@ -1,4 +1,4 @@
-// InForm — Feed Filter Bar (per docs/design/component-references/
+// Signals — Feed Filter Bar (per docs/design/component-references/
 // Feed Filter Bar.html): glass chrome (R5) holding a pressed search field,
 // quick tabs, the reused FilterDropdown for facets, and a sort toggle.
 // Applied facet chips render as their own row so the feed's current scope

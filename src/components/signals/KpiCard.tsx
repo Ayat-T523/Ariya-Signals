@@ -1,4 +1,4 @@
-// InForm — KPI Card (per docs/design/component-references/KPI Card.html).
+// Signals — KPI Card (per docs/design/component-references/KPI Card.html).
 // Three scannability-tuned variants share one shell: delta, breakdown, sparkline.
 // The value is the hero; one support row, one action, per card.
 import { Link } from 'react-router-dom'

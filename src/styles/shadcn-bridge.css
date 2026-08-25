@@ -6,7 +6,7 @@
    Tailwind v4 utility classes (bg-primary, text-muted-foreground) and
    raw var() calls. Rather than accept each registry's own default
    palette, every value here points at the existing Clean Clinical
-   tokens in inform-tokens.css (see DESIGN.md) -- so components pulled
+   tokens in signals-tokens.css (see DESIGN.md) -- so components pulled
    from these registries render in-system from the moment they're
    added, not in generic shadcn zinc/slate.
 

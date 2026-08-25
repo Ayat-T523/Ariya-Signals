@@ -1,4 +1,4 @@
-// InForm — Alert/signal detail drawer content (SlideOver body). Extracted from
+// Signals — Alert/signal detail drawer content (SlideOver body). Extracted from
 // AlertsPage.tsx (Phase 3.1) so the War Room worklist's "Inspect" action can open
 // the exact same drawer (war-room-redesign-spec.md §5: "Inspect opens the Alerts
 // detail drawer — shared with the alerts redesign"), not a second bespoke one.

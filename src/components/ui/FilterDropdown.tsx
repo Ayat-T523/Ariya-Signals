@@ -59,11 +59,11 @@ export default function FilterDropdown({ label, options, applied, onApply }) {
     setDraft(new Set())
   }
 
-  // InForm styling: the trigger is a raised neumorphic pill (per fb-btn in
+  // Ariya Signals styling: the trigger is a raised neumorphic pill (per fb-btn in
   // docs/design/component-references/Feed Filter Bar.html); the popover is
   // glass chrome (R7) since it's passive/overlay chrome, not workspace
   // content. Logic above (search, draft/apply/clear, click-outside) is
-  // unchanged -- only presentation is InForm.
+  // unchanged -- only the presentation changed.
   return (
     <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button

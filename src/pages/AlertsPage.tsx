@@ -1,5 +1,5 @@
 /**
- * AlertsPage.tsx — InForm Alerts inbox (Phase 3.1).
+ * AlertsPage.tsx — Ariya Signals Alerts inbox (Phase 3.1).
  *
  * THESIS: an inbox you triage, not a feed you scroll — dense grouped rows,
  * one primary action (Read more → drawer), evidence one click away, never
@@ -15,7 +15,7 @@
  * FIRST VIEWPORT: stat line ("Showing N of M") → FeedFilterBar (search,
  * tabs, competitor/type facets, sort) → grouped rows. Primary action (Read
  * more) sits rightmost on every row.
- * FORM: whole-surface build inside the established InForm world (DESIGN.md
+ * FORM: whole-surface build inside the established Ariya Signals world (DESIGN.md
  * already committed) — content and layout precisely specified by
  * docs/alerts-ai-synthesis-spec.md §3, not an open concept choice.
  */
@@ -214,7 +214,7 @@ function AlertGroups({ alerts, readAlerts, savedAlerts, onOpen, onToggleRead, on
 
 // ── Empty / loading / error states ──────────────────────────────────────────
 function Skel({ w, h, r = 6, style }: { w: string | number; h: number; r?: number; style?: React.CSSProperties }) {
-  return <div className="inf-sk" style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} />
+  return <div className="sig-sk" style={{ width: w, height: h, borderRadius: r, flexShrink: 0, ...style }} />
 }
 function LoadingRows() {
   return (
@@ -414,7 +414,7 @@ export default function AlertsPage() {
     baseAlerts.length === 0 ? 'fresh' : (tab === 'Unread' && appliedChips.length === 0 && !query) ? 'caught-up' : 'no-results'
 
   return (
-    <div data-tour="alerts-page" className="inform-app-bg" style={{ padding: '20px 36px 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-tour="alerts-page" className="signals-app-bg" style={{ padding: '20px 36px 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 'var(--t-caption)', color: 'var(--ink-600)' }}>
         {isLoading ? 'Loading signals…' : (

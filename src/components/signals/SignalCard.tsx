@@ -1,5 +1,5 @@
-// InForm — Signal Card (per docs/design/component-references/Signal Card.html).
-// X-Card anatomy on InForm's neumorphic shell: three facts at rest (author,
+// Signals — Signal Card (per docs/design/component-references/Signal Card.html).
+// X-Card anatomy on the Signals neumorphic shell: three facts at rest (author,
 // headline, meta); excerpt + WHY reveal as a nested pressed sub-card on expand.
 import { useState, type KeyboardEvent } from 'react'
 import { ExternalLink, ChevronDown } from 'lucide-react'

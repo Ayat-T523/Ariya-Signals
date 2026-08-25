@@ -95,7 +95,7 @@ export default function Layout() {
         </main>
       </SidebarInset>
 
-      {/* Ask InForm modal — shared across all pages */}
+      {/* Ask Ariya modal — shared across all pages */}
       <AskModal
         open={askModal.open}
         onOpenChange={(open) => { if (!open) closeAskModal() }}

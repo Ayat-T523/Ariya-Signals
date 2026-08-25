@@ -1,4 +1,4 @@
-// InForm — Digest Feed, Variant A (per docs/design/component-references/
+// Signals — Digest Feed, Variant A (per docs/design/component-references/
 // Signal Feed Variants.html): fewest boxes. One plate holds every competitor
 // group; entries are hairline rows, not individually-elevated cards.
 import { useState } from 'react'

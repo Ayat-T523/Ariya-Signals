@@ -1,5 +1,5 @@
 /**
- * ollama.ts — client-side Ollama client for the live "Ask InForm" modal.
+ * ollama.ts — client-side Ollama client for the live "Ask Ariya" modal.
  *
  * Mirrors scripts/lib/buildCleanHeadline.mjs's calling convention (same
  * /api/generate endpoint, same non-streaming request shape) but reads

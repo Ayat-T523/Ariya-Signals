@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
-@import "./styles/inform-tokens.css";
+@import "./styles/signals-tokens.css";
 @import "./styles/shadcn-bridge.css";
-@import "./styles/inform-theme.css";
+@import "./styles/signals-theme.css";
 @import "driver.js/dist/driver.css";
 @import "./styles/driver-tour.css";
 

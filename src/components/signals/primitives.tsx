@@ -1,4 +1,4 @@
-// InForm — small shared primitives used across the Ariya component set.
+// Signals — small shared primitives used across the Ariya component set.
 import type { Severity } from './types'
 
 export function severityColor(sev: Severity): string {
@@ -43,7 +43,7 @@ export function DotSep() {
   return <span aria-hidden="true" style={{ width: 3, height: 3, borderRadius: '50%', background: 'currentColor', opacity: 0.5, flexShrink: 0 }} />
 }
 
-// Inline equivalent of the .inf-raised/.inf-raised-lg CSS recipes (cream-100
+// Inline equivalent of the .sig-raised/.sig-raised-lg CSS recipes (cream-100
 // neumorphic plain container, per DESIGN.md's content layer). Not a CSS
 // class: those two selectors were reproducibly, silently dropped from both
 // the Vite dev and production builds by some tool in the chain (Tailwind
@@ -58,5 +58,5 @@ export const NEU_PLATE_STYLE: React.CSSProperties = { background: 'var(--cream-1
 // Clean Clinical replacement for NEU_PLATE_STYLE: flat white surface, 1px
 // neutral border, no resting shadow, no corner radius (see DESIGN.md's "One
 // material layer" -- content-area containers are sharp-cornered, not just
-// flat). Also sidesteps the .inf-raised silent-drop build bug by staying inline.
+// flat). Also sidesteps the .sig-raised silent-drop build bug by staying inline.
 export const FLAT_CARD_STYLE: React.CSSProperties = { background: 'var(--white)', border: '1px solid var(--border-default)', borderRadius: 'var(--r-flat-content)' }

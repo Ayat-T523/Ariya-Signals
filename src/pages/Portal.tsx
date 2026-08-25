@@ -557,7 +557,7 @@ function WeekStrip({ selectedDate, onDateSelect, allEvents }: {
 // ── Grouped daily digest (critique 2026-07-28) ───────────────────────────────
 // Replaces the old one-full-card-per-event list: a plate of hairline rows,
 // grouped under a bold day heading, same shell as DigestFeed's competitor-
-// grouped variant (.digest-plate/.digest-group/.digest-row in inform-theme.css)
+// grouped variant (.digest-plate/.digest-group/.digest-row in signals-theme.css)
 // — reusing that visual pattern rather than inventing a second "grouped list"
 // language. A row shows only what's needed to scan and decide whether to open
 // it; everything EventCard used to always render (CI significance, attending
@@ -1599,7 +1599,7 @@ export default function Portal() {
   }, [])
 
   return (
-    <div data-tour="intelligence-feed" className="inform-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div data-tour="intelligence-feed" className="signals-app-bg" style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Tab bar — sticky so it stays visible while scrolling events */}
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--white)', borderBottom: '1px solid var(--border-default)' }}>
