@@ -18,7 +18,8 @@ import { currentQuarterStart, daysSince } from '../lib/clock'
 import { Badge } from '../components/shadcn/ui/badge'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId, type TrackedCompetitor } from '../config/setup-draft'
-import { fetchLandscapeSignals, SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { computeCompanyOverviewStats, buildCompactCompanySummary } from '../lib/competitorOverview'
 
 const RELATIONSHIP_LABEL: Record<'direct' | 'indirect', string> = { direct: 'Direct', indirect: 'Indirect' }
 
@@ -249,26 +250,28 @@ function CompetitorCard({ competitor, liveSignals, haeAssetCount, userRelationsh
   )
 }
 
-// ── TrackedCompetitorCard ─────────────────────────────────────────────────────
-// SETUP PROPAGATION: a real, backend-discovered tracked competitor with no
-// legacy static/live-data profile (competitors.json / company_signals) to
-// enrich it with. Deliberately does NOT reuse CompetitorCard's posture pill,
-// marketedProducts/pipeline descriptor, or signal/last-signal stats -- none
-// of that data truthfully exists for a company outside the legacy HAE
-// roster. Shows only what setup actually produced: company name, the user's
-// own Direct/Indirect classification, and the real relevant-assets evidence
-// from discovery. Reuses the same .competitor-card/.cc-* classes so it sits
-// visually consistent in the grid without introducing new styling.
-function TrackedCompetitorCard({ competitor, latestSignals }: { competitor: TrackedCompetitor; latestSignals: LandscapeSignal[] }) {
+// ── V1CompetitorCard ──────────────────────────────────────────────────────
+// RESTORED COMPETITORS EXPERIENCE (2026-08-25): the ONE real-data card for
+// every tracked competitor once a real active landscape exists -- replaces
+// the legacy-id-matched CompetitorCard/TrackedCompetitorCard split entirely
+// (see report section 4/5). Never reads competitors.json; every field comes
+// from the user's own Direct/Indirect setup classification or a real,
+// already disease-scoped Signal (fetchLandscapeSignals, grouped by exact
+// companyId equality upstream -- see landscapeSignalsByCompany below).
+function V1CompetitorCard({ competitor, signals }: { competitor: TrackedCompetitor; signals: LandscapeSignal[] }) {
+  const stats = computeCompanyOverviewStats(signals)
+  const dotCount = Math.min(5, stats.signalCount)
+
   return (
-    <div className="competitor-card" style={{ cursor: 'default' }}>
+    <Link
+      to={`/competitors/${encodeURIComponent(competitor.companyId)}`}
+      className="competitor-card"
+      onClick={() => analytics.competitor_viewed(competitor.companyName)}
+    >
       <div className="cc-header">
         <CompetitorBadge name={competitor.companyName} size={44} />
         <div className="cc-title-group">
           <p className="cc-name">{competitor.companyName}</p>
-          <span className="cc-posture tier-incumbent">
-            {competitor.source === 'manual' ? 'Manually added' : 'Discovered'}
-          </span>
         </div>
         <Badge
           variant={competitor.userRelationship === 'direct' ? 'default' : 'outline'}
@@ -278,38 +281,40 @@ function TrackedCompetitorCard({ competitor, latestSignals }: { competitor: Trac
         </Badge>
       </div>
 
-      <p className="cc-descriptor">
-        {competitor.relevantAssets.length > 0
-          ? `Relevant assets: ${competitor.relevantAssets.map((a) => a.identityKey).join(', ')}`
-          : 'No relevant assets recorded.'}
-      </p>
+      <p className="cc-descriptor">{buildCompactCompanySummary(stats)}</p>
 
-      <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '11px', color: 'var(--ink-600)' }}>
-        {competitor.evidenceStatus === 'evidence_available'
-          ? `${competitor.evidenceRefs.length} evidence reference${competitor.evidenceRefs.length === 1 ? '' : 's'} from discovery`
-          : 'Not yet evaluated for live signals.'}
-      </p>
-
-      {/* V1 Signal engine (2026-08-24, report section 16): latest Signal(s)
-          for THIS company, via canonical company_id matching only (the
-          `latestSignals` prop is already grouped by exact companyId
-          equality upstream -- never a fuzzy name match, so a signal for
-          Alexion can never surface under argenx's card). */}
-      {latestSignals.length > 0 && (
-        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 600, color: 'var(--ink-700)' }}>
-            Latest signal{latestSignals.length > 1 ? 's' : ''}
-          </span>
-          {latestSignals.map((s) => (
-            <p key={s.id} style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '11px', color: 'var(--ink-600)' }}>
-              <span style={{ fontWeight: 500 }}>{SIGNAL_TYPE_LABELS[s.signalType]}</span>
-              {s.assetName ? ` · ${s.assetName}` : ''}
-              {' · '}{s.occurredAt.slice(0, 10)}
-            </p>
-          ))}
+      <div className="cc-stats">
+        <div className="cc-stat">
+          <span className="cc-stat-label">Pipeline</span>
+          <span className="cc-stat-value">{stats.assetCount} assets</span>
         </div>
-      )}
-    </div>
+        <div className="cc-stat-divider" />
+        <div className="cc-stat">
+          <span className="cc-stat-label">
+            Last signal
+            {stats.signalCount > 0 && <span className="cc-stat-live" aria-hidden="true" />}
+          </span>
+          <span className="cc-stat-value">{formatDate(stats.lastSignalAt ?? '')}</span>
+        </div>
+        <div className="cc-stat-divider" />
+        <div className="cc-stat">
+          <span className="cc-stat-label">Activity</span>
+          <span style={{ display: 'flex', gap: '3px', alignItems: 'center' }} aria-label={`${stats.signalCount} signals`}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <span key={i} style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: i < dotCount ? 'var(--sage-600)' : 'var(--cream-300)',
+              }} />
+            ))}
+          </span>
+        </div>
+      </div>
+
+      <span className="cc-cta">
+        See more details
+        <ChevronRight size={13} aria-hidden="true" />
+      </span>
+    </Link>
   )
 }
 
@@ -693,8 +698,9 @@ export default function Competitors() {
   const { indication } = useConfig()
   // SETUP PROPAGATION: once a real completed landscape exists, it is
   // authoritative over the legacy HAE default -- see activeLandscape.ts.
-  // `matches` also drives which trackedCompetitors get a real legacy card
-  // (below) vs. the honest minimal TrackedCompetitorCard.
+  // `matches`/`relationshipByLegacyId` below only feed the legacy demo
+  // grid's CompetitorCard now (2026-08-25) -- every real tracked competitor
+  // renders via the unified V1CompetitorCard instead (see the grid below).
   const { hasActiveLandscape, legacyIds: activeLandscapeIds, matches } = useMemo(
     () => activeLandscapeSignalScope(trackedCompetitors, competitors),
     [trackedCompetitors],
@@ -733,11 +739,19 @@ export default function Competitors() {
     for (const m of matches) if (m.legacyId) map.set(m.legacyId, m.competitor.userRelationship)
     return map
   }, [matches])
-  // Tracked competitors with no legacy profile at all -- rendered via the
-  // honest minimal card, never fabricated into a rich legacy one.
-  const unmatchedTrackedCompetitors: TrackedCompetitor[] = hasActiveLandscape
-    ? matches.filter((m) => m.legacyId === null).map((m) => m.competitor)
-    : []
+  // RESTORED COMPETITORS EXPERIENCE (2026-08-25): every tracked competitor
+  // renders via the ONE unified V1CompetitorCard when a real active
+  // landscape exists -- sorted by most-recent real Signal first, never by
+  // the legacy-id-matched split this replaces (see report section 4/24).
+  const sortedTrackedCompetitors = useMemo(() => {
+    if (!hasActiveLandscape) return []
+    return [...trackedCompetitors].sort((a, b) => {
+      const aLast = computeCompanyOverviewStats(landscapeSignalsByCompany.get(a.companyId) ?? []).lastSignalAt ?? ''
+      const bLast = computeCompanyOverviewStats(landscapeSignalsByCompany.get(b.companyId) ?? []).lastSignalAt ?? ''
+      if (aLast !== bLast) return bLast.localeCompare(aLast)
+      return a.companyName.localeCompare(b.companyName)
+    })
+  }, [hasActiveLandscape, trackedCompetitors, landscapeSignalsByCompany])
   const [showTimeline, setShowTimeline] = useState(false)
   const [signalsSummary, setSignalsSummary] = useState(new Map<string, DbSignalSummary>())
   const [haeAssetCountMap, setHaeAssetCountMap] = useState(new Map<string, number>())
@@ -846,6 +860,20 @@ export default function Competitors() {
           </div>
         </div>
 
+        {/* RESTORED COMPETITORS EXPERIENCE (2026-08-25, report section 3):
+            heading + subheading only for a real active landscape -- the
+            legacy demo path never had (and doesn't need) this heading. */}
+        {hasActiveLandscape && (
+          <div style={{ marginBottom: '20px' }}>
+            <h1 style={{ margin: '0 0 4px', fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 700, color: 'var(--ink-900)' }}>
+              Tracked Competitors
+            </h1>
+            <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--ink-600)' }}>
+              {trackedCompetitors.length} competitor{trackedCompetitors.length === 1 ? '' : 's'} tracked · {indication}
+            </p>
+          </div>
+        )}
+
         {/* Timeline panel — shown above the grid */}
         {showTimeline && (
           <div style={{
@@ -873,33 +901,58 @@ export default function Competitors() {
         )}
 
         {/* Sort + posture filter control bar (§2.2) — glass chrome, per DESIGN.md's
-            two-layer model (filter bars are chrome, never neumorphic content). */}
-        <div className="feed-filter-bar" style={{ margin: showTimeline ? '0 0 16px' : '4px 0 16px' }}>
-          <div className="seg">
-            {SORT_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`seg-item${sortMode === opt.value ? ' is-active' : ''}`}
-                onClick={() => setSortMode(opt.value)}
-                style={{ border: 'none', background: sortMode === opt.value ? undefined : 'transparent' }}
-              >
-                {opt.label}
-              </button>
-            ))}
+            two-layer model (filter bars are chrome, never neumorphic content).
+            Legacy demo path only (2026-08-25): a real active landscape has no
+            legacy-posture data to sort/filter by -- see the V1 grid below,
+            which instead sorts real tracked competitors by real Signal recency. */}
+        {!hasActiveLandscape && (
+          <div className="feed-filter-bar" style={{ margin: showTimeline ? '0 0 16px' : '4px 0 16px' }}>
+            <div className="seg">
+              {SORT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg-item${sortMode === opt.value ? ' is-active' : ''}`}
+                  onClick={() => setSortMode(opt.value)}
+                  style={{ border: 'none', background: sortMode === opt.value ? undefined : 'transparent' }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {postureOptions.length > 0 && (
+              <FilterDropdown label="Posture" options={postureOptions} applied={postureFilter} onApply={setPostureFilter} />
+            )}
+
+            <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', marginLeft: 'auto' }}>
+              {sorted.length} shown
+            </span>
           </div>
-
-          {postureOptions.length > 0 && (
-            <FilterDropdown label="Posture" options={postureOptions} applied={postureFilter} onApply={setPostureFilter} />
-          )}
-
-          <span className="num" style={{ fontSize: '12px', color: 'var(--ink-600)', marginLeft: 'auto' }}>
-            {sorted.length + unmatchedTrackedCompetitors.length} shown
-          </span>
-        </div>
+        )}
 
         {/* Responsive card grid */}
-        {sorted.length === 0 && unmatchedTrackedCompetitors.length === 0 ? (
+        {hasActiveLandscape ? (
+          sortedTrackedCompetitors.length === 0 ? (
+            <EmptyState message="No tracked competitors yet." />
+          ) : (
+            <motion.div
+              variants={staggerContainer} initial="initial" animate="animate"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}
+            >
+              {sortedTrackedCompetitors.map((tc) => (
+                <motion.div
+                  key={tc.companyId}
+                  variants={listItem}
+                  whileHover={REDUCED_MOTION ? {} : { y: -2 }}
+                  transition={{ duration: 0.12 }}
+                >
+                  <V1CompetitorCard competitor={tc} signals={landscapeSignalsByCompany.get(tc.companyId) ?? []} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )
+        ) : sorted.length === 0 ? (
           <EmptyState message="No competitors match this filter." />
         ) : (!loaded || !liveDataReady) ? (
           <SkeletonCompetitorGrid count={competitors.length} />
@@ -921,19 +974,6 @@ export default function Competitors() {
                   haeAssetCount={haeAssetCountMap.get(c.id) ?? (c.pipeline || []).length}
                   userRelationship={relationshipByLegacyId.get(c.id) ?? null}
                 />
-              </motion.div>
-            ))}
-            {/* SETUP PROPAGATION: real tracked competitors from the active
-                landscape with no legacy profile -- honest minimal card, never
-                fabricated into the rich legacy shape above. */}
-            {unmatchedTrackedCompetitors.map((tc) => (
-              <motion.div
-                key={tc.companyId}
-                variants={listItem}
-                whileHover={REDUCED_MOTION ? {} : { y: -2 }}
-                transition={{ duration: 0.12 }}
-              >
-                <TrackedCompetitorCard competitor={tc} latestSignals={landscapeSignalsByCompany.get(tc.companyId)?.slice(0, 2) ?? []} />
               </motion.div>
             ))}
           </motion.div>

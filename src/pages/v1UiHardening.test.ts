@@ -134,8 +134,15 @@ assertTrue('the now-dead isHaeAcute predicate is gone (it only ever matched the 
 assertTrue('the now-dead isHaeProphylaxis predicate is gone', !competitorsSource.includes('function isHaeProphylaxis'))
 assertTrue('no generic replacement labels were invented in its place', !competitorsSource.includes("label: 'Acute'") && !competitorsSource.includes("label: 'Prophylaxis'") && !competitorsSource.includes("label: 'Primary'") && !competitorsSource.includes("label: 'Core'"))
 assertTrue('the unrelated strategic-posture filter (a real, disease-neutral feature) is untouched', competitorsSource.includes('const [postureFilter, setPostureFilter] = useState(new Set<string>())') && competitorsSource.includes('<FilterDropdown label="Posture"'))
-assertTrue('tracked-competitor rendering (legacy-matched + unmatched honest-card paths) is untouched', competitorsSource.includes('{sorted.map(c =>') && competitorsSource.includes('{unmatchedTrackedCompetitors.map((tc) =>'))
-assertTrue('the "N shown" count still sums both rendering paths', competitorsSource.includes('{sorted.length + unmatchedTrackedCompetitors.length} shown'))
+// RESTORED COMPETITORS EXPERIENCE (2026-08-25): the legacy-id-matched
+// CompetitorCard / honest-minimal TrackedCompetitorCard split this section
+// previously asserted was intentionally REPLACED by a single unified
+// V1CompetitorCard for every real tracked competitor once a real active
+// landscape exists (report section 4/24) -- the legacy `sorted.map(c => ...)`
+// grid survives untouched for the demo-only `!hasActiveLandscape` path.
+assertTrue('the legacy demo-only CompetitorCard grid is untouched', competitorsSource.includes('{sorted.map(c =>'))
+assertTrue('the unified V1CompetitorCard renders every real tracked competitor via canonical companyId, not a legacy-matched id', competitorsSource.includes('{sortedTrackedCompetitors.map((tc) =>') && competitorsSource.includes('<V1CompetitorCard competitor={tc} signals={landscapeSignalsByCompany.get(tc.companyId)'))
+assertTrue('the legacy-id-matched TrackedCompetitorCard split is gone (replaced, not merely renamed)', !competitorsSource.includes('function TrackedCompetitorCard') && !competitorsSource.includes('unmatchedTrackedCompetitors'))
 
 console.log('12. WarRoom.tsx/Portal.tsx: the primary Signal fetch is all-time, disease/company scoping and honest zero-states are preserved (pre-freeze fix 2026-08-24)')
 const landscapeSignalsClientSource = fs.readFileSync(

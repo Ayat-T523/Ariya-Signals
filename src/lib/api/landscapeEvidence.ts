@@ -36,6 +36,19 @@ export interface LandscapeEvidenceItem {
   lastObservedAt: string
   provenance: string | null
   verificationStatus: string | null
+  /**
+   * The raw source-specific payload dict the backend already attaches to
+   * every evidence row (evidence_store.py's query_landscape_evidence(), e.g.
+   * `trial_phases`, `overall_status`, `candidate_disposition`,
+   * `original_approval_date`, `marketing_authorisation_date`,
+   * `semantic_event_type`) -- widened onto this type (Competitors Pipeline
+   * tab restoration, 2026-08-25) instead of adding a new backend endpoint,
+   * per that checkpoint's own "prefer frontend implementation... verify data
+   * cannot already be derived from existing APIs" instruction. Shape varies
+   * by sourceType; callers (see pipelineStage.ts) read specific keys
+   * defensively and never assume every key is present.
+   */
+  payload: Record<string, unknown> | null
 }
 
 function toLandscapeEvidenceItem(raw: any): LandscapeEvidenceItem {
@@ -53,6 +66,7 @@ function toLandscapeEvidenceItem(raw: any): LandscapeEvidenceItem {
     lastObservedAt: raw.last_observed_at,
     provenance: raw.provenance ?? null,
     verificationStatus: raw.verification_status ?? null,
+    payload: raw.payload ?? null,
   }
 }
 

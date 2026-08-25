@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -14,6 +14,9 @@ import PipelineTab from '../components/competitor/tabs/PipelineTab'
 import CompanyTab from '../components/competitor/tabs/CompanyTab'
 import MessagingTab from '../components/competitor/tabs/MessagingTab'
 import KeyEventsTab from '../components/competitor/tabs/KeyEventsTab'
+import CompetitorProfileV1 from './CompetitorProfileV1'
+import { useApp } from '../context/AppContext'
+import { activeLandscapeSignalScope } from '../lib/activeLandscape'
 import competitors from '../data/competitors.json'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
@@ -53,12 +56,39 @@ export default function CompetitorProfile() {
   const { id } = useParams()
   const [activeTab, setActiveTab] = useState(0)
 
+  // RESTORED COMPETITORS EXPERIENCE (2026-08-25, report section 6): a real
+  // tracked V1 company (Direct/Indirect classified via Setup, no
+  // competitors.json entry) gets the new real-data profile. Every other
+  // case -- no active landscape at all, or a legacy-demo id -- falls
+  // through to this component's original, completely untouched body below.
+  const { trackedCompetitors } = useApp()
+  const { hasActiveLandscape } = useMemo(
+    () => activeLandscapeSignalScope(trackedCompetitors, competitors),
+    [trackedCompetitors],
+  )
+  const trackedCompetitor = hasActiveLandscape ? trackedCompetitors.find((tc) => tc.companyId === id) : undefined
+
   const stubCompetitor = competitors.find((c) => c.id === id)
   const { data: liveCompetitor, isLoading } = useCompetitorSupabase(stubCompetitor ?? {})
   // Use live data when ready; while loading show stub metadata only (name/logo/header)
   // so we never flash illustrative pipeline/events/messaging content.
   const competitor = liveCompetitor ?? stubCompetitor
-  useDocumentTitle(stubCompetitor?.name ?? 'Competitor Profile')
+  useDocumentTitle((hasActiveLandscape ? trackedCompetitor?.companyName : stubCompetitor?.name) ?? 'Competitor Profile')
+
+  if (hasActiveLandscape) {
+    if (!trackedCompetitor) {
+      return (
+        <NotFoundState
+          heading="Competitor not found"
+          subtext="This competitor may have been removed or the URL may be incorrect."
+          backTo="/competitors"
+          backLabel="View all competitors"
+        />
+      )
+    }
+    return <CompetitorProfileV1 competitor={trackedCompetitor} />
+  }
+
   if (!stubCompetitor) {
     return (
       <NotFoundState
