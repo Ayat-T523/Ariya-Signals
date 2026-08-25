@@ -103,7 +103,11 @@ const portalSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'Portal
 console.log('8. lib/upcomingEvents.ts (War Room semantic-integrity checkpoint, 2026-08-25): the static-fixture company-scope rule extracted from WarRoom.tsx applies the SAME rule proven above, not a competing reimplementation -- and the static fixture is now structurally unreachable at all for an active V1 landscape (never merely a fallback truthy check)')
 const upcomingEventsLibSource = fs.readFileSync(path.join(__dirname, 'upcomingEvents.ts'), 'utf-8').replace(/\r\n/g, '\n')
 assertTrue('WarRoom.tsx delegates Upcoming Events to buildUpcomingEvents(), no competing inline reimplementation remains', warRoomSource.includes('buildUpcomingEvents(') && !warRoomSource.includes('staticEventItems'))
-assertTrue('an active V1 landscape returns before the static fixture is ever read at all', upcomingEventsLibSource.includes('if (hasActiveLandscape) {') && /if \(hasActiveLandscape\) \{[\s\S]*?return \[\.\.\.liveEventItems\][\s\S]*?\}/.test(upcomingEventsLibSource))
+// Report section 7-9 (2026-08-25): the active-landscape branch now ALSO
+// merges real future ESTIMATED CT.gov milestones (milestoneItems) into the
+// same return -- still never the static eventsData fixture, which is the
+// actual invariant this check proves.
+assertTrue('an active V1 landscape returns before the static fixture is ever read at all', upcomingEventsLibSource.includes('if (hasActiveLandscape) {') && /if \(hasActiveLandscape\) \{[\s\S]*?return \[\.\.\.liveEventItems, \.\.\.milestoneItems\][\s\S]*?\}/.test(upcomingEventsLibSource))
 assertTrue('attendingCompetitors-present branch requires a match in effectiveCompetitorIds (legacy-only code path)', upcomingEventsLibSource.includes('if (comps.length > 0) return comps.some((id) => effectiveCompetitorIds.has(id))'))
 assertTrue('attendingCompetitors-absent branch always shows -- this code is reachable ONLY on the legacy path (the V1 early-return above already excluded it), so an unconditional true here is the correct equivalent of the old !hasActiveLandscape fallback', /if \(comps\.length > 0\)[^\n]*\n\s*return true/.test(upcomingEventsLibSource))
 
@@ -119,8 +123,13 @@ assertTrue('parties-absent branch falls back to !hasActiveLandscape', portalSour
 
 // ── 11. Tab count contract: the badge reports the SAME array's length that is actually rendered, never a separately-recomputed number ──
 console.log('11. Tab badge counts are wired to the identical filtered array length that feeds rendering -- landscapeScopedEvents.length / scoped.length, never eventsData.length/marketData.length')
-assertTrue('EventsTab reports landscapeScopedEvents.length via onCountChange, not allEvents.length or a raw dataset length', portalSource.includes('useEffect(() => { onCountChange?.(landscapeScopedEvents.length) }, [landscapeScopedEvents.length])'))
-assertTrue('MarketTab reports scoped.length via onCountChange, not a raw dataset length', portalSource.includes('useEffect(() => { onCountChange?.(scoped.length) }, [scoped.length])'))
+// Intelligence Feed checkpoint (2026-08-25, report section 5-7): an active
+// V1 landscape now reports the real Signal-taxonomy-filtered count
+// (eventSignals.length / marketDevSignals.length) instead of the legacy
+// calendar/deals count -- the legacy branch (landscapeScopedEvents.length /
+// scoped.length) is unchanged and still the value used for !hasActiveLandscape.
+assertTrue('EventsTab reports eventSignals.length for an active landscape, landscapeScopedEvents.length for legacy -- never a raw dataset length', portalSource.includes('onCountChange?.(hasActiveLandscape ? eventSignals.length : landscapeScopedEvents.length)'))
+assertTrue('MarketTab reports marketDevSignals.length for an active landscape, scoped.length for legacy -- never a raw dataset length', portalSource.includes('onCountChange?.(hasActiveLandscape ? marketDevSignals.length : scoped.length)'))
 assertTrue('TabBar renders from the counts prop, never the removed static TAB_COUNTS constant', portalSource.includes('{String(counts[i]).padStart(2, \'0\')}') && !portalSource.includes('TAB_COUNTS[i]'))
 assertTrue('the old static TAB_COUNTS export/binding no longer exists as the live source of truth (renamed _FALLBACK, used only as pre-effect placeholder)', !/(?<!_)TAB_COUNTS\s*=/.test(portalSource) && portalSource.includes('TAB_COUNTS_FALLBACK'))
 

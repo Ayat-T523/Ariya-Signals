@@ -16,11 +16,36 @@
  */
 import { apiGet } from './client'
 
+// Intelligence Feed checkpoint (2026-08-25, report section 2/5): this union
+// previously only listed 5 values and was missing every explicit CT.gov
+// source-event type (TRIAL_FIRST_POSTED, etc.) and the full Company PR/SEC
+// EDGAR taxonomy (signals.py's own _COMPANY_PR_EVENT_VERBS) -- meaning
+// SIGNAL_TYPE_LABELS[signal.signalType] silently rendered `undefined` for
+// every real Signal currently in the database (LandscapeSignalRow.tsx's own
+// type-label span). `CLINICAL_TRIAL_ACTIVITY` is kept even though signals.py
+// no longer emits it (see that module's own comment) -- existing test
+// fixtures (landscapeSignals.test.ts/signalRanking.test.ts) still use it as
+// an arbitrary placeholder value, unrelated to this fix's own scope.
 export type LandscapeSignalType =
   | 'CLINICAL_TRIAL_ACTIVITY'
+  | 'TRIAL_FIRST_POSTED'
+  | 'RESULTS_FIRST_POSTED'
+  | 'PRIMARY_COMPLETION_REACHED'
+  | 'TRIAL_COMPLETED'
   | 'CLINICAL_TRIAL_STATUS_CHANGE'
   | 'CLINICAL_TRIAL_PHASE_CHANGE'
   | 'CLINICAL_TRIAL_COMPLETION_OR_TERMINATION'
+  | 'REGULATORY_APPROVAL'
+  | 'CLINICAL_RESULTS'
+  | 'CLINICAL_MILESTONE'
+  | 'REGULATORY_SUBMISSION'
+  | 'REGULATORY_ACCEPTANCE'
+  | 'REGULATORY_DECISION'
+  | 'COMMERCIAL_LAUNCH'
+  | 'PARTNERSHIP_OR_LICENSE'
+  | 'ACQUISITION_OR_MERGER'
+  | 'PROGRAM_DISCONTINUATION'
+  | 'CORPORATE_STRATEGY_CHANGE'
   | 'COMPANY_DISCLOSURE'
 
 export type SignalImportance = 'HIGH' | 'MEDIUM' | 'LOW'
@@ -28,9 +53,24 @@ export type SignalImportance = 'HIGH' | 'MEDIUM' | 'LOW'
 /** Plain factual labels only -- never a narrative/interpretive re-wording (report section 3's own "no invented strategic narrative" rule). */
 export const SIGNAL_TYPE_LABELS: Record<LandscapeSignalType, string> = {
   CLINICAL_TRIAL_ACTIVITY: 'Clinical trial activity',
+  TRIAL_FIRST_POSTED: 'Trial first posted',
+  RESULTS_FIRST_POSTED: 'Results first posted',
+  PRIMARY_COMPLETION_REACHED: 'Primary completion reached',
+  TRIAL_COMPLETED: 'Trial completed',
   CLINICAL_TRIAL_STATUS_CHANGE: 'Trial status change',
   CLINICAL_TRIAL_PHASE_CHANGE: 'Trial phase change',
   CLINICAL_TRIAL_COMPLETION_OR_TERMINATION: 'Trial completion/termination',
+  REGULATORY_APPROVAL: 'Regulatory approval',
+  CLINICAL_RESULTS: 'Clinical results',
+  CLINICAL_MILESTONE: 'Clinical milestone',
+  REGULATORY_SUBMISSION: 'Regulatory submission',
+  REGULATORY_ACCEPTANCE: 'Regulatory acceptance',
+  REGULATORY_DECISION: 'Regulatory decision',
+  COMMERCIAL_LAUNCH: 'Commercial launch',
+  PARTNERSHIP_OR_LICENSE: 'Partnership or license',
+  ACQUISITION_OR_MERGER: 'Acquisition or merger',
+  PROGRAM_DISCONTINUATION: 'Program discontinuation',
+  CORPORATE_STRATEGY_CHANGE: 'Corporate strategy change',
   COMPANY_DISCLOSURE: 'Company disclosure',
 }
 

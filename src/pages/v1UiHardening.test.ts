@@ -100,7 +100,12 @@ assertTrue('no "Recent evidence" heading text remains', !portalSource.includes('
 assertTrue('the RecentEvidenceStrip component definition is gone', !portalSource.includes('RecentEvidenceStrip'))
 assertTrue('the now-unnecessary evidence-only fetch (fetchLandscapeEvidence) is gone', !portalSource.includes('fetchLandscapeEvidence'))
 assertTrue('RecentSignalsStrip ("Recent signals") is still defined and rendered', portalSource.includes('function RecentSignalsStrip') && portalSource.includes('<RecentSignalsStrip'))
-assertTrue('Recent signals still renders LandscapeSignalRow, never an evidence row', portalSource.includes('signalsList.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)'))
+// Intelligence Feed checkpoint (2026-08-25, report section 3-4/8): now maps
+// over `visibleSignals` (the Default/Leadership-filtered, bounded-initial
+// slice of signalsList), not signalsList directly -- the actual invariant
+// this check proves (still LandscapeSignalRow, never a raw evidence row)
+// is unchanged.
+assertTrue('Recent signals still renders LandscapeSignalRow, never an evidence row', portalSource.includes('visibleSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)'))
 
 console.log('9. No other active V1 screen under src/pages/ renders a generic "Recent evidence" section')
 const OTHER_ACTIVE_PAGES = [
@@ -161,7 +166,10 @@ assertTrue('the Market Weather API client never imports a Groq/API-key reference
 const upcomingEventsSource = fs.readFileSync(
   path.join(pagesDir, '..', 'lib', 'upcomingEvents.ts'), 'utf-8',
 ).replace(/\r\n/g, '\n')
-assertTrue('active V1 Upcoming Events never merges the static eventsData fixture', upcomingEventsSource.includes('if (hasActiveLandscape)') && upcomingEventsSource.includes('return [...liveEventItems]'))
+// Report section 7-9 (2026-08-25): the active branch's return now also
+// merges milestoneItems (real CT.gov milestones) -- still never the static
+// eventsData fixture, which is the actual invariant this check proves.
+assertTrue('active V1 Upcoming Events never merges the static eventsData fixture', upcomingEventsSource.includes('if (hasActiveLandscape)') && upcomingEventsSource.includes('return [...liveEventItems, ...milestoneItems]'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)

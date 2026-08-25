@@ -156,7 +156,18 @@ const merged = buildUpcomingEvents({
   ctgovMilestones: [milestone({ date: '2026-09-01', nctId: 'NCT00000003' })],
   maxItems: 8,
 })
-assert('nearest-first ordering across both sources', merged.map((e) => e.id), ['ctgov-NCT00000003-PRIMARY_COMPLETION', 'ema-later'])
+assert('nearest-first ordering across both sources', merged.map((e) => e.id), ['ctgov-NCT00000003-lokelma-PRIMARY_COMPLETION', 'ema-later'])
+
+console.log('14b. Active V1: two distinct assets on the SAME NCT trial never collide onto one React key')
+const twoAssetsSameTrial = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [
+    milestone({ nctId: 'NCT07465653', assetId: 'hjb647 high dose', assetName: 'HJB647 high dose' }),
+    milestone({ nctId: 'NCT07465653', assetId: 'hjb647 low dose', assetName: 'HJB647 low dose' }),
+  ],
+})
+assert('both items present', twoAssetsSameTrial.length, 2)
+assert('ids are distinct', new Set(twoAssetsSameTrial.map((e) => e.id)).size, 2)
 
 console.log('15. Active V1: static eventsData still never merges even when ctgovMilestones are present')
 const stillNoStatic = buildUpcomingEvents({

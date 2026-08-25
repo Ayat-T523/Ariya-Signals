@@ -19,6 +19,7 @@ import { competitorsData, eventsData, marketDevelopments as marketData } from '.
 import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { filterEventSignals, filterMarketDevelopmentSignals, filterLeadershipSignals } from '../lib/intelligenceFeedViews'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
@@ -770,7 +771,7 @@ function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations
   )
 }
 
-function EventsTab({ liveCalendarEvents, liveTrialCells, onCountChange }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>>; onCountChange?: (count: number) => void }) {
+function EventsTab({ liveCalendarEvents, liveTrialCells, landscapeSignals, onCountChange }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>>; landscapeSignals: LandscapeSignal[]; onCountChange?: (count: number) => void }) {
   const { watchedCompetitors, trackedCompetitors } = useApp()
   // SETUP PROPAGATION: same active-landscape scope as War Room -- once a real
   // completed landscape exists, it is authoritative over the legacy HAE
@@ -780,6 +781,17 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, onCountChange }: { live
     [trackedCompetitors],
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+
+  // Intelligence Feed checkpoint (2026-08-25, report section 5): for an
+  // active V1 landscape, "Events" is driven by the SAME scoped Signal
+  // universe RecentSignalsStrip renders -- signals.py's own normalized
+  // signal_type taxonomy already distinguishes concrete dated competitive
+  // events (see intelligenceFeedViews.ts's own EVENT_SIGNAL_TYPES docstring)
+  // from everything else, so this never re-derives a second taxonomy. This
+  // REPLACES (not merges with) the legacy eventsData/live-EMA-calendar
+  // system below for an active landscape -- reconciling the two into one
+  // unified event model is a follow-up item, not this checkpoint's scope.
+  const eventSignals = useMemo(() => filterEventSignals(landscapeSignals), [landscapeSignals])
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
   const [viewFilter, setViewFilter]         = useState('all')
@@ -847,7 +859,9 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, onCountChange }: { live
     return true
   })
 
-  useEffect(() => { onCountChange?.(landscapeScopedEvents.length) }, [landscapeScopedEvents.length])
+  useEffect(() => {
+    onCountChange?.(hasActiveLandscape ? eventSignals.length : landscapeScopedEvents.length)
+  }, [hasActiveLandscape, eventSignals.length, landscapeScopedEvents.length])
 
   const upcoming = filtered
     .filter((e) => new Date(e.date) >= TODAY)
@@ -884,6 +898,27 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, onCountChange }: { live
     { value: 'all',        label: 'All events'          },
     { value: 'leadership', label: 'Leadership priority' },
   ]
+
+  // Intelligence Feed checkpoint (2026-08-25): an active V1 landscape
+  // renders the real, source-backed event Signals directly (the SAME
+  // LandscapeSignalRow RecentSignalsStrip already uses) -- never the
+  // legacy WeekStrip/KeyCatalystsCalendar/upcoming-past calendar UI below,
+  // which is built entirely around eventsData/live-EMA-calendar shapes a
+  // Signal doesn't have. Legacy (`!hasActiveLandscape`) behavior is
+  // completely unreached by this branch, preserved byte-for-byte.
+  if (hasActiveLandscape) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {eventSignals.length === 0 ? (
+          <EmptyState message="No competitive events detected yet for this landscape." />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {eventSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1250,7 +1285,7 @@ function MarketDevCard({ item }) {
   )
 }
 
-function MarketTab({ liveDeals, onCountChange }: { liveDeals: DbRecentSignal[]; onCountChange?: (count: number) => void }) {
+function MarketTab({ liveDeals, landscapeSignals, onCountChange }: { liveDeals: DbRecentSignal[]; landscapeSignals: LandscapeSignal[]; onCountChange?: (count: number) => void }) {
   const { watchedCompetitors, trackedCompetitors } = useApp()
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
@@ -1263,6 +1298,15 @@ function MarketTab({ liveDeals, onCountChange }: { liveDeals: DbRecentSignal[]; 
     [trackedCompetitors],
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
+
+  // Intelligence Feed checkpoint (2026-08-25, report section 6): for an
+  // active V1 landscape, Market Developments is reserved for genuinely
+  // structural/market-changing Signal types (intelligenceFeedViews.ts's own
+  // MARKET_DEVELOPMENT_SIGNAL_TYPES docstring) -- a deliberately NARROWER
+  // subset of the same Signal universe Events reads, never every ordinary
+  // trial milestone. Zero such Signals is an honest, correct zero state,
+  // never forced diversity.
+  const marketDevSignals = useMemo(() => filterMarketDevelopmentSignals(landscapeSignals), [landscapeSignals])
 
   // Map live company_signals deals to market-dev card format — scoped to the active landscape
   const liveDealItems = liveDeals.filter(row => effectiveCompetitorIds.has(row.competitor_id ?? '')).map((row) => ({
@@ -1301,13 +1345,34 @@ function MarketTab({ liveDeals, onCountChange }: { liveDeals: DbRecentSignal[]; 
   const sorted = scoped
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  useEffect(() => { onCountChange?.(scoped.length) }, [scoped.length])
+  useEffect(() => {
+    onCountChange?.(hasActiveLandscape ? marketDevSignals.length : scoped.length)
+  }, [hasActiveLandscape, marketDevSignals.length, scoped.length])
 
   const filtered = activeFilter === 'all'
     ? sorted
     : activeFilter === 'deal'
     ? sorted.filter((m: any) => m.type === 'deal')
     : sorted.filter((m: any) => m.type === 'hta' || m.type === 'payer')
+
+  // Intelligence Feed checkpoint (2026-08-25): an active V1 landscape
+  // renders the real, source-backed Market Development Signals directly --
+  // never the legacy marketData/liveDeals cards below (built around a
+  // shape a Signal doesn't have). Legacy (`!hasActiveLandscape`) behavior
+  // is completely unreached by this branch, preserved byte-for-byte.
+  if (hasActiveLandscape) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {marketDevSignals.length === 0 ? (
+          <EmptyState message="No market developments match the current filter." />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {marketDevSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1374,6 +1439,20 @@ const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 // configured landscape, chronologically. Deliberately its OWN section, NOT
 // folded into the Events/Market Developments tabs (report section 15: "do
 // not fill unrelated legacy tabs with invented content").
+// Intelligence Feed checkpoint (2026-08-25, report sections 3-4/8):
+// Default/Leadership view toggle + a bounded initial render. Default is the
+// broad operational feed (unfiltered -- unchanged from before this
+// checkpoint); Leadership is a narrower PRESENTATION of the exact same
+// scoped Signal universe (filterLeadershipSignals() reads the existing
+// `importance` field -- no second evidence store, no client-side AI, and
+// switching never mutates a Signal's own factual title/date/source).
+// INITIAL_VISIBLE_COUNT bounds the first paint (report section 8: "do not
+// dump hundreds of historical rows") without adding pagination machinery --
+// same "Show all (N)" pattern MarketWeather.tsx's own `compact` mode
+// already established, reused here for consistency rather than inventing a
+// second load-more mechanism.
+const INITIAL_VISIBLE_COUNT = 20
+
 function RecentSignalsStrip({
   signalsList, loading, hasDiscoveredCompanies,
 }: {
@@ -1381,23 +1460,63 @@ function RecentSignalsStrip({
   loading: boolean
   hasDiscoveredCompanies: boolean
 }) {
+  const [view, setView] = useState<'default' | 'leadership'>('default')
+  const [showAll, setShowAll] = useState(false)
+  const viewedSignals = view === 'leadership' ? filterLeadershipSignals(signalsList) : signalsList
+  const visibleSignals = showAll ? viewedSignals : viewedSignals.slice(0, INITIAL_VISIBLE_COUNT)
+
   if (!hasDiscoveredCompanies) return null
   return (
     <div style={{ padding: '10px 36px 0' }}>
       <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
-        <h2 style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
-          Recent signals
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '6px' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
+            Recent signals
+          </h2>
+          {signalsList.length > 0 && (
+            <div className="seg">
+              {(['default', 'leadership'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`seg-item${view === v ? ' is-active' : ''}`}
+                  onClick={() => { setView(v); setShowAll(false) }}
+                  style={{ border: 'none', background: view === v ? undefined : 'transparent', textTransform: 'capitalize' }}
+                >
+                  {v === 'default' ? 'Default' : 'Leadership'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {loading ? (
           <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
         ) : signalsList.length === 0 ? (
           <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
             No source-backed Signals yet — check back as discovery runs.
           </p>
+        ) : viewedSignals.length === 0 ? (
+          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
+            No high-priority Signals in this landscape right now.
+          </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {signalsList.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
-          </div>
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {visibleSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+            </div>
+            {!showAll && viewedSignals.length > INITIAL_VISIBLE_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                style={{
+                  marginTop: '8px', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)',
+                }}
+              >
+                Show all ({viewedSignals.length})
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -1500,8 +1619,8 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} onCountChange={(n) => setTabCounts((prev) => [n, prev[1]])} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} onCountChange={(n) => setTabCounts((prev) => [prev[0], n])} /></div>
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} landscapeSignals={landscapeSignals} onCountChange={(n) => setTabCounts((prev) => [n, prev[1]])} /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} landscapeSignals={landscapeSignals} onCountChange={(n) => setTabCounts((prev) => [prev[0], n])} /></div>
           </motion.div>
         )}
       </div>

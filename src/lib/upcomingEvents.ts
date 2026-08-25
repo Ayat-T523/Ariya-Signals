@@ -98,7 +98,13 @@ const CTGOV_MILESTONE_LABEL: Record<CtgovUpcomingMilestone['milestoneType'], str
  *  (a fixed date), this is a sponsor's own projection. */
 function buildCtgovMilestoneItems(milestones: CtgovUpcomingMilestone[]): NextUpEvent[] {
   return milestones.map((m) => ({
-    id: `ctgov-${m.nctId ?? m.assetId}-${m.milestoneType}`,
+    // FIX (Intelligence Feed checkpoint, 2026-08-25 recon): a single NCT
+    // trial can enroll multiple distinct assets/arms (live-observed:
+    // NCT07465653 -> both "HJB647 high dose" and "HJB647 low dose"), each
+    // producing its own milestone row -- `nctId` alone collided into a
+    // duplicate React key. `assetId` is always distinct per row even when
+    // `nctId` is shared.
+    id: `ctgov-${m.nctId ?? m.assetId}-${m.assetId}-${m.milestoneType}`,
     date: m.date,
     title: `${m.assetName} — ${CTGOV_MILESTONE_LABEL[m.milestoneType]} (estimated)`,
     sourceUrl: m.sourceUrl,
