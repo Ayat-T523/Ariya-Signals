@@ -45,4 +45,9 @@ export interface WeatherRow {
   summary: string
 }
 
-export type WeatherState = 'clearing' | 'stable' | 'pressure' | 'storm'
+// 'pending' (War Room semantic-integrity checkpoint, 2026-08-25): the one
+// honest "no real assessment yet" badge -- covers loading/no-signals/
+// unavailable/invalid backend results alike, so none of them can be
+// mistaken for a genuine 'clearing' verdict. Which condition applies is
+// carried in the qualifier/empty-message copy, not a second state model.
+export type WeatherState = 'clearing' | 'stable' | 'pressure' | 'storm' | 'pending'

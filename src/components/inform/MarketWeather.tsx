@@ -3,7 +3,7 @@
 // -> Section B (one synthesized implication). Content surface, never glass.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { TrendingUp, ArrowRight, TrendingDown, AlertTriangle } from 'lucide-react'
+import { TrendingUp, ArrowRight, TrendingDown, AlertTriangle, Minus } from 'lucide-react'
 import CompetitorBadge from '../ui/CompetitorBadge'
 import { SeverityDot } from './primitives'
 import type { WeatherRow, WeatherState } from './types'
@@ -14,6 +14,8 @@ const STATE_META: Record<WeatherState, { label: string; icon: typeof TrendingUp;
   stable: { label: 'Holding steady', icon: ArrowRight, color: 'var(--info-600)' },
   pressure: { label: 'Pressure building', icon: TrendingDown, color: 'var(--amber-800)' },
   storm: { label: 'Storm warning', icon: AlertTriangle, color: 'var(--crimson-600)' },
+  // No real assessment yet -- see WeatherState's own docstring in types.ts.
+  pending: { label: 'Assessment pending', icon: Minus, color: 'var(--neutral-500)' },
 }
 
 /** A cross-Signal grounded synthesis statement (War Room semantic-

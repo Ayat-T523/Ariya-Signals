@@ -61,6 +61,7 @@ import { resolveCanonicalIndicationId } from '../config/setup-draft'
 import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
 import { rankSignalsForAttention, rankSignalsByRecency } from '../lib/signalRanking'
 import { fetchMarketWeather, type MarketWeatherResult, type MarketWeatherWindowDays } from '../lib/api/marketWeather'
+import { fetchUpcomingCtgovMilestones } from '../lib/api/upcomingMilestones'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import {
   getRegulatoryCalendar,
@@ -75,6 +76,7 @@ import { cleanSignalText, SIGNAL_FALLBACK } from '../lib/signalText'
 import { summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
 import type { DbRecentSignal } from '../lib/db'
 import { buildUpcomingEvents, type NextUpEvent as UpcomingEventItem } from '../lib/upcomingEvents'
+import { computeMarketWeatherPresentation } from '../lib/marketWeatherPresentation'
 
 /** Days window for the worklist + market weather — must match buildNarration.mjs. */
 const NARRATION_DAYS = 90
@@ -517,6 +519,19 @@ export default function WarRoom() {
   })
   const marketWeatherResult: MarketWeatherResult | null = marketWeatherEnabled ? (marketWeatherData ?? null) : null
 
+  // Next Up V1 CT.gov milestones (report section 7-9): future ESTIMATED
+  // Primary/Study Completion dates, already scoped server-side to this
+  // SAME real company+disease landscape -- see upcomingMilestones.ts's own
+  // docstring. Same enablement/caching contract as Market Weather above.
+  const ctgovMilestonesEnabled = hasActiveLandscape && discoveredCompanyIds.length > 0
+  const { data: ctgovMilestonesData } = useQuery({
+    queryKey: ['upcoming-ctgov-milestones', discoveredCompanyIds, indication, canonicalIndicationId],
+    queryFn: () => fetchUpcomingCtgovMilestones(discoveredCompanyIds, indication, canonicalIndicationId),
+    enabled: ctgovMilestonesEnabled,
+    staleTime: 5 * 60 * 1000,
+  })
+  const ctgovMilestones = ctgovMilestonesEnabled ? (ctgovMilestonesData ?? []) : []
+
   // Readable + watchlist-scoped, same order as the rest of the app: strip
   // XBRL/accession boilerplate first, then confirm competitor scope.
   const readableSignals = recentLiveSignals.filter(isSignalReadable)
@@ -679,9 +694,6 @@ export default function WarRoom() {
   // renders an honest quiet/unavailable message -- never legacy content,
   // never a fabricated narrative (this module never even fetches those
   // legacy tables' content into this branch).
-  const MARKET_WEATHER_STATE_MAP: Record<string, WeatherState> = {
-    CALM: 'clearing', ACTIVE: 'stable', PRESSURE_BUILDING: 'pressure', HIGH_PRESSURE: 'storm',
-  }
   const legacyWindowedMarketSignals = recentLiveSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
   const legacyWeatherSeverity = summarizeSeverity(legacyWindowedMarketSignals, lexicon, new Date())
   const legacyPressureState: WeatherState =
@@ -689,10 +701,15 @@ export default function WarRoom() {
     : (legacyWeatherSeverity.high >= 1 || legacyWeatherSeverity.medium >= 3) ? 'stable'
     : 'clearing'
 
-  const pressureState: WeatherState = hasActiveLandscape
-    ? (marketWeatherResult?.status === 'ok' && marketWeatherResult.state ? MARKET_WEATHER_STATE_MAP[marketWeatherResult.state] : 'clearing')
-    : legacyPressureState
-  const pressureQualifier = `over the last ${weatherWindow} days`
+  // War Room semantic-integrity checkpoint (2026-08-25, Market Weather
+  // honesty fix): see marketWeatherPresentation.ts's own module docstring
+  // for why 'pending' (never a hardcoded 'clearing') is the only honest
+  // badge state for loading/no-signals/unavailable/invalid alike.
+  const v1WeatherPresentation = computeMarketWeatherPresentation({
+    marketWeatherResult, marketWeatherLoading, discoveredCompanyCount: discoveredCompanyIds.length, weatherWindow,
+  })
+  const pressureState: WeatherState = hasActiveLandscape ? v1WeatherPresentation.pressureState : legacyPressureState
+  const pressureQualifier = hasActiveLandscape ? v1WeatherPresentation.pressureQualifier : `over the last ${weatherWindow} days`
 
   const legacyWindowedRelevantSignals = relevantSignals.filter((s) => s.date !== null && s.date >= weatherCutoff)
   const legacyWindowedSignalsByCompetitor = new Map<string, DbRecentSignal[]>()
@@ -725,14 +742,14 @@ export default function WarRoom() {
   const weatherMovements = hasActiveLandscape && marketWeatherResult?.status === 'ok'
     ? marketWeatherResult.movements.map((m) => ({ title: m.title, summary: m.summary }))
     : undefined
-  const weatherMovementsEmptyMessage =
-    marketWeatherResult?.status === 'no_signals'
-      ? 'No material competitive movement detected in this window.'
-      : marketWeatherResult?.status === 'unavailable' || marketWeatherResult?.status === 'invalid'
-        ? 'Market Weather synthesis unavailable.'
-        : effectiveCompetitorIds.size === 0
-          ? 'Track competitors to see their weekly moves here.'
-          : 'No material competitive movement detected in this window.'
+  // FIX (report section 3): this used to gate on `effectiveCompetitorIds`,
+  // the legacy HAE-only namespace -- real V1 companies (e.g. Abbott Medical
+  // Devices/Novartis/AstraZeneca) never match it, so a landscape with
+  // genuinely tracked competitors still showed "Track competitors...". See
+  // marketWeatherPresentation.ts -- it gates on `discoveredCompanyCount`,
+  // the same real V1 scope already proven to feed both the Signals and
+  // Market Weather API calls above.
+  const weatherMovementsEmptyMessage = v1WeatherPresentation.rowsEmptyMessage
 
   const legacyWindowedImplications = marketImplications.filter((imp) => imp.created_at >= weatherCutoffDate.toISOString())
   const legacyWeatherImplications = legacyWindowedImplications.slice(0, 3).map((imp) => decodeEntities(imp.content))
@@ -744,8 +761,9 @@ export default function WarRoom() {
   // see lib/upcomingEvents.ts's own docstring -- for an active V1
   // landscape, the static eventsData fixture (Company PR/SEC/congress/
   // illustrative) is never merged at all, only real, landscape-relevant
-  // live EMA calendar entries. Legacy behavior (merge + per-entry
-  // landscape gating) is preserved byte-for-byte.
+  // live EMA calendar entries plus real future ESTIMATED CT.gov milestones
+  // (report section 7-9). Legacy behavior (merge + per-entry landscape
+  // gating) is preserved byte-for-byte.
   const nowStr = new Date().toISOString().slice(0, 10)
   const upcomingEvents = buildUpcomingEvents({
     hasActiveLandscape,
@@ -755,6 +773,7 @@ export default function WarRoom() {
     effectiveCompetitorIds,
     nowStr,
     maxItems: 8, // horizontally scrollable now (critique 2026-07-28), not vertically listed -- no longer height-constrained the way the old rail list was
+    ctgovMilestones,
   })
 
   function openInspect(alert: MappedAlert) { setInspecting(alert); setFocusedId(alert.id) }
@@ -896,7 +915,7 @@ export default function WarRoom() {
         <span className="stat-bar-item"><span className="num"><CountingNumber number={signalVolume} initiallyStable /></span> signals</span>
         <span className="stat-bar-sep" aria-hidden="true" />
         <span className="stat-bar-item">
-          Pressure {pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
+          Pressure {pressureState === 'pending' ? 'unknown' : pressureState === 'pressure' ? 'building' : pressureState === 'clearing' ? 'easing' : 'stable'}
         </span>
         {mostActiveName && (
           <>

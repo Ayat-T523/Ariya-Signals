@@ -8,6 +8,7 @@
  */
 import { buildUpcomingEvents, isRelevantEMAEvent } from './upcomingEvents.js'
 import type { DbRegulatoryCalendarEvent } from './db.js'
+import type { CtgovUpcomingMilestone } from './api/upcomingMilestones.js'
 
 let passed = 0
 let failed = 0
@@ -112,6 +113,66 @@ const pastStatic = buildUpcomingEvents({
   lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
 })
 assert('past static excluded', pastStatic, [])
+
+function milestone(overrides: Partial<CtgovUpcomingMilestone>): CtgovUpcomingMilestone {
+  return {
+    nctId: 'NCT00000001', assetId: 'lokelma', assetName: 'Lokelma', companyId: 'astrazeneca', companyName: 'AstraZeneca',
+    milestoneType: 'PRIMARY_COMPLETION', date: '2026-09-24', dateType: 'ESTIMATED',
+    sourceUrl: 'https://clinicaltrials.gov/study/NCT00000001',
+    ...overrides,
+  }
+}
+
+console.log('11. Active V1: a future ESTIMATED Primary Completion milestone is included')
+const primaryIncluded = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'PRIMARY_COMPLETION' })],
+})
+assert('primary completion milestone included', primaryIncluded.length, 1)
+assert('title names the asset and milestone type', primaryIncluded[0].title, 'Lokelma — Primary completion (estimated)')
+assert('provenance is preserved (sourceLabel)', primaryIncluded[0].sourceLabel, 'ClinicalTrials.gov')
+assert('source URL (carries the NCT ID) is preserved', primaryIncluded[0].sourceUrl, 'https://clinicaltrials.gov/study/NCT00000001')
+
+console.log('12. Active V1: a future ESTIMATED Study Completion milestone is included')
+const studyIncluded = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'STUDY_COMPLETION', nctId: 'NCT00000002' })],
+})
+assert('study completion milestone included', studyIncluded[0].title, 'Lokelma — Study completion (estimated)')
+
+console.log('13. Active V1: a combined Primary+Study Completion milestone (same date) renders as one item')
+const combined = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'PRIMARY_AND_STUDY_COMPLETION' })],
+})
+assert('one item, not two', combined.length, 1)
+assert('title reflects trial completion', combined[0].title, 'Lokelma — Trial completion (estimated)')
+
+console.log('14. Active V1: EMA events and CT.gov milestones merge into one date-sorted, capped list')
+const merged = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'ema-later', start_date: '2026-10-01' })],
+  staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ date: '2026-09-01', nctId: 'NCT00000003' })],
+  maxItems: 8,
+})
+assert('nearest-first ordering across both sources', merged.map((e) => e.id), ['ctgov-NCT00000003-PRIMARY_COMPLETION', 'ema-later'])
+
+console.log('15. Active V1: static eventsData still never merges even when ctgovMilestones are present')
+const stillNoStatic = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [STATIC_ILLUSTRATIVE],
+  lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({})],
+})
+assert('no static fixture id present', stillNoStatic.some((e) => e.id === 'static-illustrative'), false)
+
+console.log('16. Legacy (hasActiveLandscape=false): ctgovMilestones are never read, even if supplied')
+const legacyIgnoresMilestones = buildUpcomingEvents({
+  hasActiveLandscape: false, calendarEvents: [], staticEvents: [],
+  lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({})],
+})
+assert('legacy path renders no CT.gov milestone items', legacyIgnoresMilestones, [])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)

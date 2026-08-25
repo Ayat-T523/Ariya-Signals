@@ -12,16 +12,20 @@
  * fixture depends on Company PR ("company-ir"/"company-ir-aggregate"),
  * SEC ("sec-edgar"), congress ("official-congress"), and one explicitly
  * fictional ("illustrative") sourceType, none of which are real V1
- * factual sources (ClinicalTrials.gov/FDA/EMA only). The only live source
- * available today is `regulatory_calendar` (EMA calendar entries) --
- * `isRelevantEMAEvent()` is the SAME existing deterministic
- * disease/indication relation (lexicon inns/ta_terms match) already used
- * before this checkpoint; this module does not invent a new one.
+ * factual sources (ClinicalTrials.gov/FDA/EMA only). Live sources are
+ * `regulatory_calendar` (EMA calendar entries -- `isRelevantEMAEvent()` is
+ * the SAME existing deterministic disease/indication relation (lexicon
+ * inns/ta_terms match) already used before this checkpoint) and, as of
+ * report section 7-9, real future ESTIMATED CT.gov Primary/Study
+ * Completion milestones (already scoped server-side to the tracked
+ * companies + disease by query_upcoming_ctgov_milestones() -- this module
+ * does not re-filter them, only maps + merges + sorts + caps).
  *
  * Legacy (`hasActiveLandscape=false`) behavior is preserved byte-for-byte
  * (same merge, same per-entry landscape-gating rule for static events).
  */
 import type { DbRegulatoryCalendarEvent } from './db'
+import type { CtgovUpcomingMilestone } from './api/upcomingMilestones'
 
 export interface Lexicon {
   inns: string[]
@@ -80,6 +84,28 @@ function buildLiveEventItems(calendarEvents: DbRegulatoryCalendarEvent[], lexico
     }))
 }
 
+const CTGOV_MILESTONE_LABEL: Record<CtgovUpcomingMilestone['milestoneType'], string> = {
+  PRIMARY_COMPLETION: 'Primary completion',
+  STUDY_COMPLETION: 'Study completion',
+  PRIMARY_AND_STUDY_COMPLETION: 'Trial completion',
+}
+
+/** query_upcoming_ctgov_milestones() has ALREADY scoped these to the real
+ *  tracked companies + disease server-side (report section 7-9) -- this is
+ *  a pure shape mapping, not a second filter. `nowStr`/future-only and
+ *  ESTIMATED-only are backend guarantees, not re-checked here. The
+ *  '(estimated)' qualifier is never dropped: unlike an EMA calendar entry
+ *  (a fixed date), this is a sponsor's own projection. */
+function buildCtgovMilestoneItems(milestones: CtgovUpcomingMilestone[]): NextUpEvent[] {
+  return milestones.map((m) => ({
+    id: `ctgov-${m.nctId ?? m.assetId}-${m.milestoneType}`,
+    date: m.date,
+    title: `${m.assetName} — ${CTGOV_MILESTONE_LABEL[m.milestoneType]} (estimated)`,
+    sourceUrl: m.sourceUrl,
+    sourceLabel: 'ClinicalTrials.gov',
+  }))
+}
+
 export interface BuildUpcomingEventsInput {
   hasActiveLandscape: boolean
   calendarEvents: DbRegulatoryCalendarEvent[]
@@ -88,18 +114,23 @@ export interface BuildUpcomingEventsInput {
   effectiveCompetitorIds: Set<string>
   nowStr: string
   maxItems?: number
+  /** Real future ESTIMATED CT.gov milestones (report section 7-9) --
+   *  omitted/empty for the legacy path, which never reads this source. */
+  ctgovMilestones?: CtgovUpcomingMilestone[]
 }
 
 export function buildUpcomingEvents({
-  hasActiveLandscape, calendarEvents, staticEvents, lexicon, effectiveCompetitorIds, nowStr, maxItems = 8,
+  hasActiveLandscape, calendarEvents, staticEvents, lexicon, effectiveCompetitorIds, nowStr, maxItems = 8, ctgovMilestones = [],
 }: BuildUpcomingEventsInput): NextUpEvent[] {
   const liveEventItems = buildLiveEventItems(calendarEvents, lexicon, nowStr)
 
   if (hasActiveLandscape) {
-    // V1: live EMA only. The static eventsData fixture (Company PR/SEC/
-    // congress/illustrative) is NEVER read at all for an active landscape
-    // -- not filtered down to zero, never even merged in the first place.
-    return [...liveEventItems].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')).slice(0, maxItems)
+    // V1: live EMA + live CT.gov milestones only. The static eventsData
+    // fixture (Company PR/SEC/congress/illustrative) is NEVER read at all
+    // for an active landscape -- not filtered down to zero, never even
+    // merged in the first place.
+    const milestoneItems = buildCtgovMilestoneItems(ctgovMilestones)
+    return [...liveEventItems, ...milestoneItems].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')).slice(0, maxItems)
   }
 
   // Legacy path -- byte-for-byte the pre-checkpoint merge behavior.
