@@ -1606,17 +1606,19 @@
 }
 .worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--neutral-600); white-space: nowrap; flex-shrink: 0; margin-left: auto; }
 
-/* War Room triage-card checkpoint (2026-08-26): information-category tag,
-   flush right on the top line (company is flex-shrink:0/max-width:140px
-   with its own ellipsis already; this tag takes the remaining space and
-   wraps to its own line under the existing 900px worklist-row-top
-   flex-wrap rule rather than ever colliding with the company name). */
+/* "Top signals to triage" reference-screenshot pass (2026-08-26): an
+   OUTLINE pill (border + tinted text, transparent fill) for the
+   information-category tag, sitting on the top line next to the company
+   name -- SeverityTag and worklist-row-time (both flex-shrink:0) follow
+   it and worklist-row-time's own margin-left:auto still pushes only the
+   TIME to the far right, matching the reference's "badges left, time
+   right" top-line layout. */
 .worklist-row-category {
   font-family: var(--font-ui); font-size: 11px; font-weight: 600;
-  color: var(--neutral-600); background: var(--neutral-100);
-  padding: 2px 8px; border-radius: var(--r-pill);
-  white-space: nowrap; margin-left: auto; flex-shrink: 0;
-  max-width: 60%; overflow: hidden; text-overflow: ellipsis;
+  color: var(--indigo-600); background: transparent; border: 1px solid var(--indigo-100);
+  padding: 1px 8px; border-radius: var(--r-pill);
+  white-space: nowrap; flex-shrink: 1;
+  max-width: 40%; overflow: hidden; text-overflow: ellipsis;
 }
 /* Own line below the headline (never the same line as the headline itself,
    same "meta row stays one consistent line" discipline worklist-row-headline's
@@ -1628,16 +1630,16 @@
   margin: 0; font-family: var(--font-ui); font-size: 12px; color: var(--neutral-600); line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.worklist-row-meta { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
-.worklist-row-source {
-  font-family: var(--font-ui); font-size: 12px; color: var(--neutral-600);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
-}
+/* Bottom line: source only, right-aligned -- matches the reference
+   screenshot's plain, muted source text under each card. Still a real
+   working link to the Signal's own sourceLocator (never dropped merely to
+   match a static mockup, see LandscapeSignalRow.tsx's own comment). */
+.worklist-row-meta { display: flex; align-items: center; justify-content: flex-end; }
 .worklist-row-source-link {
-  font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600);
-  text-decoration: none; white-space: nowrap; margin-left: auto;
+  font-family: var(--font-ui); font-size: 11px; color: var(--neutral-500);
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.worklist-row-source-link:hover { text-decoration: underline; }
+.worklist-row-source-link:hover { color: var(--indigo-600); text-decoration: underline; }
 .worklist-row-action-line {
   display: flex; align-items: flex-start; gap: 5px;
   font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600); line-height: 1.4;

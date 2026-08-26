@@ -365,7 +365,7 @@ function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
   return (
     <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '5px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>Next up</h2>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>Upcoming events</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <Button type="button" variant="outline" size="icon-xs" aria-label="Scroll left" onClick={() => scrollBy(-1)}>
             <ChevronLeft size={13} aria-hidden="true" animateOnHover />
@@ -943,7 +943,7 @@ export default function WarRoom() {
         <div style={{ gridArea: 'worklist', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--neutral-900)' }}>
-              {hasActiveLandscape ? 'Priority Signals' : 'What needs your attention'}
+              Top signals to triage
             </h2>
             <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as 'importance' | 'recency')}>
               <TabsList aria-label="Sort worklist by" style={{ height: '26px', padding: '2px' }}>
