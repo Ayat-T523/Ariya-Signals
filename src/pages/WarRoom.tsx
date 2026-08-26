@@ -34,8 +34,6 @@ import { CircleCheckBig as CheckCircle2 } from '../components/animate-ui/icons/c
 import { CircleX as XCircle } from '../components/animate-ui/icons/circle-x'
 import { ChevronUp } from '../components/animate-ui/icons/chevron-up'
 import { ChevronDown } from '../components/animate-ui/icons/chevron-down'
-import { ChevronLeft } from '../components/animate-ui/icons/chevron-left'
-import { ChevronRight } from '../components/animate-ui/icons/chevron-right'
 import { ExternalLink } from '../components/animate-ui/icons/external-link'
 import { MessageSquareText } from '../components/animate-ui/icons/message-square-text'
 import { Sparkles } from '../components/animate-ui/icons/sparkles'
@@ -317,68 +315,50 @@ function WorklistRow({ alert, state, resolving, rowRef, onStateChange, onInspect
   )
 }
 
-// ── Next up carousel (critique 2026-07-28: widened from a narrow rail list to
-// a full-width horizontal scroller so Kokonut UI's Carousel Cards mechanic --
-// scroll-snap row + chevron buttons -- actually has room to show 3+ cards at
-// once; a single-card-peek carousel in a 360px rail wasn't worth the chevrons
-// it'd need for just 2 events. Cards stay compact (date + title + countdown,
-// no imagery) to keep the strip inside the page's no-scroll budget. ─────────
-function NextUpCard({ event }: { event: NextUpEvent }) {
+// ── Upcoming events, vertical list ("Top signals to triage" reference-
+// screenshot pass, 2026-08-26: replaces the prior full-width horizontal
+// carousel with a compact, narrow, stacked list -- date badge left, title
+// + countdown right, one row per event, no scroll-snap/chevron mechanic).
+// Real data only ever carries ONE title string per event (NextUpEvent has
+// no separate subtitle/description field) -- this deliberately does not
+// fabricate a second descriptive line merely to visually match a
+// two-line mockup row; sourceLabel (e.g. "EMA"), when present, is the
+// only real second fact available and is kept as an inline badge, same
+// provenance-transparency discipline the prior carousel card already
+// established. ─────────────────────────────────────────────────────────
+function UpcomingEventRow({ event }: { event: NextUpEvent }) {
   const { day, month } = dayMonthParts(event.date)
   return (
-    <Link to={`/intelligence?tab=events&event=${event.id}`} className="next-up-card">
+    <Link to={`/intelligence?tab=events&event=${event.id}`} className="next-up-row">
       <div className="next-up-date">
         <span className="day">{day}</span>
         <span className="month">{month}</span>
       </div>
-      <div className="next-up-card-body">
+      <div className="next-up-row-body">
         <span className="next-up-title">{event.title}</span>
-        <span className="next-up-countdown">
-          {event.sourceLabel && (
-            // Provenance restoration (War Room semantic-integrity checkpoint,
-            // 2026-08-25 recon): the earlier implementation showed a source
-            // badge per event; this carousel's condensed card had silently
-            // dropped it. A user must be able to tell a real EMA date apart
-            // from anything else -- never a raw internal id, just the real
-            // source family.
-            <span
-              title={`Source: ${event.sourceLabel}`}
-              style={{
-                display: 'inline-block', marginRight: '6px', padding: '1px 6px', borderRadius: '9999px',
-                fontFamily: 'var(--font-mono)', fontSize: 'var(--t-caption)', fontWeight: 700, letterSpacing: '0.04em',
-                background: 'rgba(79,70,229,0.10)', color: 'var(--indigo-600)',
-              }}
-            >
-              {event.sourceLabel}
-            </span>
-          )}
-          {daysUntilLabel(event.date)}
-        </span>
+        {event.sourceLabel && (
+          // Provenance restoration (War Room semantic-integrity checkpoint,
+          // 2026-08-25 recon): a user must be able to tell a real EMA date
+          // apart from anything else -- never a raw internal id, just the
+          // real source family.
+          <span className="next-up-source" title={`Source: ${event.sourceLabel}`}>{event.sourceLabel}</span>
+        )}
       </div>
+      <span className="next-up-countdown">{daysUntilLabel(event.date)}</span>
     </Link>
   )
 }
 
-function NextUpCarousel({ events }: { events: NextUpEvent[] }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  function scrollBy(dir: 1 | -1) { scrollRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' }) }
+function UpcomingEventsList({ events }: { events: NextUpEvent[] }) {
   return (
-    <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '5px 16px' }}>
+    <div className="digest-plate" style={{ ...FLAT_CARD_STYLE, padding: '10px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
         <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--neutral-900)' }}>Upcoming events</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Button type="button" variant="outline" size="icon-xs" aria-label="Scroll left" onClick={() => scrollBy(-1)}>
-            <ChevronLeft size={13} aria-hidden="true" animateOnHover />
-          </Button>
-          <Button type="button" variant="outline" size="icon-xs" aria-label="Scroll right" onClick={() => scrollBy(1)}>
-            <ChevronRight size={13} aria-hidden="true" animateOnHover />
-          </Button>
-          <Link to="/intelligence?tab=events" style={{ marginLeft: '6px', fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>All</Link>
-        </div>
+        <Link to="/intelligence?tab=events" style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>All</Link>
       </div>
       {events.length > 0 ? (
-        <div ref={scrollRef} className="next-up-scroller">
-          {events.map((e) => <NextUpCard key={e.id} event={e} />)}
+        <div className="next-up-list">
+          {events.map((e) => <UpcomingEventRow key={e.id} event={e} />)}
         </div>
       ) : (
         <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--neutral-600)', fontStyle: 'italic' }}>
@@ -924,16 +904,19 @@ export default function WarRoom() {
         ] as KpiDatum[]).map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
       </div>
 
-      {/* Bento grid: worklist + weather side by side, Next up widened to a
-          full-width carousel row underneath (critique 2026-07-28) — needs
-          the width to show 3+ event cards, which a 360px rail column can't. */}
+      {/* Bento grid ("Top signals to triage" reference-screenshot pass,
+          2026-08-26): Upcoming Events moved back into the 360px right rail,
+          stacked under Market Weather, as its own compact vertical list --
+          matching the reference's narrow sidebar proportions. Worklist
+          spans both rows on the left so its own height still fills the
+          same vertical space the two stacked right-rail tiles occupy. */}
       <div
         data-war-room-grid
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(0, 1fr) 360px',
           gridTemplateRows: 'auto auto',
-          gridTemplateAreas: '"worklist weather" "nextup nextup"',
+          gridTemplateAreas: '"worklist weather" "worklist nextup"',
           gap: '10px',
           alignItems: 'start',
         }}
@@ -1073,9 +1056,9 @@ export default function WarRoom() {
           />
         </div>
 
-        {/* NEXT UP — full-width horizontal carousel, spans both columns */}
+        {/* UPCOMING EVENTS — right rail, stacked under Market Weather */}
         <div style={{ gridArea: 'nextup', minWidth: 0 }}>
-          <NextUpCarousel events={upcomingEvents} />
+          <UpcomingEventsList events={upcomingEvents} />
         </div>
       </div>
 

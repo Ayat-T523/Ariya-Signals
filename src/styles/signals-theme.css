@@ -1746,35 +1746,32 @@
   .mw-card.compact { padding: var(--s-2); gap: var(--s-2); }
   .mw-card.compact .mw-row-implication { -webkit-line-clamp: 1; }
   .mw-card.compact .mw-row { padding: 6px var(--s-2); }
-  .next-up-card { padding: 3px var(--s-2); flex-basis: 180px; }
 }
 
-/* Next up — horizontal scroll-snap carousel (critique 2026-07-28), replacing
-   the old narrow-rail vertical list now that the tile spans full width. */
-.next-up-scroller {
-  display: flex; gap: var(--s-2);
-  overflow-x: auto; scrollbar-width: none;
-  scroll-snap-type: x mandatory;
-  padding-bottom: 2px;
-}
-.next-up-scroller::-webkit-scrollbar { display: none; }
-.next-up-card {
-  display: flex; align-items: center; gap: var(--s-2);
-  flex: 0 0 190px; scroll-snap-align: start;
-  padding: 6px var(--s-2);
-  border: 1px solid var(--border-default); border-radius: var(--r-flat-control);
+/* Upcoming events — vertical list ("Top signals to triage" reference-
+   screenshot pass, 2026-08-26), replacing the prior full-width horizontal
+   scroll-snap carousel now that this tile lives back in the 360px right
+   rail: one row per event, date badge left, title (+ source badge, when
+   real provenance exists) stacked in the middle, countdown pinned right. */
+.next-up-list { display: flex; flex-direction: column; }
+.next-up-row {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: 8px 0;
+  border-top: 1px solid var(--border-default);
   text-decoration: none;
-  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+  transition: background var(--dur-fast) var(--ease-standard);
 }
-.next-up-card:hover { border-color: var(--indigo-500); background: var(--indigo-050); }
-.next-up-card-body { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.next-up-date { text-align: center; min-width: 30px; flex-shrink: 0; }
-/* Bolder pass (2026-07-29): the date is the one piece of information this
-   card exists to surface at a glance -- it read at the same quiet weight as
-   its own metadata. Widen the gap between the numeral and the label instead
-   of bumping everything, so the card gets a real peak, not just bigger text. */
-.next-up-date .day { display: block; font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: var(--ink-900); line-height: 1; }
-.next-up-date .month { display: block; font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-600); margin-top: 2px; }
-.next-up-title { min-width: 0; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-900); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.next-up-countdown { font-family: var(--font-mono); font-size: 10px; color: var(--ink-600); white-space: nowrap; }
+.next-up-row:first-child { border-top: 0; }
+.next-up-row:hover { background: var(--indigo-050); }
+.next-up-date { text-align: center; min-width: 32px; flex-shrink: 0; }
+.next-up-date .day { display: block; font-family: var(--font-mono); font-size: 17px; font-weight: 700; color: var(--ink-900); line-height: 1; }
+.next-up-date .month { display: block; font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-600); margin-top: 2px; }
+.next-up-row-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.next-up-title { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-900); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-up-source {
+  display: inline-block; align-self: flex-start; padding: 1px 6px; border-radius: 9999px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  background: rgba(79,70,229,0.10); color: var(--indigo-600);
+}
+.next-up-countdown { font-family: var(--font-mono); font-size: 10px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
 

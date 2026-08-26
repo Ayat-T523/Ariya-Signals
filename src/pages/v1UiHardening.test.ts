@@ -93,7 +93,7 @@ assertTrue('the RecentEvidenceCard component definition is gone', !warRoomSource
 assertTrue('the now-unnecessary evidence-only fetch (fetchLandscapeEvidence) is gone', !warRoomSource.includes('fetchLandscapeEvidence'))
 assertTrue('War Room still renders the stat bar / "Top signals to triage" worklist', warRoomSource.includes('Top signals to triage'))
 assertTrue('War Room still renders Market Weather', warRoomSource.includes('<MarketWeather'))
-assertTrue('War Room still renders the Next Up carousel', warRoomSource.includes('<NextUpCarousel'))
+assertTrue('War Room still renders the Upcoming Events list (2026-08-26: renamed from the carousel, now a vertical list in the right rail)', warRoomSource.includes('<UpcomingEventsList'))
 
 console.log('8. Portal.tsx (Intelligence Feed): the generic "Recent Evidence" section is gone, "Recent signals" is untouched')
 assertTrue('no "Recent evidence" heading text remains', !portalSource.includes('Recent evidence'))
