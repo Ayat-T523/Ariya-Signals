@@ -72,7 +72,7 @@ import { mapSignals, type MappedAlert } from '../lib/signalMapping'
 import { cleanSignalText, SIGNAL_FALLBACK } from '../lib/signalText'
 import { summarizeSeverity, type Lexicon } from '../lib/signalSeverity'
 import type { DbRecentSignal } from '../lib/db'
-import { buildUpcomingEvents, type NextUpEvent as UpcomingEventItem } from '../lib/upcomingEvents'
+import { buildUpcomingEvents, UPCOMING_EVENT_TYPE_LABELS, type NextUpEvent as UpcomingEventItem } from '../lib/upcomingEvents'
 import { computeMarketWeatherPresentation } from '../lib/marketWeatherPresentation'
 
 /** Days window for the worklist + market weather — must match buildNarration.mjs. */
@@ -325,7 +325,13 @@ function WorklistRow({ alert, state, resolving, rowRef, onStateChange, onInspect
 // two-line mockup row; sourceLabel (e.g. "EMA"), when present, is the
 // only real second fact available and is kept as an inline badge, same
 // provenance-transparency discipline the prior carousel card already
-// established. ─────────────────────────────────────────────────────────
+// established.
+//
+// Multi-source contract checkpoint (2026-08-26): every event now shows,
+// at minimum, its normalized category (eventType) and company when the
+// source honestly carries one -- EMA calendar rows have no company/asset
+// FK (see upcomingEvents.ts) so that badge is simply omitted, never
+// guessed. ─────────────────────────────────────────────────────────────
 function UpcomingEventRow({ event }: { event: NextUpEvent }) {
   const { day, month } = dayMonthParts(event.date)
   return (
@@ -336,13 +342,19 @@ function UpcomingEventRow({ event }: { event: NextUpEvent }) {
       </div>
       <div className="next-up-row-body">
         <span className="next-up-title">{event.title}</span>
-        {event.sourceLabel && (
-          // Provenance restoration (War Room semantic-integrity checkpoint,
-          // 2026-08-25 recon): a user must be able to tell a real EMA date
-          // apart from anything else -- never a raw internal id, just the
-          // real source family.
-          <span className="next-up-source" title={`Source: ${event.sourceLabel}`}>{event.sourceLabel}</span>
-        )}
+        <div className="next-up-tags">
+          {event.eventType && (
+            <span className="next-up-type">{UPCOMING_EVENT_TYPE_LABELS[event.eventType]}</span>
+          )}
+          {event.companyName && <span className="next-up-company">{event.companyName}</span>}
+          {event.sourceLabel && (
+            // Provenance restoration (War Room semantic-integrity checkpoint,
+            // 2026-08-25 recon): a user must be able to tell a real EMA date
+            // apart from anything else -- never a raw internal id, just the
+            // real source family.
+            <span className="next-up-source" title={`Source: ${event.sourceLabel}`}>{event.sourceLabel}</span>
+          )}
+        </div>
       </div>
       <span className="next-up-countdown">{daysUntilLabel(event.date)}</span>
     </Link>

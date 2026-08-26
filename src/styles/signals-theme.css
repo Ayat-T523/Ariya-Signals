@@ -1768,10 +1768,19 @@
 .next-up-date .month { display: block; font-family: var(--font-ui); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-600); margin-top: 2px; }
 .next-up-row-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .next-up-title { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink-900); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-up-tags { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .next-up-source {
   display: inline-block; align-self: flex-start; padding: 1px 6px; border-radius: 9999px;
   font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
   background: rgba(79,70,229,0.10); color: var(--indigo-600);
+}
+.next-up-type {
+  display: inline-block; padding: 1px 6px; border-radius: 9999px;
+  font-family: var(--font-ui); font-size: 9px; font-weight: 600;
+  border: 1px solid var(--border-default); color: var(--ink-600);
+}
+.next-up-company {
+  font-family: var(--font-ui); font-size: 9px; font-weight: 600; color: var(--ink-600);
 }
 .next-up-countdown { font-family: var(--font-mono); font-size: 10px; color: var(--ink-600); white-space: nowrap; flex-shrink: 0; }
 

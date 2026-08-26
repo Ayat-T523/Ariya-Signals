@@ -23,6 +23,32 @@
  *
  * Legacy (`hasActiveLandscape=false`) behavior is preserved byte-for-byte
  * (same merge, same per-entry landscape-gating rule for static events).
+ *
+ * MULTI-SOURCE CONTRACT (War Room checkpoint, 2026-08-26): the product
+ * intent behind "Upcoming Events" is broader than CT.gov + EMA alone --
+ * future evidence-backed competitive catalysts from ClinicalTrials.gov,
+ * EMA, Company IR, SEC EDGAR, and official congress sources. This pass
+ * adds the normalized cross-source `eventType`/`datePrecision`/
+ * `companyId`/`companyName` fields to the contract (all optional, so the
+ * legacy branch and any future source can populate only what it honestly
+ * knows) and maps the two currently-live sources onto them. It does NOT
+ * add Company IR, SEC, or official-congress sources themselves --
+ * recon this pass found none of the three has infrastructure that can
+ * honestly produce a source-backed FUTURE event today:
+ *   - Company IR / SEC: both flow through the shared Groq schema in
+ *     company_pr_interpretation.py, whose prompt explicitly instructs the
+ *     model to answer NOT_MATERIAL_EVENT/UNCLEAR (never persisted) for
+ *     any forward-looking/planned statement -- there is no extraction
+ *     path or storage for a future catalyst today.
+ *   - Official congress: adapters/congress.py is a page-attribution
+ *     adapter over exactly one seeded, already-PAST conference document
+ *     (MGFA 2025), producing unpersisted candidate evidence keyed to the
+ *     legacy CANONICAL_ENTITIES model -- not a live schedule/calendar of
+ *     future presentations, and not referenced anywhere in api_server.py's
+ *     hydration pipeline.
+ * Building real support for any of the three requires new backend
+ * extraction/persistence, not wiring -- out of scope for this pass per
+ * this checkpoint's own "do not fake support, report absent" instruction.
  */
 import type { DbRegulatoryCalendarEvent } from './db'
 import type { CtgovUpcomingMilestone } from './api/upcomingMilestones'
@@ -31,6 +57,45 @@ export interface Lexicon {
   inns: string[]
   ta_terms: string[]
 }
+
+/** Normalized cross-source event taxonomy (checkpoint section 9) -- kept
+ *  deliberately small and source-agnostic so a future source (Company IR,
+ *  SEC, congress) can slot into an existing bucket rather than a codebase
+ *  growing a new source-specific type per source. Only TRIAL_MILESTONE and
+ *  REGULATORY_MEETING are populated today (the two live sources); the
+ *  remaining members exist so the contract doesn't need to change shape
+ *  again when a new source family is actually implemented. */
+export type UpcomingEventType =
+  | 'TRIAL_MILESTONE'
+  | 'CLINICAL_READOUT'
+  | 'REGULATORY_SUBMISSION'
+  | 'REGULATORY_DECISION'
+  | 'REGULATORY_MEETING'
+  | 'CONGRESS_PRESENTATION'
+  | 'COMMERCIAL_LAUNCH'
+  | 'PARTNERSHIP_OR_TRANSACTION_MILESTONE'
+  | 'PROGRAM_MILESTONE'
+
+export const UPCOMING_EVENT_TYPE_LABELS: Record<UpcomingEventType, string> = {
+  TRIAL_MILESTONE: 'Trial milestone',
+  CLINICAL_READOUT: 'Clinical readout',
+  REGULATORY_SUBMISSION: 'Regulatory submission',
+  REGULATORY_DECISION: 'Regulatory decision',
+  REGULATORY_MEETING: 'Regulatory meeting',
+  CONGRESS_PRESENTATION: 'Congress presentation',
+  COMMERCIAL_LAUNCH: 'Commercial launch',
+  PARTNERSHIP_OR_TRANSACTION_MILESTONE: 'Partnership / transaction',
+  PROGRAM_MILESTONE: 'Program milestone',
+}
+
+/** Source-stated date precision (checkpoint section 8) -- DAY for both
+ *  live sources today (CT.gov gives an exact estimated date, the EMA
+ *  calendar gives an exact scheduled date). Exists now so a future
+ *  coarser-precision source (e.g. a Company IR "Q4 2026" catalyst) can be
+ *  added without a contract change; `date` always stays a real ISO day
+ *  string (a sort surrogate), never fabricated down from a coarser
+ *  source-stated precision. */
+export type DatePrecision = 'DAY' | 'MONTH' | 'QUARTER' | 'HALF_YEAR'
 
 export interface NextUpEvent {
   id: string
@@ -42,6 +107,18 @@ export interface NextUpEvent {
    *  current carousel card had silently dropped (recon finding). Absent
    *  for legacy static entries, matching prior behavior. */
   sourceLabel?: string
+  /** Normalized taxonomy bucket (see UpcomingEventType above). Absent for
+   *  legacy static entries -- those predate this contract and are never
+   *  reclassified retroactively. */
+  eventType?: UpcomingEventType
+  /** Source-stated precision of `date` (see DatePrecision above). */
+  datePrecision?: DatePrecision
+  /** Real company id/name when the source honestly carries one. EMA
+   *  calendar rows have no company/asset foreign key (recon, unchanged
+   *  finding) and so never populate these -- left undefined rather than
+   *  guessed from title-matching. */
+  companyId?: string
+  companyName?: string
 }
 
 export interface StaticEventFixture {
@@ -81,6 +158,13 @@ function buildLiveEventItems(calendarEvents: DbRegulatoryCalendarEvent[], lexico
     .map((e) => ({
       id: e.id, date: e.start_date ?? '', title: e.title ?? `${e.event_type} Meeting`,
       sourceUrl: e.source_url, sourceLabel: 'EMA',
+      // CHMP/PRAC are literally regulatory-committee meetings; OTHER is an
+      // undifferentiated EMA calendar catch-all with no finer sub-type
+      // available in the row itself -- REGULATORY_MEETING is the honest,
+      // conservative bucket for all three rather than guessing at
+      // REGULATORY_DECISION without evidence.
+      eventType: 'REGULATORY_MEETING' as const,
+      datePrecision: 'DAY' as const,
     }))
 }
 
@@ -109,6 +193,10 @@ function buildCtgovMilestoneItems(milestones: CtgovUpcomingMilestone[]): NextUpE
     title: `${m.assetName} — ${CTGOV_MILESTONE_LABEL[m.milestoneType]} (estimated)`,
     sourceUrl: m.sourceUrl,
     sourceLabel: 'ClinicalTrials.gov',
+    eventType: 'TRIAL_MILESTONE' as const,
+    datePrecision: 'DAY' as const,
+    companyId: m.companyId,
+    companyName: m.companyName,
   }))
 }
 

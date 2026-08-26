@@ -185,5 +185,48 @@ const legacyIgnoresMilestones = buildUpcomingEvents({
 })
 assert('legacy path renders no CT.gov milestone items', legacyIgnoresMilestones, [])
 
+console.log('17. Multi-source contract (2026-08-26): CT.gov milestone carries normalized eventType/datePrecision/company')
+const ctgovTyped = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({})],
+})
+assert('eventType is TRIAL_MILESTONE', ctgovTyped[0].eventType, 'TRIAL_MILESTONE')
+assert('datePrecision is DAY', ctgovTyped[0].datePrecision, 'DAY')
+assert('companyId carried through', ctgovTyped[0].companyId, 'astrazeneca')
+assert('companyName carried through', ctgovTyped[0].companyName, 'AstraZeneca')
+
+console.log('18. Multi-source contract: EMA event carries normalized eventType/datePrecision, no fabricated company')
+const emaTyped = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'ema-typed', event_type: 'CHMP', start_date: '2026-09-01' })],
+  staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+})
+assert('eventType is REGULATORY_MEETING', emaTyped[0].eventType, 'REGULATORY_MEETING')
+assert('datePrecision is DAY', emaTyped[0].datePrecision, 'DAY')
+assert('no company is fabricated for an EMA row (no FK exists)', emaTyped[0].companyId, undefined)
+assert('no company is fabricated for an EMA row (no FK exists)', emaTyped[0].companyName, undefined)
+
+console.log('19. Multi-source contract: legacy static events carry no eventType/datePrecision/company (predate this contract)')
+const legacyTyped = buildUpcomingEvents({
+  hasActiveLandscape: false, calendarEvents: [], staticEvents: [STATIC_COMPANY_IR],
+  lexicon: LEXICON, effectiveCompetitorIds: new Set(['argenx']), nowStr: NOW,
+})
+assert('legacy item has no eventType', legacyTyped[0].eventType, undefined)
+assert('legacy item has no companyId', legacyTyped[0].companyId, undefined)
+
+console.log('20. Legacy-fixture isolation re-proof: an active V1 landscape never renders a Company IR/SEC/congress sourceType fixture, even when ctgovMilestones + calendarEvents are both present')
+const isolationProof = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'live-iso', start_date: '2026-09-01' })],
+  staticEvents: [
+    { id: 'fixture-company-ir', date: '2026-09-05', title: 'Fixture Company IR Day', sourceUrl: null, attendingCompetitors: ['argenx'] },
+    { id: 'fixture-sec', date: '2026-09-06', title: 'Fixture SEC filing event', sourceUrl: null, attendingCompetitors: ['argenx'] },
+    { id: 'fixture-congress', date: '2026-09-07', title: 'Fixture congress presentation', sourceUrl: null, attendingCompetitors: ['argenx'] },
+  ],
+  lexicon: LEXICON, effectiveCompetitorIds: new Set(['argenx']), nowStr: NOW,
+  ctgovMilestones: [milestone({})],
+})
+assert('only real live sources present, zero fixtures', isolationProof.map((e) => e.id).sort(), ['ctgov-NCT00000001-lokelma-PRIMARY_COMPLETION', 'live-iso'])
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
