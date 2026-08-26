@@ -5,7 +5,7 @@
  * run with:  npx tsx src/lib/api/landscapeSignals.test.ts
  * Exit code 0 = all pass. Exit code 1 = one or more failures.
  */
-import { fetchLandscapeSignals } from './landscapeSignals.js'
+import { fetchLandscapeSignals, SIGNAL_TYPE_LABELS, sourceTypeLabel } from './landscapeSignals.js'
 
 let passed = 0
 let failed = 0
@@ -74,6 +74,14 @@ await (async () => {
   assert('signalType mapped from signal_type', items[0].signalType, 'CLINICAL_TRIAL_ACTIVITY')
   assert('companyName mapped', items[0].companyName, 'argenx')
   assert('priorEvidenceId null when absent, never fabricated', items[0].priorEvidenceId, null)
+})()
+
+console.log('4. V1 PubMed integration checkpoint (2026-08-26): PUBLICATION_RESULTS is a first-class type')
+;(() => {
+  assert('PUBLICATION_RESULTS has a real label, never undefined', SIGNAL_TYPE_LABELS.PUBLICATION_RESULTS, 'Publication results')
+  assert('pubmed source_type maps to an intelligible label', sourceTypeLabel('pubmed'), 'PubMed')
+  assert('an unrecognized source_type falls back to the raw value, never crashes', sourceTypeLabel('some_future_source'), 'some_future_source')
+  assert('a missing source_type falls back to a safe placeholder, never crashes', sourceTypeLabel(null), 'Unknown source')
 })()
 
 console.log(`\n${passed} passed, ${failed} failed`)

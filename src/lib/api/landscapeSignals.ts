@@ -47,6 +47,15 @@ export type LandscapeSignalType =
   | 'PROGRAM_DISCONTINUATION'
   | 'CORPORATE_STRATEGY_CHANGE'
   | 'COMPANY_DISCLOSURE'
+  // V1 PubMed integration checkpoint (2026-08-26): the backend's new
+  // ariya-lightci-python/signals.py PUBLICATION_RESULTS Signal type (a
+  // real, NCT-attributed, RCT/Phase-III peer-reviewed publication --
+  // source_type "pubmed"). Added here so this union stays the single,
+  // complete mirror of the backend's own signal_type vocabulary (see this
+  // union's own top-of-file comment) -- SIGNAL_TYPE_LABELS below is a
+  // `Record<LandscapeSignalType, string>`, so TypeScript itself enforces
+  // that no member of this union is ever missing a label.
+  | 'PUBLICATION_RESULTS'
 
 export type SignalImportance = 'HIGH' | 'MEDIUM' | 'LOW'
 
@@ -72,6 +81,33 @@ export const SIGNAL_TYPE_LABELS: Record<LandscapeSignalType, string> = {
   PROGRAM_DISCONTINUATION: 'Program discontinuation',
   CORPORATE_STRATEGY_CHANGE: 'Corporate strategy change',
   COMPANY_DISCLOSURE: 'Company disclosure',
+  PUBLICATION_RESULTS: 'Publication results',
+}
+
+// V1 PubMed integration checkpoint (2026-08-26): a small, additive label
+// map for `LandscapeSignal.sourceType` -- that field is a plain `string`
+// (not a closed union, since the backend's own evidence/signal source_type
+// vocabulary is intentionally open-ended, see this file's own
+// toLandscapeSignal() comment), so this is a lookup with a safe fallback
+// to the raw value, never a Record requiring exhaustiveness. Covers every
+// source_type ariya-lightci-python/signals.py currently emits a Signal
+// for. No current renderer displays `sourceType` as raw text to a user
+// (confirmed by inspection -- CompanyTabV1.tsx only counts distinct
+// values today), so this is added defensively, ready for whichever
+// component next needs an intelligible source label, rather than a fix to
+// an already-broken display.
+export const SOURCE_TYPE_LABELS: Record<string, string> = {
+  clinicaltrials_gov: 'ClinicalTrials.gov',
+  fda_drugs_at_fda: 'FDA',
+  ema_epar: 'EMA',
+  company_disclosure: 'Company disclosure',
+  sec_edgar: 'SEC EDGAR',
+  pubmed: 'PubMed',
+}
+
+export function sourceTypeLabel(sourceType: string | null | undefined): string {
+  if (!sourceType) return 'Unknown source'
+  return SOURCE_TYPE_LABELS[sourceType] ?? sourceType
 }
 
 export interface LandscapeSignal {
