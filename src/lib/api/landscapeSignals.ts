@@ -106,8 +106,58 @@ export const SOURCE_TYPE_LABELS: Record<string, string> = {
 }
 
 export function sourceTypeLabel(sourceType: string | null | undefined): string {
+  // War Room triage-card checkpoint (2026-08-26, report section 3): a
+  // source_type this map doesn't recognize must never silently read as
+  // "ClinicalTrials.gov" -- and echoing the raw backend enum string
+  // (e.g. "some_new_source") to a user isn't a truthful LABEL either, just
+  // an unlabeled value. 'Unknown source' is the honest, neutral fallback
+  // for both the empty/null case and the recognized-map-miss case.
   if (!sourceType) return 'Unknown source'
-  return SOURCE_TYPE_LABELS[sourceType] ?? sourceType
+  return SOURCE_TYPE_LABELS[sourceType] ?? 'Unknown source'
+}
+
+// War Room triage-card checkpoint (2026-08-26): coarser, presentation-only
+// grouping of the full LandscapeSignalType vocabulary into the SAME four
+// category labels CompanyTabV1.tsx's own `GROUPS` array already uses for
+// its "Recent activity" sections (Deals & partnerships / Regulatory
+// activity / Clinical trial activity / Corporate strategy) -- reused
+// verbatim rather than inventing a second, competing taxonomy for the same
+// Signal universe. Extended here to be EXHAUSTIVE (a `Record` over the full
+// union, so TypeScript itself enforces no signalType is ever missing a
+// category) since a per-card label needs one for every Signal, unlike
+// CompanyTabV1's own grouped sections, which are free to drop unmatched
+// types into an "Other" section instead. PUBLICATION_RESULTS (V1 PubMed
+// checkpoint) files under Clinical trial activity -- a peer-reviewed
+// publication is clinical in nature; COMPANY_DISCLOSURE (no more specific
+// signal_type available for it) files under Corporate strategy, the same
+// conservative default CompanyTabV1's own "Other" bucket would effectively
+// produce for it today.
+export const INFORMATION_CATEGORY_LABELS: Record<LandscapeSignalType, string> = {
+  CLINICAL_TRIAL_ACTIVITY: 'Clinical trial activity',
+  TRIAL_FIRST_POSTED: 'Clinical trial activity',
+  RESULTS_FIRST_POSTED: 'Clinical trial activity',
+  PRIMARY_COMPLETION_REACHED: 'Clinical trial activity',
+  TRIAL_COMPLETED: 'Clinical trial activity',
+  CLINICAL_TRIAL_STATUS_CHANGE: 'Clinical trial activity',
+  CLINICAL_TRIAL_PHASE_CHANGE: 'Clinical trial activity',
+  CLINICAL_TRIAL_COMPLETION_OR_TERMINATION: 'Clinical trial activity',
+  CLINICAL_RESULTS: 'Clinical trial activity',
+  CLINICAL_MILESTONE: 'Clinical trial activity',
+  PUBLICATION_RESULTS: 'Clinical trial activity',
+  REGULATORY_APPROVAL: 'Regulatory activity',
+  REGULATORY_SUBMISSION: 'Regulatory activity',
+  REGULATORY_ACCEPTANCE: 'Regulatory activity',
+  REGULATORY_DECISION: 'Regulatory activity',
+  PARTNERSHIP_OR_LICENSE: 'Deals & partnerships',
+  ACQUISITION_OR_MERGER: 'Deals & partnerships',
+  COMMERCIAL_LAUNCH: 'Corporate strategy',
+  PROGRAM_DISCONTINUATION: 'Corporate strategy',
+  CORPORATE_STRATEGY_CHANGE: 'Corporate strategy',
+  COMPANY_DISCLOSURE: 'Corporate strategy',
+}
+
+export function informationCategoryLabel(signalType: LandscapeSignalType): string {
+  return INFORMATION_CATEGORY_LABELS[signalType]
 }
 
 export interface LandscapeSignal {

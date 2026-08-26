@@ -1,7 +1,8 @@
 import CompetitorBadge from './CompetitorBadge'
-import { SeverityDot, severityColor, severityLabel, severityText } from '../signals/primitives'
+import { SeverityTag, severityColor } from '../signals/primitives'
 import { toSeverity } from '../../lib/signalRanking'
-import { SIGNAL_TYPE_LABELS, type LandscapeSignal } from '../../lib/api/landscapeSignals'
+import { informationCategoryLabel, sourceTypeLabel, type LandscapeSignal } from '../../lib/api/landscapeSignals'
+import { formatDateAbs } from '../../utils/formatDate'
 
 function relTimeShort(iso: string, now: Date = new Date()): string {
   const diffMs = now.getTime() - new Date(iso).getTime()
@@ -25,43 +26,51 @@ function relTimeShort(iso: string, now: Date = new Date()): string {
  * from real evidence (see that module's own module docstring) -- this
  * component adds no interpretation, no "why it matters", no suggested
  * action.
+ *
+ * TRIAGE CARD CONTRACT (2026-08-26 checkpoint, report section 2): every
+ * card shows company, information category, priority, source, date,
+ * headline, and a 1-2 line summary -- the full required field set, all
+ * derived from real Signal data (informationCategoryLabel()/
+ * sourceTypeLabel() are deterministic presentation mappings, never
+ * fabricated content; see landscapeSignals.ts's own docstrings for both).
+ * Visual order: company + category (top line) -> headline -> summary
+ * (line-clamped to 2 lines via .worklist-row-summary, never the headline)
+ * -> priority/source/date metadata (bottom line). Ranking/top-N/importance
+ * are unchanged -- this component only ever renders whatever slice its
+ * caller already selected.
  */
 export default function LandscapeSignalRow({ signal }: { signal: LandscapeSignal }) {
   const severity = toSeverity(signal.importance)
   const displayName = signal.companyName ?? signal.companyId
+  const category = informationCategoryLabel(signal.signalType)
+  const source = sourceTypeLabel(signal.sourceType)
   return (
     // Screenshot-authority pass (pre-freeze unit 2, 2026-08-26): the
     // reference product accents each row with a severity-colored left
-    // border -- current build used dot+text only. Reuses the SAME
-    // severityColor() this row already uses for its dot/label text, never
-    // a new color mapping; inline (not a CSS class) since the color is
-    // per-row/per-severity and this exact pattern (dynamic inline color
-    // alongside a static CSS class) is already how this component applies
-    // severityText() two lines below.
+    // border. SeverityTag (below, in the metadata line) supplies its own
+    // dot+label+tint; this border reuses signals/primitives.tsx's own
+    // severityColor(), the SAME color source SeverityTag itself reads from.
     <div className="worklist-row" style={{ borderLeft: `3px solid ${severityColor(severity)}` }}>
       <div className="worklist-row-top">
-        <span className="worklist-row-sev" style={{ color: severityText(severity) }}>
-          <SeverityDot sev={severity} /> {severityLabel(severity)}
-        </span>
         <div className="worklist-row-competitor" title={displayName}>
           <CompetitorBadge name={displayName} id={signal.companyId} size={18} />
           <span className="name">{displayName}</span>
         </div>
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--t-caption)', color: 'var(--neutral-500)', whiteSpace: 'nowrap' }}>
-          {SIGNAL_TYPE_LABELS[signal.signalType]}
-        </span>
-        <span className="worklist-row-time">{relTimeShort(signal.occurredAt)}</span>
+        <span className="worklist-row-category" title={category}>{category}</span>
       </div>
       <p className="worklist-row-headline">
         {signal.title}
         {signal.assetName && <span style={{ color: 'var(--neutral-600)', fontWeight: 400 }}> · {signal.assetName}</span>}
       </p>
-      <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--neutral-600)' }}>
-        {signal.description}{' '}
-        <a href={signal.sourceLocator} target="_blank" rel="noreferrer" style={{ color: 'var(--indigo-600)', textDecoration: 'none' }}>
+      {signal.description && <p className="worklist-row-summary">{signal.description}</p>}
+      <div className="worklist-row-meta">
+        <SeverityTag sev={severity} />
+        <span className="worklist-row-source" title={source}>{source}</span>
+        <span className="worklist-row-time" title={formatDateAbs(signal.occurredAt)}>{relTimeShort(signal.occurredAt)}</span>
+        <a href={signal.sourceLocator} target="_blank" rel="noreferrer" className="worklist-row-source-link">
           Source
         </a>
-      </p>
+      </div>
     </div>
   )
 }

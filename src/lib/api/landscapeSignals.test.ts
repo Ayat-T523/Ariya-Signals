@@ -5,7 +5,10 @@
  * run with:  npx tsx src/lib/api/landscapeSignals.test.ts
  * Exit code 0 = all pass. Exit code 1 = one or more failures.
  */
-import { fetchLandscapeSignals, SIGNAL_TYPE_LABELS, sourceTypeLabel } from './landscapeSignals.js'
+import {
+  fetchLandscapeSignals, informationCategoryLabel, INFORMATION_CATEGORY_LABELS, SIGNAL_TYPE_LABELS, sourceTypeLabel,
+  type LandscapeSignalType,
+} from './landscapeSignals.js'
 
 let passed = 0
 let failed = 0
@@ -80,8 +83,33 @@ console.log('4. V1 PubMed integration checkpoint (2026-08-26): PUBLICATION_RESUL
 ;(() => {
   assert('PUBLICATION_RESULTS has a real label, never undefined', SIGNAL_TYPE_LABELS.PUBLICATION_RESULTS, 'Publication results')
   assert('pubmed source_type maps to an intelligible label', sourceTypeLabel('pubmed'), 'PubMed')
-  assert('an unrecognized source_type falls back to the raw value, never crashes', sourceTypeLabel('some_future_source'), 'some_future_source')
-  assert('a missing source_type falls back to a safe placeholder, never crashes', sourceTypeLabel(null), 'Unknown source')
+})()
+
+console.log('5. War Room triage-card checkpoint (2026-08-26): unknown source_type never falls back to ClinicalTrials.gov')
+;(() => {
+  assert('a real source_type still maps correctly', sourceTypeLabel('fda_drugs_at_fda'), 'FDA')
+  assert('an unrecognized source_type gets an honest neutral fallback, never CT.gov, never a raw unlabeled enum string', sourceTypeLabel('some_future_source'), 'Unknown source')
+  assert('a missing (null) source_type falls back to the SAME neutral placeholder', sourceTypeLabel(null), 'Unknown source')
+  assert('a missing (undefined) source_type falls back to the SAME neutral placeholder', sourceTypeLabel(undefined), 'Unknown source')
+  assert('an empty-string source_type falls back to the SAME neutral placeholder', sourceTypeLabel(''), 'Unknown source')
+})()
+
+console.log('6. War Room triage-card checkpoint (2026-08-26): information-category mapping is exhaustive and reuses CompanyTabV1.tsx\'s own labels')
+;(() => {
+  // Exhaustiveness is also enforced at compile time (INFORMATION_CATEGORY_LABELS
+  // is a Record<LandscapeSignalType, string>) -- this proves it at runtime too,
+  // over the exact same union SIGNAL_TYPE_LABELS is keyed by, so a new
+  // signalType added to one without the other fails a REAL test, not just a
+  // future `tsc` run.
+  const allTypes = Object.keys(SIGNAL_TYPE_LABELS) as LandscapeSignalType[]
+  for (const t of allTypes) {
+    assert(`${t} has a real, non-empty information category`, typeof INFORMATION_CATEGORY_LABELS[t] === 'string' && INFORMATION_CATEGORY_LABELS[t].length > 0, true)
+  }
+  assert('FDA/EMA regulatory approvals category as Regulatory activity', informationCategoryLabel('REGULATORY_APPROVAL'), 'Regulatory activity')
+  assert('CT.gov trial-lifecycle types category as Clinical trial activity', informationCategoryLabel('TRIAL_FIRST_POSTED'), 'Clinical trial activity')
+  assert('PubMed publications category as Clinical trial activity (a peer-reviewed publication is clinical in nature)', informationCategoryLabel('PUBLICATION_RESULTS'), 'Clinical trial activity')
+  assert('deals/M&A category as Deals & partnerships', informationCategoryLabel('ACQUISITION_OR_MERGER'), 'Deals & partnerships')
+  assert('company disclosures category as Corporate strategy (same conservative default CompanyTabV1.tsx\'s own "Other" bucket implies)', informationCategoryLabel('COMPANY_DISCLOSURE'), 'Corporate strategy')
 })()
 
 console.log(`\n${passed} passed, ${failed} failed`)

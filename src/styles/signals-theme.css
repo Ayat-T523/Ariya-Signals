@@ -1605,6 +1605,39 @@
   line-height: 1.4;
 }
 .worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--neutral-600); white-space: nowrap; flex-shrink: 0; margin-left: auto; }
+
+/* War Room triage-card checkpoint (2026-08-26): information-category tag,
+   flush right on the top line (company is flex-shrink:0/max-width:140px
+   with its own ellipsis already; this tag takes the remaining space and
+   wraps to its own line under the existing 900px worklist-row-top
+   flex-wrap rule rather than ever colliding with the company name). */
+.worklist-row-category {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  color: var(--neutral-600); background: var(--neutral-100);
+  padding: 2px 8px; border-radius: var(--r-pill);
+  white-space: nowrap; margin-left: auto; flex-shrink: 0;
+  max-width: 60%; overflow: hidden; text-overflow: ellipsis;
+}
+/* Own line below the headline (never the same line as the headline itself,
+   same "meta row stays one consistent line" discipline worklist-row-headline's
+   own comment already documents) -- 2-line clamp is this component's own
+   explicit, INTENTIONAL truncation contract for the summary specifically
+   (report section 5: "this UI contract intentionally allows summary
+   truncation here"), never applied to the headline. */
+.worklist-row-summary {
+  margin: 0; font-family: var(--font-ui); font-size: 12px; color: var(--neutral-600); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.worklist-row-meta { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.worklist-row-source {
+  font-family: var(--font-ui); font-size: 12px; color: var(--neutral-600);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+}
+.worklist-row-source-link {
+  font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600);
+  text-decoration: none; white-space: nowrap; margin-left: auto;
+}
+.worklist-row-source-link:hover { text-decoration: underline; }
 .worklist-row-action-line {
   display: flex; align-items: flex-start; gap: 5px;
   font-family: var(--font-ui); font-size: 12px; color: var(--indigo-600); line-height: 1.4;
