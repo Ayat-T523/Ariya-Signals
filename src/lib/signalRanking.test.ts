@@ -130,5 +130,88 @@ const byRecencyMode = rankSignalsByRecency(sameUniverse).map((s) => s.id)
 assert('importance mode ranks high-old first', byImportanceMode, ['high-old', 'low-new'])
 assert('recency mode ranks low-new first', byRecencyMode, ['low-new', 'high-old'])
 
+// ─────────────────────────────────────────────────────────────────────────
+// Visible Signal Source Rebalancing checkpoint (2026-08-27). All tests
+// below share one importance tier (HIGH) unless stated otherwise -- the
+// bug this fixes only ever manifests WITHIN a tier (materiality always
+// wins first; this never lets a lower tier bleed into a higher one).
+// ─────────────────────────────────────────────────────────────────────────
+
+console.log('15. Many routine CT.gov events + strong FDA/EMA events: alternate-source events are no longer buried')
+const manyCtgovOneEach = [
+  ...Array.from({ length: 8 }, (_, i) => sig({
+    id: `ctgov-${i}`, importance: 'HIGH', sourceType: 'clinicaltrials_gov',
+    occurredAt: `2026-08-${String(20 - i).padStart(2, '0')}T00:00:00+00:00`,
+  })),
+  sig({ id: 'fda-1', importance: 'HIGH', sourceType: 'fda_drugs_at_fda', occurredAt: '2023-10-17T00:00:00+00:00' }),
+  sig({ id: 'ema-1', importance: 'HIGH', sourceType: 'ema_epar', occurredAt: '2024-01-05T00:00:00+00:00' }),
+]
+const rebalanced = rankSignalsForAttention(manyCtgovOneEach, new Map())
+const top4 = rebalanced.slice(0, 4).map((s) => s.id)
+assert('FDA and EMA both surface within the first 4 slots, not buried behind all 8 CT.gov events', {
+  fdaInTop4: top4.includes('fda-1'), emaInTop4: top4.includes('ema-1'),
+}, { fdaInTop4: true, emaInTop4: true })
+assert('the single best (most recent) CT.gov event still leads (real strength, not suppressed)', rebalanced[0].id, 'ctgov-0')
+
+console.log('16. A highly material CT.gov event can still outrank weaker alternative-source events')
+const ctgovStillWins = rankSignalsForAttention([
+  sig({ id: 'ctgov-strong', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'fda-older', importance: 'HIGH', sourceType: 'fda_drugs_at_fda', occurredAt: '2018-01-01T00:00:00+00:00' }),
+  sig({ id: 'ema-older', importance: 'HIGH', sourceType: 'ema_epar', occurredAt: '2017-01-01T00:00:00+00:00' }),
+], new Map())
+assert('the most recent HIGH event (CT.gov here) still ranks #1 -- diversity never overrides real strength', ctgovStillWins[0].id, 'ctgov-strong')
+
+console.log('17. A weak (LOW-importance) alternate-source Signal is never promoted merely because that source is otherwise absent')
+const weakSourceNeverPromoted = rankSignalsForAttention([
+  sig({ id: 'ctgov-high-1', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'ctgov-high-2', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-19T00:00:00+00:00' }),
+  sig({ id: 'pubmed-low', importance: 'LOW', sourceType: 'pubmed', occurredAt: '2026-08-25T00:00:00+00:00' }),
+], new Map())
+assert(
+  'the LOW-importance PubMed item (even though newer) ranks LAST, behind both HIGH CT.gov events -- never jumped ahead for diversity',
+  weakSourceNeverPromoted.map((s) => s.id),
+  ['ctgov-high-1', 'ctgov-high-2', 'pubmed-low'],
+)
+
+console.log('18. Missing source families never create artificial slots (only sources with real eligible Signals ever appear)')
+const onlyTwoSources = rankSignalsForAttention([
+  sig({ id: 'ctgov-a', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'fda-a', importance: 'HIGH', sourceType: 'fda_drugs_at_fda', occurredAt: '2023-01-01T00:00:00+00:00' }),
+], new Map())
+const sourcesPresent = new Set(onlyTwoSources.map((s) => s.sourceType))
+assert('only the two real sources appear -- no ema_epar/pubmed/sec_edgar/company_disclosure slot is fabricated', [...sourcesPresent].sort(), ['clinicaltrials_gov', 'fda_drugs_at_fda'])
+
+console.log('19. A single-source dataset ranks truthfully as entirely that source (no forced diversity)')
+const singleSource = rankSignalsForAttention([
+  sig({ id: 's1', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 's2', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-19T00:00:00+00:00' }),
+  sig({ id: 's3', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-18T00:00:00+00:00' }),
+], new Map())
+assert('plain recency order, unchanged from the pre-fix behavior, when only one source is eligible', singleSource.map((s) => s.id), ['s1', 's2', 's3'])
+
+console.log('20. Same input produces the exact same ordering every time (determinism)')
+const detInput = [
+  sig({ id: 'ctgov-1', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-20T00:00:00+00:00' }),
+  sig({ id: 'fda-1', importance: 'HIGH', sourceType: 'fda_drugs_at_fda', occurredAt: '2023-10-17T00:00:00+00:00' }),
+  sig({ id: 'ctgov-2', importance: 'HIGH', sourceType: 'clinicaltrials_gov', occurredAt: '2026-08-15T00:00:00+00:00' }),
+  sig({ id: 'ema-1', importance: 'HIGH', sourceType: 'ema_epar', occurredAt: '2024-01-05T00:00:00+00:00' }),
+]
+const run1 = rankSignalsForAttention(detInput, new Map()).map((s) => s.id)
+const run2 = rankSignalsForAttention(detInput, new Map()).map((s) => s.id)
+const run3 = rankSignalsForAttention([...detInput].reverse(), new Map()).map((s) => s.id)
+assert('repeated calls on the same input produce identical ordering', run1, run2)
+assert('input array order does not affect the result', run1, run3)
+
+console.log('21. The underlying Signal collection is unchanged -- ranking only reorders, never adds/drops/mutates')
+const mixedTiers = [
+  sig({ id: 'a', importance: 'HIGH', sourceType: 'clinicaltrials_gov' }),
+  sig({ id: 'b', importance: 'MEDIUM', sourceType: 'fda_drugs_at_fda' }),
+  sig({ id: 'c', importance: 'LOW', sourceType: 'pubmed' }),
+]
+const mixedRanked = rankSignalsForAttention(mixedTiers, new Map())
+assert('same length', mixedRanked.length, mixedTiers.length)
+assert('same set of ids, none dropped or duplicated', [...mixedRanked.map((s) => s.id)].sort(), [...mixedTiers.map((s) => s.id)].sort())
+assert('every Signal object is referentially the SAME object, never a copy/mutation', mixedRanked.every((s) => mixedTiers.includes(s)), true)
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
