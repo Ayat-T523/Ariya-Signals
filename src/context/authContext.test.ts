@@ -125,6 +125,52 @@ console.log('6. Intentional local-development mode is preserved -- unaffected by
 assert('explicit VITE_AUTH_MODE=local in dev still grants the existing local-dev flow (unchanged)', resolveAuthMode('local', false), 'local')
 assert('LOCAL_DEV_USER identity is unchanged by this fix', LOCAL_DEV_USER.displayName, 'Local Developer')
 
+// ── V1 final auth requirements checkpoint (2026-08-27) ──────────────────────
+// signUp()/requestPasswordReset()/updatePassword()/isPasswordRecovery live
+// inside AuthProvider (a React component -- see this file's own docstring on
+// why stateful behavior is verified live, not re-implemented here). What IS
+// checked here, the same way setup-draft.test.ts checks AppContext.tsx's own
+// unrenderable persistence discipline: the actual source text proves the
+// wiring landed in the right place, not just that a helper file exists.
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const authContextSource = fs.readFileSync(path.join(__dirname, 'AuthContext.tsx'), 'utf-8')
+const appSource = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf-8')
+const appContextSource = fs.readFileSync(path.join(__dirname, 'AppContext.tsx'), 'utf-8')
+
+console.log('7. Password-recovery session handling is wired into AuthContext, distinct from a normal sign-in')
+assertTrue('AuthContextValue exposes isPasswordRecovery', authContextSource.includes('isPasswordRecovery: boolean'))
+assertTrue('the onAuthStateChange handler sets isPasswordRecovery on the real PASSWORD_RECOVERY event, not on every event', authContextSource.includes("event === 'PASSWORD_RECOVERY'") && authContextSource.includes('setIsPasswordRecovery(true)'))
+assertTrue('signing out always clears a stale recovery flag', authContextSource.includes("event === 'SIGNED_OUT'") && authContextSource.includes('setIsPasswordRecovery(false)'))
+assertTrue('a successful updatePassword() clears the recovery flag itself, not just relying on another Supabase event', authContextSource.includes('await supabaseUpdatePassword(newPassword)') && /supabaseUpdatePassword\(newPassword\)\s*\n\s*\/\/[\s\S]*?setIsPasswordRecovery\(false\)/.test(authContextSource))
+
+console.log('8. signUp/requestPasswordReset/updatePassword all fail closed the same way login() already does when Supabase is unconfigured')
+assertTrue('signUp() surfaces SUPABASE_MODE_CONFIG_ERROR when unconfigured, never a silent no-op', /async function signUp[\s\S]*?SUPABASE_MODE_CONFIG_ERROR/.test(authContextSource))
+assertTrue('requestPasswordReset() surfaces SUPABASE_MODE_CONFIG_ERROR when unconfigured', /async function requestPasswordReset[\s\S]*?SUPABASE_MODE_CONFIG_ERROR/.test(authContextSource))
+assertTrue('updatePassword() surfaces SUPABASE_MODE_CONFIG_ERROR when unconfigured', /async function updatePassword[\s\S]*?SUPABASE_MODE_CONFIG_ERROR/.test(authContextSource))
+
+console.log('9. Route protection: a password-recovery session is redirected to /reset-password BEFORE the normal isAuthenticated check -- it can never reach the workspace')
+const authGuardBody = appSource.slice(appSource.indexOf('function AuthGuard'), appSource.indexOf('function SetupGuard'))
+assertTrue('AuthGuard reads isPasswordRecovery from useAuth()', authGuardBody.includes('isPasswordRecovery'))
+assertTrue('the isPasswordRecovery redirect appears BEFORE the isAuthenticated check (recovery wins even for an authenticated-looking session)', authGuardBody.indexOf('isPasswordRecovery') < authGuardBody.indexOf('if (!isAuthenticated)'))
+assertTrue('the recovery redirect target is /reset-password', authGuardBody.includes("Navigate to=\"/reset-password\""))
+
+console.log('10. New public auth routes exist alongside the existing protected route tree (unchanged)')
+assertTrue('/sign-up is a public route', appSource.includes('<Route path="/sign-up"'))
+assertTrue('/forgot-password is a public route', appSource.includes('<Route path="/forgot-password"'))
+assertTrue('/reset-password is a public route (must be reachable by an unauthenticated browser following the email link)', appSource.includes('<Route path="/reset-password"'))
+assertTrue('all three sit OUTSIDE the <AuthGuard/> route element, same as the existing /sign-in', appSource.indexOf('/sign-up') < appSource.indexOf('<Route element={<AuthGuard'))
+
+console.log('11. Setup/landscape persistence is genuinely user-scoped, not just a helper file that nothing calls')
+assertTrue('AppProvider reads the authenticated user id from useAuth()', appContextSource.includes('const { user: authUser } = useAuth()') && appContextSource.includes('const userId = authUser?.id ?? null'))
+assertTrue('completeSetup() writes onboardingComplete through scopedKey(userId, ...), never the bare legacy key', appContextSource.includes("localStorage.setItem(scopedKey(userId, 'onboardingComplete'), 'true')"))
+assertTrue('completeSetup() writes tracked competitors through scopedKey(userId, ...)', appContextSource.includes('localStorage.setItem(scopedKey(userId, TRACKED_COMPETITORS_KEY)'))
+assertTrue('a corrective effect re-loads setup/landscape state whenever the authenticated userId changes (covers both a fresh sign-in and switching between two different users in one browser session)', appContextSource.includes('useLayoutEffect(() => {') && appContextSource.includes('migrateLegacyStateIfNeeded(userId)'))
+assertTrue('SetupGuard\'s own routing rule is unchanged by this checkpoint -- onboardingComplete=false still sends the user to /setup', appSource.includes('if (!onboardingComplete) return <Navigate to="/setup" replace />'))
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 
 // @types/node isn't configured for tsconfig.app.json -- see the identical note

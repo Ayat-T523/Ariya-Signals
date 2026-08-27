@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analytics } from '../lib/analytics'
 import { DEMO } from '../config/demo-config'
@@ -23,6 +23,7 @@ import { getAssetLexicon, type HandlingState } from '../lib/db'
 import { useAuth } from './AuthContext'
 import { type TimeHorizon, DEFAULT_TIME_HORIZON, isTimeHorizon } from '../lib/timeHorizon'
 import { triggerLandscapeHydration, toHydrationUIStatus, type HydrationUIStatus } from '../lib/api/landscapeHydration'
+import { scopedKey, migrateLegacyStateIfNeeded } from '../lib/userScopedStorage'
 
 /**
  * Everything the provider supplies.
@@ -193,10 +194,96 @@ const LEXICON_CACHE_KEY = 'ariya-lexicon-expanded'
 
 /** Stores the canonical LandscapeConfiguration (Frontend Step 2) as JSON. */
 const LANDSCAPE_CONFIGURATION_KEY = 'ariya-landscape-configuration'
+const TRACKED_COMPETITORS_KEY = 'ariya-tracked-competitors'
+const MANUAL_HOME_ASSET_KEY = 'ariya-manual-home-asset'
+const RESOLVED_HOME_ASSET_KEY = 'ariya-resolved-home-asset'
+const MANUAL_DISEASE_AREA_KEY = 'ariya-manual-disease-area'
+const RESOLVED_DISEASE_AREA_KEY = 'ariya-resolved-disease-area'
+// v5: role step removed (Light is single-view, no per-role tailoring)
+// v6: replaced with the canonical Therapeutic Area -> Disease Area -> Home
+// Asset flow (Frontend Step 3) -- the old asset-first + static-competitor-
+// confirm flow is gone, so every returning user needs to see this once.
+// v7: modal onboarding retired in favor of the dedicated full-page staged
+// setup (/setup) -- no existing user has ever completed Stage 2/3 (they
+// didn't exist), so every returning user is routed through setup once more.
+const ONBOARDING_VERSION = 'v7'
 
+/**
+ * User-scoped setup/landscape state readers (V1 final auth requirements
+ * checkpoint, 2026-08-27). Each mirrors the parsing/fallback logic the
+ * corresponding useState initializer used before this checkpoint byte-for-
+ * byte -- the only change is that every localStorage key is resolved
+ * through scopedKey(userId, ...) instead of used bare, so a null userId
+ * (auth not yet resolved) reads the exact same legacy key this app always
+ * read at that moment, and a real userId reads that user's own isolated
+ * copy. Shared by both the initial useState(() => readX(null)) call (mount,
+ * userId always unknown yet) and AppProvider's corrective useLayoutEffect
+ * (fires once userId resolves) -- one implementation, never two drifting
+ * copies of the same parsing logic.
+ */
+export function readOnboardingComplete(userId: string | null): boolean {
+  try {
+    return (
+      localStorage.getItem(scopedKey(userId, 'onboardingComplete')) === 'true' &&
+      localStorage.getItem(scopedKey(userId, 'onboardingVersion')) === ONBOARDING_VERSION
+    )
+  } catch { return false }
+}
+export function readLandscapeConfiguration(userId: string | null): LandscapeConfiguration {
+  let stored: LandscapeConfiguration | null = null
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, LANDSCAPE_CONFIGURATION_KEY))
+    stored = raw ? (JSON.parse(raw) as LandscapeConfiguration) : null
+  } catch { stored = null }
+  return migrateLegacyToLandscapeConfiguration(stored, {
+    assetId: localStorage.getItem(scopedKey(userId, 'ariya-user-asset-id')),
+    indication: localStorage.getItem(scopedKey(userId, 'ariya-user-indication')),
+  })
+}
+export function readTrackedCompetitors(userId: string | null): TrackedCompetitor[] {
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, TRACKED_COMPETITORS_KEY))
+    return raw ? (JSON.parse(raw) as TrackedCompetitor[]) : []
+  } catch { return [] }
+}
+export function readManualHomeAsset(userId: string | null): ManualAssetIdentity | null {
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, MANUAL_HOME_ASSET_KEY))
+    return raw ? (JSON.parse(raw) as ManualAssetIdentity) : null
+  } catch { return null }
+}
+export function readResolvedHomeAsset(userId: string | null): ResolvedAssetIdentity | null {
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, RESOLVED_HOME_ASSET_KEY))
+    return raw ? (JSON.parse(raw) as ResolvedAssetIdentity) : null
+  } catch { return null }
+}
+export function readManualDiseaseArea(userId: string | null): ManualDiseaseArea | null {
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, MANUAL_DISEASE_AREA_KEY))
+    return raw ? (JSON.parse(raw) as ManualDiseaseArea) : null
+  } catch { return null }
+}
+export function readResolvedDiseaseArea(userId: string | null): ResolvedDiseaseArea | null {
+  try {
+    const raw = localStorage.getItem(scopedKey(userId, RESOLVED_DISEASE_AREA_KEY))
+    return raw ? (JSON.parse(raw) as ResolvedDiseaseArea) : null
+  } catch { return null }
+}
+export function readUserIndication(userId: string | null): string | null {
+  return localStorage.getItem(scopedKey(userId, 'ariya-user-indication')) || null
+}
+export function readUserAssetName(userId: string | null): string | null {
+  return localStorage.getItem(scopedKey(userId, 'ariya-user-asset')) || null
+}
+export function readUserAssetId(userId: string | null): string | null {
+  return localStorage.getItem(scopedKey(userId, 'ariya-user-asset-id')) || null
+}
 
 export function AppProvider({ children }) {
   const navigate = useNavigate()
+  const { user: authUser } = useAuth()
+  const userId = authUser?.id ?? null
 
   // ── Competitor watch state ────────────────────────────────────────────────
   // LEGACY DEMO DATA (Frontend Step 3.5): this HAE-specific default predates
@@ -286,25 +373,9 @@ export function AppProvider({ children }) {
   function syncUnreadCount(n: number) { setUnreadCount(n) }
 
   // ── Onboarding state ─────────────────────────────────────────────────────
-  // Version stamp: bump this string whenever onboarding content changes so
-  // returning visitors see the updated flow instead of being skipped over.
-  // v5: role step removed (Light is single-view, no per-role tailoring)
-  // v6: replaced with the canonical Therapeutic Area -> Disease Area -> Home
-  // Asset flow (Frontend Step 3) -- the old asset-first + static-competitor-
-  // confirm flow is gone, so every returning user needs to see this once.
-  // v7: modal onboarding retired in favor of the dedicated full-page staged
-  // setup (/setup) -- no existing user has ever completed Stage 2/3 (they
-  // didn't exist), so every returning user is routed through setup once more.
-  const ONBOARDING_VERSION = 'v7'
-  const onboardingDone = (() => {
-    try {
-      return (
-        localStorage.getItem('onboardingComplete') === 'true' &&
-        localStorage.getItem('onboardingVersion') === ONBOARDING_VERSION
-      )
-    } catch { return false }
-  })()
-  const [onboardingComplete, setOnboardingComplete] = useState(() => onboardingDone)
+  // ONBOARDING_VERSION and the parsing logic now live at module scope (see
+  // readOnboardingComplete()), shared with the corrective effect below.
+  const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete(null))
 
   // ── User role ────────────────────────────────────────────────────────────
   const [userRole, setUserRoleState] = useState(() => {
@@ -321,42 +392,39 @@ export function AppProvider({ children }) {
   }
 
   // ── User preferences: indication + asset name ─────────────────────────
-  const [userIndication, setUserIndicationState] = useState(() => {
-    return localStorage.getItem('ariya-user-indication') || null
-  })
+  const [userIndication, setUserIndicationState] = useState(() => readUserIndication(null))
 
-  const [userAssetName, setUserAssetNameState] = useState(() => {
-    return localStorage.getItem('ariya-user-asset') || null
-  })
+  const [userAssetName, setUserAssetNameState] = useState(() => readUserAssetName(null))
 
   function setUserIndication(val: string | null) {
     setUserIndicationState(val)
+    const key = scopedKey(userId, 'ariya-user-indication')
     if (val) {
-      localStorage.setItem('ariya-user-indication', val)
+      localStorage.setItem(key, val)
     } else {
-      localStorage.removeItem('ariya-user-indication')
+      localStorage.removeItem(key)
     }
   }
 
   function setUserAssetName(val: string | null) {
     setUserAssetNameState(val)
+    const key = scopedKey(userId, 'ariya-user-asset')
     if (val) {
-      localStorage.setItem('ariya-user-asset', val)
+      localStorage.setItem(key, val)
     } else {
-      localStorage.removeItem('ariya-user-asset')
+      localStorage.removeItem(key)
     }
   }
 
-  const [userAssetId, setUserAssetIdState] = useState(() => {
-    return localStorage.getItem('ariya-user-asset-id') || null
-  })
+  const [userAssetId, setUserAssetIdState] = useState(() => readUserAssetId(null))
 
   function setUserAssetId(val: string | null) {
     setUserAssetIdState(val)
+    const key = scopedKey(userId, 'ariya-user-asset-id')
     if (val) {
-      localStorage.setItem('ariya-user-asset-id', val)
+      localStorage.setItem(key, val)
     } else {
-      localStorage.removeItem('ariya-user-asset-id')
+      localStorage.removeItem(key)
     }
   }
 
@@ -365,17 +433,9 @@ export function AppProvider({ children }) {
   // from its own persisted value if one exists; otherwise migrated from
   // whatever legacy asset/indication state localStorage already has (product
   // contract Step 7's fallback chain — never a guessed Therapeutic Area).
-  const [landscapeConfiguration, setLandscapeConfigurationState] = useState<LandscapeConfiguration>(() => {
-    let stored: LandscapeConfiguration | null = null
-    try {
-      const raw = localStorage.getItem(LANDSCAPE_CONFIGURATION_KEY)
-      stored = raw ? (JSON.parse(raw) as LandscapeConfiguration) : null
-    } catch { stored = null }
-    return migrateLegacyToLandscapeConfiguration(stored, {
-      assetId: localStorage.getItem('ariya-user-asset-id'),
-      indication: localStorage.getItem('ariya-user-indication'),
-    })
-  })
+  const [landscapeConfiguration, setLandscapeConfigurationState] = useState<LandscapeConfiguration>(
+    () => readLandscapeConfiguration(null),
+  )
 
   // Single source of truth for the canonical configuration (Frontend Step 3):
   // also keeps the three legacy fields in lockstep so existing consumers that
@@ -387,7 +447,7 @@ export function AppProvider({ children }) {
   function setLandscapeConfiguration(patch: Partial<LandscapeConfiguration>) {
     setLandscapeConfigurationState((prev) => {
       const next = { ...prev, ...patch }
-      try { localStorage.setItem(LANDSCAPE_CONFIGURATION_KEY, JSON.stringify(next)) } catch { /* noop */ }
+      try { localStorage.setItem(scopedKey(userId, LANDSCAPE_CONFIGURATION_KEY), JSON.stringify(next)) } catch { /* noop */ }
       return next
     })
 
@@ -462,52 +522,64 @@ export function AppProvider({ children }) {
   // Separate key from 'pharma-inc-ciwarroom-watched' (watchedCompetitors,
   // the legacy HAE default above) -- completing setup never touches that
   // key, so the Takeda/BioCryst/Pharvaris default can never overwrite it.
-  const TRACKED_COMPETITORS_KEY = 'ariya-tracked-competitors'
-  const [trackedCompetitors, setTrackedCompetitorsState] = useState<TrackedCompetitor[]>(() => {
-    try {
-      const raw = localStorage.getItem(TRACKED_COMPETITORS_KEY)
-      return raw ? (JSON.parse(raw) as TrackedCompetitor[]) : []
-    } catch { return [] }
-  })
+  // TRACKED_COMPETITORS_KEY etc. now live at module scope (shared with the
+  // readX() helpers above and the corrective effect below).
+  const [trackedCompetitors, setTrackedCompetitorsState] = useState<TrackedCompetitor[]>(
+    () => readTrackedCompetitors(null),
+  )
 
-  const MANUAL_HOME_ASSET_KEY = 'ariya-manual-home-asset'
-  const [manualHomeAsset, setManualHomeAssetState] = useState<ManualAssetIdentity | null>(() => {
-    try {
-      const raw = localStorage.getItem(MANUAL_HOME_ASSET_KEY)
-      return raw ? (JSON.parse(raw) as ManualAssetIdentity) : null
-    } catch { return null }
-  })
+  const [manualHomeAsset, setManualHomeAssetState] = useState<ManualAssetIdentity | null>(
+    () => readManualHomeAsset(null),
+  )
 
   // Targeted Implementation 4 -- same persistence shape as manualHomeAsset
   // above, for a Home Asset selected via live asset search instead. Before
   // this task, completeSetup() had no parameter for it at all, so it was
   // silently discarded on setup completion (see this field's own doc
   // comment on AppContextValue).
-  const RESOLVED_HOME_ASSET_KEY = 'ariya-resolved-home-asset'
-  const [resolvedHomeAsset, setResolvedHomeAssetState] = useState<ResolvedAssetIdentity | null>(() => {
-    try {
-      const raw = localStorage.getItem(RESOLVED_HOME_ASSET_KEY)
-      return raw ? (JSON.parse(raw) as ResolvedAssetIdentity) : null
-    } catch { return null }
-  })
+  const [resolvedHomeAsset, setResolvedHomeAssetState] = useState<ResolvedAssetIdentity | null>(
+    () => readResolvedHomeAsset(null),
+  )
 
   // Targeted Implementation 2 -- same persistence shape as manualHomeAsset
   // above, one key per source since a landscape carries at most one of the
   // two (never both; see setup-draft.ts's mutual exclusion).
-  const MANUAL_DISEASE_AREA_KEY = 'ariya-manual-disease-area'
-  const RESOLVED_DISEASE_AREA_KEY = 'ariya-resolved-disease-area'
-  const [manualDiseaseArea, setManualDiseaseAreaState] = useState<ManualDiseaseArea | null>(() => {
-    try {
-      const raw = localStorage.getItem(MANUAL_DISEASE_AREA_KEY)
-      return raw ? (JSON.parse(raw) as ManualDiseaseArea) : null
-    } catch { return null }
-  })
-  const [resolvedDiseaseArea, setResolvedDiseaseAreaState] = useState<ResolvedDiseaseArea | null>(() => {
-    try {
-      const raw = localStorage.getItem(RESOLVED_DISEASE_AREA_KEY)
-      return raw ? (JSON.parse(raw) as ResolvedDiseaseArea) : null
-    } catch { return null }
-  })
+  const [manualDiseaseArea, setManualDiseaseAreaState] = useState<ManualDiseaseArea | null>(
+    () => readManualDiseaseArea(null),
+  )
+  const [resolvedDiseaseArea, setResolvedDiseaseAreaState] = useState<ResolvedDiseaseArea | null>(
+    () => readResolvedDiseaseArea(null),
+  )
+
+  // ── User-scoped state correction (V1 final auth requirements checkpoint,
+  // 2026-08-27) ──────────────────────────────────────────────────────────
+  // The useState initializers above always run at mount, before Supabase's
+  // session has resolved (userId is unknowable synchronously -- see
+  // AuthContext.tsx's own onAuthStateChange discussion) -- they read
+  // whichever legacy/bare key existed at that moment, which is fine since
+  // AuthGuard (App.tsx) never renders any protected content while
+  // isLoading is true. useLayoutEffect (not useEffect) here so the
+  // correction lands BEFORE the browser paints the first frame where
+  // AuthGuard's isLoading flips to false and the workspace becomes visible
+  // -- there is no user-visible frame where one user's setup/landscape data
+  // is shown before this correction runs. Re-runs (idempotently) whenever
+  // userId itself changes, i.e. on every real sign-in/sign-out transition,
+  // which is exactly the cross-user isolation this checkpoint requires:
+  // "User B must NOT see: User A's gMG landscape... User B enters setup."
+  useLayoutEffect(() => {
+    if (!userId) return
+    migrateLegacyStateIfNeeded(userId)
+    setOnboardingComplete(readOnboardingComplete(userId))
+    setLandscapeConfigurationState(readLandscapeConfiguration(userId))
+    setTrackedCompetitorsState(readTrackedCompetitors(userId))
+    setManualHomeAssetState(readManualHomeAsset(userId))
+    setResolvedHomeAssetState(readResolvedHomeAsset(userId))
+    setManualDiseaseAreaState(readManualDiseaseArea(userId))
+    setResolvedDiseaseAreaState(readResolvedDiseaseArea(userId))
+    setUserIndicationState(readUserIndication(userId))
+    setUserAssetNameState(readUserAssetName(userId))
+    setUserAssetIdState(readUserAssetId(userId))
+  }, [userId])
 
   // ── Historical evidence hydration coverage (Step 1, 2026-08-24) ──────────
   // CORRECTNESS GATE FIX (report section 5/6/8): ONE shared implementation
@@ -593,18 +665,22 @@ export function AppProvider({ children }) {
     setManualDiseaseAreaState(nextManualDiseaseArea)
     setResolvedDiseaseAreaState(nextResolvedDiseaseArea)
     try {
-      localStorage.setItem(TRACKED_COMPETITORS_KEY, JSON.stringify(competitors))
-      if (nextManualHomeAsset) localStorage.setItem(MANUAL_HOME_ASSET_KEY, JSON.stringify(nextManualHomeAsset))
-      else localStorage.removeItem(MANUAL_HOME_ASSET_KEY)
-      if (nextResolvedHomeAsset) localStorage.setItem(RESOLVED_HOME_ASSET_KEY, JSON.stringify(nextResolvedHomeAsset))
-      else localStorage.removeItem(RESOLVED_HOME_ASSET_KEY)
-      if (nextManualDiseaseArea) localStorage.setItem(MANUAL_DISEASE_AREA_KEY, JSON.stringify(nextManualDiseaseArea))
-      else localStorage.removeItem(MANUAL_DISEASE_AREA_KEY)
-      if (nextResolvedDiseaseArea) localStorage.setItem(RESOLVED_DISEASE_AREA_KEY, JSON.stringify(nextResolvedDiseaseArea))
-      else localStorage.removeItem(RESOLVED_DISEASE_AREA_KEY)
+      localStorage.setItem(scopedKey(userId, TRACKED_COMPETITORS_KEY), JSON.stringify(competitors))
+      const manualHomeAssetKey = scopedKey(userId, MANUAL_HOME_ASSET_KEY)
+      if (nextManualHomeAsset) localStorage.setItem(manualHomeAssetKey, JSON.stringify(nextManualHomeAsset))
+      else localStorage.removeItem(manualHomeAssetKey)
+      const resolvedHomeAssetKey = scopedKey(userId, RESOLVED_HOME_ASSET_KEY)
+      if (nextResolvedHomeAsset) localStorage.setItem(resolvedHomeAssetKey, JSON.stringify(nextResolvedHomeAsset))
+      else localStorage.removeItem(resolvedHomeAssetKey)
+      const manualDiseaseAreaKey = scopedKey(userId, MANUAL_DISEASE_AREA_KEY)
+      if (nextManualDiseaseArea) localStorage.setItem(manualDiseaseAreaKey, JSON.stringify(nextManualDiseaseArea))
+      else localStorage.removeItem(manualDiseaseAreaKey)
+      const resolvedDiseaseAreaKey = scopedKey(userId, RESOLVED_DISEASE_AREA_KEY)
+      if (nextResolvedDiseaseArea) localStorage.setItem(resolvedDiseaseAreaKey, JSON.stringify(nextResolvedDiseaseArea))
+      else localStorage.removeItem(resolvedDiseaseAreaKey)
     } catch { /* noop */ }
-    localStorage.setItem('onboardingComplete', 'true')
-    localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
+    localStorage.setItem(scopedKey(userId, 'onboardingComplete'), 'true')
+    localStorage.setItem(scopedKey(userId, 'onboardingVersion'), ONBOARDING_VERSION)
     setOnboardingComplete(true)
 
     // Historical evidence hydration (Step 1, 2026-08-24) — automatic,
@@ -642,8 +718,8 @@ export function AppProvider({ children }) {
     setTourActive(false)
     setOnboardingComplete(true)
     try {
-      localStorage.setItem('onboardingComplete', 'true')
-      localStorage.setItem('onboardingVersion', ONBOARDING_VERSION)
+      localStorage.setItem(scopedKey(userId, 'onboardingComplete'), 'true')
+      localStorage.setItem(scopedKey(userId, 'onboardingVersion'), ONBOARDING_VERSION)
     } catch { /* noop */ }
   }
 

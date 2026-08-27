@@ -10,6 +10,9 @@ import Layout from './components/layout/Layout'
 import NotFoundState from './components/ui/NotFoundState'
 import { useDocumentTitle } from './hooks/useDocumentTitle'
 import SignInPage from './pages/SignIn'
+import SignUpPage from './pages/SignUp'
+import ForgotPasswordPage from './pages/ForgotPassword'
+import ResetPasswordPage from './pages/ResetPassword'
 
 const SetupPage = lazy(() => import('./pages/setup/SetupPage'))
 
@@ -64,8 +67,14 @@ function PageLoader() {
 // grants a session via SignIn's "Enter workspace" button; http mode has no
 // working login yet, so isAuthenticated simply never becomes true there.
 function AuthGuard() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, isPasswordRecovery } = useAuth()
   if (isLoading) return <PageLoader />
+  // A password-recovery session is real (isAuthenticated is true) but must
+  // never reach the workspace -- checked BEFORE the normal isAuthenticated
+  // branch so it wins no matter which protected route was requested
+  // (checkpoint requirement: "A password-recovery route must not
+  // accidentally expose the Ariya workspace").
+  if (isPasswordRecovery) return <Navigate to="/reset-password" replace />
   if (!isAuthenticated) return <Navigate to="/sign-in" replace />
   return <Outlet />
 }
@@ -100,8 +109,12 @@ export default function App() {
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Public — sign-in page */}
+              {/* Public — auth routes (V1 final auth requirements checkpoint, 2026-08-27) */}
               <Route path="/sign-in" element={<SignInPage />} />
+              <Route path="/sign-up" element={<SignUpPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              {/* Public so an unauthenticated browser following the email link can still reach it -- Supabase's own recovery-link exchange establishes the temporary session client-side. Renders an honest "invalid or expired" state when there is no real recovery session (see ResetPassword.tsx). */}
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Signals component-library scratch view — public, standalone (no shell/auth) */}
               <Route path="/signals-kit" element={<><RouteTitle title="Signals Kit" /><SignalsKit /></>} />

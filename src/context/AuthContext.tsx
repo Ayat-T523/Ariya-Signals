@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { signIn, signOut } from '../lib/auth'
+import { signIn, signOut, signUp as supabaseSignUp, resetPasswordForEmail, updatePassword as supabaseUpdatePassword } from '../lib/auth'
 
 /**
  * AuthContext.tsx — provider-independent authentication (Frontend Step 3.5;
@@ -72,6 +72,21 @@ export interface AuthContextValue {
    *  no-op-ing. */
   login: (credentials?: AuthCredentials) => Promise<void>
   logout: () => Promise<void>
+  /** 'supabase' mode only. Returns whether the new account needs email
+   *  confirmation before it can sign in (see lib/auth.ts's signUp()) --
+   *  the caller must show an honest "check your email" state in that case,
+   *  never a fabricated logged-in one. */
+  signUp: (credentials: AuthCredentials) => Promise<{ needsEmailConfirmation: boolean }>
+  /** 'supabase' mode only. Always resolves (never reveals whether the email exists -- Supabase's own resetPasswordForEmail() is neutral by design). */
+  requestPasswordReset: (email: string) => Promise<void>
+  /** 'supabase' mode only. Must be called while isPasswordRecovery is true. */
+  updatePassword: (newPassword: string) => Promise<void>
+  /** True only while the current Supabase session is a temporary password-
+   *  recovery session (the user followed a reset-password email link) --
+   *  never a normal authenticated session. AuthGuard routes straight to
+   *  /reset-password whenever this is true, no matter which protected route
+   *  was requested, so a recovery session can never reach the workspace. */
+  isPasswordRecovery: boolean
 }
 
 // No vite-env.d.ts exists anywhere in this repo (a pre-existing, repo-wide
@@ -155,6 +170,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
   const [configError, setConfigError] = useState<string | null>(
     AUTH_MODE === 'http' ? HTTP_MODE_CONFIG_ERROR
     : AUTH_MODE === 'supabase' && !supabase ? SUPABASE_MODE_CONFIG_ERROR
@@ -182,9 +198,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (AUTH_MODE === 'supabase') {
       if (!supabase) { setIsLoading(false); return }
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         setUser(toAuthUser(session?.user))
         setIsLoading(false)
+        // PASSWORD_RECOVERY (V1 final auth requirements checkpoint,
+        // 2026-08-27): fires when the user arrives via a reset-password
+        // email link -- Supabase establishes a real, temporary session for
+        // them (so `user`/`isAuthenticated` above are correctly non-null),
+        // but this must NEVER be treated as a normal login. Only cleared on
+        // an explicit SIGNED_OUT or by updatePassword() below succeeding --
+        // never on an incidental TOKEN_REFRESHED while the recovery screen
+        // is still open.
+        if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true)
+        else if (event === 'SIGNED_OUT') setIsPasswordRecovery(false)
       })
       return () => subscription.unsubscribe()
     }
@@ -214,6 +240,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(LOCAL_DEV_USER)
   }
 
+  async function signUp(credentials: AuthCredentials): Promise<{ needsEmailConfirmation: boolean }> {
+    if (AUTH_MODE !== 'supabase' || !supabase) {
+      setConfigError(SUPABASE_MODE_CONFIG_ERROR)
+      throw new Error(SUPABASE_MODE_CONFIG_ERROR)
+    }
+    // When confirmation is disabled, signUp() itself establishes a session
+    // and the onAuthStateChange subscription above picks it up from that
+    // one real source of truth -- same discipline login() already follows.
+    return supabaseSignUp(credentials.email, credentials.password)
+  }
+
+  async function requestPasswordReset(email: string): Promise<void> {
+    if (AUTH_MODE !== 'supabase' || !supabase) {
+      setConfigError(SUPABASE_MODE_CONFIG_ERROR)
+      throw new Error(SUPABASE_MODE_CONFIG_ERROR)
+    }
+    await resetPasswordForEmail(email)
+  }
+
+  async function updatePassword(newPassword: string): Promise<void> {
+    if (AUTH_MODE !== 'supabase' || !supabase) {
+      setConfigError(SUPABASE_MODE_CONFIG_ERROR)
+      throw new Error(SUPABASE_MODE_CONFIG_ERROR)
+    }
+    await supabaseUpdatePassword(newPassword)
+    // The recovery session is now a normal session going forward -- clear
+    // the flag explicitly rather than waiting for/inferring another
+    // onAuthStateChange event (Supabase does not guarantee one here).
+    setIsPasswordRecovery(false)
+  }
+
   async function logout(): Promise<void> {
     if (AUTH_MODE === 'local') {
       try { localStorage.removeItem(LOCAL_SESSION_KEY) } catch { /* noop */ }
@@ -241,6 +298,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         configError,
         login,
         logout,
+        signUp,
+        requestPasswordReset,
+        updatePassword,
+        isPasswordRecovery,
       }}
     >
       {children}
