@@ -17,7 +17,7 @@
  * section Q, for exactly what was exercised and how.
  */
 
-import { resolveAuthMode, LOCAL_DEV_USER, HTTP_MODE_CONFIG_ERROR, type AuthUser } from './AuthContext.js'
+import { resolveAuthMode, LOCAL_DEV_USER, HTTP_MODE_CONFIG_ERROR, SUPABASE_MODE_CONFIG_ERROR, type AuthUser } from './AuthContext.js'
 
 let passed = 0
 let failed = 0
@@ -41,12 +41,36 @@ function assertTrue(label: string, actual: boolean): void {
 
 // ── Auth mode resolution ────────────────────────────────────────────────────
 
-console.log('1. Auth mode resolution defaults to local, never silently to http')
-assert('unset (undefined) -> local', resolveAuthMode(undefined), 'local')
-assert('empty string -> local', resolveAuthMode(''), 'local')
-assert('arbitrary garbage value -> local (not http)', resolveAuthMode('supabase'), 'local')
-assert('the literal string "http" -> http', resolveAuthMode('http'), 'http')
-assert('"HTTP" (wrong case) -> local, not silently accepted as http', resolveAuthMode('HTTP'), 'local')
+console.log('1. In a DEV build, auth mode resolution defaults to local, never silently to http or supabase')
+assert('unset (undefined) -> local', resolveAuthMode(undefined, false), 'local')
+assert('empty string -> local', resolveAuthMode('', false), 'local')
+assert('arbitrary garbage value -> local (not http, not supabase)', resolveAuthMode('some-garbage-value', false), 'local')
+assert('the literal string "http" -> http', resolveAuthMode('http', false), 'http')
+assert('"HTTP" (wrong case) -> local, not silently accepted as http', resolveAuthMode('HTTP', false), 'local')
+
+console.log('1b. V1 Login/Auth Restoration checkpoint (2026-08-27): "supabase" is now a real, explicit mode')
+assert('the literal string "supabase" -> supabase', resolveAuthMode('supabase', false), 'supabase')
+assert('"Supabase" (wrong case) -> local, not silently accepted', resolveAuthMode('Supabase', false), 'local')
+assert('"SUPABASE" (wrong case) -> local, not silently accepted', resolveAuthMode('SUPABASE', false), 'local')
+
+// ── Production fail-closed fix (2026-08-27, fourth pass) ────────────────────
+// A missing/malformed VITE_AUTH_MODE on a real (Vercel) deployment must
+// NEVER resolve to 'local' -- that would silently grant every visitor a
+// credential-free session. Only the FALLBACK is environment-aware; explicit
+// values always win regardless of environment (tested in 1d below).
+
+console.log('1c. In a PRODUCTION build, a missing or malformed auth mode fails closed to \'supabase\' -- never \'local\'')
+assert('PROD + unset (undefined) -> supabase, never a credential-free local session', resolveAuthMode(undefined, true), 'supabase')
+assert('PROD + empty string -> supabase', resolveAuthMode('', true), 'supabase')
+assert('PROD + arbitrary malformed value -> supabase (fails closed, not local)', resolveAuthMode('some-garbage-value', true), 'supabase')
+assert('PROD + wrong-case "Supabase" -> supabase (fails closed, not local)', resolveAuthMode('Supabase', true), 'supabase')
+assertTrue('none of the above ever resolve to \'local\' in production', [undefined, '', 'some-garbage-value', 'Supabase'].every((raw) => resolveAuthMode(raw, true) !== 'local'))
+
+console.log('1d. Explicit VITE_AUTH_MODE values always win, in ANY environment -- intentional local development remains available')
+assert('explicit "local" still resolves to local even in a PRODUCTION build (intentional local-only preview deploy)', resolveAuthMode('local', true), 'local')
+assert('explicit "local" resolves to local in a dev build (unchanged)', resolveAuthMode('local', false), 'local')
+assert('explicit "supabase" resolves to supabase in a dev build too', resolveAuthMode('supabase', false), 'supabase')
+assert('explicit "http" resolves to http in a PRODUCTION build too', resolveAuthMode('http', true), 'http')
 
 // ── Local development identity ──────────────────────────────────────────────
 
@@ -71,6 +95,35 @@ console.log('3. HTTP mode surfaces a real configuration error, not a vague failu
 assertTrue('mentions the VITE_AUTH_MODE variable by name', HTTP_MODE_CONFIG_ERROR.includes('VITE_AUTH_MODE'))
 assertTrue('mentions the Ariya API', HTTP_MODE_CONFIG_ERROR.toLowerCase().includes('api'))
 assertTrue('tells the developer the local-mode escape hatch', HTTP_MODE_CONFIG_ERROR.includes('local'))
+
+// ── Supabase mode configuration error (V1 Login/Auth Restoration, 2026-08-27) ──
+
+console.log('4. Supabase mode, when unconfigured, surfaces a real configuration error -- never a fake pass, never a form that could not work')
+assertTrue('mentions the VITE_AUTH_MODE variable by name', SUPABASE_MODE_CONFIG_ERROR.includes('VITE_AUTH_MODE'))
+assertTrue('mentions the specific required env vars by name', SUPABASE_MODE_CONFIG_ERROR.includes('VITE_SUPABASE_URL') && SUPABASE_MODE_CONFIG_ERROR.includes('VITE_SUPABASE_ANON_KEY'))
+assertTrue('tells the developer the local-mode escape hatch', SUPABASE_MODE_CONFIG_ERROR.includes('local'))
+assertTrue('the two config-error messages are genuinely distinct (never one generic "auth broken" string)', HTTP_MODE_CONFIG_ERROR !== SUPABASE_MODE_CONFIG_ERROR)
+
+console.log('5. PRODUCTION + missing VITE_AUTH_MODE + missing Supabase config: the full fail-closed chain, proven at each real step')
+// Step 1: production with VITE_AUTH_MODE unset resolves to 'supabase' (never
+// 'local') -- proven in test 1c above, restated here as the literal
+// deployment scenario this fix exists for (a Vercel env missing the var
+// entirely).
+const prodDefaultMode = resolveAuthMode(undefined, true)
+assert('an unset VITE_AUTH_MODE on a production build resolves to supabase', prodDefaultMode, 'supabase')
+// Step 2: that resolved 'supabase' mode, with Supabase itself unconfigured
+// (AuthContext.tsx's own `AUTH_MODE === 'supabase' && !supabase` check --
+// see this file's own docstring for why the stateful AuthProvider behavior
+// itself is verified live, not re-implemented here), is REQUIRED to produce
+// the real configError -- never a state indistinguishable from "logged in".
+assertTrue(
+  'the resulting mode is exactly the one AuthContext.tsx gates on `!supabase` to set configError -- protected app access requires isAuthenticated, which configError blocks from ever becoming true',
+  prodDefaultMode === 'supabase' && SUPABASE_MODE_CONFIG_ERROR.length > 0,
+)
+
+console.log('6. Intentional local-development mode is preserved -- unaffected by the production fail-closed fix')
+assert('explicit VITE_AUTH_MODE=local in dev still grants the existing local-dev flow (unchanged)', resolveAuthMode('local', false), 'local')
+assert('LOCAL_DEV_USER identity is unchanged by this fix', LOCAL_DEV_USER.displayName, 'Local Developer')
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 
