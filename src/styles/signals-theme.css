@@ -1594,8 +1594,14 @@
   letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--neutral-600); flex-shrink: 0;
 }
-.worklist-row-competitor { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; max-width: 140px; }
-.worklist-row-competitor .name { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--neutral-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Intelligence Feed repair (2026-08-27, third pass, report section 1): a
+   company name must always display in full, never ellipsized -- removed
+   the 140px max-width + ellipsis this rule previously had (a long real
+   name like "Immunovant, Inc." or "Novartis Pharmaceuticals" was silently
+   clipped). worklist-row-category's own flex-shrink:1 (below) absorbs the
+   width difference instead. */
+.worklist-row-competitor { display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-width: 0; }
+.worklist-row-competitor .name { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--neutral-700); white-space: nowrap; }
 /* Own line below the meta row (never truncated) -- keeps the meta row
    (severity, competitor, time, actions) a single consistent line regardless
    of headline length, instead of squeezing everything onto one row and
@@ -1605,6 +1611,33 @@
   line-height: 1.4;
 }
 .worklist-row-time { font-family: var(--font-mono); font-size: 12px; color: var(--neutral-600); white-space: nowrap; flex-shrink: 0; margin-left: auto; }
+
+/* Intelligence Feed repair (2026-08-27, third pass, report section 3): an
+   explicit real/estimated marker for a unified Events list mixing
+   already-occurred Signals with future estimated milestones -- never a
+   color/severity signal, just a small neutral-vs-amber-tinted outline
+   pill so the two temporal kinds stay visually distinguishable at a
+   glance in one shared list. */
+.worklist-row-datestatus {
+  font-family: var(--font-ui); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 1px 7px; border-radius: var(--r-pill); white-space: nowrap; flex-shrink: 0;
+}
+.worklist-row-datestatus-actual { color: var(--neutral-600); border: 1px solid var(--neutral-300); }
+.worklist-row-datestatus-estimated { color: var(--amber-800); border: 1px solid var(--amber-100); background: var(--amber-050); }
+
+/* AI enrichment blocks (2026-08-27, report section 1) -- same "own line,
+   labeled caption + body" language EventDigestRow's "Why this is
+   relevant"/"Actionable follow-up" annotation boxes already established,
+   reused here rather than inventing a second derived-text presentation. */
+.worklist-row-ai-block { background: var(--indigo-050); border-radius: var(--r-sm); padding: 6px 10px; margin-top: 2px; }
+.worklist-row-ai-label {
+  margin: 0 0 2px; font-family: var(--font-ui); font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--indigo-600);
+}
+.worklist-row-ai-text { margin: 0; font-family: var(--font-ui); font-size: 12px; line-height: 1.45; color: var(--neutral-900); }
+.worklist-row-ai-unavailable {
+  margin: 0; font-family: var(--font-ui); font-size: 11px; font-style: italic; color: var(--neutral-500);
+}
 
 /* "Top signals to triage" reference-screenshot pass (2026-08-26): an
    OUTLINE pill (border + tinted text, transparent fill) for the

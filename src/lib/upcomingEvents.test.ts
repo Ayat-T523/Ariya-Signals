@@ -1,6 +1,7 @@
 /**
  * upcomingEvents.test.ts — Upcoming Events V1 semantic-integrity
- * extraction (War Room checkpoint, 2026-08-25).
+ * extraction (War Room checkpoint, 2026-08-25); tests 21-24 added for the
+ * Intelligence Feed repair (2026-08-27, report section 3).
  *
  * No test runner is configured in this repo (see src/lib/signalText.test.ts);
  * run with:  npx tsx src/lib/upcomingEvents.test.ts
@@ -227,6 +228,63 @@ const isolationProof = buildUpcomingEvents({
   ctgovMilestones: [milestone({})],
 })
 assert('only real live sources present, zero fixtures', isolationProof.map((e) => e.id).sort(), ['ctgov-NCT00000001-lokelma-PRIMARY_COMPLETION', 'live-iso'])
+
+// ─────────────────────────────────────────────────────────────────────────
+// Intelligence Feed repair (2026-08-27, report section 3): Primary
+// completion and Study completion CT.gov milestones must carry distinct
+// `label` values and never both collapse to a generic "Milestone" bucket --
+// the previous UI implementation keyed the visible badge off `eventType`
+// alone (a single TRIAL_MILESTONE value shared by every CT.gov milestone
+// subtype), losing the distinction this file's own test 12 already proved
+// exists in the `title` string.
+// ─────────────────────────────────────────────────────────────────────────
+
+console.log('21. Primary completion and Study completion carry distinct labels (never both "Milestone")')
+const primaryLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON,
+  effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'PRIMARY_COMPLETION', assetId: 'asset-a', nctId: 'NCT00000010' })],
+})
+const studyLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON,
+  effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'STUDY_COMPLETION', assetId: 'asset-b', nctId: 'NCT00000011' })],
+})
+assert('Primary completion label is specific', primaryLabeled[0]?.label, 'Primary completion (estimated)')
+assert('Study completion label is specific', studyLabeled[0]?.label, 'Study completion (estimated)')
+assert('the two labels are not the same generic bucket', primaryLabeled[0]?.label !== studyLabeled[0]?.label, true)
+assert('neither label is the generic fallback "Milestone"', [primaryLabeled[0]?.label, studyLabeled[0]?.label].includes('Milestone'), false)
+assert('both still share the same coarse eventType (by design -- label is the finer field)', primaryLabeled[0]?.eventType, studyLabeled[0]?.eventType)
+
+console.log('22. Trial completion (combined) also gets its own distinct label')
+const combinedLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true, calendarEvents: [], staticEvents: [], lexicon: LEXICON,
+  effectiveCompetitorIds: new Set(), nowStr: NOW,
+  ctgovMilestones: [milestone({ milestoneType: 'PRIMARY_AND_STUDY_COMPLETION', assetId: 'asset-c' })],
+})
+assert('Trial completion label is specific', combinedLabeled[0]?.label, 'Trial completion (estimated)')
+
+console.log('23. EMA CHMP/PRAC meetings carry their real committee label, not a generic catch-all')
+const chmpLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'chmp-row', event_type: 'CHMP', start_date: '2026-09-01' })],
+  staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+})
+const pracLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'prac-row', event_type: 'PRAC', start_date: '2026-09-01' })],
+  staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+})
+assert('CHMP row labeled distinctly', chmpLabeled[0]?.label, 'CHMP meeting')
+assert('PRAC row labeled distinctly', pracLabeled[0]?.label, 'PRAC meeting')
+
+console.log('24. An undifferentiated OTHER EMA row falls back to the honest "Regulatory meeting" label (no fabricated committee)')
+const otherLabeled = buildUpcomingEvents({
+  hasActiveLandscape: true,
+  calendarEvents: [calEvent({ id: 'other-row', event_type: 'OTHER', title: 'efgartigimod review', start_date: '2026-09-01' })],
+  staticEvents: [], lexicon: LEXICON, effectiveCompetitorIds: new Set(), nowStr: NOW,
+})
+assert('OTHER row falls back to Regulatory meeting', otherLabeled[0]?.label, 'Regulatory meeting')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)

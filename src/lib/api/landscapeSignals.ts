@@ -56,6 +56,22 @@ export type LandscapeSignalType =
   // `Record<LandscapeSignalType, string>`, so TypeScript itself enforces
   // that no member of this union is ever missing a label.
   | 'PUBLICATION_RESULTS'
+  // V1 Intelligence Feed checkpoint (2026-08-27): PUBLICATION_RESULTS above
+  // is now dead on the backend (ariya-lightci-python's own PubMed
+  // reconciliation checkpoint confirmed zero production code paths still
+  // emit it) -- real PubMed Signals now carry
+  // MATERIAL_CLINICAL_EVIDENCE_PUBLICATION instead (confirmed live against
+  // the real production database: `SELECT DISTINCT signal_type FROM
+  // signals` returned this exact string, which this union was missing).
+  // INDICATION_EXPANSION is the other real, currently-emitted value this
+  // union was missing, confirmed the same way. This union is a mirror of
+  // OBSERVED backend reality, not a guess -- see signalTypeLabel()/
+  // informationCategoryLabel() below for the defensive fallback that
+  // protects against the NEXT drift, since TypeScript's own exhaustiveness
+  // check here is compile-time only and cannot catch a runtime value from
+  // an external API that doesn't actually belong to this union.
+  | 'MATERIAL_CLINICAL_EVIDENCE_PUBLICATION'
+  | 'INDICATION_EXPANSION'
 
 export type SignalImportance = 'HIGH' | 'MEDIUM' | 'LOW'
 
@@ -82,6 +98,25 @@ export const SIGNAL_TYPE_LABELS: Record<LandscapeSignalType, string> = {
   CORPORATE_STRATEGY_CHANGE: 'Corporate strategy change',
   COMPANY_DISCLOSURE: 'Company disclosure',
   PUBLICATION_RESULTS: 'Publication results',
+  MATERIAL_CLINICAL_EVIDENCE_PUBLICATION: 'Material clinical evidence published',
+  INDICATION_EXPANSION: 'Indication expansion',
+}
+
+// V1 Intelligence Feed checkpoint (2026-08-27): safe accessor for
+// SIGNAL_TYPE_LABELS -- direct `SIGNAL_TYPE_LABELS[x]` indexing is only as
+// safe as this union's own completeness, which TypeScript can guarantee at
+// compile time but never at runtime against an external API response (see
+// this file's own toLandscapeSignal(), which casts raw.signal_type with no
+// validation). Live-proven necessary: a real production Signal whose
+// signal_type (MATERIAL_CLINICAL_EVIDENCE_PUBLICATION) had drifted ahead of
+// this file's own union rendered the literal text "undefined" wherever a
+// caller indexed SIGNAL_TYPE_LABELS directly. Every call site that renders
+// a signal type as text should use this, never the raw Record index, so the
+// NEXT backend addition fails safe (a plain, still-legible fallback)
+// instead of leaking `undefined` to the screen again.
+export function signalTypeLabel(signalType: string | null | undefined): string {
+  if (!signalType) return 'Signal'
+  return (SIGNAL_TYPE_LABELS as Record<string, string>)[signalType] ?? 'Signal'
 }
 
 // V1 PubMed integration checkpoint (2026-08-26): a small, additive label
@@ -101,7 +136,7 @@ export const SOURCE_TYPE_LABELS: Record<string, string> = {
   fda_drugs_at_fda: 'FDA',
   ema_epar: 'EMA',
   company_disclosure: 'Company disclosure',
-  sec_edgar: 'SEC EDGAR',
+  sec_edgar: 'SEC',
   pubmed: 'PubMed',
 }
 
@@ -154,10 +189,20 @@ export const INFORMATION_CATEGORY_LABELS: Record<LandscapeSignalType, string> = 
   PROGRAM_DISCONTINUATION: 'Corporate strategy',
   CORPORATE_STRATEGY_CHANGE: 'Corporate strategy',
   COMPANY_DISCLOSURE: 'Corporate strategy',
+  // A peer-reviewed publication is clinical in nature -- same reasoning as
+  // PUBLICATION_RESULTS above. INDICATION_EXPANSION is a regulatory
+  // lifecycle event (a new indication added to an existing authorization).
+  MATERIAL_CLINICAL_EVIDENCE_PUBLICATION: 'Clinical trial activity',
+  INDICATION_EXPANSION: 'Regulatory activity',
 }
 
-export function informationCategoryLabel(signalType: LandscapeSignalType): string {
-  return INFORMATION_CATEGORY_LABELS[signalType]
+// Widened to `string` (still safe for every existing LandscapeSignalType
+// caller, which is itself a string) with a fallback, same reasoning as
+// signalTypeLabel() above -- this must never return undefined for a real
+// Signal whose signal_type hasn't been mirrored into this union yet.
+export function informationCategoryLabel(signalType: string | null | undefined): string {
+  if (!signalType) return 'Signal'
+  return (INFORMATION_CATEGORY_LABELS as Record<string, string>)[signalType] ?? 'Signal'
 }
 
 export interface LandscapeSignal {

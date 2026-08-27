@@ -24,23 +24,48 @@ export const EVENT_SIGNAL_TYPES: ReadonlySet<LandscapeSignalType> = new Set<Land
   'COMMERCIAL_LAUNCH', 'PROGRAM_DISCONTINUATION', 'PARTNERSHIP_OR_LICENSE',
 ])
 
-// Report section 6: genuinely structural/market-changing types only --
-// deliberately a SMALLER set than EVENT_SIGNAL_TYPES (every member here is
-// also an Event; PARTNERSHIP_OR_LICENSE/PROGRAM_DISCONTINUATION/
-// COMMERCIAL_LAUNCH belong to both by the task's own design -- Market
-// Developments is a narrower highlight, not a disjoint category). Ordinary
-// trial milestones (TRIAL_FIRST_POSTED etc.) are never promoted here just
-// to populate the tab -- an honest zero is correct when none of these exist.
-export const MARKET_DEVELOPMENT_SIGNAL_TYPES: ReadonlySet<LandscapeSignalType> = new Set<LandscapeSignalType>([
-  'PARTNERSHIP_OR_LICENSE', 'ACQUISITION_OR_MERGER', 'CORPORATE_STRATEGY_CHANGE', 'PROGRAM_DISCONTINUATION', 'COMMERCIAL_LAUNCH',
-])
-
 export function filterEventSignals(signals: LandscapeSignal[]): LandscapeSignal[] {
   return signals.filter((s) => EVENT_SIGNAL_TYPES.has(s.signalType))
 }
 
+// Intelligence Feed repair (2026-08-27, report section 6): the previous
+// MARKET_DEVELOPMENT_SIGNAL_TYPES taxonomy (PARTNERSHIP_OR_LICENSE,
+// ACQUISITION_OR_MERGER, CORPORATE_STRATEGY_CHANGE, PROGRAM_DISCONTINUATION,
+// COMMERCIAL_LAUNCH) never once matched the real backend signal_type
+// vocabulary (confirmed via live DB query: only CLINICAL_RESULTS,
+// INDICATION_EXPANSION, MATERIAL_CLINICAL_EVIDENCE_PUBLICATION,
+// PRIMARY_COMPLETION_REACHED, REGULATORY_APPROVAL, RESULTS_FIRST_POSTED,
+// TRIAL_COMPLETED, TRIAL_FIRST_POSTED are ever produced) -- Market
+// Developments was therefore structurally always empty, regardless of how
+// healthy the underlying landscape's evidence actually was.
+//
+// Replaced with a (signalType, sourceType) eligibility rule keyed to what a
+// Market Development actually means ("what regulatory or commercial moves
+// matter?"), using only the six V1 sources' own real guarantees:
+//  - company_disclosure / sec_edgar: ALWAYS eligible. record_company_pr_evidence()
+//    on the backend only ever persists a company_disclosure Signal once
+//    Groq/Gemini's own semantic interpretation already classified the source
+//    text MATERIAL_EVENT (see company_pr_interpretation.py) -- that upstream
+//    materiality gate means no further signalType filtering is needed, or
+//    safe to add on top, for either source.
+//  - fda_drugs_at_fda / ema_epar: eligible only for the regulatory-decision
+//    subset of signalType. An ordinary CT.gov trial-lifecycle event or a
+//    PubMed publication is never promoted here just to populate the tab --
+//    ineligible sources/types produce false, never a fabricated placeholder.
+const MARKET_DEVELOPMENT_REGULATORY_TYPES: ReadonlySet<LandscapeSignalType> = new Set<LandscapeSignalType>([
+  'REGULATORY_APPROVAL', 'REGULATORY_DECISION', 'REGULATORY_SUBMISSION', 'REGULATORY_ACCEPTANCE', 'INDICATION_EXPANSION',
+])
+
+export function isMarketDevelopmentSignal(signal: LandscapeSignal): boolean {
+  if (signal.sourceType === 'company_disclosure' || signal.sourceType === 'sec_edgar') return true
+  if (signal.sourceType === 'fda_drugs_at_fda' || signal.sourceType === 'ema_epar') {
+    return MARKET_DEVELOPMENT_REGULATORY_TYPES.has(signal.signalType)
+  }
+  return false
+}
+
 export function filterMarketDevelopmentSignals(signals: LandscapeSignal[]): LandscapeSignal[] {
-  return signals.filter((s) => MARKET_DEVELOPMENT_SIGNAL_TYPES.has(s.signalType))
+  return signals.filter(isMarketDevelopmentSignal)
 }
 
 // Report section 4: Leadership is NOT a second evidence store -- a narrower

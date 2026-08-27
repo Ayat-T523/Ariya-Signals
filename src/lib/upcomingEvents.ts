@@ -119,6 +119,20 @@ export interface NextUpEvent {
    *  guessed from title-matching. */
   companyId?: string
   companyName?: string
+  /** Intelligence Feed repair (2026-08-27, report section 3): the most
+   *  specific real, source-backed label for this event's own subtype --
+   *  e.g. "Primary completion (estimated)"/"Study completion (estimated)"
+   *  for a CT.gov milestone, "CHMP meeting"/"PRAC meeting" for an EMA
+   *  committee session. Always at least as specific as
+   *  UPCOMING_EVENT_TYPE_LABELS[eventType] -- never a fabricated subtype
+   *  the source doesn't actually distinguish. Falls back to that coarser
+   *  label when absent (e.g. a future source with no finer distinction).
+   *  Bug fix: this distinction previously existed only inside the `title`
+   *  string -- every UI consumer keyed off `eventType` instead (a single
+   *  TRIAL_MILESTONE bucket for ALL CT.gov milestone subtypes), so Primary
+   *  completion and Study completion both rendered as the generic
+   *  "Milestone" badge despite the title text itself staying specific. */
+  label?: string
 }
 
 export interface StaticEventFixture {
@@ -164,6 +178,11 @@ function buildLiveEventItems(calendarEvents: DbRegulatoryCalendarEvent[], lexico
       // conservative bucket for all three rather than guessing at
       // REGULATORY_DECISION without evidence.
       eventType: 'REGULATORY_MEETING' as const,
+      // `event_type` (CHMP/PRAC/OTHER) is real source data already on the
+      // row -- surfacing it as `label` costs nothing and is more specific
+      // than the coarse eventType bucket, without inventing anything OTHER
+      // doesn't actually have.
+      label: e.event_type === 'CHMP' ? 'CHMP meeting' : e.event_type === 'PRAC' ? 'PRAC meeting' : 'Regulatory meeting',
       datePrecision: 'DAY' as const,
     }))
 }
@@ -194,6 +213,12 @@ function buildCtgovMilestoneItems(milestones: CtgovUpcomingMilestone[]): NextUpE
     sourceUrl: m.sourceUrl,
     sourceLabel: 'ClinicalTrials.gov',
     eventType: 'TRIAL_MILESTONE' as const,
+    // Bug fix (report section 3): this is the ONE place PRIMARY_COMPLETION/
+    // STUDY_COMPLETION/PRIMARY_AND_STUDY_COMPLETION are actually
+    // distinguished -- `eventType` alone collapses all three into a single
+    // TRIAL_MILESTONE bucket, which is what produced the generic
+    // "Milestone" label for every CT.gov row regardless of subtype.
+    label: `${CTGOV_MILESTONE_LABEL[m.milestoneType]} (estimated)`,
     datePrecision: 'DAY' as const,
     companyId: m.companyId,
     companyName: m.companyName,

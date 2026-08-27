@@ -18,14 +18,17 @@ import { NEU_PLATE_STYLE } from '../components/signals/primitives'
 import { competitorsData, eventsData, marketDevelopments as marketData } from '../data/kalvista'
 import { activeLandscapeSignalScope, partyMatchesLegacyScope } from '../lib/activeLandscape'
 import { resolveCanonicalIndicationId } from '../config/setup-draft'
-import { fetchLandscapeSignals, type LandscapeSignal } from '../lib/api/landscapeSignals'
-import { filterEventSignals, filterMarketDevelopmentSignals, filterLeadershipSignals } from '../lib/intelligenceFeedViews'
+import { fetchLandscapeSignals, informationCategoryLabel, sourceTypeLabel, type LandscapeSignal } from '../lib/api/landscapeSignals'
+import { fetchSignalEnrichment, type SignalEnrichmentRequestItem, type SignalEnrichmentResult } from '../lib/api/signalEnrichment'
+import { filterMarketDevelopmentSignals } from '../lib/intelligenceFeedViews'
 import LandscapeSignalRow from '../components/ui/LandscapeSignalRow'
 import { buildSourceLabel } from '../lib/transformers'
 import { formatDateAbs } from '../utils/formatDate'
 import { useApp, useConfig } from '../context/AppContext'
 import { getRegulatoryCalendar, getRecentSignals, getTrialsForCalendarYear, type DbRegulatoryCalendarEvent, type DbRecentSignal } from '../lib/db'
 import { trialsToCalendarCells } from '../lib/trialsToGantt'
+import { buildUpcomingEvents, UPCOMING_EVENT_TYPE_LABELS, type NextUpEvent, type UpcomingEventType } from '../lib/upcomingEvents'
+import { fetchUpcomingCtgovMilestones, type CtgovUpcomingMilestone } from '../lib/api/upcomingMilestones'
 
 // ── Reference date ────────────────────────────────────────────────────────────
 const TODAY = new Date()
@@ -116,6 +119,36 @@ const EVENT_TYPE = {
   regulatory: { label: 'Regulatory', icon: Landmark,   bg: 'var(--sage-050)',   text: 'var(--sage-600)'   },
   investor:   { label: 'Investor',   icon: TrendingUp, bg: 'var(--amber-050)',  text: 'var(--amber-800)'  },
   milestone:  { label: 'Milestone',  icon: Star,       bg: 'var(--terra-050)', text: 'var(--terra-600)'  },
+}
+
+// Intelligence Feed repair (2026-08-27, report section 4-5): maps the real
+// cross-source UpcomingEventType (upcomingEvents.ts) onto this file's own
+// EVENT_TYPE badge taxonomy so the existing WeekStrip/EventDigestRow visual
+// language can render real events without inventing a second taxonomy. Only
+// TRIAL_MILESTONE and REGULATORY_MEETING are actually populated by today's
+// two live sources (CT.gov + EMA) -- the remaining entries are defensive,
+// exercised only once a future source (Company IR, SEC, congress) is built.
+const UPCOMING_EVENT_TYPE_TO_BADGE: Record<UpcomingEventType, keyof typeof EVENT_TYPE> = {
+  TRIAL_MILESTONE: 'milestone',
+  CLINICAL_READOUT: 'milestone',
+  REGULATORY_SUBMISSION: 'regulatory',
+  REGULATORY_DECISION: 'regulatory',
+  REGULATORY_MEETING: 'regulatory',
+  CONGRESS_PRESENTATION: 'conference',
+  COMMERCIAL_LAUNCH: 'milestone',
+  PARTNERSHIP_OR_TRANSACTION_MILESTONE: 'investor',
+  PROGRAM_MILESTONE: 'milestone',
+}
+
+function mapUpcomingEventToDigestEvent(e: NextUpEvent) {
+  return {
+    id: e.id,
+    date: e.date,
+    type: (e.eventType ? UPCOMING_EVENT_TYPE_TO_BADGE[e.eventType] : undefined) ?? 'milestone',
+    title: e.companyName ? `${e.companyName}: ${e.title}` : e.title,
+    sourceUrl: e.sourceUrl ?? null,
+    sourceLabel: e.sourceLabel ?? null,
+  }
 }
 
 // ── Leadership-priority filter ───────────────────────────────────────────────
@@ -360,6 +393,11 @@ const TABS: Array<{ label: string; icon: (p: { size?: number; strokeWidth?: numb
 // on first paint; NEVER used as the final displayed number once the tabs
 // (always mounted, just display:none-toggled) have run their first effect.
 const TAB_COUNTS_FALLBACK = [eventsData.length, marketData.length]
+
+// AI enrichment (2026-08-27 third-pass checkpoint, report section 1): see
+// the enrichmentMap effect in Portal() for why this is bounded rather than
+// covering every historical Signal at once.
+const ENRICHMENT_BATCH_SIZE = 20
 
 function TabBar({ active, onChange, counts }: { active: number; onChange: (i: number) => void; counts: number[] }) {
   return (
@@ -650,6 +688,9 @@ function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations
               EMA
             </span>
           )}
+          {!(event as any)._isLive && (event as any).sourceLabel && (
+            <span style={{ color: 'var(--ink-600)', fontWeight: 500 }}>{(event as any).sourceLabel}</span>
+          )}
           {isIllustrative && <span style={{ color: 'var(--amber-800)', fontWeight: 600 }}>Illustrative</span>}
           {attending.length > 0 && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
@@ -771,8 +812,84 @@ function EventDigestRow({ event, pastVariant, cardRef, flashing, showAnnotations
   )
 }
 
-function EventsTab({ liveCalendarEvents, liveTrialCells, landscapeSignals, onCountChange }: { liveCalendarEvents: DbRegulatoryCalendarEvent[]; liveTrialCells: Record<string, Record<number, CalCell>>; landscapeSignals: LandscapeSignal[]; onCountChange?: (count: number) => void }) {
-  const { watchedCompetitors, trackedCompetitors } = useApp()
+// Intelligence Feed repair (2026-08-27, second pass, report section 1, 6):
+// the real Events list row -- same compact .worklist-row visual language
+// LandscapeSignalRow/Recent Signals uses (company, category, date, headline,
+// source), never a new card/grid system. A NextUpEvent is not a
+// LandscapeSignal (no importance/description -- it's a forward-looking
+// estimated milestone, not yet a recorded Signal), so this is a small
+// sibling row rather than a forced fit into LandscapeSignalRow's own prop
+// contract. `event.label` (see upcomingEvents.ts) is always the most
+// specific real subtype the source provides -- e.g. "Primary completion
+// (estimated)" vs "Study completion (estimated)", never the coarse
+// eventType bucket alone (report section 3 bug fix).
+function UpcomingEventRow({ event }: { event: NextUpEvent }) {
+  const category = event.label ?? (event.eventType ? UPCOMING_EVENT_TYPE_LABELS[event.eventType] : 'Event')
+  const displayName = event.companyName ?? null
+  return (
+    <div className="worklist-row">
+      <div className="worklist-row-top">
+        {displayName ? (
+          <div className="worklist-row-competitor" title={displayName}>
+            <CompetitorBadge name={displayName} id={event.companyId} size={18} />
+            <span className="name">{displayName}</span>
+          </div>
+        ) : (
+          <span className="worklist-row-competitor" />
+        )}
+        <span className="worklist-row-category" title={category}>{category}</span>
+        {/* Every NextUpEvent is, by construction, a future ESTIMATED date
+            (buildUpcomingEvents() never returns a past one) -- "Estimated"
+            here is never a per-item guess, it's the honest fact of which
+            code path produced this row (report section 3). */}
+        <span className="worklist-row-datestatus worklist-row-datestatus-estimated">Estimated</span>
+        <span className="worklist-row-time">{formatDateAbs(event.date)}</span>
+      </div>
+      <p className="worklist-row-headline">{event.title}</p>
+      <div className="worklist-row-meta">
+        {event.sourceUrl ? (
+          <a href={event.sourceUrl} target="_blank" rel="noreferrer" className="worklist-row-source-link" title={event.sourceLabel ?? undefined}>
+            {event.sourceLabel ?? 'Source'}
+          </a>
+        ) : (
+          <span className="worklist-row-source-link">{event.sourceLabel ?? 'Source'}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Intelligence Feed repair (2026-08-27, third pass, report section 3): one
+// tagged-union item per row in the unified Events list -- a real,
+// already-occurred LandscapeSignal ('signal', always dateStatus="actual")
+// or a real future ESTIMATED milestone ('upcoming', always
+// dateStatus="estimated"). The discriminant alone encodes actual-vs-
+// estimated correctly BY CONSTRUCTION (landscapeSignals are only ever
+// historical facts; buildUpcomingEvents() only ever returns future dates)
+// -- never a separately-set flag that could drift from its own source.
+type UnifiedEventItem =
+  | { kind: 'signal'; date: string; signal: LandscapeSignal }
+  | { kind: 'upcoming'; date: string; event: NextUpEvent }
+
+function signalTypeToStripBadge(signalType: string): keyof typeof EVENT_TYPE {
+  return signalType.includes('REGULATORY') ? 'regulatory' : 'milestone'
+}
+
+function EventsTab({
+  liveCalendarEvents, liveTrialCells, liveDataError, landscapeSignals, landscapeSignalsLoading, landscapeSignalsError,
+  enrichmentMap, onCountChange,
+}: {
+  liveCalendarEvents: DbRegulatoryCalendarEvent[]
+  liveTrialCells: Record<string, Record<number, CalCell>>
+  liveDataError: boolean
+  landscapeSignals: LandscapeSignal[]
+  landscapeSignalsLoading: boolean
+  landscapeSignalsError: boolean
+  enrichmentMap: Record<string, SignalEnrichmentResult>
+  onCountChange?: (count: number) => void
+}) {
+  const { watchedCompetitors, trackedCompetitors, landscapeConfiguration, resolvedDiseaseArea } = useApp()
+  const { indication, lexiconInns, lexiconTaTerms } = useConfig()
   // SETUP PROPAGATION: same active-landscape scope as War Room -- once a real
   // completed landscape exists, it is authoritative over the legacy HAE
   // default. See activeLandscape.ts.
@@ -782,16 +899,81 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, landscapeSignals, onCou
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
 
-  // Intelligence Feed checkpoint (2026-08-25, report section 5): for an
-  // active V1 landscape, "Events" is driven by the SAME scoped Signal
-  // universe RecentSignalsStrip renders -- signals.py's own normalized
-  // signal_type taxonomy already distinguishes concrete dated competitive
-  // events (see intelligenceFeedViews.ts's own EVENT_SIGNAL_TYPES docstring)
-  // from everything else, so this never re-derives a second taxonomy. This
-  // REPLACES (not merges with) the legacy eventsData/live-EMA-calendar
-  // system below for an active landscape -- reconciling the two into one
-  // unified event model is a follow-up item, not this checkpoint's scope.
-  const eventSignals = useMemo(() => filterEventSignals(landscapeSignals), [landscapeSignals])
+  // Intelligence Feed repair (2026-08-27): for an active V1 landscape,
+  // Events is driven by the SAME real upcoming-event mechanism War Room's
+  // "Next up" already proves -- buildUpcomingEvents() over the live EMA
+  // regulatory calendar plus real future ESTIMATED CT.gov milestones --
+  // rendered as ONE flat list below the horizontal strip (see
+  // UpcomingEventRow), never a second grouped list system running
+  // alongside a separate always-on Signal feed (report section 1-2
+  // finding: this page previously showed three list surfaces on screen at
+  // once). This REPLACES (not merges with) the legacy eventsData/
+  // live-EMA-calendar system below for an active landscape.
+  const discoveredCompanyIds = useMemo(
+    () => trackedCompetitors.filter((c) => c.source === 'discovered').map((c) => c.companyId),
+    [trackedCompetitors],
+  )
+  const canonicalIndicationId = resolveCanonicalIndicationId(landscapeConfiguration.diseaseAreaId, resolvedDiseaseArea)
+  const lexicon = useMemo(() => ({ inns: lexiconInns, ta_terms: lexiconTaTerms }), [lexiconInns, lexiconTaTerms])
+
+  const [ctgovMilestones, setCtgovMilestones] = useState<CtgovUpcomingMilestone[]>([])
+  const [milestonesLoading, setMilestonesLoading] = useState(false)
+  const [milestonesError, setMilestonesError] = useState(false)
+  useEffect(() => {
+    if (!hasActiveLandscape || discoveredCompanyIds.length === 0) { setCtgovMilestones([]); return }
+    let cancelled = false
+    setMilestonesLoading(true)
+    setMilestonesError(false)
+    fetchUpcomingCtgovMilestones(discoveredCompanyIds, indication, canonicalIndicationId)
+      .then((items) => { if (!cancelled) setCtgovMilestones(items) })
+      .catch(() => { if (!cancelled) setMilestonesError(true) })
+      .finally(() => { if (!cancelled) setMilestonesLoading(false) })
+    return () => { cancelled = true }
+  }, [hasActiveLandscape, discoveredCompanyIds, indication, canonicalIndicationId])
+
+  const nowStr = TODAY.toISOString().slice(0, 10)
+  const realUpcomingEvents = useMemo(() => {
+    if (!hasActiveLandscape) return []
+    return buildUpcomingEvents({
+      hasActiveLandscape: true,
+      calendarEvents: liveCalendarEvents,
+      staticEvents: [],
+      lexicon,
+      effectiveCompetitorIds,
+      nowStr,
+      maxItems: 500, // Events tab shows the full real list, not War Room's 8-item carousel cap
+      ctgovMilestones,
+    })
+  }, [hasActiveLandscape, liveCalendarEvents, lexicon, effectiveCompetitorIds, nowStr, ctgovMilestones])
+
+  const realMappedEvents = useMemo(() => realUpcomingEvents.map(mapUpcomingEventToDigestEvent), [realUpcomingEvents])
+
+  // Intelligence Feed repair (2026-08-27, third pass, report section 3):
+  // ONE chronological continuum -- real historical Signals (all-time, the
+  // SAME landscapeSignals array Market Developments reads, never a
+  // 90-day-cut subset) merged with real future estimated milestones, sorted
+  // together, never two separately-labeled "past"/"future" feeds. Newest
+  // (or soonest-future) first, matching the pre-repair Recent Signals
+  // feed's own descending convention.
+  const unifiedEvents = useMemo<UnifiedEventItem[]>(() => {
+    if (!hasActiveLandscape) return []
+    const signalItems: UnifiedEventItem[] = landscapeSignals.map((signal) => ({ kind: 'signal', date: signal.occurredAt, signal }))
+    const upcomingItems: UnifiedEventItem[] = realUpcomingEvents.map((event) => ({ kind: 'upcoming', date: event.date, event }))
+    return [...signalItems, ...upcomingItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [hasActiveLandscape, landscapeSignals, realUpcomingEvents])
+
+  // Strip badge dots (report section 4: "keep it... centered around the
+  // present") -- covers BOTH temporal kinds so a past regulatory approval
+  // and a future trial-completion milestone each show their own dot on
+  // their own real day, never only the future half of the same continuum.
+  const stripEvents = useMemo(
+    () => [
+      ...landscapeSignals.map((s) => ({ date: s.occurredAt, type: signalTypeToStripBadge(s.signalType) })),
+      ...realMappedEvents,
+    ],
+    [landscapeSignals, realMappedEvents],
+  )
+
   const [searchParams]  = useSearchParams()
   const eventFromUrl    = searchParams.get('event')
   const [viewFilter, setViewFilter]         = useState('all')
@@ -860,8 +1042,8 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, landscapeSignals, onCou
   })
 
   useEffect(() => {
-    onCountChange?.(hasActiveLandscape ? eventSignals.length : landscapeScopedEvents.length)
-  }, [hasActiveLandscape, eventSignals.length, landscapeScopedEvents.length])
+    onCountChange?.(hasActiveLandscape ? unifiedEvents.length : landscapeScopedEvents.length)
+  }, [hasActiveLandscape, unifiedEvents.length, landscapeScopedEvents.length])
 
   const upcoming = filtered
     .filter((e) => new Date(e.date) >= TODAY)
@@ -899,21 +1081,59 @@ function EventsTab({ liveCalendarEvents, liveTrialCells, landscapeSignals, onCou
     { value: 'leadership', label: 'Leadership priority' },
   ]
 
-  // Intelligence Feed checkpoint (2026-08-25): an active V1 landscape
-  // renders the real, source-backed event Signals directly (the SAME
-  // LandscapeSignalRow RecentSignalsStrip already uses) -- never the
-  // legacy WeekStrip/KeyCatalystsCalendar/upcoming-past calendar UI below,
-  // which is built entirely around eventsData/live-EMA-calendar shapes a
-  // Signal doesn't have. Legacy (`!hasActiveLandscape`) behavior is
-  // completely unreached by this branch, preserved byte-for-byte.
+  // Intelligence Feed repair (2026-08-27, third pass, report section 3):
+  // ONE unified chronological Events experience -- the horizontal strip
+  // above a single flat list mixing real historical Signals (dateStatus=
+  // "actual", rendered via the SAME LandscapeSignalRow Market Developments
+  // uses) with real future estimated milestones (dateStatus="estimated",
+  // via UpcomingEventRow) -- never two separately-labeled "past"/"future"
+  // feeds (report section 3's own explicit instruction), and never the
+  // grouped digest-plate/EventDigestRow treatment (report section 1-2's
+  // duplication finding). Legacy (`!hasActiveLandscape`) behavior below,
+  // which still uses WeekStrip/EventDigestRow/groupByDay for its own
+  // fixture-driven path, is completely unreached by this branch and
+  // untouched.
   if (hasActiveLandscape) {
+    if (liveDataError || milestonesError || landscapeSignalsError) {
+      return <EmptyState message="Unable to load events right now — please try again." />
+    }
+    if (milestonesLoading || landscapeSignalsLoading) {
+      return <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading events…</p>
+    }
+    const dateFiltered = selectedDate
+      ? unifiedEvents.filter((item) => item.date.substring(0, 10) === selectedDate)
+      : unifiedEvents
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {eventSignals.length === 0 ? (
-          <EmptyState message="No competitive events detected yet for this landscape." />
+        <WeekStrip selectedDate={selectedDate} onDateSelect={setSelectedDate} allEvents={stripEvents} />
+        {selectedDate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', fontFamily: 'var(--font-ui)', color: 'var(--ink-800)' }}>
+              Showing events on{' '}
+              <strong>{new Date(selectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(null)}
+              style={{
+                padding: '2px 10px', borderRadius: 'var(--r-pill)',
+                fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-ui)',
+                background: 'transparent', color: 'var(--ink-600)',
+                border: '1px solid var(--cream-400)', cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        {dateFiltered.length === 0 ? (
+          <EmptyState message="No events detected yet for this landscape." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {eventSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+            {dateFiltered.map((item) => item.kind === 'signal'
+              ? <LandscapeSignalRow key={`sig-${item.signal.id}`} signal={item.signal} enrichment={enrichmentMap[item.signal.evidenceId]} dateStatus="actual" />
+              : <UpcomingEventRow key={`up-${item.event.id}`} event={item.event} />
+            )}
           </div>
         )}
       </div>
@@ -1285,7 +1505,7 @@ function MarketDevCard({ item }) {
   )
 }
 
-function MarketTab({ liveDeals, landscapeSignals, onCountChange }: { liveDeals: DbRecentSignal[]; landscapeSignals: LandscapeSignal[]; onCountChange?: (count: number) => void }) {
+function MarketTab({ liveDeals, landscapeSignals, landscapeSignalsLoading, landscapeSignalsError, enrichmentMap, onCountChange }: { liveDeals: DbRecentSignal[]; landscapeSignals: LandscapeSignal[]; landscapeSignalsLoading: boolean; landscapeSignalsError: boolean; enrichmentMap: Record<string, SignalEnrichmentResult>; onCountChange?: (count: number) => void }) {
   const { watchedCompetitors, trackedCompetitors } = useApp()
   const [activeFilter, setActiveFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'feed' | 'landscape'>('feed')
@@ -1299,12 +1519,15 @@ function MarketTab({ liveDeals, landscapeSignals, onCountChange }: { liveDeals: 
   )
   const effectiveCompetitorIds = hasActiveLandscape ? activeLandscapeIds : watchedCompetitors
 
-  // Intelligence Feed checkpoint (2026-08-25, report section 6): for an
-  // active V1 landscape, Market Developments is reserved for genuinely
-  // structural/market-changing Signal types (intelligenceFeedViews.ts's own
-  // MARKET_DEVELOPMENT_SIGNAL_TYPES docstring) -- a deliberately NARROWER
-  // subset of the same Signal universe Events reads, never every ordinary
-  // trial milestone. Zero such Signals is an honest, correct zero state,
+  // Intelligence Feed repair (2026-08-27, report section 6): for an active
+  // V1 landscape, Market Developments now uses isMarketDevelopmentSignal()'s
+  // (signalType, sourceType) eligibility rule (intelligenceFeedViews.ts) --
+  // company_disclosure/sec_edgar Signals always qualify (upstream
+  // MATERIAL_EVENT-gated by the backend), FDA/EMA Signals qualify only for
+  // the regulatory-decision type subset, CT.gov/PubMed never qualify. This
+  // replaced the prior 5-type taxonomy, which never matched the real
+  // backend signal_type vocabulary and left this tab structurally always
+  // empty. Zero eligible Signals is still an honest, correct zero state,
   // never forced diversity.
   const marketDevSignals = useMemo(() => filterMarketDevelopmentSignals(landscapeSignals), [landscapeSignals])
 
@@ -1355,19 +1578,29 @@ function MarketTab({ liveDeals, landscapeSignals, onCountChange }: { liveDeals: 
     ? sorted.filter((m: any) => m.type === 'deal')
     : sorted.filter((m: any) => m.type === 'hta' || m.type === 'payer')
 
-  // Intelligence Feed checkpoint (2026-08-25): an active V1 landscape
-  // renders the real, source-backed Market Development Signals directly --
-  // never the legacy marketData/liveDeals cards below (built around a
-  // shape a Signal doesn't have). Legacy (`!hasActiveLandscape`) behavior
-  // is completely unreached by this branch, preserved byte-for-byte.
+  // Intelligence Feed repair (2026-08-27, second pass, report section 6):
+  // an active V1 landscape renders the real, source-backed Market
+  // Development Signals via the SAME LandscapeSignalRow component Recent
+  // Signals used -- no separate card system (the previous pass's
+  // MarketDevelopmentCard was itself a second, if visually similar, list
+  // component; this reuses LandscapeSignalRow directly instead). Never the
+  // legacy marketData/liveDeals cards below (built around a shape a Signal
+  // doesn't have). Legacy (`!hasActiveLandscape`) behavior is completely
+  // unreached by this branch, preserved byte-for-byte.
   if (hasActiveLandscape) {
+    if (landscapeSignalsError) {
+      return <EmptyState message="Unable to load market developments right now — please try again." />
+    }
+    if (landscapeSignalsLoading) {
+      return <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
+    }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {marketDevSignals.length === 0 ? (
-          <EmptyState message="No market developments match the current filter." />
+          <EmptyState message="No supported market developments for this landscape yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {marketDevSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
+            {marketDevSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} enrichment={enrichmentMap[s.evidenceId]} />)}
           </div>
         )}
       </div>
@@ -1435,94 +1668,6 @@ function MarketTab({ liveDeals, landscapeSignals, onCountChange }: { liveDeals: 
 // ── Page ──────────────────────────────────────────────────────────────────────
 const TAB_NAME_TO_INDEX = { events: 0, market: 1 }
 
-// ── V1 Signal engine (2026-08-24) — real, source-backed Signals for a
-// configured landscape, chronologically. Deliberately its OWN section, NOT
-// folded into the Events/Market Developments tabs (report section 15: "do
-// not fill unrelated legacy tabs with invented content").
-// Intelligence Feed checkpoint (2026-08-25, report sections 3-4/8):
-// Default/Leadership view toggle + a bounded initial render. Default is the
-// broad operational feed (unfiltered -- unchanged from before this
-// checkpoint); Leadership is a narrower PRESENTATION of the exact same
-// scoped Signal universe (filterLeadershipSignals() reads the existing
-// `importance` field -- no second evidence store, no client-side AI, and
-// switching never mutates a Signal's own factual title/date/source).
-// INITIAL_VISIBLE_COUNT bounds the first paint (report section 8: "do not
-// dump hundreds of historical rows") without adding pagination machinery --
-// same "Show all (N)" pattern MarketWeather.tsx's own `compact` mode
-// already established, reused here for consistency rather than inventing a
-// second load-more mechanism.
-const INITIAL_VISIBLE_COUNT = 20
-
-function RecentSignalsStrip({
-  signalsList, loading, hasDiscoveredCompanies,
-}: {
-  signalsList: LandscapeSignal[]
-  loading: boolean
-  hasDiscoveredCompanies: boolean
-}) {
-  const [view, setView] = useState<'default' | 'leadership'>('default')
-  const [showAll, setShowAll] = useState(false)
-  const viewedSignals = view === 'leadership' ? filterLeadershipSignals(signalsList) : signalsList
-  const visibleSignals = showAll ? viewedSignals : viewedSignals.slice(0, INITIAL_VISIBLE_COUNT)
-
-  if (!hasDiscoveredCompanies) return null
-  return (
-    <div style={{ padding: '10px 36px 0' }}>
-      <div style={{ ...NEU_PLATE_STYLE, padding: '10px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '6px' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 600, color: 'var(--ink-900)' }}>
-            Recent signals
-          </h2>
-          {signalsList.length > 0 && (
-            <div className="seg">
-              {(['default', 'leadership'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={`seg-item${view === v ? ' is-active' : ''}`}
-                  onClick={() => { setView(v); setShowAll(false) }}
-                  style={{ border: 'none', background: view === v ? undefined : 'transparent', textTransform: 'capitalize' }}
-                >
-                  {v === 'default' ? 'Default' : 'Leadership'}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {loading ? (
-          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)' }}>Loading…</p>
-        ) : signalsList.length === 0 ? (
-          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
-            No source-backed Signals yet — check back as discovery runs.
-          </p>
-        ) : viewedSignals.length === 0 ? (
-          <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--ink-600)', fontStyle: 'italic' }}>
-            No high-priority Signals in this landscape right now.
-          </p>
-        ) : (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {visibleSignals.map((s) => <LandscapeSignalRow key={s.id} signal={s} />)}
-            </div>
-            {!showAll && viewedSignals.length > INITIAL_VISIBLE_COUNT && (
-              <button
-                type="button"
-                onClick={() => setShowAll(true)}
-                style={{
-                  marginTop: '8px', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                  fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 600, color: 'var(--indigo-600)',
-                }}
-              >
-                Show all ({viewedSignals.length})
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function Portal() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = TAB_NAME_TO_INDEX[searchParams.get('tab')]
@@ -1562,24 +1707,87 @@ export default function Portal() {
   }, [discoveredCompanyIds])
 
   // V1 Signal engine (2026-08-24): real, source-backed Signals for a
-  // configured landscape, own section (RecentSignalsStrip), never folded
-  // into the legacy Events/Market Developments tabs below. All-time (no
-  // lookback_days) -- pre-freeze fix 2026-08-24: a healthy landscape can
+  // configured landscape -- feeds MarketTab's Market Development filter
+  // (Intelligence Feed repair, 2026-08-27: no longer a separate always-on
+  // "Recent signals" section; see EventsTab/MarketTab for the two tab-owned
+  // lists this evidence now flows into). All-time (no lookback_days) --
+  // pre-freeze fix 2026-08-24: a healthy landscape can
   // have zero recent activity and still have a real, qualifying
   // historical Signal set (see Competitors.tsx's own latest-Signal fetch,
   // which already used this same no-lookback contract).
   const [landscapeSignals, setLandscapeSignals] = useState<LandscapeSignal[]>([])
   const [landscapeSignalsLoading, setLandscapeSignalsLoading] = useState(false)
+  // Intelligence Feed repair (2026-08-27, report section 9): a fetch
+  // failure must never render as an honest zero-result state. This was
+  // previously swallowed into `setLandscapeSignals([])` on catch, making a
+  // real API error indistinguishable from a landscape with zero Signals.
+  const [landscapeSignalsError, setLandscapeSignalsError] = useState(false)
   useEffect(() => {
-    if (discoveredCompanyIds.length === 0) { setLandscapeSignals([]); return }
+    if (discoveredCompanyIds.length === 0) { setLandscapeSignals([]); setLandscapeSignalsError(false); return }
     let cancelled = false
     setLandscapeSignalsLoading(true)
+    setLandscapeSignalsError(false)
     fetchLandscapeSignals(discoveredCompanyIds, indication, canonicalIndicationId)
       .then((items) => { if (!cancelled) setLandscapeSignals(items) })
-      .catch(() => { if (!cancelled) setLandscapeSignals([]) })
+      .catch(() => { if (!cancelled) { setLandscapeSignals([]); setLandscapeSignalsError(true) } })
       .finally(() => { if (!cancelled) setLandscapeSignalsLoading(false) })
     return () => { cancelled = true }
   }, [discoveredCompanyIds, indication, canonicalIndicationId])
+
+  // AI enrichment (2026-08-27 third-pass checkpoint, report section 1):
+  // fetched ONCE here (not per-tab) since Events and Market Developments
+  // both render the SAME LandscapeSignalRow over the SAME landscapeSignals
+  // array -- a single request, keyed by evidenceId, shared by both tabs.
+  // Sends only the exact factual fields already displayed for each Signal
+  // (never a second, wider data export). A fetch failure here is caught
+  // and simply leaves affected Signals without an enrichmentMap entry --
+  // LandscapeSignalRow's own `enrichment` prop already renders the
+  // factual Signal as-is when absent, never hiding it (report section 1:
+  // "fall back honestly rather than hiding it").
+  const [enrichmentMap, setEnrichmentMap] = useState<Record<string, SignalEnrichmentResult>>({})
+  useEffect(() => {
+    // Correctness fix (2026-08-27, third pass): `disease_area_id` is the
+    // SAME canonical Disease Area id (a MONDO id) already used as the
+    // authoritative landscape key for fetchLandscapeSignals()/
+    // fetchUpcomingCtgovMilestones() above -- never the mutable
+    // `resolvedDiseaseArea.preferredName` label (that remains model-facing
+    // context only, sent as disease_area_name). "Why this is related" is
+    // landscape-context-dependent, so the backend's cache is keyed by
+    // (evidence_id, disease_area_id) together; without a real canonical id
+    // there is no safe cache identity to enrich under, so this effect
+    // simply does not fetch rather than fabricate one -- the honest
+    // factual fallback (LandscapeSignalRow with no `enrichment` prop) is
+    // already correct with an empty enrichmentMap.
+    if (landscapeSignals.length === 0 || !canonicalIndicationId) return
+    let cancelled = false
+    // Bounded to the most recent ENRICHMENT_BATCH_SIZE Signals -- live
+    // testing against real Groq/Gemini (2026-08-27) showed a single batch
+    // request processes signals SEQUENTIALLY server-side (no background
+    // job queue -- "do not design a broad new AI platform"), so sending
+    // every historical Signal in one request (69 in this landscape) would
+    // block for minutes before any card shows an AI headline. Once cached,
+    // this same bounded set resolves near-instantly on every later load
+    // (evidence_store.get_signal_enrichment()); older Signals outside the
+    // bound simply keep their honest factual fallback, never a fabricated
+    // or hidden one.
+    const toEnrich = [...landscapeSignals].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, ENRICHMENT_BATCH_SIZE)
+    const items: SignalEnrichmentRequestItem[] = toEnrich.map((s) => ({
+      evidence_id: s.evidenceId,
+      disease_area_id: canonicalIndicationId,
+      company_name: s.companyName ?? s.companyId,
+      asset_name: s.assetName,
+      disease_area_name: resolvedDiseaseArea?.preferredName ?? null,
+      information_category: informationCategoryLabel(s.signalType),
+      occurred_at: s.occurredAt,
+      source_label: sourceTypeLabel(s.sourceType),
+      title: s.title,
+      description: s.description,
+    }))
+    fetchSignalEnrichment(items)
+      .then((result) => { if (!cancelled) setEnrichmentMap((prev) => ({ ...prev, ...result })) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [landscapeSignals, canonicalIndicationId, resolvedDiseaseArea])
 
   useEffect(() => {
     if (tabFromUrl !== undefined && tabFromUrl !== activeTab) {
@@ -1588,14 +1796,18 @@ export default function Portal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl])
 
+  // Same "error must not read as empty" fix as landscapeSignals above --
+  // this feeds EventsTab's real EMA-calendar data (report section 9).
+  const [liveDataError, setLiveDataError] = useState(false)
   useEffect(() => {
     Promise.all([getRegulatoryCalendar(), getRecentSignals(365), getTrialsForCalendarYear(CAL_COMPS, 2026)])
       .then(([calendar, signals, calTrials]) => {
         setLiveCalendarEvents(calendar)
         setLiveDeals(signals.filter((s) => s.signal_type === 'deal' && isQualityHeadline(s.headline)))
         setLiveTrialCells(trialsToCalendarCells(calTrials, 2026) as Record<string, Record<number, CalCell>>)
+        setLiveDataError(false)
       })
-      .catch(() => {})
+      .catch(() => setLiveDataError(true))
   }, [])
 
   return (
@@ -1606,10 +1818,6 @@ export default function Portal() {
         <TabBar active={activeTab} onChange={setActiveTab} counts={tabCounts} />
       </div>
 
-      <RecentSignalsStrip
-        signalsList={landscapeSignals} loading={landscapeSignalsLoading} hasDiscoveredCompanies={discoveredCompanyIds.length > 0}
-      />
-
       {/* Tab content */}
       <div style={{ padding: '16px 36px 36px' }}>
         {!loaded ? (
@@ -1619,8 +1827,8 @@ export default function Portal() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.35 }}
           >
-            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} landscapeSignals={landscapeSignals} onCountChange={(n) => setTabCounts((prev) => [n, prev[1]])} /></div>
-            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} landscapeSignals={landscapeSignals} onCountChange={(n) => setTabCounts((prev) => [prev[0], n])} /></div>
+            <div style={{ display: activeTab === 0 ? 'block' : 'none' }}><EventsTab liveCalendarEvents={liveCalendarEvents} liveTrialCells={liveTrialCells} liveDataError={liveDataError} landscapeSignals={landscapeSignals} landscapeSignalsLoading={landscapeSignalsLoading} landscapeSignalsError={landscapeSignalsError} enrichmentMap={enrichmentMap} onCountChange={(n) => setTabCounts((prev) => [n, prev[1]])} /></div>
+            <div style={{ display: activeTab === 1 ? 'block' : 'none' }}><MarketTab liveDeals={liveDeals} landscapeSignals={landscapeSignals} landscapeSignalsLoading={landscapeSignalsLoading} landscapeSignalsError={landscapeSignalsError} enrichmentMap={enrichmentMap} onCountChange={(n) => setTabCounts((prev) => [prev[0], n])} /></div>
           </motion.div>
         )}
       </div>

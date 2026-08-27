@@ -54,19 +54,19 @@ const resultsFirst = sig('s-2', 'RESULTS_FIRST_POSTED', 'clinicaltrials_gov')
 const notAnEvent = sig('s-3', 'COMPANY_DISCLOSURE', 'press_release') // legacy generic fallback type -- not in the section-5 taxonomy
 assert('Events counter = count of eligible types only', filterEventSignals([trialFirst, resultsFirst, notAnEvent]).length, 2)
 
-console.log('6. Market Developments counter derives from its actual (narrower) subset')
-const partnership = sig('s-4', 'PARTNERSHIP_OR_LICENSE', 'company_disclosure')
+console.log('6. Market Developments counter derives from its actual (source+type-gated) subset (2026-08-27 rule)')
+const disclosureDev = sig('s-4', 'CLINICAL_RESULTS', 'company_disclosure')
 assert(
-  'Market Developments = only structural types, never ordinary trial milestones',
-  filterMarketDevelopmentSignals([trialFirst, resultsFirst, partnership]).map((s) => s.id),
+  'Market Developments = company_disclosure/sec_edgar (always) + regulatory-decision FDA/EMA types only, never ordinary CT.gov trial milestones',
+  filterMarketDevelopmentSignals([trialFirst, resultsFirst, disclosureDev]).map((s) => s.id),
   ['s-4'],
 )
 
 console.log('7. Zero Market Developments is honest (no forced diversity, no fabricated item)')
-assert('zero structural signals -> empty array, never a placeholder', filterMarketDevelopmentSignals([trialFirst, resultsFirst]), [])
+assert('zero eligible signals -> empty array, never a placeholder', filterMarketDevelopmentSignals([trialFirst, resultsFirst]), [])
 
 console.log('8. Default includes the broader universe (every Event-eligible AND non-Event-eligible Signal alike)')
-const all = [trialFirst, resultsFirst, notAnEvent, partnership]
+const all = [trialFirst, resultsFirst, notAnEvent, disclosureDev]
 assert('Default (no filter) is the full, unfiltered set', all.length, 4)
 assert('Events is a proper subset of Default', filterEventSignals(all).every((s) => all.includes(s)), true)
 
@@ -91,12 +91,23 @@ const phaseChange = sig('s-6', 'CLINICAL_TRIAL_PHASE_CHANGE', 'clinicaltrials_go
 const completionOrTermination = sig('s-7', 'CLINICAL_TRIAL_COMPLETION_OR_TERMINATION', 'clinicaltrials_gov')
 assert('all three change-detection types are eligible Events', filterEventSignals([statusChange, phaseChange, completionOrTermination]).length, 3)
 
-console.log('12. PARTNERSHIP_OR_LICENSE/PROGRAM_DISCONTINUATION/COMMERCIAL_LAUNCH belong to BOTH Events and Market Developments by design')
+console.log('12. company_disclosure/sec_edgar Signals qualify as Market Developments regardless of signalType (upstream MATERIAL_EVENT gate)')
 const discontinuation = sig('s-8', 'PROGRAM_DISCONTINUATION', 'company_disclosure')
-const launch = sig('s-9', 'COMMERCIAL_LAUNCH', 'company_disclosure')
-const dual = [partnership, discontinuation, launch]
-assert('all three are eligible Events', filterEventSignals(dual).length, 3)
-assert('all three are also eligible Market Developments', filterMarketDevelopmentSignals(dual).length, 3)
+const launch = sig('s-9', 'COMMERCIAL_LAUNCH', 'sec_edgar')
+assert('company_disclosure Signal qualifies regardless of signalType', filterMarketDevelopmentSignals([discontinuation]), [discontinuation])
+assert('sec_edgar Signal qualifies regardless of signalType', filterMarketDevelopmentSignals([launch]), [launch])
+
+console.log('13. FDA/EMA Signals only qualify as Market Developments for the regulatory-decision type subset')
+const fdaApproval = sig('s-10', 'REGULATORY_APPROVAL', 'fda_drugs_at_fda')
+const emaIndicationExpansion = sig('s-11', 'INDICATION_EXPANSION', 'ema_epar')
+const fdaTrialFirstPosted = sig('s-12', 'TRIAL_FIRST_POSTED', 'fda_drugs_at_fda') // not a real combination, but the rule must still hold
+assert('FDA REGULATORY_APPROVAL qualifies', filterMarketDevelopmentSignals([fdaApproval]), [fdaApproval])
+assert('EMA INDICATION_EXPANSION qualifies', filterMarketDevelopmentSignals([emaIndicationExpansion]), [emaIndicationExpansion])
+assert('FDA non-regulatory-decision type does not qualify', filterMarketDevelopmentSignals([fdaTrialFirstPosted]), [])
+
+console.log('14. clinicaltrials_gov/pubmed Signals never qualify as Market Developments, regardless of signalType')
+const pubmedResult = sig('s-13', 'REGULATORY_APPROVAL', 'pubmed') // not a real combination, but the rule must still hold
+assert('pubmed-sourced Signal never qualifies', filterMarketDevelopmentSignals([pubmedResult]), [])
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) (process as any).exit(1)
