@@ -29,7 +29,6 @@ import { Link } from 'react-router-dom'
 // registry.json, same check as NavPanel.tsx).
 import { Circle, PauseCircle, Inbox, AlertTriangle, Bookmark, BookmarkCheck } from 'lucide-react'
 import type { NavIcon } from '../components/animate-ui/icons/types'
-import { Plus } from '../components/animate-ui/icons/plus'
 import { CircleCheckBig as CheckCircle2 } from '../components/animate-ui/icons/circle-check-big'
 import { CircleX as XCircle } from '../components/animate-ui/icons/circle-x'
 import { ChevronUp } from '../components/animate-ui/icons/chevron-up'
@@ -50,7 +49,6 @@ import { Accordion as AccordionPrimitive } from 'radix-ui'
 import { Tabs, TabsList, TabsTrigger } from '../components/animate-ui/components/radix/tabs'
 import { Button } from '../components/shadcn/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/animate-ui/components/radix/tooltip'
-import { Shine } from '../components/animate-ui/primitives/effects/shine'
 import { usePageLoad } from '../hooks/usePageLoad'
 import { competitorsData, eventsData, userData } from '../data/kalvista'
 import { activeLandscapeSignalScope } from '../lib/activeLandscape'
@@ -383,7 +381,7 @@ function UpcomingEventsList({ events }: { events: NextUpEvent[] }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WarRoom() {
   const {
-    openAskModal, watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
+    watchedCompetitors, trackedCompetitors, handlingStates, getHandlingState, setHandlingState,
     savedAlerts, toggleSavedAlert, landscapeConfiguration, resolvedDiseaseArea,
     ensureHydration,
   } = useApp()
@@ -860,27 +858,14 @@ export default function WarRoom() {
     <div data-page-pad className="war-room-page signals-app-bg">
 
       {/* Header */}
-      <div className="war-room-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--neutral-600)' }}>
-            {headerTimestamp(lastRefreshedAt)}
-          </p>
-          <h1 className="war-room-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--neutral-900)', lineHeight: 1.25 }}>
-            {greeting()}, {userData.user.name}.{' '}
-            <span style={{ color: 'var(--neutral-600)', fontWeight: 500 }}>Here&rsquo;s what needs you in {indication}.</span>
-          </h1>
-        </div>
-        <Shine asChild enableOnHover color="#ffffff" opacity={0.45} duration={700}>
-          <Button
-            type="button"
-            onClick={() => openAskModal('war-room-header-ask')}
-            size="sm"
-            style={{ flexShrink: 0, marginTop: '4px' }}
-          >
-            <Plus size={14} strokeWidth={2.5} aria-hidden="true" animateOnHover />
-            Ask Ariya
-          </Button>
-        </Shine>
+      <div className="war-room-header">
+        <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--neutral-600)' }}>
+          {headerTimestamp(lastRefreshedAt)}
+        </p>
+        <h1 className="war-room-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--neutral-900)', lineHeight: 1.25 }}>
+          {greeting()}, {userData.user.name}.{' '}
+          <span style={{ color: 'var(--neutral-600)', fontWeight: 500 }}>Here&rsquo;s what needs you in {indication}.</span>
+        </h1>
       </div>
 
       {/* KPI card row — screenshot-matched restoration (pre-freeze unit 2,

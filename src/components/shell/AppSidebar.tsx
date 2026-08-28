@@ -15,6 +15,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator,
 } from '../shadcn/ui/sidebar'
 import { NavMain, type NavMainItem } from '../shadcn/nav-main'
 import { NavSecondary, type NavSecondaryItem } from '../shadcn/nav-secondary'
@@ -43,14 +45,21 @@ function BrandMark() {
 }
 
 /**
- * Active-landscape context, e.g. "Neurology · gMG" + "RYSTIGGO" -- real
+ * Active-landscape identity, e.g. "RYSTIGGO" + "Neurology · gMG" -- real
  * canonical config only, never fabricated. Home Asset AND Disease Area both
  * resolve via useConfig()'s own shared resolvers (homeAssetDisplay /
  * diseaseAreaDisplay, Targeted Implementation 4 / 2) -- manual -> resolved ->
  * legacy catalog, in that order -- rather than a direct getAssetById()/
  * getDiseaseAreaById() call, which only ever resolves a legacy static
- * catalog id. Never a second, competing priority chain. Neutral copy when
- * setup is incomplete.
+ * catalog id. Never a second, competing priority chain.
+ *
+ * Two lines only (matches SidebarMenuButton size="lg"'s h-12 budget, the
+ * SAME shape the upstream sidebar-08 block uses for "Team name / Plan") --
+ * a THIRD line (a static "Ariya Signals" label above this) used to overflow
+ * that fixed height and clip a few px off the header's top edge. The brand
+ * mark to its left already carries brand identity, so this block spends
+ * both lines on the one thing that actually changes per session: which
+ * landscape is active. Neutral copy when setup is incomplete.
  */
 function LandscapeContext() {
   const { landscapeConfiguration } = useApp()
@@ -60,13 +69,18 @@ function LandscapeContext() {
   const therapeuticArea = therapeuticAreaId ? getTherapeuticAreaById(therapeuticAreaId) : undefined
 
   if (!therapeuticArea || !diseaseAreaDisplay || !homeAssetDisplay) {
-    return <p className="truncate text-xs text-sidebar-foreground/60">Landscape not configured</p>
+    return (
+      <div className="min-w-0">
+        <span className="truncate text-sm font-semibold">Ariya Signals</span>
+        <p className="truncate text-xs text-sidebar-foreground/60">Landscape not configured</p>
+      </div>
+    )
   }
 
   return (
     <div className="min-w-0">
+      <p className="truncate text-sm font-semibold">{homeAssetDisplay.displayName}</p>
       <p className="truncate text-xs text-sidebar-foreground/60">{therapeuticArea.name} · {diseaseAreaDisplay.shortCode ?? diseaseAreaDisplay.name}</p>
-      <p className="truncate text-xs font-medium">{homeAssetDisplay.displayName}</p>
     </div>
   )
 }
@@ -100,7 +114,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" onClick={() => navigate('/')} className="cursor-pointer">
               <BrandMark />
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate text-sm font-semibold">Ariya Signals</span>
                 <LandscapeContext />
               </div>
             </SidebarMenuButton>
@@ -108,14 +121,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
 
+      <SidebarSeparator className="mx-0" />
+
       <SidebarContent>
         <NavMain label="Monitor" items={MONITOR} />
         <NavSecondary items={secondary} className="mt-auto" />
       </SidebarContent>
 
+      <SidebarSeparator className="mx-0" />
+
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
+
+      {/* Canonical sidebar-08 affordance (was missing from this adaptation):
+          a draggable edge for pointer users to resize/toggle the sidebar,
+          in addition to the header's SidebarTrigger button. */}
+      <SidebarRail />
 
       <HelpModal open={helpOpen} onOpenChange={setHelpOpen} onTakeTour={handleTakeTour} />
     </Sidebar>
