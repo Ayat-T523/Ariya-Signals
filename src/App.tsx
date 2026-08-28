@@ -84,7 +84,14 @@ function AuthGuard() {
 // dedicated /setup page instead of the normal workspace. Once setup is
 // complete, /setup itself stays reachable (NAV 4 — reopening to edit).
 function SetupGuard() {
-  const { onboardingComplete } = useApp()
+  const { onboardingComplete, isUserScopeReady } = useApp()
+  // Reload-race fix (2026-08-28): onboardingComplete reads the pre-
+  // correction default (see AppContextValue.isUserScopeReady's own
+  // docstring) until this user's own scoped state has actually landed --
+  // deciding on it before then can send an already-onboarded user back to
+  // /setup on every reload. Same isLoading-gate pattern AuthGuard already
+  // uses above, for the same reason.
+  if (!isUserScopeReady) return <PageLoader />
   if (!onboardingComplete) return <Navigate to="/setup" replace />
   return <Outlet />
 }

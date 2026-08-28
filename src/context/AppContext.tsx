@@ -51,6 +51,22 @@ export interface AppContextValue {
   toggleSavedAlert: (alertId: string) => void
   unreadCount: number
   syncUnreadCount: (n: number) => void
+  /**
+   * Reload-race fix (2026-08-28): `false` for the brief window between
+   * mount (userId unknowable synchronously, see the user-scoped-state-
+   * correction comment below) and the corrective useLayoutEffect actually
+   * applying this user's own onboardingComplete/landscape/tracked-
+   * competitor state. `onboardingComplete` (and every other user-scoped
+   * field below) is NOT trustworthy for a routing decision until this is
+   * `true` -- consuming it before then (real production symptom,
+   * Supabase auth resolution has real network latency unlike local-mode
+   * auth) reads the pre-correction default and can commit to the WRONG
+   * redirect (e.g. SetupGuard sending an already-onboarded user back to
+   * /setup) before the correction has a chance to land. Mirrors
+   * AuthGuard's own `isLoading` gate in App.tsx -- any route guard
+   * reading onboardingComplete must wait on this the same way.
+   */
+  isUserScopeReady: boolean
   onboardingComplete: boolean
   /**
    * Staged setup completion (Frontend "Build Full-Page Staged Landscape
@@ -376,6 +392,18 @@ export function AppProvider({ children }) {
   // ONBOARDING_VERSION and the parsing logic now live at module scope (see
   // readOnboardingComplete()), shared with the corrective effect below.
   const [onboardingComplete, setOnboardingComplete] = useState(() => readOnboardingComplete(null))
+  // Reload-race fix (2026-08-28), corrected: `userId !== null` alone is NOT
+  // a safe isUserScopeReady signal -- it flips true the INSTANT userId
+  // resolves, one render BEFORE the useLayoutEffect below (which corrects
+  // onboardingComplete for that userId) has actually run, since effects
+  // commit strictly after the render that triggered them. SetupGuard reading
+  // both in that one stale render sees isUserScopeReady=true with
+  // onboardingComplete still at its pre-correction default -- the exact
+  // same bug, just narrowed to one frame instead of removed. This flag is
+  // instead set FROM INSIDE that same effect, in the same commit as
+  // onboardingComplete's own correction, so a consumer can never observe
+  // one without the other.
+  const [isUserScopeReady, setIsUserScopeReady] = useState(false)
 
   // ── User role ────────────────────────────────────────────────────────────
   const [userRole, setUserRoleState] = useState(() => {
@@ -579,6 +607,7 @@ export function AppProvider({ children }) {
     setUserIndicationState(readUserIndication(userId))
     setUserAssetNameState(readUserAssetName(userId))
     setUserAssetIdState(readUserAssetId(userId))
+    setIsUserScopeReady(true)
   }, [userId])
 
   // ── Historical evidence hydration coverage (Step 1, 2026-08-24) ──────────
@@ -817,6 +846,7 @@ export function AppProvider({ children }) {
         toggleSavedAlert,
         unreadCount,
         syncUnreadCount,
+        isUserScopeReady,
         onboardingComplete,
         trackedCompetitors,
         manualHomeAsset,
