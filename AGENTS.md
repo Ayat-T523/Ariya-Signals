@@ -1,19 +1,20 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Read HANDOFF.md first
 
 Before doing anything else this session, read [HANDOFF.md](HANDOFF.md) — it's
 the current project state (open threads, what just landed, what's paused),
-kept up to date across machines/accounts so you don't have to guess or ask.
-This file (CLAUDE.md) covers architecture/conventions that don't change
-session to session; HANDOFF.md covers what's actually going on right now.
-Update HANDOFF.md before ending a session whose state has changed.
+kept up to date across machines/accounts (Claude Code and Codex both work in
+this repo) so you don't have to guess or ask. This file (AGENTS.md) covers
+architecture/conventions that don't change session to session; HANDOFF.md
+covers what's actually going on right now. Update HANDOFF.md before ending a
+session whose state has changed.
 
-**Note:** this file's content is a near-duplicate of this repo's `AGENTS.md`
+**Note:** this file's content is a near-duplicate of this repo's `CLAUDE.md`
 (same architecture, kept for Codex's own convention). If you change
-architecture/convention facts here, mirror the change in `AGENTS.md` too —
+architecture/convention facts here, mirror the change in `CLAUDE.md` too —
 they're meant to describe the same reality for two different tools.
 
 ## graphify
